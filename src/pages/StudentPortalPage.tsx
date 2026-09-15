@@ -1,0 +1,114 @@
+import React, { useState } from 'react';
+import Header from '../components/common/Header';
+import ProfileModal from '../components/common/ProfileModal';
+import MyTeamView from '../components/student/MyTeamView';
+import SubmissionView from '../components/student/SubmissionView';
+import MySubmissionView from '../components/student/MySubmissionView';
+import { StudentService } from '../services/studentService';
+import { Users, Send, Clock, CheckCircle2 } from 'lucide-react';
+
+type StudentTab = 'my-team' | 'submission' | 'my-submission';
+
+export const StudentPortalPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<StudentTab>('my-team');
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [bottomToast, setBottomToast] = useState<string | null>(null);
+
+  const team = StudentService.getTeam();
+
+  const showToast = (message: string) => {
+    setBottomToast(message);
+    setTimeout(() => {
+      setBottomToast(null);
+    }, 4500);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#EFF3F1] flex flex-col font-sans relative">
+      
+      {/* Top Institutional Header */}
+      <Header
+        title="Student Project Portal"
+        subtitle="Department of Computer Science and Engineering"
+        onOpenProfile={() => setProfileModalOpen(true)}
+      />
+
+      {/* Sticky Horizontal Navigation Bar: Strictly 3 Tabs - Center Aligned */}
+      <div className="bg-white border-b border-[#E2E8E4] sticky top-16 z-30 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">
+            
+            {/* 1. My Team Tab */}
+            <button
+              id="tabStudentMyTeam"
+              onClick={() => setActiveTab('my-team')}
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'my-team'
+                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
+                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+              }`}
+            >
+              <Users size={16} />
+              <span>My Team</span>
+            </button>
+
+            {/* 2. Submission Tab */}
+            <button
+              id="tabStudentSubmission"
+              onClick={() => setActiveTab('submission')}
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'submission'
+                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
+                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+              }`}
+            >
+              <Send size={16} />
+              <span>Submission</span>
+            </button>
+
+            {/* 3. My Submission Tab */}
+            <button
+              id="tabStudentMySubmission"
+              onClick={() => setActiveTab('my-submission')}
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'my-submission'
+                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
+                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+              }`}
+            >
+              <Clock size={16} />
+              <span>My Submission</span>
+            </button>
+
+          </nav>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
+        {activeTab === 'my-team' && <MyTeamView team={team} />}
+        {activeTab === 'submission' && <SubmissionView onSuccess={showToast} />}
+        {activeTab === 'my-submission' && <MySubmissionView onSuccess={showToast} />}
+      </main>
+
+      {/* Non-intrusive bottom notification message banner */}
+      {bottomToast && (
+        <div className="fixed bottom-6 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+          <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-bold border border-slate-700 animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-auto">
+            <CheckCircle2 size={16} className="text-mint-400 shrink-0" />
+            <span>{bottomToast}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+      />
+
+    </div>
+  );
+};
+
+export default StudentPortalPage;

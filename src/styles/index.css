@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-canvas: #EFF3F1;
+  --bg-canvas-subtle: #E5EBE7;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #F8FAF9;
+
+  --mint-50: #F0FDF4;
+  --mint-100: #DCFCE7;
+  --mint-200: #BBF7D0;
+  --mint-300: #A7F3D0;
+  --mint-500: #10B981;
+  --mint-600: #059669;
+  --mint-700: #047857;
+  --mint-800: #065F46;
+  --mint-900: #064E3B;
+
+  --mint-circle-bg: #D4F7E2;
+  --mint-circle-icon: #065F46;
+
+  --border-card: #E2E8E4;
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #EFF3F1;
+    color: #0F172A;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #E5EBE7;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #A7F3D0;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #10B981;
+}
+
+/* Floating animation */
+@keyframes floatAnim {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-float {
+  animation: floatAnim 4s ease-in-out infinite;
+}
+
+/* Transitions */
+.transition-sidebar {
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
