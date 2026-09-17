@@ -77,20 +77,20 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       
       {/* Top Filter & Actions Header */}
-      <div className="bg-white rounded-3xl p-6 shadow-card border border-[#E2E8E4] flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#D8CCBA] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-extrabold text-slate-900">
+            <h2 className="text-lg font-serif font-bold text-[#111111]">
               Registered Students ({filteredStudents.length})
             </h2>
-            <span className="text-xs text-mint-700 bg-mint-50 border border-mint-200 px-2.5 py-0.5 rounded-full font-bold">
+            <span className="text-xs text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] px-2.5 py-0.5 rounded-full font-medium">
               Enrollment Database
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">Manage candidates, academic class mapping &amp; project teams</p>
+          <p className="text-xs text-[#75695A] mt-0.5">Manage candidates, academic class mapping &amp; project teams</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -99,7 +99,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
           <select
             value={batchFilter}
             onChange={(e) => setBatchFilter(e.target.value)}
-            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+            className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
           >
             <option value="ALL">All Batches</option>
             <option value="2023-2027 (III Year)">2023-2027 (III Year)</option>
@@ -111,7 +111,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
           <select
             value={sectionFilter}
             onChange={(e) => setSectionFilter(e.target.value)}
-            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+            className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
           >
             <option value="ALL">All Sections</option>
             <option value="CSE-A">Section CSE-A</option>
@@ -121,20 +121,20 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
 
           {/* Single Search Bar */}
           <div className="relative w-full sm:w-56">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#75695A]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search student or roll no..."
-              className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800 placeholder-slate-400"
+              className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]/60"
             />
           </div>
 
           {/* Add Student Button */}
           <button
             onClick={() => setAddModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-mint-500 hover:bg-mint-600 text-white font-extrabold flex items-center gap-1.5 transition text-xs shadow-sm shrink-0"
+            className="px-3.5 py-2 rounded-xl bg-[#111111] hover:bg-[#292725] text-white font-medium flex items-center gap-1.5 transition text-xs shadow-sm shrink-0"
           >
             <Plus size={14} />
             <span>Add Student</span>
@@ -143,22 +143,22 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
           {/* Import Spreadsheet */}
           <button
             onClick={() => setImportModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-[#EFF3F1] hover:bg-mint-100 text-slate-700 font-bold flex items-center gap-1.5 transition text-xs border border-[#E2E8E4] shrink-0"
+            className="px-3.5 py-2 rounded-xl bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#111111] font-medium flex items-center gap-1.5 transition text-xs border border-[#D8CCBA] shrink-0"
           >
-            <FileSpreadsheet size={14} className="text-mint-700" />
+            <FileSpreadsheet size={14} className="text-[#111111]" />
             <span>Import</span>
           </button>
 
           {/* Manage Toggle */}
           <button
             onClick={() => setIsManageMode(!isManageMode)}
-            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs ${
+            className={`px-3.5 py-2 rounded-xl font-medium transition flex items-center gap-1.5 text-xs ${
               isManageMode
-                ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
-                : 'bg-[#EFF3F1] hover:bg-mint-100 text-slate-700 border border-[#E2E8E4]'
+                ? 'bg-[#111111] text-white border border-[#111111] shadow-xs'
+                : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]'
             }`}
           >
-            <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
+            <RotateCw size={13} className={isManageMode ? 'text-white' : 'text-[#75695A]'} />
             <span>{isManageMode ? 'Done Managing' : 'Manage'}</span>
           </button>
 
@@ -167,7 +167,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
             type="button"
             onClick={() => window.location.reload()}
             title="Refresh page"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
+            className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
             aria-label="Refresh page"
           >
             <RefreshCw size={14} />
@@ -178,29 +178,23 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
 
       {/* Class Advisor Banner (Rendered above the table) */}
       {sectionFilter !== 'ALL' && (
-        <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-          currentAdvisor
-            ? 'bg-white border-[#E2E8E4] shadow-xs'
-            : 'bg-amber-50/70 border-amber-200'
-        }`}>
+        <div className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F8F5EE] border-[#D8CCBA] shadow-xs">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-              currentAdvisor ? 'bg-mint-100 text-mint-800' : 'bg-amber-100 text-amber-800'
-            }`}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]">
               {currentAdvisor ? <UserCheck size={20} /> : <AlertCircle size={20} />}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Designated Class Advisor:</span>
-                <span className="text-xs font-extrabold text-slate-900">
+                <span className="text-xs font-medium text-[#75695A] uppercase tracking-wider">Designated Class Advisor:</span>
+                <span className="text-xs font-bold text-[#111111]">
                   {currentAdvisor ? currentAdvisor.name : 'Not Assigned'}
                 </span>
                 {currentAdvisor && (
-                  <span className="text-[11px] text-slate-400 font-mono">({currentAdvisor.email})</span>
+                  <span className="text-[11px] text-[#75695A] font-mono">({currentAdvisor.email})</span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Class: <strong className="text-slate-800">{sectionFilter}</strong> • Academic Batch: <strong className="text-slate-800">{batchFilter}</strong>
+              <p className="text-[11px] text-[#75695A] mt-0.5">
+                Class: <strong className="text-[#111111]">{sectionFilter}</strong> • Academic Batch: <strong className="text-[#111111]">{batchFilter}</strong>
               </p>
             </div>
           </div>
@@ -208,7 +202,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
           {!currentAdvisor && (
             <button
               onClick={() => setAssignAdvisorModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold flex items-center gap-1.5 transition text-xs shadow-sm self-start sm:self-auto shrink-0"
+              className="px-3.5 py-1.5 rounded-xl bg-[#111111] hover:bg-[#292725] text-white font-medium flex items-center gap-1.5 transition text-xs shadow-sm self-start sm:self-auto shrink-0"
             >
               <UserCheck size={13} />
               <span>Assign Advisor</span>
@@ -218,10 +212,10 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
       )}
 
       {/* Students Table */}
-      <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-sm border border-[#D8CCBA] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8FAF9] text-slate-500 uppercase tracking-wider font-bold border-b border-[#E2E8E4]">
+            <thead className="bg-[#EDE7DB] text-[#75695A] uppercase tracking-wider font-semibold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4">Register Number</th>
                 <th className="p-4">Candidate Name</th>
@@ -232,38 +226,38 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                 {isManageMode && <th className="p-4 text-center">Action</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8E4] font-medium">
+            <tbody className="divide-y divide-[#D8CCBA] font-normal">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={isManageMode ? 7 : 6} className="p-8 text-center text-slate-400">
+                  <td colSpan={isManageMode ? 7 : 6} className="p-8 text-center text-[#75695A]">
                     No candidates found for the selected filters.
                   </td>
                 </tr>
               ) : (
                 filteredStudents.map((s) => (
-                  <tr key={s.rollNo} className="hover:bg-mint-50/40 transition">
-                    <td className="p-4 font-mono font-bold text-mint-900 whitespace-nowrap">{s.rollNo}</td>
+                  <tr key={s.rollNo} className="hover:bg-[#F8F5EE]/60 transition">
+                    <td className="p-4 font-mono font-medium text-[#111111] whitespace-nowrap">{s.rollNo}</td>
                     <td className="p-4">
-                      <div className="font-extrabold text-slate-900">{s.name}</div>
-                      <span className="text-[11px] text-slate-400 font-mono">{s.email}</span>
+                      <div className="font-bold text-[#111111]">{s.name}</div>
+                      <span className="text-[11px] text-[#75695A] font-mono">{s.email}</span>
                     </td>
                     <td className="p-4">
-                      <span className="px-2.5 py-0.5 rounded-md bg-mint-50 text-mint-900 border border-mint-200 font-bold">
+                      <span className="px-2.5 py-0.5 rounded-md bg-[#F8F5EE] text-[#111111] border border-[#D8CCBA] font-medium">
                         {s.classSection}
                       </span>
                     </td>
-                    <td className="p-4 font-bold text-mint-700 whitespace-nowrap">{s.teamNo}</td>
-                    <td className="p-4 max-w-xs truncate text-slate-700 font-semibold" title={s.projectTitle}>
+                    <td className="p-4 font-bold text-[#111111] whitespace-nowrap">{s.teamNo}</td>
+                    <td className="p-4 max-w-xs truncate text-[#292725] font-normal" title={s.projectTitle}>
                       {s.projectTitle}
                     </td>
-                    <td className="p-4 text-slate-800 font-bold whitespace-nowrap">{s.guide}</td>
+                    <td className="p-4 text-[#111111] font-medium whitespace-nowrap">{s.guide}</td>
 
                     {isManageMode && (
                       <td className="p-4 text-center">
                         <button
                           onClick={() => handleDeleteClick(s)}
                           title="Remove Candidate"
-                          className="w-8 h-8 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 inline-flex items-center justify-center transition"
+                          className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 inline-flex items-center justify-center transition"
                         >
                           <Trash2 size={14} />
                         </button>

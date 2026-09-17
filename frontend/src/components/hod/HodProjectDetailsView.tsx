@@ -203,22 +203,22 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
       
       {/* Toast Notification */}
       {downloadToast && (
-        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border border-slate-700 animate-in fade-in slide-in-from-top-2">
-          <Download size={14} className="text-mint-400" />
+        <div className="fixed top-20 right-6 z-50 bg-[#111111] text-[#F8F5EE] px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-medium border border-[#292725] animate-in fade-in slide-in-from-top-2">
+          <Download size={14} className="text-[#D8CCBA]" />
           <span>{downloadToast}</span>
         </div>
       )}
 
-      {/* 1. Filter Option Row (Clean, no extra marketing/banner content) */}
-      <div className="bg-white rounded-2xl p-4 shadow-card border border-[#E2E8E4] flex flex-wrap items-center gap-3">
+      {/* 1. Filter Option Row */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#D8CCBA] flex flex-wrap items-center gap-3">
         
         {/* Class Filter */}
         <div className="flex items-center gap-1.5">
-          <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Class:</label>
+          <label className="text-xs font-semibold text-[#75695A] whitespace-nowrap">Class:</label>
           <select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
-            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+            className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111]"
           >
             <option value="ALL">All Classes</option>
             <option value="CSE-A">Class CSE-A</option>
@@ -229,11 +229,11 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
         {/* Batch Filter */}
         <div className="flex items-center gap-1.5">
-          <label className="text-xs font-bold text-slate-500 whitespace-nowrap">Batch:</label>
+          <label className="text-xs font-semibold text-[#75695A] whitespace-nowrap">Batch:</label>
           <select
             value={batchFilter}
             onChange={(e) => setBatchFilter(e.target.value)}
-            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+            className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111]"
           >
             <option value="ALL">All Batches</option>
             <option value="2023-2027 (III Year)">2023-2027 (III Year)</option>
@@ -242,9 +242,9 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
           </select>
         </div>
 
-        {/* Search Bar - Clicking or pressing search automatically sets class and batch to ALL */}
+        {/* Search Bar */}
         <div className="relative flex-1 min-w-[220px] sm:max-w-xs">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#75695A]" />
           <input
             type="text"
             value={searchTerm}
@@ -252,14 +252,14 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
             onFocus={handleSearchClick}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search candidate, roll no, or title..."
-            className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800 placeholder-slate-400"
+            className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]"
           />
         </div>
 
         <button
           type="button"
           onClick={handleSearchClick}
-          className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+          className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95"
         >
           <Search size={13} />
           <span>Search</span>
@@ -270,7 +270,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
           type="button"
           onClick={() => window.location.reload()}
           title="Refresh page"
-          className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
+          className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
           aria-label="Refresh page"
         >
           <RefreshCw size={14} />
@@ -279,20 +279,20 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
       </div>
 
       {/* 2. Teams in Selected Class */}
-      <div className="bg-white rounded-3xl p-6 shadow-card border border-[#E2E8E4] space-y-3">
-        <div className="flex items-center justify-between border-b border-[#E2E8E4] pb-3">
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#D8CCBA] space-y-3">
+        <div className="flex items-center justify-between border-b border-[#D8CCBA] pb-3">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+            <h3 className="text-xs font-serif font-bold text-[#111111] uppercase tracking-wider">
               {classFilter === 'ALL' ? 'All Student Teams' : `Teams in Class ${classFilter}`}
             </h3>
-            <span className="px-2 py-0.5 rounded-full bg-mint-100 text-mint-900 border border-mint-200 text-[10px] font-black">
+            <span className="px-2 py-0.5 rounded-full bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-[10px] font-bold">
               {matchingTeams.length} {matchingTeams.length === 1 ? 'Team' : 'Teams'}
             </span>
           </div>
         </div>
 
         {matchingTeams.length === 0 ? (
-          <div className="py-8 text-center text-xs text-slate-400">
+          <div className="py-8 text-center text-xs text-[#75695A]">
             No teams found for the selected class or filters.
           </div>
         ) : (
@@ -311,31 +311,31 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                   }}
                   className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between gap-2.5 cursor-pointer ${
                     isSelected
-                      ? 'bg-mint-50/80 border-mint-500 shadow-sm ring-2 ring-mint-400/40'
-                      : 'bg-white border-[#E2E8E4] hover:border-mint-300 hover:bg-slate-50'
+                      ? 'bg-[#F8F5EE] border-[#111111] shadow-sm ring-1 ring-[#111111]'
+                      : 'bg-white border-[#D8CCBA] hover:border-[#111111]/40 hover:bg-[#F8F5EE]/40'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="px-2.5 py-0.5 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 text-xs font-black">
+                    <span className="px-2.5 py-0.5 rounded-lg bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-bold">
                       {team.teamNo}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-[#75695A] font-mono">
                       Class {team.classSection}
                     </span>
                   </div>
 
                   <div>
-                    <h4 className="font-extrabold text-slate-900 text-xs line-clamp-1">
+                    <h4 className="font-bold text-[#111111] text-xs line-clamp-1">
                       {team.projectTitle}
                     </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <p className="text-[11px] text-[#75695A] mt-0.5">
                       Lead: {leadMember?.name || 'Student'} ({leadMember?.rollNo})
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-[#E2E8E4]/60 pt-2 mt-0.5">
+                  <div className="flex items-center justify-between text-[10px] text-[#75695A] border-t border-[#D8CCBA]/60 pt-2 mt-0.5">
                     <span>Guide: {team.guide?.name?.split(' ')?.[0] || 'Guide'}</span>
-                    <span className="font-extrabold text-mint-700">{team.status}</span>
+                    <span className="font-semibold text-[#4A5844]">{team.status}</span>
                   </div>
                 </button>
               );
@@ -349,31 +349,31 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
         <div className="space-y-6">
           
           {/* Team Header Summary Card */}
-          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-card border border-[#E2E8E4] space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-sm border border-[#D8CCBA] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D8CCBA] pb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="px-3 py-1 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-black text-xs">
+                  <span className="px-3 py-1 rounded-xl bg-[#111111] text-[#F8F5EE] font-bold text-xs">
                     {activeTeam.teamNo}
                   </span>
-                  <span className="text-xs text-slate-500 font-mono font-bold bg-slate-100 px-2 py-0.5 rounded-md">
+                  <span className="text-xs text-[#75695A] font-mono font-medium bg-[#EDE7DB] px-2 py-0.5 rounded-md">
                     {activeTeam.id}
                   </span>
                 </div>
-                <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
+                <h2 className="text-base sm:text-lg font-serif font-bold text-[#111111]">
                   {activeTeam.projectTitle}
                 </h2>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-[#75695A]">
                   Batch: {activeTeam.batch} &bull; Section: Class {activeTeam.classSection}
                 </span>
               </div>
 
               <div className="flex items-center gap-3 self-start sm:self-center">
                 <div className="text-right">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Status</span>
-                  <span className="text-sm font-extrabold text-mint-700">{activeTeam.status}</span>
+                  <span className="text-[10px] uppercase font-semibold text-[#75695A] block">Status</span>
+                  <span className="text-sm font-bold text-[#4A5844]">{activeTeam.status}</span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-xs">
+                <div className="w-10 h-10 rounded-2xl bg-[#111111] text-[#F8F5EE] flex items-center justify-center font-bold shadow-xs">
                   <ShieldCheck size={20} />
                 </div>
               </div>
@@ -381,32 +381,32 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
             {/* Advisor & Guide quick summary */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 bg-[#EFF3F1]/70 rounded-xl border border-[#E2E8E4] flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0">
+              <div className="p-3 bg-[#F8F5EE] rounded-xl border border-[#D8CCBA] flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center shrink-0">
                   <Compass size={18} />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Designated Class Advisor</span>
-                  <span className="font-extrabold text-slate-900 block">{activeTeam.advisor?.name}</span>
-                  <span className="text-[10px] text-slate-500">{activeTeam.advisor?.email}</span>
+                  <span className="text-[10px] text-[#75695A] font-semibold uppercase tracking-wider block">Designated Class Advisor</span>
+                  <span className="font-bold text-[#111111] block">{activeTeam.advisor?.name}</span>
+                  <span className="text-[10px] text-[#75695A]">{activeTeam.advisor?.email}</span>
                 </div>
               </div>
 
-              <div className="p-3 bg-[#EFF3F1]/70 rounded-xl border border-[#E2E8E4] flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-900 flex items-center justify-center shrink-0">
+              <div className="p-3 bg-[#F8F5EE] rounded-xl border border-[#D8CCBA] flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center shrink-0">
                   <BookOpen size={18} />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Project Technical Guide</span>
-                  <span className="font-extrabold text-slate-900 block">{activeTeam.guide?.name}</span>
-                  <span className="text-[10px] text-slate-500">{activeTeam.guide?.email}</span>
+                  <span className="text-[10px] text-[#75695A] font-semibold uppercase tracking-wider block">Project Technical Guide</span>
+                  <span className="font-bold text-[#111111] block">{activeTeam.guide?.name}</span>
+                  <span className="text-[10px] text-[#75695A]">{activeTeam.guide?.email}</span>
                 </div>
               </div>
             </div>
 
             {/* Team Members */}
             <div>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-2">
+              <span className="text-[10px] text-[#75695A] font-semibold uppercase tracking-wider block mb-2">
                 Team Members ({activeTeam.members?.length || 4}):
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
@@ -414,23 +414,23 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                   const memberMark = MarksService.getMemberMark(activeTeam.id, selectedWeek, m.rollNo);
 
                   return (
-                    <div key={m.rollNo} className="p-2.5 rounded-xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between">
+                    <div key={m.rollNo} className="p-2.5 rounded-xl bg-[#F8F5EE] border border-[#D8CCBA] flex flex-col justify-between">
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-900 truncate">{m.name}</span>
+                          <span className="font-bold text-[#111111] truncate">{m.name}</span>
                           {m.isLead && (
-                            <span className="px-1.5 py-0.2 rounded bg-mint-100 text-mint-900 text-[9px] font-black uppercase">
+                            <span className="px-1.5 py-0.2 rounded bg-[#111111] text-[#F8F5EE] text-[9px] font-bold uppercase">
                               Lead
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">{m.rollNo}</span>
+                        <span className="text-[10px] text-[#75695A] font-mono block mt-0.5">{m.rollNo}</span>
                       </div>
 
                       {typeof memberMark === 'number' && (
-                        <div className="mt-2 pt-1.5 border-t border-[#E2E8E4]/60 flex items-center justify-between text-[10px]">
-                          <span className="text-slate-400 font-semibold">W{selectedWeek} Mark:</span>
-                          <span className="font-extrabold text-mint-900 bg-mint-100 px-1.5 py-0.2 rounded border border-mint-200">
+                        <div className="mt-2 pt-1.5 border-t border-[#D8CCBA]/60 flex items-center justify-between text-[10px]">
+                          <span className="text-[#75695A] font-medium">W{selectedWeek} Mark:</span>
+                          <span className="font-bold text-[#111111] bg-[#EDE7DB] px-1.5 py-0.2 rounded border border-[#D8CCBA]">
                             {memberMark} / 100
                           </span>
                         </div>
@@ -443,38 +443,39 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
           </div>
 
           {/* 3.5. Class Advisor Milestone Marks (Week-wise View for HOD - Strictly Read-Only) */}
-          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-card border border-[#E2E8E4] space-y-5 animate-fadeIn">
+          {/* 3.5. Class Advisor Milestone Marks (Week-wise View for HOD - Strictly Read-Only) */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-sm border border-[#D8CCBA] space-y-5 animate-fadeIn">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D8CCBA] pb-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-mint-500 to-emerald-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0 mt-0.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#111111] text-[#F8F5EE] flex items-center justify-center font-bold shadow-xs shrink-0 mt-0.5">
                   <Award size={20} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-base font-extrabold text-slate-900">
+                    <h3 className="text-base font-serif font-bold text-[#111111]">
                       Class Advisor Milestone Marks (Week-wise Assessment)
                     </h3>
-                    <span className="px-2 py-0.5 rounded-md bg-mint-100 text-mint-900 border border-mint-200 text-[10px] font-black uppercase">
+                    <span className="px-2 py-0.5 rounded-md bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-[10px] font-bold uppercase">
                       {activeTeam.teamNo}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Official milestone evaluation recorded by Class Advisor <strong>{activeTeam.advisor?.name || 'Class Advisor'}</strong> for Class {activeTeam.classSection}
+                  <p className="text-xs text-[#75695A] mt-0.5">
+                    Official milestone evaluation recorded by Class Advisor <strong className="text-[#111111]">{activeTeam.advisor?.name || 'Class Advisor'}</strong> for Class {activeTeam.classSection}
                   </p>
                 </div>
               </div>
 
               {/* Read-Only Notice Badge */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-extrabold shadow-2xs shrink-0 self-start sm:self-center">
-                <Lock size={13} className="text-slate-500" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EDE7DB] border border-[#D8CCBA] text-[#75695A] text-xs font-semibold shadow-2xs shrink-0 self-start sm:self-center">
+                <Lock size={13} className="text-[#75695A]" />
                 <span>Read-Only</span>
               </div>
             </div>
 
             {/* Week Selector Tabs */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block">
                 Select Milestone Week to Inspect Evaluation:
               </span>
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -487,21 +488,21 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                       key={w}
                       type="button"
                       onClick={() => setSelectedWeek(w)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                      className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer shadow-2xs ${
                         isSelected
-                          ? 'bg-mint-500 text-white shadow-sm font-extrabold ring-2 ring-mint-400/30'
-                          : 'bg-slate-50 hover:bg-mint-50 text-slate-700 border border-[#E2E8E4]'
+                          ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold ring-1 ring-[#111111]'
+                          : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] border border-[#D8CCBA]'
                       }`}
                     >
                       <span>Week {w}</span>
                       {wMarks ? (
-                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                          isSelected ? 'bg-white text-mint-950' : 'bg-mint-100 text-mint-900'
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                          isSelected ? 'bg-[#EDE7DB] text-[#111111]' : 'bg-[#EDE7DB] text-[#75695A]'
                         }`}>
                           Avg: {wMarks.teamAverage}
                         </span>
                       ) : (
-                        <span className={`text-[9px] font-medium ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                        <span className={`text-[9px] font-medium ${isSelected ? 'text-[#D8CCBA]' : 'text-[#75695A]'}`}>
                           --
                         </span>
                       )}
@@ -517,11 +518,11 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
               if (!marks) {
                 return (
-                  <div className="p-8 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 text-center space-y-1">
-                    <p className="text-xs font-bold text-slate-700">
+                  <div className="p-8 rounded-2xl bg-[#F8F5EE] border border-dashed border-[#D8CCBA] text-center space-y-1">
+                    <p className="text-xs font-semibold text-[#111111]">
                       Class Advisor has not entered marks for Week {selectedWeek} yet.
                     </p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-[#75695A]">
                       Evaluations and marks will appear here once saved by Advisor ({activeTeam.advisor?.name || 'Class Advisor'}).
                     </p>
                   </div>
@@ -531,29 +532,29 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
               return (
                 <div className="space-y-4 animate-fadeIn">
                   {/* Team Average Score Banner */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-mint-50 via-emerald-50 to-teal-50 border border-mint-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="p-4 rounded-2xl bg-[#F8F5EE] border border-[#D8CCBA] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
                     <div>
-                      <span className="text-[10px] text-mint-800 font-extrabold uppercase tracking-wider block">
+                      <span className="text-[10px] text-[#75695A] font-semibold uppercase tracking-wider block">
                         Team Milestone Assessment &bull; Week {selectedWeek}
                       </span>
-                      <span className="text-base sm:text-lg font-black text-slate-900 mt-0.5 block">
-                        Calculated Team Score: <span className="text-mint-800">{marks.teamAverage}</span> / 100
+                      <span className="text-base sm:text-lg font-serif font-bold text-[#111111] mt-0.5 block">
+                        Calculated Team Score: <span className="text-[#111111]">{marks.teamAverage}</span> / 100
                       </span>
-                      <span className="text-[11px] text-slate-500 block mt-0.5">
-                        Evaluated by <strong>{marks.gradedBy || activeTeam.advisor?.name || 'Class Advisor'}</strong>
+                      <span className="text-[11px] text-[#75695A] block mt-0.5">
+                        Evaluated by <strong className="text-[#111111]">{marks.gradedBy || activeTeam.advisor?.name || 'Class Advisor'}</strong>
                         {marks.gradedAt && ` on ${new Date(marks.gradedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
                       </span>
                     </div>
 
-                    <div className="px-3 py-1.5 rounded-xl bg-white border border-mint-200 shadow-2xs self-start sm:self-center text-center">
-                      <span className="text-[10px] uppercase font-extrabold text-slate-400 block">Team Average</span>
-                      <span className="text-sm font-black text-mint-700">{marks.teamAverage}%</span>
+                    <div className="px-3 py-1.5 rounded-xl bg-white border border-[#D8CCBA] shadow-2xs self-start sm:self-center text-center">
+                      <span className="text-[10px] uppercase font-semibold text-[#75695A] block">Team Average</span>
+                      <span className="text-sm font-bold text-[#111111]">{marks.teamAverage}%</span>
                     </div>
                   </div>
 
                   {/* Individual Student Marks Grid */}
                   <div className="space-y-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block">
                       Individual Student Marks &bull; Week {selectedWeek} ({activeTeam.members?.length || 4} Students):
                     </span>
                     
@@ -563,27 +564,27 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                         return (
                           <div
                             key={m.rollNo}
-                            className="p-3.5 bg-slate-50 rounded-2xl border border-[#E2E8E4] flex flex-col justify-between gap-2 shadow-2xs"
+                            className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA] flex flex-col justify-between gap-2 shadow-2xs"
                           >
                             <div>
                               <div className="flex items-center justify-between gap-1">
-                                <span className="font-extrabold text-slate-900 text-xs truncate">
+                                <span className="font-bold text-[#111111] text-xs truncate">
                                   {m.name}
                                 </span>
                                 {m.isLead && (
-                                  <span className="px-1.5 py-0.2 rounded text-[8px] bg-mint-100 text-mint-900 border border-mint-200 font-black uppercase shrink-0">
+                                  <span className="px-1.5 py-0.2 rounded text-[8px] bg-[#111111] text-[#F8F5EE] border border-[#111111] font-bold uppercase shrink-0">
                                     Lead
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                              <span className="text-[10px] text-[#75695A] font-mono block mt-0.5">
                                 {m.rollNo}
                               </span>
                             </div>
 
-                            <div className="pt-2 border-t border-[#E2E8E4] flex items-center justify-between">
-                              <span className="text-[10px] text-slate-500 font-bold">Week {selectedWeek} Mark:</span>
-                              <span className="px-2 py-0.5 rounded-lg bg-mint-100 text-mint-950 font-black text-xs border border-mint-200">
+                            <div className="pt-2 border-t border-[#D8CCBA] flex items-center justify-between">
+                              <span className="text-[10px] text-[#75695A] font-medium">Week {selectedWeek} Mark:</span>
+                              <span className="px-2 py-0.5 rounded-lg bg-white text-[#111111] font-bold text-xs border border-[#D8CCBA]">
                                 {typeof score === 'number' ? `${score} / 100` : '-- / 100'}
                               </span>
                             </div>
@@ -595,11 +596,11 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                   {/* Advisor Evaluation Remarks */}
                   {marks.remarks && (
-                    <div className="p-4 bg-[#EFF3F1]/80 rounded-2xl border border-[#E2E8E4] text-xs space-y-1">
-                      <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                    <div className="p-4 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA] text-xs space-y-1">
+                      <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block">
                         Class Advisor Evaluation Critique &amp; Remarks:
                       </span>
-                      <p className="text-slate-800 font-medium italic leading-relaxed">
+                      <p className="text-[#292725] font-medium italic leading-relaxed">
                         &ldquo;{marks.remarks}&rdquo;
                       </p>
                     </div>
@@ -610,21 +611,21 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
           </div>
 
           {/* 4. Gentle Dropdown for Week-wise Details and Full Student Submission Display */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-[#E2E8E4] space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-[#D8CCBA] space-y-6">
             
             {/* Header with Gentle Dropdown for Sprint Weeks */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8E4] pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D8CCBA] pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-extrabold text-slate-900">
+                  <h3 className="text-sm font-serif font-bold text-[#111111]">
                     Milestone Sprint Deliverables
                   </h3>
                   {(() => {
                     const avg = MarksService.getTeamAverage(activeTeam.id, selectedWeek);
                     if (avg !== null) {
                       return (
-                        <span className="px-2.5 py-0.5 rounded-full bg-mint-100 text-mint-900 border border-mint-200 text-[11px] font-black flex items-center gap-1">
-                          <Award size={12} className="text-mint-700" />
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-[11px] font-bold flex items-center gap-1">
+                          <Award size={12} className="text-[#8A6A32]" />
                           <span>Team Avg: {avg} / 100</span>
                         </span>
                       );
@@ -636,7 +637,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
               {/* Gentle Dropdown */}
               <div className="flex items-center gap-2">
-                <label htmlFor="selectSprintWeek" className="text-xs font-bold text-slate-600 whitespace-nowrap">
+                <label htmlFor="selectSprintWeek" className="text-xs font-semibold text-[#75695A] whitespace-nowrap">
                   Milestone Week:
                 </label>
                 <div className="relative">
@@ -644,7 +645,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                     id="selectSprintWeek"
                     value={selectedWeek}
                     onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                    className="appearance-none pl-3.5 pr-8 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-mint-500 shadow-xs cursor-pointer"
+                    className="appearance-none pl-3.5 pr-8 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs cursor-pointer"
                   >
                     {availableSubmissions.map((s) => (
                       <option key={s.week} value={s.week}>
@@ -652,7 +653,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                       </option>
                     ))}
                   </select>
-                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#75695A] pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -666,10 +667,10 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                     key={s.week}
                     type="button"
                     onClick={() => setSelectedWeek(s.week)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap cursor-pointer ${
                       isCurrentWeek
-                        ? 'bg-mint-500 text-white shadow-xs font-extrabold'
-                        : 'bg-slate-100 hover:bg-mint-50 text-slate-700 border border-[#E2E8E4]'
+                        ? 'bg-[#111111] text-[#F8F5EE] shadow-xs font-bold'
+                        : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] border border-[#D8CCBA]'
                     }`}
                   >
                     Week {s.week}
@@ -678,40 +679,40 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
               })}
             </div>
 
-            {/* Week Submission Details: FORMATTED EXACTLY LIKE STUDENT'S MY SUBMISSIONS PAGE */}
+            {/* Week Submission Details */}
             {activeSubmission ? (
               <div className="space-y-6 pt-2 text-xs">
                 
                 {/* Part 1: Review Given by Guide */}
-                <div className="bg-[#EFF3F1]/80 rounded-2xl p-5 border border-mint-200/80 space-y-3">
-                  <div className="flex items-center justify-between border-b border-mint-200/60 pb-3">
+                <div className="bg-[#F8F5EE] rounded-2xl p-5 border border-[#D8CCBA] space-y-3">
+                  <div className="flex items-center justify-between border-b border-[#D8CCBA] pb-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-mint-500 text-white flex items-center justify-center font-bold">
+                      <div className="w-8 h-8 rounded-xl bg-[#111111] text-[#F8F5EE] flex items-center justify-center font-bold">
                         <User size={16} />
                       </div>
                       <div>
-                        <span className="font-extrabold text-slate-900 block text-xs">
+                        <span className="font-bold text-[#111111] block text-xs">
                           Review by {activeSubmission.guideName || activeTeam.guide?.name || 'Faculty Guide'}
                         </span>
-                        <span className="text-[10px] text-mint-700 font-bold">Faculty Project Guide</span>
+                        <span className="text-[10px] text-[#75695A] font-semibold">Faculty Project Guide</span>
                       </div>
                     </div>
 
-                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border ${
-                      activeSubmission.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                      activeSubmission.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                      (activeSubmission.status === 'Submitted' || activeSubmission.status === 'Pending') ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                      'bg-slate-100 text-slate-700 border-slate-300'
+                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border ${
+                      activeSubmission.status === 'Approved' ? 'bg-[#4A5844]/10 text-[#4A5844] border-[#4A5844]/30' :
+                      activeSubmission.status === 'Changes Requested' ? 'bg-[#7C3838]/10 text-[#7C3838] border-[#7C3838]/30' :
+                      (activeSubmission.status === 'Submitted' || activeSubmission.status === 'Pending') ? 'bg-[#8A6A32]/10 text-[#8A6A32] border-[#8A6A32]/30' :
+                      'bg-[#EDE7DB] text-[#75695A] border-[#D8CCBA]'
                     }`}>
                       {activeSubmission.status === 'Submitted' ? 'Pending' : activeSubmission.status}
                     </span>
                   </div>
 
                   <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block mb-1">
                       Guide Evaluation Critique &amp; Remarks:
                     </span>
-                    <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#E2E8E4]">
+                    <p className="text-[#292725] font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#D8CCBA]">
                       {activeSubmission.comments || 'Submission is under active evaluation by the project guide.'}
                     </p>
                   </div>
@@ -719,22 +720,22 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                 {/* Part 2: Complete Submission by Student */}
                 <div className="space-y-4">
-                  <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#E2E8E4] pb-2">
+                  <h4 className="font-serif font-bold text-sm text-[#111111] border-b border-[#D8CCBA] pb-2">
                     Complete Student Submission Details
                   </h4>
 
                   {/* Project Title */}
                   <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block mb-1">
                       Project Title
                     </span>
                     {activeSubmission.projectTitle || activeTeam.projectTitle ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900">
+                      <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111]">
                         {activeSubmission.projectTitle || activeTeam.projectTitle}
                       </div>
                     ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
+                      <div className="p-3 bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] rounded-xl text-xs text-[#75695A] italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-[#75695A]" />
                         <span>Not Uploaded / No Project Title specified</span>
                       </div>
                     )}
@@ -742,16 +743,16 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                   {/* Problem Statement */}
                   <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block mb-1">
                       Problem Statement
                     </span>
                     {activeSubmission.problemStatement ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                      <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#292725] leading-relaxed">
                         {activeSubmission.problemStatement}
                       </div>
                     ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
+                      <div className="p-3 bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] rounded-xl text-xs text-[#75695A] italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-[#75695A]" />
                         <span>Not Uploaded / No Problem Statement submitted for this milestone</span>
                       </div>
                     )}
@@ -759,16 +760,16 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                   {/* Proposed Solution */}
                   <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block mb-1">
                       Proposed Solution &amp; Technical Approach
                     </span>
                     {activeSubmission.solution ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                      <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#292725] leading-relaxed">
                         {activeSubmission.solution}
                       </div>
                     ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
+                      <div className="p-3 bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] rounded-xl text-xs text-[#75695A] italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-[#75695A]" />
                         <span>Not Uploaded / No Technical Solution submitted for this milestone</span>
                       </div>
                     )}
@@ -776,16 +777,16 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                   {/* Technologies Used */}
                   <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block mb-1">
                       Technologies Used
                     </span>
                     {activeSubmission.technologyUsed ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 font-mono font-bold">
+                      <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#292725] font-mono font-bold">
                         {activeSubmission.technologyUsed}
                       </div>
                     ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
+                      <div className="p-3 bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] rounded-xl text-xs text-[#75695A] italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-[#75695A]" />
                         <span>Not Uploaded / No Technologies specified</span>
                       </div>
                     )}
@@ -793,16 +794,16 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                   {/* Obstacles Faced */}
                   <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block mb-1">
                       Obstacles Faced
                     </span>
                     {activeSubmission.obstaclesFaced ? (
-                      <div className="p-3.5 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-slate-800 leading-relaxed">
+                      <div className="p-3.5 bg-[#7C3838]/10 border border-[#7C3838]/30 rounded-xl text-xs text-[#292725] leading-relaxed">
                         {activeSubmission.obstaclesFaced}
                       </div>
                     ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
+                      <div className="p-3 bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] rounded-xl text-xs text-[#75695A] italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-[#75695A]" />
                         <span>Not Uploaded / No Obstacles Reported</span>
                       </div>
                     )}
@@ -810,16 +811,16 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                   {/* Abstract */}
                   <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block mb-1">
                       Project Abstract
                     </span>
                     {activeSubmission.abstract ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                      <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#292725] leading-relaxed">
                         {activeSubmission.abstract}
                       </div>
                     ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
+                      <div className="p-3 bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] rounded-xl text-xs text-[#75695A] italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-[#75695A]" />
                         <span>Not Uploaded / No Abstract provided for this milestone</span>
                       </div>
                     )}
@@ -827,7 +828,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                   {/* Submitted Files, Repositories & Media */}
                   <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
+                    <span className="text-[10px] font-semibold text-[#75695A] uppercase tracking-wider block mb-2">
                       Submitted Files, Repositories &amp; Media
                     </span>
 
@@ -835,16 +836,16 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                       
                       {/* Presentation PPT */}
                       {activeSubmission.fileName || activeSubmission.presentationFile ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                        <div className="p-3.5 rounded-2xl bg-[#F8F5EE] border border-[#D8CCBA] flex items-center justify-between shadow-xs">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center shrink-0">
                               <FileText size={18} />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
+                              <span className="font-bold text-[#111111] block truncate max-w-[150px]">
                                 {activeSubmission.fileName || activeSubmission.presentationFile}
                               </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
+                              <span className="text-[10px] text-[#75695A] font-mono">
                                 {activeSubmission.fileSize || '4.2 MB'} &bull; PowerPoint
                               </span>
                             </div>
@@ -852,24 +853,24 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                           <button
                             type="button"
                             onClick={(e) => handleDownloadFile(activeSubmission.fileName || activeSubmission.presentationFile || `Week_${activeSubmission.week}_Presentation.pptx`, 'ppt', activeSubmission, e)}
-                            className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95"
                           >
                             <Download size={13} />
                             <span>Download</span>
                           </button>
                         </div>
                       ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                        <div className="p-3.5 rounded-2xl bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#75695A] flex items-center justify-center shrink-0">
                               <FileText size={18} />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-500 block">Presentation Deck</span>
-                              <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
+                              <span className="font-semibold text-[#75695A] block">Presentation Deck</span>
+                              <span className="text-[10px] text-[#75695A]">PowerPoint (.pptx)</span>
                             </div>
                           </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#7C3838]/10 text-[#7C3838] border border-[#7C3838]/20 text-[10px] font-bold flex items-center gap-1">
                             <XCircle size={12} />
                             <span>✕ Not Uploaded</span>
                           </span>
@@ -878,39 +879,39 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                       {/* Technical Report PDF */}
                       {activeSubmission.pdfFile ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                        <div className="p-3.5 rounded-2xl bg-[#F8F5EE] border border-[#D8CCBA] flex items-center justify-between shadow-xs">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center shrink-0">
                               <FileCode size={18} />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
+                              <span className="font-bold text-[#111111] block truncate max-w-[150px]">
                                 {activeSubmission.pdfFile}
                               </span>
-                              <span className="text-[10px] text-slate-400 font-mono">PDF Document</span>
+                              <span className="text-[10px] text-[#75695A] font-mono">PDF Document</span>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={(e) => handleDownloadFile(activeSubmission.pdfFile || `Week_${activeSubmission.week}_Report.pdf`, 'pdf', activeSubmission, e)}
-                            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                            className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95"
                           >
                             <Download size={13} />
                             <span>Download</span>
                           </button>
                         </div>
                       ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                        <div className="p-3.5 rounded-2xl bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#75695A] flex items-center justify-center shrink-0">
                               <FileCode size={18} />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-500 block">Technical Dossier</span>
-                              <span className="text-[10px] text-slate-400">Report (.pdf)</span>
+                              <span className="font-semibold text-[#75695A] block">Technical Dossier</span>
+                              <span className="text-[10px] text-[#75695A]">Report (.pdf)</span>
                             </div>
                           </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#7C3838]/10 text-[#7C3838] border border-[#7C3838]/20 text-[10px] font-bold flex items-center gap-1">
                             <XCircle size={12} />
                             <span>✕ Not Uploaded</span>
                           </span>
@@ -919,14 +920,14 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                       {/* GitHub Repo Link */}
                       {activeSubmission.repoUrl ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                        <div className="p-3.5 rounded-2xl bg-[#F8F5EE] border border-[#D8CCBA] flex items-center justify-between shadow-xs">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center shrink-0">
                               <Github size={18} />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-900 block">GitHub Repository</span>
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
+                              <span className="font-bold text-[#111111] block">GitHub Repository</span>
+                              <span className="text-[10px] text-[#75695A] truncate max-w-[150px] block font-mono">
                                 {activeSubmission.repoUrl}
                               </span>
                             </div>
@@ -935,24 +936,24 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                             href={activeSubmission.repoUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                            className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-semibold transition flex items-center gap-1.5 shrink-0 active:scale-95"
                           >
                             <ExternalLink size={13} />
                             <span>Open</span>
                           </a>
                         </div>
                       ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                        <div className="p-3.5 rounded-2xl bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#75695A] flex items-center justify-center shrink-0">
                               <Github size={18} />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-500 block">Source Code Repository</span>
-                              <span className="text-[10px] text-slate-400">GitHub Link</span>
+                              <span className="font-semibold text-[#75695A] block">Source Code Repository</span>
+                              <span className="text-[10px] text-[#75695A]">GitHub Link</span>
                             </div>
                           </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#7C3838]/10 text-[#7C3838] border border-[#7C3838]/20 text-[10px] font-bold flex items-center gap-1">
                             <XCircle size={12} />
                             <span>✕ Not Uploaded</span>
                           </span>
@@ -961,14 +962,14 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                       {/* Live Demo Link */}
                       {activeSubmission.demoUrl ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                        <div className="p-3.5 rounded-2xl bg-[#F8F5EE] border border-[#D8CCBA] flex items-center justify-between shadow-xs">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center shrink-0">
                               <ExternalLink size={18} />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-900 block">Live Demo / Telemetry</span>
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
+                              <span className="font-bold text-[#111111] block">Live Demo / Telemetry</span>
+                              <span className="text-[10px] text-[#75695A] truncate max-w-[150px] block font-mono">
                                 {activeSubmission.demoUrl}
                               </span>
                             </div>
@@ -977,24 +978,24 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                             href={activeSubmission.demoUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                            className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-semibold transition flex items-center gap-1.5 shrink-0 active:scale-95"
                           >
                             <ExternalLink size={13} />
                             <span>Launch</span>
                           </a>
                         </div>
                       ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                        <div className="p-3.5 rounded-2xl bg-[#F8F5EE]/50 border border-dashed border-[#D8CCBA] flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#75695A] flex items-center justify-center shrink-0">
                               <ExternalLink size={18} />
                             </div>
                             <div>
-                              <span className="font-bold text-slate-500 block">Live Deployment</span>
-                              <span className="text-[10px] text-slate-400">Demo URL</span>
+                              <span className="font-semibold text-[#75695A] block">Live Deployment</span>
+                              <span className="text-[10px] text-[#75695A]">Demo URL</span>
                             </div>
                           </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#7C3838]/10 text-[#7C3838] border border-[#7C3838]/20 text-[10px] font-bold flex items-center gap-1">
                             <XCircle size={12} />
                             <span>✕ Not Uploaded</span>
                           </span>
@@ -1008,9 +1009,9 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
               </div>
             ) : (
-              <div className="py-8 text-center text-xs text-slate-400">
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-300 mb-2 select-none">
-                  <Clock size={12} className="text-slate-500" />
+              <div className="py-8 text-center text-xs text-[#75695A]">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold bg-[#EDE7DB] text-[#75695A] border border-[#D8CCBA] mb-2 select-none">
+                  <Clock size={12} className="text-[#75695A]" />
                   <span>No Submission</span>
                 </span>
                 <p>No milestone deliverables submitted yet for Week {selectedWeek}.</p>

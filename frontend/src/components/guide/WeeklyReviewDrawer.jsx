@@ -27,29 +27,29 @@ export const WeeklyReviewDrawer = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-xs animate-fadeIn font-sans">
       <div 
-        className="bg-white w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-modal border border-[#E2E8E4] flex flex-col overflow-hidden transform transition-all duration-300 ease-out"
+        className="bg-white w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-xl border border-[#D8CCBA] flex flex-col overflow-hidden transform transition-all duration-300 ease-out"
         role="dialog"
         aria-modal="true"
         aria-labelledby="review-drawer-title"
       >
         {/* Drawer Header */}
-        <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between shrink-0">
+        <div className="bg-[#F8F5EE] px-6 py-4 border-b border-[#D8CCBA] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <span className="px-2.5 py-1 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-xs">
+            <span className="px-2.5 py-1 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-extrabold text-xs">
               Week {submission.weekNumber}
             </span>
             <div>
-              <h3 id="review-drawer-title" className="text-sm font-extrabold text-slate-900 tracking-wide">
+              <h3 id="review-drawer-title" className="text-sm font-serif font-bold text-[#111111] tracking-wide">
                 Milestone Deliverables Inspection
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">
+              <p className="text-[11px] text-[#75695A] font-semibold">
                 Team #{team.teamNumber} &bull; {team.projectTitle || 'Capstone Project'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+            className="text-[#75695A] hover:text-[#111111] p-1.5 rounded-xl hover:bg-[#EDE7DB] transition cursor-pointer"
             aria-label="Close drawer"
           >
             <X size={20} />
@@ -60,16 +60,16 @@ export const WeeklyReviewDrawer = ({
         <div className="p-6 space-y-6 overflow-y-auto flex-1 text-xs">
           
           {/* Section 1: Project Information */}
-          <div className="border border-[#E2E8E4] rounded-2xl p-4 bg-[#EFF3F1]/60 space-y-2.5">
+          <div className="border border-[#D8CCBA] rounded-2xl p-4 bg-[#F8F5EE] space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Project Context</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#75695A]">Project Context</span>
               <div className="flex items-center gap-2">
                 {hasGithub ? (
                   <a
                     href={team.githubUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-slate-700 hover:text-slate-900 font-bold text-[11px]"
+                    className="inline-flex items-center gap-1 text-[#111111] hover:underline font-bold text-[11px]"
                   >
                     <Github size={12} />
                     <span>Repo</span>
@@ -111,7 +111,7 @@ export const WeeklyReviewDrawer = ({
             {team.technologiesUsed && team.technologiesUsed.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1">
                 {team.technologiesUsed.map((tech, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded-md bg-white text-slate-800 font-bold text-[10px] border border-[#E2E8E4]">
+                  <span key={i} className="px-2 py-0.5 rounded-md bg-white text-slate-800 font-bold text-[10px] border border-[#D8CCBA]">
                     {tech}
                   </span>
                 ))}
@@ -121,7 +121,7 @@ export const WeeklyReviewDrawer = ({
 
           {/* Section 2: Weekly Deliverables */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between pb-1 border-b border-[#E2E8E4]">
+            <div className="flex items-center justify-between pb-1 border-b border-[#D8CCBA]">
               <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
                 Week {submission.weekNumber} Deliverables &amp; Artifacts
               </h4>
@@ -131,7 +131,7 @@ export const WeeklyReviewDrawer = ({
             </div>
 
             {/* Abstract Summary */}
-            <div className="p-4 bg-slate-50 border border-[#E2E8E4] rounded-2xl space-y-1">
+            <div className="p-4 bg-slate-50 border border-[#D8CCBA] rounded-2xl space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-slate-700 text-xs">Sprint Abstract Summary:</span>
                 {hasAbstract ? (
@@ -150,7 +150,7 @@ export const WeeklyReviewDrawer = ({
             {/* Document Cards: Technical Report & Slide Deck */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Technical Report */}
-              <div className="p-4 bg-white border border-[#E2E8E4] rounded-2xl space-y-2 shadow-2xs">
+              <div className="p-4 bg-white border border-[#D8CCBA] rounded-2xl space-y-2 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-mint-50 text-mint-700 border border-mint-200 flex items-center justify-center shrink-0">
@@ -179,7 +179,7 @@ export const WeeklyReviewDrawer = ({
               </div>
 
               {/* Presentation Slide Deck */}
-              <div className="p-4 bg-white border border-[#E2E8E4] rounded-2xl space-y-2 shadow-2xs">
+              <div className="p-4 bg-white border border-[#D8CCBA] rounded-2xl space-y-2 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
@@ -209,7 +209,7 @@ export const WeeklyReviewDrawer = ({
             </div>
 
             {/* Image Thumbnails Lightbox */}
-            <div className="p-4 bg-slate-50 border border-[#E2E8E4] rounded-2xl space-y-2">
+            <div className="p-4 bg-slate-50 border border-[#D8CCBA] rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
                   <ImageIcon size={13} className="text-mint-600" />
@@ -228,7 +228,7 @@ export const WeeklyReviewDrawer = ({
                       key={idx}
                       type="button"
                       onClick={() => onOpenImageViewer(idx)}
-                      className="group relative rounded-xl overflow-hidden border border-[#E2E8E4] aspect-video hover:border-mint-500 shadow-xs transition cursor-pointer"
+                      className="group relative rounded-xl overflow-hidden border border-[#D8CCBA] aspect-video hover:border-mint-500 shadow-xs transition cursor-pointer"
                     >
                       <img
                         src={img}
@@ -287,7 +287,7 @@ export const WeeklyReviewDrawer = ({
         </div>
 
         {/* Drawer Bottom Footer: NO approve/reject, just View & Notify Team */}
-        <div className="bg-[#F8FAF9] px-6 py-3.5 border-t border-[#E2E8E4] flex items-center justify-between shrink-0">
+        <div className="bg-[#F8F5EE] px-6 py-3.5 border-t border-[#D8CCBA] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -303,7 +303,7 @@ export const WeeklyReviewDrawer = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 text-xs font-bold text-slate-700 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition cursor-pointer"
+            className="px-5 py-2 text-xs font-bold text-[#111111] bg-white border border-[#D8CCBA] rounded-xl hover:bg-[#EDE7DB] transition cursor-pointer"
           >
             Close View
           </button>

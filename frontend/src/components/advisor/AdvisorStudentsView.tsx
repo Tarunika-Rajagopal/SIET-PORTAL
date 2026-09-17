@@ -188,45 +188,45 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   return (
     <div className="space-y-6 animate-fadeIn font-sans">
       
-      {/* 1. Green Hero Banner Matching Screenshot: Displays Advisor Name, Class, Batch, and ONLY the 3 Stat Boxes */}
-      <div className="bg-[#0B7A4D] rounded-3xl p-6 sm:p-7 shadow-card text-white flex flex-col lg:flex-row lg:items-center justify-between gap-6 border border-mint-800">
+      {/* 1. Deep Charcoal Hero Banner: Displays Advisor Name, Class, Batch, and the 3 Stat Boxes */}
+      <div className="bg-[#111111] rounded-2xl p-6 sm:p-7 shadow-xs text-[#F8F5EE] flex flex-col lg:flex-row lg:items-center justify-between gap-6 border border-[#292725]">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-[11px] font-bold tracking-wide w-fit">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#292725] text-[#EDE7DB] text-[11px] font-medium tracking-wide w-fit border border-[#D8CCBA]/20">
             <span>SECTION ADVISORY</span>
             <span>&bull;</span>
             <span>BATCH {batch}</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-white mt-2.5 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-serif font-semibold text-[#F8F5EE] mt-2.5 tracking-tight">
             Advisor: {advisorName} &bull; Class {className}
           </h1>
-          <p className="text-xs text-white/90 mt-1 max-w-xl leading-relaxed">
+          <p className="text-xs text-[#B8AA97] mt-1 max-w-xl leading-relaxed">
             Supervise student team formation, manage team allocation, and track milestone compliance for Class {className}.
           </p>
         </div>
 
-        {/* ONLY THESE THREE STAT BOXES: Total Strength, Assigned Teams, Unassigned Students */}
+        {/* THREE STAT BOXES: Total Strength, Assigned Teams, Unassigned Students */}
         <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap sm:flex-nowrap shrink-0">
           
           {/* Total Strength */}
-          <div className="bg-white/15 backdrop-blur-xs border border-white/25 rounded-2xl p-3 sm:p-4 text-center min-w-[95px] sm:min-w-[110px]">
-            <div className="text-2xl sm:text-3xl font-black text-white">{totalStrength}</div>
-            <div className="text-[9px] sm:text-[10px] font-black tracking-wider text-white/85 uppercase mt-1">
+          <div className="bg-[#292725]/60 border border-[#D8CCBA]/20 rounded-xl p-3 sm:p-4 text-center min-w-[95px] sm:min-w-[110px]">
+            <div className="text-2xl sm:text-3xl font-bold text-[#F8F5EE]">{totalStrength}</div>
+            <div className="text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#B8AA97] uppercase mt-1">
               TOTAL STRENGTH
             </div>
           </div>
 
           {/* Assigned Teams */}
-          <div className="bg-white/15 backdrop-blur-xs border border-white/25 rounded-2xl p-3 sm:p-4 text-center min-w-[95px] sm:min-w-[110px]">
-            <div className="text-2xl sm:text-3xl font-black text-white">{assignedTeamsCount}</div>
-            <div className="text-[9px] sm:text-[10px] font-black tracking-wider text-white/85 uppercase mt-1">
+          <div className="bg-[#292725]/60 border border-[#D8CCBA]/20 rounded-xl p-3 sm:p-4 text-center min-w-[95px] sm:min-w-[110px]">
+            <div className="text-2xl sm:text-3xl font-bold text-[#F8F5EE]">{assignedTeamsCount}</div>
+            <div className="text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#B8AA97] uppercase mt-1">
               ASSIGNED TEAMS
             </div>
           </div>
 
           {/* Unassigned Students */}
-          <div className="bg-white/15 backdrop-blur-xs border border-white/25 rounded-2xl p-3 sm:p-4 text-center min-w-[95px] sm:min-w-[110px]">
-            <div className="text-2xl sm:text-3xl font-black text-white">{unassignedStudentsCount}</div>
-            <div className="text-[9px] sm:text-[10px] font-black tracking-wider text-white/85 uppercase mt-1">
+          <div className="bg-[#292725]/60 border border-[#D8CCBA]/20 rounded-xl p-3 sm:p-4 text-center min-w-[95px] sm:min-w-[110px]">
+            <div className="text-2xl sm:text-3xl font-bold text-[#F8F5EE]">{unassignedStudentsCount}</div>
+            <div className="text-[9px] sm:text-[10px] font-semibold tracking-wider text-[#B8AA97] uppercase mt-1">
               UNASSIGNED STUDENTS
             </div>
           </div>
@@ -235,12 +235,12 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       </div>
 
       {/* 2. Action Controls & Manage Row */}
-      <div className="bg-white rounded-3xl p-5 shadow-card border border-[#E2E8E4] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-5 shadow-xs border border-[#D8CCBA] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-sm font-extrabold text-slate-900">
+          <h3 className="text-base font-serif font-semibold text-[#111111]">
             Class {className} Enrolled Student Cohort
           </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[#75695A] mt-0.5">
             Click any student row to view only their respective team and teammates in View Teams.
           </p>
         </div>
@@ -249,13 +249,13 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
           
           {/* Search Bar */}
           <div className="relative w-full sm:w-60">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#75695A]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search student or register no..."
-              className="w-full pl-8 pr-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800 placeholder-slate-400"
+              className="w-full pl-8 pr-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]/60"
             />
           </div>
 
@@ -264,17 +264,17 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
             type="button"
             onClick={() => window.location.reload()}
             title="Refresh & Update All Changes"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0 shadow-2xs"
+            className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0 shadow-xs"
           >
             <RefreshCw size={14} />
           </button>
 
-          {/* Manage Button: Shown ONLY when NOT in manage mode. During managing, only refresh option is enough! */}
+          {/* Manage Button */}
           {!isManageMode && (
             <button
               type="button"
               onClick={() => setIsManageMode(true)}
-              className="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 border border-[#E2E8E4]"
+              className="px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-xs cursor-pointer bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] border border-[#D8CCBA]"
             >
               <Settings size={14} />
               <span>Manage</span>
@@ -286,17 +286,17 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
       {/* 2.1. Dedicated Organized Management Panel when Manage mode is active */}
       {isManageMode && (
-        <div className="bg-white rounded-3xl p-6 shadow-card border border-mint-200 bg-gradient-to-b from-mint-50/40 via-white to-white space-y-4 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
+        <div className="bg-white rounded-2xl p-6 shadow-xs border border-[#D8CCBA] space-y-4 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D8CCBA] pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-[#111111] text-[#F8F5EE] flex items-center justify-center font-bold shadow-xs">
                 <Settings size={18} />
               </div>
               <div>
-                <h4 className="text-sm font-extrabold text-slate-900">
+                <h4 className="text-base font-serif font-semibold text-[#111111]">
                   Class {className} Administrative Controls
                 </h4>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[#75695A]">
                   Configure team formation, re-partition project groups, and enroll new students.
                 </p>
               </div>
@@ -305,7 +305,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
             <button
               type="button"
               onClick={() => setIsManageMode(false)}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 transition cursor-pointer self-start sm:self-center"
+              className="px-4 py-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] font-semibold text-xs rounded-xl border border-[#D8CCBA] transition cursor-pointer self-start sm:self-center"
             >
               Exit Manage Mode
             </button>
@@ -313,16 +313,16 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
             {/* Setting 1: Team Formation & Allocation */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between gap-3">
+            <div className="p-4 rounded-xl bg-[#F8F5EE]/60 border border-[#D8CCBA] flex flex-col justify-between gap-3">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center shrink-0">
                   <Users size={16} />
                 </div>
                 <div>
-                  <span className="font-extrabold text-slate-900 text-xs block">
+                  <span className="font-semibold text-[#111111] text-xs block">
                     Team Formation &amp; Allocation
                   </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  <p className="text-[11px] text-[#75695A] mt-0.5 leading-relaxed">
                     {areTeamsCreated 
                       ? `${teams.length} teams actively partitioned with capacity of ${teamCapacity} members each.`
                       : 'Generate and partition class cohort into balanced project teams.'}
@@ -330,15 +330,15 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[#E2E8E4]/60">
-                <span className="text-[11px] font-bold text-slate-600">
-                  Status: <strong className="text-mint-800">{areTeamsCreated ? 'Configured' : 'Not Formed'}</strong>
+              <div className="flex items-center justify-between pt-2 border-t border-[#D8CCBA]/60">
+                <span className="text-[11px] font-medium text-[#75695A]">
+                  Status: <strong className="text-[#111111]">{areTeamsCreated ? 'Configured' : 'Not Formed'}</strong>
                 </span>
                 {areTeamsCreated ? (
                   <button
                     type="button"
                     onClick={() => setIsCreateTeamOpen(true)}
-                    className="px-3.5 py-1.5 bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 rounded-xl text-xs font-extrabold transition cursor-pointer"
+                    className="px-3.5 py-1.5 bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] rounded-xl text-xs font-semibold transition cursor-pointer"
                   >
                     Re-shuffle Teams
                   </button>
@@ -346,7 +346,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsCreateTeamOpen(true)}
-                    className="px-3.5 py-1.5 bg-mint-500 hover:bg-mint-600 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs"
+                    className="px-3.5 py-1.5 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs"
                   >
                     Create Teams
                   </button>
@@ -355,24 +355,24 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
             </div>
 
             {/* Setting 2: Student Enrollment */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between gap-3">
+            <div className="p-4 rounded-xl bg-[#F8F5EE]/60 border border-[#D8CCBA] flex flex-col justify-between gap-3">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-200 text-slate-800 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center shrink-0">
                   <UserPlus size={16} />
                 </div>
                 <div>
-                  <span className="font-extrabold text-slate-900 text-xs block">
+                  <span className="font-semibold text-[#111111] text-xs block">
                     Student Enrollment &amp; Registration
                   </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  <p className="text-[11px] text-[#75695A] mt-0.5 leading-relaxed">
                     Manually register a candidate into Class {className} roster for Academic Batch {batch}.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[#E2E8E4]/60">
-                <span className="text-[11px] font-bold text-slate-600">
-                  Enrolled: <strong className="text-slate-900">{students.length} Candidates</strong>
+              <div className="flex items-center justify-between pt-2 border-t border-[#D8CCBA]/60">
+                <span className="text-[11px] font-medium text-[#75695A]">
+                  Enrolled: <strong className="text-[#111111]">{students.length} Candidates</strong>
                 </span>
                 <button
                   type="button"
@@ -382,7 +382,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                     setAddStudentError('');
                     setIsAddStudentOpen(true);
                   }}
-                  className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs flex items-center gap-1"
+                  className="px-3.5 py-1.5 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs flex items-center gap-1"
                 >
                   <Plus size={13} />
                   <span>Add Student</span>
@@ -393,11 +393,11 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         </div>
       )}
 
-      {/* 2. Students Table (Clean - NO helper text banner, NO status column with assigned badges) */}
-      <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
+      {/* 2. Students Table */}
+      <div className="bg-white rounded-2xl shadow-xs border border-[#D8CCBA] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8FAF9] text-slate-500 uppercase tracking-wider font-bold border-b border-[#E2E8E4]">
+            <thead className="bg-[#EDE7DB] text-[#292725] uppercase tracking-wider font-semibold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4">Register Number</th>
                 <th className="p-4">Student Name</th>
@@ -407,10 +407,10 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 {isManageMode && <th className="p-4 text-right">Team Allocation</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8E4] font-medium">
+            <tbody className="divide-y divide-[#D8CCBA] font-medium">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={isManageMode ? 6 : 5} className="p-12 text-center text-slate-400">
+                  <td colSpan={isManageMode ? 6 : 5} className="p-12 text-center text-[#75695A]">
                     No students found matching current search.
                   </td>
                 </tr>
@@ -422,42 +422,42 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                     <tr
                       key={s.rollNo}
                       onClick={() => handleRowClick(s)}
-                      className="hover:bg-mint-50/40 transition cursor-pointer group"
+                      className="hover:bg-[#F8F5EE]/60 transition cursor-pointer group"
                     >
                       {/* Register Number */}
-                      <td className="p-4 font-mono font-bold text-mint-800 whitespace-nowrap">
+                      <td className="p-4 font-mono font-bold text-[#111111] whitespace-nowrap">
                         {s.rollNo}
                       </td>
 
                       {/* Student Name */}
                       <td className="p-4 whitespace-nowrap">
-                        <div className="font-extrabold text-slate-900 group-hover:text-mint-800 transition flex items-center gap-1.5">
+                        <div className="font-semibold text-[#111111] group-hover:text-[#292725] transition flex items-center gap-1.5">
                           <span>{s.name}</span>
-                          <ChevronRight size={13} className="text-slate-300 group-hover:text-mint-600 transition" />
+                          <ChevronRight size={13} className="text-[#75695A] group-hover:text-[#111111] transition" />
                         </div>
                       </td>
 
                       {/* Email */}
-                      <td className="p-4 text-slate-500 font-mono text-[11px] whitespace-nowrap">
+                      <td className="p-4 text-[#75695A] font-mono text-[11px] whitespace-nowrap">
                         {s.email}
                       </td>
 
                       {/* Assigned Team */}
                       <td className="p-4 whitespace-nowrap">
                         {hasTeam ? (
-                          <span className="px-2.5 py-1 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-[11px]">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-bold text-[11px]">
                             {s.teamNo}
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-semibold italic text-[11px]">
+                          <span className="text-[#75695A] font-medium italic text-[11px]">
                             Unassigned
                           </span>
                         )}
                       </td>
 
                       {/* Technical Guide */}
-                      <td className="p-4 text-slate-700 whitespace-nowrap">
-                        <span className="font-bold">{s.guide || 'Unassigned'}</span>
+                      <td className="p-4 text-[#292725] whitespace-nowrap">
+                        <span className="font-medium">{s.guide || 'Unassigned'}</span>
                       </td>
 
                       {/* Manage Actions (Move) */}
@@ -470,7 +470,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                               setTargetTeamId('');
                               setMoveError('');
                             }}
-                            className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer"
+                            className="px-3 py-1.5 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] rounded-xl font-semibold text-xs transition shadow-xs flex items-center gap-1.5 ml-auto cursor-pointer"
                           >
                             <MoveRight size={13} />
                             <span>Move</span>
@@ -490,27 +490,27 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       {isAddStudentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
           <div 
-            className="bg-white w-full max-w-md rounded-3xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all"
+            className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-[#D8CCBA] overflow-hidden transform transition-all"
             role="dialog"
             aria-modal="true"
           >
-            <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between">
+            <div className="bg-[#F8F5EE] px-6 py-4 border-b border-[#D8CCBA] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold">
                   <UserPlus size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">
+                  <h3 className="text-base font-serif font-semibold text-[#111111]">
                     Add Student to Class {className}
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-[#75695A]">
                     Synchronizes universally across all portals
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsAddStudentOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition"
+                className="text-[#75695A] hover:text-[#111111] p-2 rounded-xl hover:bg-[#EDE7DB] transition"
               >
                 <X size={18} />
               </button>
@@ -518,14 +518,14 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
             <form onSubmit={handleAddStudentSubmit} className="p-6 space-y-4 text-xs">
               {addStudentError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-bold flex items-center gap-2">
+                <div className="p-3 bg-rose-50/80 border border-rose-200 rounded-xl text-rose-800 font-medium flex items-center gap-2">
                   <AlertCircle size={15} className="shrink-0 text-rose-600" />
                   <span>{addStudentError}</span>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-[#75695A] uppercase tracking-wider mb-1">
                   Student Full Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -534,12 +534,12 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   value={newStudentName}
                   onChange={(e) => setNewStudentName(e.target.value)}
                   placeholder="e.g. Aravind Swamy"
-                  className="w-full px-3.5 py-2.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-mint-500 shadow-2xs"
+                  className="w-full px-3.5 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-[#75695A] uppercase tracking-wider mb-1">
                   Register Number / Roll No <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -548,21 +548,21 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   value={newStudentRoll}
                   onChange={(e) => setNewStudentRoll(e.target.value)}
                   placeholder="e.g. 714023104199"
-                  className="w-full px-3.5 py-2.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-mint-500 shadow-2xs"
+                  className="w-full px-3.5 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-mono font-semibold text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-between border-t border-[#E2E8E4]">
+              <div className="pt-2 flex items-center justify-between border-t border-[#D8CCBA]">
                 <button
                   type="button"
                   onClick={() => setIsAddStudentOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition"
+                  className="px-4 py-2 text-xs font-semibold text-[#292725] hover:text-[#111111] bg-white border border-[#D8CCBA] rounded-xl hover:bg-[#F8F5EE] transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-extrabold text-white bg-mint-500 hover:bg-mint-600 rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                  className="px-5 py-2 text-xs font-medium text-[#F8F5EE] bg-[#111111] hover:bg-[#292725] rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus size={14} />
                   <span>Add Candidate</span>
@@ -577,27 +577,27 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       {studentToMove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
           <div 
-            className="bg-white w-full max-w-md rounded-3xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all"
+            className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-[#D8CCBA] overflow-hidden transform transition-all"
             role="dialog"
             aria-modal="true"
           >
-            <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between">
+            <div className="bg-[#F8F5EE] px-6 py-4 border-b border-[#D8CCBA] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold">
                   <MoveRight size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">
+                  <h3 className="text-base font-serif font-semibold text-[#111111]">
                     Shift Student Team
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-[#75695A]">
                     {studentToMove.name} ({studentToMove.rollNo})
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setStudentToMove(null)}
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition"
+                className="text-[#75695A] hover:text-[#111111] p-2 rounded-xl hover:bg-[#EDE7DB] transition"
               >
                 <X size={18} />
               </button>
@@ -605,21 +605,21 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
             <div className="p-6 space-y-4 text-xs">
               {moveError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-bold flex items-center gap-2">
+                <div className="p-3 bg-rose-50/80 border border-rose-200 rounded-xl text-rose-800 font-medium flex items-center gap-2">
                   <AlertCircle size={15} className="shrink-0 text-rose-600" />
                   <span>{moveError}</span>
                 </div>
               )}
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-[#E2E8E4] space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Current Team:</span>
-                <span className="font-extrabold text-slate-900 block text-xs">
+              <div className="p-3 bg-[#F8F5EE] rounded-xl border border-[#D8CCBA] space-y-1">
+                <span className="text-[10px] text-[#75695A] font-bold uppercase block">Current Team:</span>
+                <span className="font-semibold text-[#111111] block text-xs">
                   {studentToMove.teamNo || 'Unassigned'}
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-[#75695A] uppercase tracking-wider mb-1.5">
                   Select Destination Team (Max Capacity: {teamCapacity} Members)
                 </label>
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -638,34 +638,34 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                             setTargetTeamId(t.teamId);
                           }
                         }}
-                        className={`p-3 rounded-2xl border transition flex items-center justify-between gap-3 ${
+                        className={`p-3 rounded-xl border transition flex items-center justify-between gap-3 ${
                           isCurrent
-                            ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                            ? 'bg-[#F8F5EE] border-[#D8CCBA] opacity-60 cursor-not-allowed'
                             : isFull
                             ? 'bg-rose-50/50 border-rose-200 opacity-70 cursor-not-allowed'
                             : isSelected
-                            ? 'bg-mint-50 border-mint-500 ring-2 ring-mint-400/40 shadow-xs cursor-pointer'
-                            : 'bg-white border-[#E2E8E4] hover:bg-slate-50 cursor-pointer'
+                            ? 'bg-[#F8F5EE] border-[#111111] ring-1 ring-[#111111] shadow-xs cursor-pointer'
+                            : 'bg-white border-[#D8CCBA] hover:bg-[#F8F5EE]/50 cursor-pointer'
                         }`}
                       >
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-slate-900 text-xs">{t.teamNo}</span>
-                            <span className="text-[10px] text-slate-500 truncate max-w-[160px]">{t.title}</span>
+                            <span className="font-semibold text-[#111111] text-xs">{t.teamNo}</span>
+                            <span className="text-[10px] text-[#75695A] truncate max-w-[160px]">{t.title}</span>
                           </div>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">Guide: {t.guide}</span>
+                          <span className="text-[10px] text-[#75695A] block mt-0.5">Guide: {t.guide}</span>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${
+                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
                             isFull 
                               ? 'bg-rose-100 text-rose-800 border-rose-200' 
-                              : 'bg-mint-100 text-mint-900 border-mint-200'
+                              : 'bg-[#EDE7DB] text-[#111111] border-[#D8CCBA]'
                           }`}>
                             {currentCount} / {maxCap} Members
                           </span>
-                          {isFull && <span className="text-[9px] text-rose-600 block mt-0.5 font-bold">Team Full</span>}
-                          {isCurrent && <span className="text-[9px] text-slate-400 block mt-0.5">Current Team</span>}
+                          {isFull && <span className="text-[9px] text-rose-600 block mt-0.5 font-medium">Team Full</span>}
+                          {isCurrent && <span className="text-[9px] text-[#75695A] block mt-0.5">Current Team</span>}
                         </div>
                       </div>
                     );
@@ -674,18 +674,18 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
               </div>
             </div>
 
-            <div className="bg-[#F8FAF9] px-6 py-4 border-t border-[#E2E8E4] flex items-center justify-between">
+            <div className="bg-[#F8F5EE] px-6 py-4 border-t border-[#D8CCBA] flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setStudentToMove(null)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition"
+                className="px-4 py-2 text-xs font-semibold text-[#292725] hover:text-[#111111] bg-white border border-[#D8CCBA] rounded-xl hover:bg-[#EDE7DB] transition"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmMoveStudent}
-                className="px-5 py-2 text-xs font-extrabold text-white bg-mint-500 hover:bg-mint-600 rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                className="px-5 py-2 text-xs font-medium text-[#F8F5EE] bg-[#111111] hover:bg-[#292725] rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
               >
                 <Check size={14} />
                 <span>Confirm Shift</span>

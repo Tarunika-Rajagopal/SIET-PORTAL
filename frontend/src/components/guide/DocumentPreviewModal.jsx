@@ -10,22 +10,22 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
       <div 
-        className="bg-white w-full max-w-3xl rounded-2xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all flex flex-col max-h-[92vh]"
+        className="bg-white w-full max-w-3xl rounded-2xl shadow-xl border border-[#D8CCBA] overflow-hidden transform transition-all flex flex-col max-h-[92vh]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="doc-preview-title"
       >
-        {/* Top Control Bar in White & Mint */}
-        <div className="bg-white px-6 py-3.5 border-b border-[#E2E8E4] flex items-center justify-between shrink-0">
+        {/* Top Control Bar in Warm Ivory */}
+        <div className="bg-[#F8F5EE] px-6 py-3.5 border-b border-[#D8CCBA] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-mint-50 text-mint-700 border border-mint-200 flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center shadow-xs">
               {documentType === 'report' ? <FileText size={18} /> : <Presentation size={18} />}
             </div>
             <div>
-              <h3 id="doc-preview-title" className="text-xs font-extrabold text-slate-900 tracking-wide">
+              <h3 id="doc-preview-title" className="text-xs font-serif font-bold text-[#111111] tracking-wide">
                 {documentType === 'report' ? 'Institutional Technical Sprint Report' : 'Milestone Slide Deck Presentation'}
               </h3>
-              <p className="text-[10px] text-slate-500 font-semibold">
+              <p className="text-[10px] text-[#75695A] font-semibold">
                 Team #{team.teamNumber} &bull; Week {submission.weekNumber} Deliverable
               </p>
             </div>
@@ -33,22 +33,22 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
 
           <div className="flex items-center gap-3">
             {/* Page navigation */}
-            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl text-xs font-mono text-slate-700 border border-[#E2E8E4]">
+            <div className="flex items-center gap-1.5 bg-[#F8F5EE] px-2.5 py-1 rounded-xl text-xs font-mono text-[#111111] border border-[#D8CCBA]">
               <button
                 disabled={currentPage <= 1}
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                className="hover:text-mint-700 disabled:opacity-30 transition p-0.5"
+                className="hover:text-black disabled:opacity-30 transition p-0.5 cursor-pointer"
                 aria-label="Previous page"
               >
                 <ChevronLeft size={16} />
               </button>
-              <span className="text-[11px] font-extrabold">
+              <span className="text-[11px] font-bold">
                 {documentType === 'report' ? `Page ${currentPage} of ${totalPages}` : `Slide ${currentPage} of ${totalPages}`}
               </span>
               <button
                 disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                className="hover:text-mint-700 disabled:opacity-30 transition p-0.5"
+                className="hover:text-black disabled:opacity-30 transition p-0.5 cursor-pointer"
                 aria-label="Next page"
               >
                 <ChevronRight size={16} />
@@ -57,7 +57,7 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
 
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition"
+              className="text-[#75695A] hover:text-[#111111] p-1.5 rounded-lg hover:bg-[#EDE7DB] transition cursor-pointer"
               aria-label="Close modal"
             >
               <X size={18} />
@@ -66,24 +66,24 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
         </div>
 
         {/* Document Viewer Surface */}
-        <div className="p-6 bg-[#EFF3F1]/70 overflow-y-auto flex-1 flex justify-center">
-          <div className="bg-white w-full max-w-2xl min-h-[500px] rounded-2xl shadow-card border border-[#E2E8E4] p-8 flex flex-col justify-between text-xs text-slate-800">
+        <div className="p-6 bg-[#EDE7DB]/50 overflow-y-auto flex-1 flex justify-center">
+          <div className="bg-white w-full max-w-2xl min-h-[500px] rounded-2xl shadow-xs border border-[#D8CCBA] p-8 flex flex-col justify-between text-xs text-[#111111]">
             {/* Institutional Watermark & Header */}
             <div>
-              <div className="border-b-2 border-mint-500 pb-4 mb-6 flex items-start justify-between">
+              <div className="border-b-2 border-[#111111] pb-4 mb-6 flex items-start justify-between">
                 <div>
-                  <h2 className="text-sm font-black text-slate-900 tracking-tight uppercase">
+                  <h2 className="text-sm font-serif font-bold text-[#111111] tracking-tight uppercase">
                     Sri Shakthi Institute of Engineering and Technology
                   </h2>
-                  <p className="text-[10px] text-mint-700 font-bold">
+                  <p className="text-[10px] text-[#75695A] font-semibold">
                     Department of Computer Science and Engineering &bull; Capstone Project Framework
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="px-2.5 py-0.5 rounded-full bg-mint-100 text-mint-900 border border-mint-200 text-[10px] font-extrabold">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-[10px] font-bold">
                     Week {submission.weekNumber}
                   </span>
-                  <span className="text-[10px] text-slate-400 block font-mono mt-0.5">
+                  <span className="text-[10px] text-[#75695A] block font-mono mt-0.5">
                     {submission.submissionDate}
                   </span>
                 </div>
@@ -102,12 +102,12 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
                         </p>
                       </div>
 
-                      <div className="p-4 bg-slate-50 border border-[#E2E8E4] rounded-xl space-y-2">
+                      <div className="p-4 bg-slate-50 border border-[#D8CCBA] rounded-xl space-y-2">
                         <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide">1.0 Executive Sprint Abstract</h4>
                         <p className="text-slate-700 leading-relaxed text-xs">{submission.abstractSummary}</p>
                       </div>
 
-                      <div className="p-4 bg-slate-50 border border-[#E2E8E4] rounded-xl space-y-1.5">
+                      <div className="p-4 bg-slate-50 border border-[#D8CCBA] rounded-xl space-y-1.5">
                         <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide">2.0 Team Members on Duty</h4>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           {team.members?.map((m, i) => (
@@ -122,7 +122,7 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
 
                   {currentPage === 2 && (
                     <>
-                      <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide border-b border-[#E2E8E4] pb-1">
+                      <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide border-b border-[#D8CCBA] pb-1">
                         3.0 Technical Implementations &amp; Work Completed
                       </h4>
                       <p className="text-slate-700 leading-relaxed">
@@ -141,7 +141,7 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
 
                   {currentPage === 3 && (
                     <>
-                      <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide border-b border-[#E2E8E4] pb-1">
+                      <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide border-b border-[#D8CCBA] pb-1">
                         4.0 Technical Impediments &amp; Mitigations
                       </h4>
                       <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-1.5">
@@ -160,15 +160,15 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
 
                   {currentPage === 4 && (
                     <>
-                      <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide border-b border-[#E2E8E4] pb-1">
+                      <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wide border-b border-[#D8CCBA] pb-1">
                         5.0 Next Sprint Target Deliverables
                       </h4>
-                      <div className="p-4 bg-slate-50 border border-[#E2E8E4] rounded-xl space-y-1.5">
+                      <div className="p-4 bg-slate-50 border border-[#D8CCBA] rounded-xl space-y-1.5">
                         <span className="font-bold text-slate-900 block">Week {submission.weekNumber + 1} Work Plan:</span>
                         <p className="text-slate-700 leading-relaxed">{submission.nextWeekPlan || 'Proceed with next phase integrations.'}</p>
                       </div>
 
-                      <div className="mt-8 pt-6 border-t-2 border-[#E2E8E4] grid grid-cols-2 gap-8 text-center">
+                      <div className="mt-8 pt-6 border-t-2 border-[#D8CCBA] grid grid-cols-2 gap-8 text-center">
                         <div>
                           <div className="border-b border-slate-300 pb-8"></div>
                           <span className="text-[10px] text-slate-400 font-semibold block mt-1">Student Leader Signature</span>
@@ -210,7 +210,7 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
             </div>
 
             {/* Document Footer */}
-            <div className="border-t border-[#E2E8E4] pt-3 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+            <div className="border-t border-[#D8CCBA] pt-3 flex items-center justify-between text-[10px] text-[#75695A] font-mono">
               <span>CONFIDENTIAL &bull; SIET ACADEMIC CAPSTONE REPOSITORY</span>
               <span>{documentType === 'report' ? `PAGE ${currentPage} OF ${totalPages}` : `SLIDE ${currentPage} OF ${totalPages}`}</span>
             </div>
@@ -218,14 +218,14 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
         </div>
 
         {/* Modal Bottom Bar */}
-        <div className="bg-white px-6 py-3 border-t border-[#E2E8E4] flex items-center justify-between shrink-0">
-          <div className="text-[11px] text-slate-500">
+        <div className="bg-[#F8F5EE] px-6 py-3 border-t border-[#D8CCBA] flex items-center justify-between shrink-0">
+          <div className="text-[11px] text-[#75695A]">
             Rendered from student repository bundle ({submission.submissionStatus})
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 text-xs font-bold text-slate-700 bg-white border border-[#E2E8E4] hover:bg-slate-50 rounded-xl transition"
+            className="px-5 py-2 text-xs font-bold text-[#111111] bg-white border border-[#D8CCBA] hover:bg-[#EDE7DB] rounded-xl transition cursor-pointer"
           >
             Close Viewer
           </button>

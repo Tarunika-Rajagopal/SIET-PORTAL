@@ -61,10 +61,10 @@ export const AttractiveFilePicker: React.FC<FilePickerProps> = ({
           onDragOver={handleDrag}
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
-          className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
             dragActive
-              ? "border-mint-500 bg-mint-50 scale-[1.01]"
-              : "border-slate-300 hover:border-mint-500 bg-slate-50 hover:bg-mint-50/40"
+              ? "border-[#111111] bg-[#EDE7DB] scale-[1.01]"
+              : "border-[#D8CCBA] hover:border-[#111111] bg-[#F8F5EE] hover:bg-[#F3EFE6]"
           }`}
         >
           <input
@@ -74,25 +74,25 @@ export const AttractiveFilePicker: React.FC<FilePickerProps> = ({
             onChange={handleChange}
             className="hidden"
           />
-          <div className="w-12 h-12 mx-auto rounded-full bg-mint-100 text-mint-700 flex items-center justify-center mb-3 shadow-inner">
-            <UploadCloud size={24} />
+          <div className="w-12 h-12 mx-auto rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center mb-3 shadow-xs border border-[#D8CCBA]">
+            <UploadCloud size={22} />
           </div>
-          <p className="text-xs font-bold text-slate-800">
+          <p className="text-xs font-serif font-bold text-[#111111]">
             Click to upload or drag &amp; drop
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[11px] text-[#75695A] mt-1">
             Supported formats: PDF, PPTX, DOCX, ZIP (Max: 25MB)
           </p>
         </div>
       ) : (
-        <div className="bg-mint-50 border border-mint-200 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-[#F3EFE6] border border-[#D8CCBA] rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-mint-500 text-white flex items-center justify-center shadow-sm">
-              <FileText size={20} />
+            <div className="w-10 h-10 rounded-lg bg-[#111111] text-[#F8F5EE] flex items-center justify-center shadow-subtle border border-[#292725]">
+              <FileText size={18} />
             </div>
             <div className="text-left">
-              <p className="text-xs font-bold text-slate-800 max-w-[200px] sm:max-w-xs truncate">{selectedFile.name}</p>
-              <p className="text-[10px] text-mint-800 font-semibold mt-0.5">
+              <p className="text-xs font-bold text-[#111111] max-w-[200px] sm:max-w-xs truncate">{selectedFile.name}</p>
+              <p className="text-[10px] text-[#75695A] font-semibold mt-0.5">
                 {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Ready to Submit
               </p>
             </div>
@@ -100,7 +100,7 @@ export const AttractiveFilePicker: React.FC<FilePickerProps> = ({
           <button
             type="button"
             onClick={clearFile}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-white transition"
+            className="p-1.5 rounded-lg text-[#75695A] hover:text-[#7C3838] hover:bg-white/60 transition cursor-pointer"
           >
             <X size={16} />
           </button>

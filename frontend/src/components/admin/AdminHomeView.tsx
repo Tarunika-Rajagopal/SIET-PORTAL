@@ -90,19 +90,19 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       
       {/* 3 Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         {/* Available Faculties */}
-        <div className="bg-white p-5 rounded-3xl shadow-card border border-[#E2E8E4] flex items-center justify-between">
+        <div className="bg-white p-5 rounded-3xl shadow-sm border border-[#D8CCBA] flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Available Faculties</span>
-            <span className="text-2xl font-extrabold text-slate-900 mt-0.5 block">{availableFacultiesCount}</span>
-            <span className="text-[11px] text-mint-600 font-bold mt-1 block">Active In System</span>
+            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block">Available Faculties</span>
+            <span className="text-2xl font-serif font-bold text-[#111111] mt-0.5 block">{availableFacultiesCount}</span>
+            <span className="text-[11px] text-[#75695A] font-medium mt-1 block">Active In System</span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
+          <div className="w-12 h-12 rounded-2xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold">
             <Users size={24} />
           </div>
         </div>
@@ -110,17 +110,17 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
         {/* Assigned Advisors (Click navigates to Advisors tab) */}
         <div 
           onClick={() => onNavigateTab('advisors')}
-          className="bg-white p-5 rounded-3xl shadow-card border border-[#E2E8E4] flex items-center justify-between cursor-pointer hover:border-mint-400 hover:shadow-md transition group"
+          className="bg-white p-5 rounded-3xl shadow-sm border border-[#D8CCBA] flex items-center justify-between cursor-pointer hover:border-[#111111] hover:shadow-md transition group"
         >
           <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Assigned Advisors</span>
-            <span className="text-2xl font-extrabold text-slate-900 mt-0.5 block">{assignedAdvisorsCount}</span>
-            <span className="text-[11px] text-amber-700 font-bold mt-1 block flex items-center gap-1">
+            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block">Assigned Advisors</span>
+            <span className="text-2xl font-serif font-bold text-[#111111] mt-0.5 block">{assignedAdvisorsCount}</span>
+            <span className="text-[11px] text-[#75695A] font-medium mt-1 block flex items-center gap-1">
               <span>Sections Mapped</span>
               <ArrowRight size={11} className="group-hover:translate-x-1 transition" />
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-bold group-hover:scale-105 transition">
+          <div className="w-12 h-12 rounded-2xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold group-hover:scale-105 transition">
             <UserCheck size={24} />
           </div>
         </div>
@@ -128,17 +128,17 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
         {/* Assigned Guides (Click navigates to Guides tab) */}
         <div 
           onClick={() => onNavigateTab('guides')}
-          className="bg-white p-5 rounded-3xl shadow-card border border-[#E2E8E4] flex items-center justify-between cursor-pointer hover:border-mint-400 hover:shadow-md transition group"
+          className="bg-white p-5 rounded-3xl shadow-sm border border-[#D8CCBA] flex items-center justify-between cursor-pointer hover:border-[#111111] hover:shadow-md transition group"
         >
           <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Assigned Guides</span>
-            <span className="text-2xl font-extrabold text-slate-900 mt-0.5 block">{assignedGuidesCount}</span>
-            <span className="text-[11px] text-mint-600 font-bold mt-1 block flex items-center gap-1">
+            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block">Assigned Guides</span>
+            <span className="text-2xl font-serif font-bold text-[#111111] mt-0.5 block">{assignedGuidesCount}</span>
+            <span className="text-[11px] text-[#75695A] font-medium mt-1 block flex items-center gap-1">
               <span>Research Mentors</span>
               <ArrowRight size={11} className="group-hover:translate-x-1 transition" />
             </span>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold group-hover:scale-105 transition">
+          <div className="w-12 h-12 rounded-2xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold group-hover:scale-105 transition">
             <Briefcase size={24} />
           </div>
         </div>
@@ -146,14 +146,14 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
       </div>
 
       {/* Add Faculty Form Container */}
-      <div className="bg-white rounded-3xl p-6 shadow-card border border-[#E2E8E4]">
-        <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[#E2E8E4]">
-          <div className="w-9 h-9 rounded-xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-sm">
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#D8CCBA]">
+        <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[#D8CCBA]">
+          <div className="w-9 h-9 rounded-xl bg-[#111111] text-white flex items-center justify-center font-bold shadow-sm">
             <Plus size={18} />
           </div>
           <div>
-            <h3 className="text-sm font-extrabold text-slate-900">Add Faculty Member</h3>
-            <p className="text-xs text-slate-500">Register new teaching faculty into the project portal database</p>
+            <h3 className="text-base font-serif font-bold text-[#111111]">Add Faculty Member</h3>
+            <p className="text-xs text-[#75695A]">Register new teaching faculty into the project portal database</p>
           </div>
         </div>
 
@@ -161,35 +161,35 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
           
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div>
-              <label className="block text-slate-700 font-bold mb-1">Faculty Name <span className="text-red-500">*</span></label>
+              <label className="block text-[#75695A] font-medium mb-1">Faculty Name <span className="text-rose-500">*</span></label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Dr. K. Rajesh"
-                className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl focus:outline-none focus:border-mint-500 font-medium"
+                className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] text-[#111111] font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-slate-700 font-bold mb-1">Institutional Email <span className="text-red-500">*</span></label>
+              <label className="block text-[#75695A] font-medium mb-1">Institutional Email <span className="text-rose-500">*</span></label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="e.g. rajesh.k@siet.ac.in"
-                className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl focus:outline-none focus:border-mint-500 font-mono"
+                className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-mono text-[#111111]"
               />
             </div>
 
             <div>
-              <label className="block text-slate-700 font-bold mb-1">Designation</label>
+              <label className="block text-[#75695A] font-medium mb-1">Designation</label>
               <select
                 value={designation}
                 onChange={(e) => setDesignation(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl font-bold focus:outline-none focus:border-mint-500"
+                className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
               >
                 <option value="Professor">Professor</option>
                 <option value="Associate Professor">Associate Professor</option>
@@ -199,11 +199,11 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
             </div>
 
             <div>
-              <label className="block text-slate-700 font-bold mb-1">Role</label>
+              <label className="block text-[#75695A] font-medium mb-1">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as any)}
-                className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl font-bold focus:outline-none focus:border-mint-500"
+                className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
               >
                 <option value="">Select role</option>
                 <option value="Advisor">Advisor</option>
@@ -215,13 +215,13 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
 
           {/* Dynamic Extra Fields for Advisor */}
           {(role === 'Advisor' || role === 'Advisor & Guide') && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-mint-50/50 rounded-2xl border border-mint-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA]">
               <div>
-                <label className="block text-mint-900 font-extrabold mb-1">Designated Academic Batch</label>
+                <label className="block text-[#111111] font-medium mb-1">Designated Academic Batch</label>
                 <select
                   value={batch}
                   onChange={(e) => setBatch(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-mint-300 rounded-xl font-bold focus:outline-none focus:border-mint-500"
+                  className="w-full px-3 py-2 bg-white border border-[#D8CCBA] rounded-xl font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
                 >
                   <option value="2023-2027 (III Year)">2023-2027 (III Year)</option>
                   <option value="2024-2028 (II Year)">2024-2028 (II Year)</option>
@@ -230,11 +230,11 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
               </div>
 
               <div>
-                <label className="block text-mint-900 font-extrabold mb-1">Designated Section / Class</label>
+                <label className="block text-[#111111] font-medium mb-1">Designated Section / Class</label>
                 <select
                   value={className}
                   onChange={(e) => setClassName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-mint-300 rounded-xl font-bold focus:outline-none focus:border-mint-500"
+                  className="w-full px-3 py-2 bg-white border border-[#D8CCBA] rounded-xl font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
                 >
                   <option value="CSE-A" disabled={assignedClassesInBatch.includes('CSE-A')}>
                     CSE-A {assignedClassesInBatch.includes('CSE-A') ? '(Assigned)' : ''}
@@ -253,7 +253,7 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
           <div className="flex justify-end">
             <button
               type="submit"
-              className="px-5 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold rounded-xl shadow-sm transition flex items-center gap-1.5"
+              className="px-5 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-1.5"
             >
               <Plus size={15} />
               <span>Add Faculty Member</span>
@@ -264,23 +264,23 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
       </div>
 
       {/* Available Faculties Table with Manage Toggle */}
-      <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
-        <div className="p-5 border-b border-[#E2E8E4] flex items-center justify-between">
+      <div className="bg-white rounded-3xl shadow-sm border border-[#D8CCBA] overflow-hidden">
+        <div className="p-5 border-b border-[#D8CCBA] flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-extrabold text-slate-900">Available Faculties Roster</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Faculty credentials, active appointments, and workload reallocation</p>
+            <h3 className="text-base font-serif font-bold text-[#111111]">Available Faculties Roster</h3>
+            <p className="text-xs text-[#75695A] mt-0.5">Faculty credentials, active appointments, and workload reallocation</p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsManageMode(!isManageMode)}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 text-xs ${
+              className={`px-3.5 py-1.5 rounded-xl font-medium transition flex items-center gap-1.5 text-xs ${
                 isManageMode
-                  ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
-                  : 'bg-[#EFF3F1] hover:bg-mint-100 text-slate-700 border border-[#E2E8E4]'
+                  ? 'bg-[#111111] text-white border border-[#111111] shadow-xs'
+                  : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]'
               }`}
             >
-              <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
+              <RotateCw size={13} className={isManageMode ? 'text-white' : 'text-[#75695A]'} />
               <span>{isManageMode ? 'Close Manage' : 'Manage'}</span>
             </button>
           </div>
@@ -288,7 +288,7 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8FAF9] text-slate-500 uppercase tracking-wider font-bold border-b border-[#E2E8E4]">
+            <thead className="bg-[#EDE7DB] text-[#75695A] uppercase tracking-wider font-semibold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4">Faculty Name</th>
                 <th className="p-4">Institutional Email</th>
@@ -304,28 +304,28 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8E4] font-medium">
+            <tbody className="divide-y divide-[#D8CCBA] font-normal">
               {faculties.map((f) => (
-                <tr key={f.id} className="hover:bg-mint-50/40 transition">
-                  <td className="p-4 font-bold text-slate-900">{f.name}</td>
-                  <td className="p-4 text-slate-500 font-mono">{f.email}</td>
-                  <td className="p-4 text-slate-700">{f.designation}</td>
+                <tr key={f.id} className="hover:bg-[#F8F5EE]/60 transition">
+                  <td className="p-4 font-bold text-[#111111]">{f.name}</td>
+                  <td className="p-4 text-[#75695A] font-mono">{f.email}</td>
+                  <td className="p-4 text-[#292725]">{f.designation}</td>
                   <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] border ${
-                      f.role === 'Advisor' ? 'bg-amber-50 text-amber-900 border-amber-200' :
-                      f.role === 'Guide' ? 'bg-mint-100 text-mint-900 border-mint-200' :
-                      f.role === 'Advisor & Guide' ? 'bg-purple-50 text-purple-900 border-purple-200' :
-                      'bg-slate-100 text-slate-600 border-slate-200'
+                    <span className={`px-2.5 py-1 rounded-full font-medium text-[10px] border ${
+                      f.role === 'Advisor' ? 'bg-[#F8F5EE] text-[#111111] border-[#D8CCBA]' :
+                      f.role === 'Guide' ? 'bg-[#EDE7DB] text-[#111111] border-[#D8CCBA]' :
+                      f.role === 'Advisor & Guide' ? 'bg-[#111111] text-white border-[#111111]' :
+                      'bg-[#F3EFE6] text-[#75695A] border-[#D8CCBA]'
                     }`}>
                       {f.role}
                     </span>
                   </td>
-                  <td className="p-4 text-slate-700 font-bold">
+                  <td className="p-4 text-[#292725] font-medium">
                     {f.advisorClass ? `Class ${f.advisorClass} (${f.advisorBatch})` : ''}
                     {f.advisorClass && f.teamsCount > 0 ? ' • ' : ''}
                     {f.teamsCount > 0 ? `${f.teamsCount} Mentored Teams` : ''}
                     {!f.advisorClass && f.teamsCount === 0 ? (
-                      <span className="text-slate-400 font-normal">None (Available)</span>
+                      <span className="text-[#75695A] font-normal">None (Available)</span>
                     ) : null}
                   </td>
 
@@ -335,10 +335,10 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                       <td className="p-4 text-center">
                         <button
                           onClick={() => handleToggleGuide(f)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition ${
                             f.role === 'Guide' || f.role === 'Advisor & Guide'
-                              ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                              : 'bg-mint-50 text-mint-800 border-mint-200 hover:bg-mint-100'
+                              ? 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                              : 'bg-[#F8F5EE] text-[#111111] border-[#D8CCBA] hover:bg-[#EDE7DB]'
                           }`}
                         >
                           {f.role === 'Guide' || f.role === 'Advisor & Guide' ? 'Remove Guide' : 'Assign Guide'}
@@ -348,10 +348,10 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                       <td className="p-4 text-center">
                         <button
                           onClick={() => handleToggleAdvisor(f)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition ${
                             f.role === 'Advisor' || f.role === 'Advisor & Guide'
-                              ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                              : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
+                              ? 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                              : 'bg-[#EDE7DB] text-[#111111] border-[#D8CCBA] hover:bg-[#D8CCBA]'
                           }`}
                         >
                           {f.role === 'Advisor' || f.role === 'Advisor & Guide' ? 'Remove Advisor' : 'Assign Advisor'}
@@ -362,7 +362,7 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                         <button
                           onClick={() => openDeleteModal(f)}
                           title="Delete Faculty & Shift Workload"
-                          className="w-8 h-8 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 inline-flex items-center justify-center transition"
+                          className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 inline-flex items-center justify-center transition"
                         >
                           <Trash2 size={14} />
                         </button>

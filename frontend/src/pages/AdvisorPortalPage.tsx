@@ -76,7 +76,7 @@ export const AdvisorPortalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#EFF3F1] flex flex-col font-sans relative">
+    <div className="min-h-screen bg-[#F8F5EE] flex flex-col font-sans relative">
       
       {/* 1. Header with Uploaded SIET Logo & Profile */}
       <Header
@@ -86,7 +86,7 @@ export const AdvisorPortalPage: React.FC = () => {
       />
 
       {/* 2. Sticky Top Navigation Bar (Like Other Portals: Center-Aligned) */}
-      <div className="bg-white border-b border-[#E2E8E4] sticky top-16 z-30 shadow-xs">
+      <div className="bg-[#F8F5EE] border-b border-[#D8CCBA] sticky top-16 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">
             
@@ -96,14 +96,14 @@ export const AdvisorPortalPage: React.FC = () => {
               onClick={() => setActiveTab('students')}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'students'
-                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <Users size={16} />
               <span>Students</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                activeTab === 'students' ? 'bg-white text-mint-900' : 'bg-mint-100 text-mint-900'
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                activeTab === 'students' ? 'bg-[#292725] text-[#F8F5EE] border border-[#3E3B38]' : 'bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]'
               }`}>
                 {students.length}
               </span>
@@ -120,14 +120,14 @@ export const AdvisorPortalPage: React.FC = () => {
               }}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'teams'
-                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <BookOpen size={16} />
               <span>View Teams</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                activeTab === 'teams' ? 'bg-white text-mint-900' : 'bg-mint-100 text-mint-900'
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                activeTab === 'teams' ? 'bg-[#292725] text-[#F8F5EE] border border-[#3E3B38]' : 'bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]'
               }`}>
                 {teams.length}
               </span>
@@ -139,8 +139,8 @@ export const AdvisorPortalPage: React.FC = () => {
               onClick={() => setActiveTab('assign-marks')}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'assign-marks'
-                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <Award size={16} />
@@ -153,8 +153,8 @@ export const AdvisorPortalPage: React.FC = () => {
               onClick={() => setActiveTab('history')}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'history'
-                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <History size={16} />

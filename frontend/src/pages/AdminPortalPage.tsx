@@ -34,7 +34,7 @@ export const AdminPortalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#EFF3F1] flex flex-col font-sans relative">
+    <div className="min-h-screen bg-[#F8F5EE] flex flex-col font-sans relative">
       
       {/* Institutional Top Header */}
       <Header
@@ -44,15 +44,15 @@ export const AdminPortalPage: React.FC = () => {
       />
 
       {/* Sticky Horizontal Navigation Bar */}
-      <div className="bg-white border-b border-[#E2E8E4] sticky top-16 z-30 shadow-xs">
+      <div className="bg-[#F8F5EE] border-b border-[#D8CCBA] sticky top-16 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">
             <button
               onClick={() => setActiveTab('home')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'home'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <Home size={15} />
@@ -61,10 +61,10 @@ export const AdminPortalPage: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('advisors')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'advisors'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <UserCheck size={15} />
@@ -73,10 +73,10 @@ export const AdminPortalPage: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('guides')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'guides'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <Briefcase size={15} />
@@ -85,10 +85,10 @@ export const AdminPortalPage: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('students')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'students'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <GraduationCap size={15} />
@@ -97,10 +97,10 @@ export const AdminPortalPage: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === 'history'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
               }`}
             >
               <History size={15} />
@@ -144,8 +144,8 @@ export const AdminPortalPage: React.FC = () => {
       {/* Non-intrusive bottom notification message banner */}
       {bottomToast && (
         <div className="fixed bottom-6 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
-          <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-xs font-bold border border-slate-700 animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-auto">
-            <CheckCircle2 size={16} className="text-mint-400 shrink-0" />
+          <div className="bg-[#1A1A1A] text-[#F8F5EE] px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-bold border border-[#D8CCBA] animate-in fade-in slide-in-from-bottom-3 duration-200 pointer-events-auto">
+            <CheckCircle2 size={16} className="text-[#84A07B] shrink-0" />
             <span>{bottomToast}</span>
           </div>
         </div>

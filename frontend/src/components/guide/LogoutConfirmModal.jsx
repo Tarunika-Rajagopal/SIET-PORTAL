@@ -7,32 +7,32 @@ export const LogoutConfirmModal = ({ isOpen, onClose, onConfirm, facultyProfile 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
       <div 
-        className="bg-white w-full max-w-md rounded-2xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all"
+        className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-[#D8CCBA] overflow-hidden transform transition-all"
         role="dialog"
         aria-modal="true"
         aria-labelledby="logout-modal-title"
       >
         <div className="p-6 space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
+          <div className="w-12 h-12 rounded-2xl bg-[#F8F5EE] text-[#111111] flex items-center justify-center mx-auto border border-[#D8CCBA]">
             <LogOut size={24} />
           </div>
 
           <div className="text-center space-y-1">
-            <h3 id="logout-modal-title" className="text-base font-extrabold text-slate-900">
+            <h3 id="logout-modal-title" className="text-base font-serif font-bold text-[#111111]">
               Sign Out of Faculty Guide Portal?
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#75695A]">
               You will need to authenticate again with your SIET institutional credentials to evaluate pending student milestones.
             </p>
           </div>
 
           {facultyProfile && (
-            <div className="p-3.5 bg-[#EFF3F1]/70 border border-[#E2E8E4] rounded-xl text-xs text-slate-700 flex items-center justify-between">
+            <div className="p-3.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] flex items-center justify-between">
               <div>
-                <span className="font-extrabold text-slate-900 block">{facultyProfile.name}</span>
-                <span className="text-[10px] text-slate-500">{facultyProfile.empId} &bull; {facultyProfile.role}</span>
+                <span className="font-bold text-[#111111] block">{facultyProfile.name}</span>
+                <span className="text-[10px] text-[#75695A]">{facultyProfile.empId} &bull; {facultyProfile.role}</span>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-mint-100 text-mint-900 border border-mint-200 text-[10px] font-extrabold">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-[10px] font-bold">
                 Active Session
               </span>
             </div>
@@ -42,7 +42,7 @@ export const LogoutConfirmModal = ({ isOpen, onClose, onConfirm, facultyProfile 
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-2.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-[#E2E8E4] rounded-xl transition"
+              className="w-full py-2.5 text-xs font-bold text-[#111111] bg-white hover:bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl transition cursor-pointer"
             >
               Cancel
             </button>
@@ -52,7 +52,7 @@ export const LogoutConfirmModal = ({ isOpen, onClose, onConfirm, facultyProfile 
                 onClose();
                 if (onConfirm) onConfirm();
               }}
-              className="w-full py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 text-xs font-bold text-[#F8F5EE] bg-[#111111] hover:bg-[#292725] rounded-xl shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <LogOut size={14} />
               <span>Confirm Sign Out</span>

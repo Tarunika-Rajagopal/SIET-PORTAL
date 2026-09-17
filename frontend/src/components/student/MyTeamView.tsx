@@ -21,26 +21,26 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
       
       {/* Rejection Notice Alert Banner */}
       {team.guideApprovalStatus === 'Rejected' && (
-        <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-5 sm:p-6 shadow-sm flex items-start gap-4">
-          <div className="p-2.5 rounded-2xl bg-rose-100 text-rose-700 shrink-0 mt-0.5">
+        <div className="bg-[#F8EEEE] border border-[#D9AEAE] rounded-2xl p-5 sm:p-6 shadow-subtle flex items-start gap-4">
+          <div className="p-2.5 rounded-xl bg-[#DEA5A8]/30 text-[#7C3838] shrink-0 mt-0.5">
             <AlertTriangle size={22} />
           </div>
           <div className="flex-1 space-y-1.5">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-extrabold text-rose-900">Project Proposal Revision Required</h3>
-              <span className="px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 text-[10px] font-black uppercase tracking-wider">
+              <h3 className="text-sm font-serif font-bold text-[#7C3838]">Project Proposal Revision Required</h3>
+              <span className="px-2.5 py-0.5 rounded-full bg-[#DEA5A8]/40 text-[#7C3838] text-[10px] font-bold uppercase tracking-wider border border-[#D9AEAE]">
                 Action Required
               </span>
             </div>
-            <p className="text-xs text-rose-800 font-semibold leading-relaxed">
+            <p className="text-xs text-[#7C3838] font-medium leading-relaxed">
               Your Faculty Guide has reviewed your submission and requested revisions before this project can be approved:
             </p>
             {team.rejectionReason && (
-              <div className="mt-2 p-3.5 rounded-xl bg-white border border-rose-200 font-medium text-xs text-rose-950 italic">
+              <div className="mt-2 p-3.5 rounded-xl bg-white border border-[#D9AEAE] font-medium text-xs text-[#7C3838] italic">
                 "{team.rejectionReason}"
               </div>
             )}
-            <p className="text-[11px] text-rose-700 font-bold pt-1">
+            <p className="text-[11px] text-[#7C3838] font-bold pt-1">
               Please go to the <strong>Submissions</strong> tab to update your deliverables according to the guide's feedback.
             </p>
           </div>
@@ -48,25 +48,25 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
       )}
 
       {/* Team Header Hero Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-[#E2E8E4]">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-card border border-[#D8CCBA]">
         <div className="space-y-3">
           {/* Project Title appears once approved by the guide */}
           {team.isTitleApproved && team.projectTitle && (
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              <span className="text-[11px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
                 Project Title
               </span>
-              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-snug">
+              <h2 className="text-lg sm:text-xl font-serif font-bold text-[#111111] leading-snug">
                 {team.projectTitle}
               </h2>
             </div>
           )}
 
           {/* Batch & Section Badge */}
-          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-slate-50 border border-[#E2E8E4] text-xs text-slate-700 font-medium shadow-2xs mt-1">
-            <span><strong className="text-slate-900 font-bold">Batch:</strong> {team.batch}</span>
-            <span className="text-slate-300">&bull;</span>
-            <span><strong className="text-slate-900 font-bold">Section:</strong> Class {team.section}</span>
+          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#F8F5EE] border border-[#D8CCBA] text-xs text-[#292725] font-medium shadow-subtle mt-1">
+            <span><strong className="text-[#111111] font-bold">Batch:</strong> {team.batch}</span>
+            <span className="text-[#B8AA97]">&bull;</span>
+            <span><strong className="text-[#111111] font-bold">Section:</strong> Class {team.section}</span>
           </div>
         </div>
       </div>
@@ -75,30 +75,30 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         
         {/* Project Guide Card */}
-        <div className="bg-white rounded-3xl p-5 shadow-card border border-[#E2E8E4] flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-extrabold text-base shadow-xs shrink-0">
+        <div className="bg-white rounded-2xl p-5 shadow-card border border-[#D8CCBA] flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center font-bold text-base shadow-xs border border-[#D8CCBA] shrink-0">
             <BookOpen size={22} />
           </div>
           <div className="flex-1">
-            <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+            <div className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider">
               Project Guide
             </div>
-            <h4 className="text-sm font-extrabold text-slate-900 mt-0.5">
+            <h4 className="text-sm font-serif font-bold text-[#111111] mt-0.5">
               {team.guideName}
             </h4>
           </div>
         </div>
 
         {/* Advisor Card */}
-        <div className="bg-white rounded-3xl p-5 shadow-card border border-[#E2E8E4] flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-extrabold text-base shadow-xs shrink-0">
+        <div className="bg-white rounded-2xl p-5 shadow-card border border-[#D8CCBA] flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center font-bold text-base shadow-xs border border-[#D8CCBA] shrink-0">
             <Compass size={22} />
           </div>
           <div className="flex-1">
-            <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+            <div className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider">
               Advisor
             </div>
-            <h4 className="text-sm font-extrabold text-slate-900 mt-0.5">
+            <h4 className="text-sm font-serif font-bold text-[#111111] mt-0.5">
               {team.advisorName}
             </h4>
           </div>
@@ -107,17 +107,17 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
       </div>
 
       {/* Team Members Roster */}
-      <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-card border border-[#D8CCBA] overflow-hidden">
         
         {/* Table Header: count badge on the left next to title */}
-        <div className="p-6 border-b border-[#E2E8E4] flex items-center justify-start gap-3">
-          <div className="p-2 rounded-xl bg-mint-100 text-mint-800">
+        <div className="p-5 border-b border-[#D8CCBA] bg-[#F8F5EE] flex items-center justify-start gap-3">
+          <div className="p-2 rounded-lg bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]">
             <Users size={18} />
           </div>
-          <h3 className="text-sm font-extrabold text-slate-900 m-0">Project Team Members</h3>
+          <h3 className="text-sm font-serif font-bold text-[#111111] m-0">Project Team Members</h3>
           <span 
             id="teamMemberCountBadge"
-            className="bg-mint-100 text-mint-800 font-bold text-xs px-3 py-1 rounded-full border border-mint-200"
+            className="bg-[#EDE7DB] text-[#111111] font-bold text-xs px-3 py-1 rounded-full border border-[#D8CCBA]"
           >
             {team.members.length} Members
           </span>
@@ -126,35 +126,35 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
         {/* Clean 3-Column Table: Register Number, Student Name, Institutional Email */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8FAF9] text-slate-500 uppercase tracking-wider font-bold border-b border-[#E2E8E4]">
+            <thead className="bg-[#EDE7DB] text-[#111111] uppercase tracking-wider font-serif font-bold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4 w-48">REGISTER NUMBER</th>
                 <th className="p-4">STUDENT NAME</th>
                 <th className="p-4">INSTITUTIONAL EMAIL</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8E4] font-medium">
+            <tbody className="divide-y divide-[#D8CCBA] font-medium bg-white">
               {team.members.map((member, idx) => (
-                <tr key={member.rollNo || idx} className="hover:bg-mint-50/40 transition">
-                  <td className="p-4 font-mono font-bold text-mint-900 whitespace-nowrap">
+                <tr key={member.rollNo || idx} className="hover:bg-[#F8F5EE] transition">
+                  <td className="p-4 font-mono font-bold text-[#111111] whitespace-nowrap">
                     {member.rollNo}
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-mint-500 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+                      <div className="w-9 h-9 rounded-lg bg-[#111111] text-[#F8F5EE] font-bold text-xs flex items-center justify-center shadow-subtle border border-[#292725]">
                         {getUserInitials(member.name)}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900">{member.name}</span>
+                        <span className="font-bold text-[#111111]">{member.name}</span>
                         {isTeamLead(member) && (
-                          <span className="px-2 py-0.5 rounded-full bg-mint-100 text-mint-800 text-[10px] font-extrabold uppercase border border-mint-200">
+                          <span className="px-2 py-0.5 rounded-full bg-[#EDE7DB] text-[#111111] text-[10px] font-bold uppercase border border-[#D8CCBA]">
                             Team Lead
                           </span>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 font-mono text-slate-600">
+                  <td className="p-4 font-mono text-[#75695A]">
                     {member.email}
                   </td>
                 </tr>

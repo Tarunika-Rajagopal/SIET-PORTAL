@@ -156,8 +156,8 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
       )}
 
       {/* All Weeks Completed - Visible First as Interactive Cards */}
-      <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
-        <div className="p-5 border-b border-[#E2E8E4] flex items-center justify-between bg-slate-50/60">
+      <div className="bg-white rounded-3xl shadow-card border border-[#D8CCBA] overflow-hidden">
+        <div className="p-5 border-b border-[#D8CCBA] flex items-center justify-between bg-slate-50/60">
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">
               Current Academic Milestone
@@ -178,7 +178,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
             <p className="text-slate-400">Deliverables for Week {currentAcademicWeek} will appear here once submitted from the Submission Form.</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#E2E8E4]">
+          <div className="divide-y divide-[#D8CCBA]">
             {completedWeeks.map((sub) => {
               const isApproved = sub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved';
               const isRevisionRequired = !isApproved && (sub.status === 'Changes Requested' || sub.status === 'Rejected');
@@ -247,7 +247,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                       {/* Technical metadata pills preview */}
                       <div className="flex flex-wrap gap-2 pt-1">
                         {sub.technologyUsed ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#EFF3F1] border border-[#E2E8E4] text-slate-700 font-semibold text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#F8F5EE] border border-[#D8CCBA] text-slate-700 font-semibold text-[10px]">
                             <span className="font-bold text-slate-500">Technologies:</span> <span className="font-mono">{sub.technologyUsed.split(',').slice(0, 3).join(', ')}{sub.technologyUsed.split(',').length > 3 ? '...' : ''}</span>
                           </span>
                         ) : (
@@ -256,7 +256,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                           </span>
                         )}
                         {sub.obstaclesFaced ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#EFF3F1] border border-[#E2E8E4] text-slate-700 text-[10px] font-semibold line-clamp-1 max-w-sm sm:max-w-md">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#F8F5EE] border border-[#D8CCBA] text-slate-700 text-[10px] font-semibold line-clamp-1 max-w-sm sm:max-w-md">
                             <span className="font-bold text-slate-600 shrink-0">Obstacles:</span> <span className="truncate">{sub.obstaclesFaced}</span>
                           </span>
                         ) : (
@@ -356,10 +356,10 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl border border-[#E2E8E4] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl border border-[#D8CCBA] overflow-hidden flex flex-col">
             
             {/* Modal Header */}
-            <div className="p-6 border-b border-[#E2E8E4] flex items-center justify-between bg-slate-50/70 shrink-0">
+            <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-slate-50/70 shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm text-white shadow-xs ${
                   isModalApproved ? 'bg-mint-500' :
@@ -434,8 +434,8 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
               )}
 
               {/* Part 1: Review Given by Guide (NO MARKS SHOWN) */}
-              <div className="bg-[#EFF3F1]/80 rounded-2xl p-5 border border-mint-200/80 space-y-3">
-                <div className="flex items-center justify-between border-b border-mint-200/60 pb-3">
+              <div className="bg-[#F8F5EE] rounded-2xl p-5 border border-[#D8CCBA] space-y-3">
+                <div className="flex items-center justify-between border-b border-[#D8CCBA] pb-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-mint-500 text-white flex items-center justify-center font-bold">
                       <User size={16} />
@@ -461,7 +461,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
                     Guide Evaluation Critique &amp; Remarks:
                   </span>
-                  <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#E2E8E4]">
+                  <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#D8CCBA]">
                     {activeWeekSub.comments || (isModalApproved ? 'Project milestone endorsed and approved by faculty guide.' : 'Submission is under active evaluation by the project guide.')}
                   </p>
                 </div>
@@ -482,7 +482,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
               {/* Part 2: Complete Submission by Student */}
               <div className="space-y-4">
-                <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#E2E8E4] pb-2">
+                <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#D8CCBA] pb-2">
                   Complete Student Submission Details
                 </h4>
 
@@ -492,7 +492,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Project Title
                   </span>
                   {activeWeekSub.projectTitle ? (
-                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900">
+                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs font-bold text-slate-900">
                       {activeWeekSub.projectTitle}
                     </div>
                   ) : (
@@ -509,7 +509,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Problem Statement
                   </span>
                   {activeWeekSub.problemStatement ? (
-                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
                       {activeWeekSub.problemStatement}
                     </div>
                   ) : (
@@ -526,7 +526,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Proposed Solution &amp; Technical Approach
                   </span>
                   {activeWeekSub.solution ? (
-                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
                       {activeWeekSub.solution}
                     </div>
                   ) : (
@@ -543,7 +543,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Technologies Used
                   </span>
                   {activeWeekSub.technologyUsed ? (
-                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 font-mono font-bold">
+                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 font-mono font-bold">
                       {activeWeekSub.technologyUsed}
                     </div>
                   ) : (
@@ -560,7 +560,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Obstacles Faced
                   </span>
                   {activeWeekSub.obstaclesFaced ? (
-                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
                       {activeWeekSub.obstaclesFaced}
                     </div>
                   ) : (
@@ -577,7 +577,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Project Abstract
                   </span>
                   {activeWeekSub.abstract ? (
-                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
                       {activeWeekSub.abstract}
                     </div>
                   ) : (
@@ -598,7 +598,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     
                     {/* Presentation PPT */}
                     {activeWeekSub.fileName || activeWeekSub.presentationFile ? (
-                      <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                      <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
                         <div className="flex items-center gap-2.5">
                           <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
                             <FileText size={18} />
@@ -639,7 +639,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
                     {/* PDF Dossier */}
                     {activeWeekSub.pdfFile ? (
-                      <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                      <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
                         <div className="flex items-center gap-2.5">
                           <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
                             <FileCode size={18} />
@@ -680,7 +680,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
                     {/* Source Code Repository */}
                     {activeWeekSub.repoUrl ? (
-                      <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                      <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
                         <div className="flex items-center gap-2.5">
                           <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
                             <FileCode size={18} />
@@ -722,7 +722,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
                     {/* Live Demo URL */}
                     {activeWeekSub.demoUrl ? (
-                      <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                      <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
                         <div className="flex items-center gap-2.5">
                           <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
                             <ExternalLink size={18} />
@@ -771,7 +771,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Submitted Output Screenshot
                   </span>
                   {activeWeekSub.screenshotFile ? (
-                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-2xl flex items-center gap-3">
+                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-2xl flex items-center gap-3">
                       <img 
                         src={activeWeekSub.screenshotFile} 
                         alt="Output preview" 
@@ -804,7 +804,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-[#E2E8E4] flex items-center justify-between bg-slate-50 shrink-0">
+            <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-between bg-slate-50 shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -838,9 +838,9 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
       {/* Resubmit Modal for Weeks Requiring Revision */}
       {resubmitModalOpen && activeWeekSub && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-[#E2E8E4] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-[#D8CCBA] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             
-            <div className="p-6 border-b border-[#E2E8E4] flex items-center justify-between bg-rose-50/60">
+            <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-rose-50/60">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
                   <RefreshCw size={18} />
@@ -874,11 +874,11 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   rows={4}
                   value={resubmitNotes}
                   onChange={(e) => setResubmitNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed font-medium"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-[#D8CCBA] rounded-xl text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed font-medium"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E2E8E4]">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#D8CCBA]">
                 <button
                   type="button"
                   onClick={() => setResubmitModalOpen(false)}

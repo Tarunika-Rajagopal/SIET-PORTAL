@@ -20,27 +20,27 @@ export const HistoryPdfPreviewModal: React.FC<HistoryPdfPreviewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-[#E2E8E4] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto font-sans">
+      <div className="bg-white rounded-3xl w-full max-w-4xl shadow-xl border border-[#D8CCBA] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Controls Bar (Hidden during print) */}
-        <div className="p-4 border-b border-[#E2E8E4] flex items-center justify-between bg-slate-50 print:hidden">
-          <div className="flex items-center gap-2 text-slate-700 font-bold text-xs">
-            <FileText size={16} className="text-mint-600" />
+        <div className="p-4 border-b border-[#D8CCBA] flex items-center justify-between bg-[#F8F5EE] print:hidden">
+          <div className="flex items-center gap-2 text-[#111111] font-medium text-xs">
+            <FileText size={16} className="text-[#111111]" />
             <span>PDF Print / Export Preview Format</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold rounded-xl shadow-sm transition flex items-center gap-2 text-xs"
+              className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2 text-xs cursor-pointer"
             >
               <Printer size={15} />
               <span>Download / Print PDF</span>
             </button>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition"
+              className="w-8 h-8 rounded-xl hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] flex items-center justify-center transition cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -48,53 +48,53 @@ export const HistoryPdfPreviewModal: React.FC<HistoryPdfPreviewModalProps> = ({
         </div>
 
         {/* Printable Document Container */}
-        <div className="p-8 space-y-6 text-slate-800 bg-white" id="printableAuditReport">
+        <div className="p-8 space-y-6 text-[#111111] bg-white" id="printableAuditReport">
           
           {/* Institutional Letterhead */}
-          <div className="border-b-2 border-mint-700 pb-5 text-center space-y-1">
+          <div className="border-b-2 border-[#111111] pb-5 text-center space-y-1">
             <div className="flex items-center justify-center gap-3 mb-2">
-              <img src="/logo.jpg" alt="SIET Logo" className="w-12 h-12 object-contain rounded-lg border border-[#E2E8E4]" />
+              <img src="/logo.jpg" alt="SIET Logo" className="w-12 h-12 object-contain rounded-lg border border-[#D8CCBA]" />
               <div className="text-left">
-                <h1 className="text-base font-extrabold text-slate-900 uppercase tracking-wide">
+                <h1 className="text-base font-serif font-bold text-[#111111] uppercase tracking-wide">
                   Sri Shakthi Institute of Engineering and Technology
                 </h1>
-                <p className="text-[11px] text-slate-500 font-bold uppercase">
+                <p className="text-[11px] text-[#75695A] font-medium uppercase">
                   (Autonomous Institution • Affiliated to Anna University • Approved by AICTE)
                 </p>
-                <p className="text-[11px] text-mint-700 font-extrabold">
+                <p className="text-[11px] text-[#75695A] font-semibold">
                   Department of Computer Science and Engineering
                 </p>
               </div>
             </div>
             <div className="pt-2">
-              <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider bg-mint-50 inline-block px-4 py-1 rounded-full border border-mint-200">
+              <h2 className="text-sm font-serif font-bold text-[#111111] uppercase tracking-wider bg-[#F8F5EE] inline-block px-4 py-1 rounded-full border border-[#D8CCBA]">
                 Official Administrative Audit Trail &amp; Allocation Log Report
               </h2>
             </div>
           </div>
 
           {/* Document Metadata Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-2xl border border-[#E2E8E4] text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA] text-xs">
             <div>
-              <span className="text-[10px] text-slate-400 font-bold block uppercase">Report Date</span>
-              <span className="font-extrabold text-slate-800">
+              <span className="text-[10px] text-[#75695A] font-bold block uppercase">Report Date</span>
+              <span className="font-bold text-[#111111]">
                 {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
               </span>
             </div>
 
             <div>
-              <span className="text-[10px] text-slate-400 font-bold block uppercase">Active Administrator</span>
-              <span className="font-extrabold text-slate-800 font-mono">admin@siet.ac.in</span>
+              <span className="text-[10px] text-[#75695A] font-bold block uppercase">Active Administrator</span>
+              <span className="font-bold text-[#111111] font-mono">admin@siet.ac.in</span>
             </div>
 
             <div>
-              <span className="text-[10px] text-slate-400 font-bold block uppercase">Total Logged Entries</span>
-              <span className="font-extrabold text-mint-900">{logs.length} Recorded Events</span>
+              <span className="text-[10px] text-[#75695A] font-bold block uppercase">Total Logged Entries</span>
+              <span className="font-bold text-[#111111]">{logs.length} Recorded Events</span>
             </div>
 
             <div>
-              <span className="text-[10px] text-slate-400 font-bold block uppercase">Integrity Verification</span>
-              <span className="font-extrabold text-emerald-600 flex items-center gap-1">
+              <span className="text-[10px] text-[#75695A] font-bold block uppercase">Integrity Verification</span>
+              <span className="font-bold text-[#111111] flex items-center gap-1">
                 <Shield size={12} />
                 <span>Verified Audit Trail</span>
               </span>
@@ -102,33 +102,33 @@ export const HistoryPdfPreviewModal: React.FC<HistoryPdfPreviewModalProps> = ({
           </div>
 
           {/* Tabular Audit Trail */}
-          <div className="border border-[#E2E8E4] rounded-2xl overflow-hidden">
+          <div className="border border-[#D8CCBA] rounded-2xl overflow-hidden">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-[#EFF3F1] font-extrabold text-slate-700 border-b border-[#E2E8E4]">
+              <thead className="bg-[#EDE7DB] font-semibold text-[#75695A] border-b border-[#D8CCBA]">
                 <tr>
-                  <th className="p-3 border-r border-[#E2E8E4] w-36">Timestamp</th>
-                  <th className="p-3 border-r border-[#E2E8E4] w-36">Action Type</th>
-                  <th className="p-3 border-r border-[#E2E8E4]">Target Entity</th>
-                  <th className="p-3 border-r border-[#E2E8E4]">Operational Details</th>
+                  <th className="p-3 border-r border-[#D8CCBA] w-36">Timestamp</th>
+                  <th className="p-3 border-r border-[#D8CCBA] w-36">Action Type</th>
+                  <th className="p-3 border-r border-[#D8CCBA]">Target Entity</th>
+                  <th className="p-3 border-r border-[#D8CCBA]">Operational Details</th>
                   <th className="p-3 w-44">Audit Reason</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E2E8E4] text-[11px]">
+              <tbody className="divide-y divide-[#D8CCBA] text-[11px]">
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/50">
-                    <td className="p-3 border-r border-[#E2E8E4] text-slate-500 font-mono whitespace-nowrap">
+                  <tr key={log.id} className="hover:bg-[#F8F5EE]/50">
+                    <td className="p-3 border-r border-[#D8CCBA] text-[#75695A] font-mono whitespace-nowrap">
                       {log.dateFormatted}
                     </td>
-                    <td className="p-3 border-r border-[#E2E8E4] font-extrabold text-slate-900">
+                    <td className="p-3 border-r border-[#D8CCBA] font-bold text-[#111111]">
                       {log.actionType}
                     </td>
-                    <td className="p-3 border-r border-[#E2E8E4] font-bold text-mint-900">
+                    <td className="p-3 border-r border-[#D8CCBA] font-medium text-[#111111]">
                       {log.target}
                     </td>
-                    <td className="p-3 border-r border-[#E2E8E4] text-slate-700">
+                    <td className="p-3 border-r border-[#D8CCBA] text-[#292725]">
                       {log.details}
                     </td>
-                    <td className="p-3 font-medium text-slate-600 italic bg-slate-50/50">
+                    <td className="p-3 font-normal text-[#75695A] italic bg-[#F8F5EE]/40">
                       {log.reason}
                     </td>
                   </tr>
@@ -138,14 +138,14 @@ export const HistoryPdfPreviewModal: React.FC<HistoryPdfPreviewModalProps> = ({
           </div>
 
           {/* Institutional Sign-off Footer */}
-          <div className="pt-8 border-t border-[#E2E8E4] flex items-center justify-between text-xs text-slate-500">
+          <div className="pt-8 border-t border-[#D8CCBA] flex items-center justify-between text-xs text-[#75695A]">
             <div>
-              <p className="font-bold">System Generated Document</p>
+              <p className="font-bold text-[#111111]">System Generated Document</p>
               <p className="text-[10px]">Sri Shakthi Academic Project Portal • Autonomous CSE Governance</p>
             </div>
             <div className="text-right">
-              <div className="h-10 border-b border-slate-300 w-48 mb-1"></div>
-              <p className="font-bold text-slate-800">Head of Department / Administrator</p>
+              <div className="h-10 border-b border-[#75695A] w-48 mb-1"></div>
+              <p className="font-bold text-[#111111]">Head of Department / Administrator</p>
             </div>
           </div>
 
