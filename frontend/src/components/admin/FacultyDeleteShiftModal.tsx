@@ -27,13 +27,13 @@ export const FacultyDeleteShiftModal: React.FC<FacultyDeleteShiftModalProps> = (
     f.email !== faculty.email && f.role !== 'Advisor' && f.role !== 'Advisor & Guide'
   );
 
-  // Eligible non-guides or guides with capacity to inherit guide teams
-  const eligibleGuides = allFaculties.filter(f => 
-    f.email !== faculty.email && f.teamsCount < f.maxQuota
+  // Strictly eligible non-guides to inherit guide role (exclude departing faculty and anyone already a guide)
+  const eligibleNonGuides = allFaculties.filter(f => 
+    f.email !== faculty.email && f.role !== 'Guide' && f.role !== 'Advisor & Guide'
   );
 
   const [advisorSuccessor, setAdvisorSuccessor] = useState(eligibleAdvisors[0]?.email || '');
-  const [guideSuccessor, setGuideSuccessor] = useState(eligibleGuides[0]?.email || '');
+  const [guideSuccessor, setGuideSuccessor] = useState(eligibleNonGuides[0]?.email || '');
   const [reason, setReason] = useState('Faculty resignation / academic semester restructuring');
   const [error, setError] = useState('');
 
@@ -45,12 +45,12 @@ export const FacultyDeleteShiftModal: React.FC<FacultyDeleteShiftModalProps> = (
     }
 
     if (isAdvisor && !advisorSuccessor && eligibleAdvisors.length > 0) {
-      setError('Please select an eligible faculty member to inherit the Class Advisor duties.');
+      setError('Please select an eligible non-advisor faculty member to inherit the Class Advisor duties.');
       return;
     }
 
-    if (isGuide && faculty.teamsCount > 0 && !guideSuccessor && eligibleGuides.length > 0) {
-      setError('Please select an eligible faculty member to inherit the guided student teams.');
+    if (isGuide && !guideSuccessor && eligibleNonGuides.length > 0) {
+      setError('Please select an eligible non-guide faculty member to inherit the Project Guide duties.');
       return;
     }
 
@@ -148,26 +148,30 @@ export const FacultyDeleteShiftModal: React.FC<FacultyDeleteShiftModalProps> = (
           )}
 
           {/* Shift Guide Workload */}
-          {isGuide && faculty.teamsCount > 0 && (
+          {isGuide && (
             <div className="p-4 rounded-2xl bg-mint-50/60 border border-mint-200 space-y-2.5">
               <div className="flex items-center gap-2 text-mint-900 font-extrabold text-xs">
                 <Briefcase size={16} className="text-mint-700" />
                 <span>Project Mentorship Shift Required</span>
               </div>
               <p className="text-[11px] text-mint-800">
-                Currently mentoring <strong>{faculty.teamsCount} Capstone Teams</strong>. Select a successor guide to adopt these teams:
+                {faculty.teamsCount > 0 ? (
+                  <>Currently mentoring <strong>{faculty.teamsCount} Capstone Teams</strong>. Select an eligible non-guide faculty to inherit these teams:</>
+                ) : (
+                  <>Currently designated as Project Guide. Select an eligible non-guide faculty to inherit the guide role:</>
+                )}
               </p>
               <select
                 value={guideSuccessor}
                 onChange={(e) => setGuideSuccessor(e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-mint-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-mint-500 text-xs"
               >
-                {eligibleGuides.length === 0 ? (
-                  <option value="">No available guides with capacity</option>
+                {eligibleNonGuides.length === 0 ? (
+                  <option value="">No available non-guide faculty</option>
                 ) : (
-                  eligibleGuides.map(f => (
+                  eligibleNonGuides.map(f => (
                     <option key={f.email} value={f.email}>
-                      {f.name} ({f.teamsCount}/{f.maxQuota} Teams Active)
+                      {f.name} ({f.designation} • Current: {f.role})
                     </option>
                   ))
                 )}

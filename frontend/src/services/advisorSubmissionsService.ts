@@ -47,7 +47,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
       dueDate: 'Week 0',
       status: isGuideApproved ? 'Approved' : (studentTeam.guideApprovalStatus === 'Rejected' ? 'Changes Requested' : 'Submitted'),
       submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      projectTitle: d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || 'Autonomous Crop Disease Segmentation & Yield Advisory Drone System',
+      projectTitle: d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
       problemStatement: d0.problemStatement || '',
       solution: d0.solution || '',
       technologyUsed: d0.technologyUsed || '',
@@ -63,19 +63,64 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
     });
   }
 
+  // Check other weeks (1..16) for any deliverables saved by the student
+  for (let w = 1; w <= 16; w++) {
+    if (!validSubs.some(s => s.week === w)) {
+      const dW = StudentService.getDeliverables(`Week ${w}`);
+      const hasDW = Boolean(
+        dW.problemStatement ||
+        dW.solution ||
+        dW.technologyUsed ||
+        dW.obstaclesFaced ||
+        dW.abstract ||
+        dW.presentationFile ||
+        dW.reportFile ||
+        dW.repoUrl ||
+        dW.demoUrl ||
+        dW.screenshotFile ||
+        dW.projectTitle
+      );
+      if (hasDW) {
+        validSubs.push({
+          week: w,
+          title: `Milestone Week ${w}`,
+          dueDate: `Week ${w}`,
+          status: isGuideApproved ? 'Approved' : 'Submitted',
+          submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          projectTitle: dW.projectTitle || d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
+          problemStatement: dW.problemStatement || '',
+          solution: dW.solution || '',
+          technologyUsed: dW.technologyUsed || '',
+          obstaclesFaced: dW.obstaclesFaced || '',
+          abstract: dW.abstract || '',
+          presentationFile: dW.presentationFile || '',
+          pdfFile: dW.reportFile || '',
+          fileName: dW.presentationFile || dW.reportFile || '',
+          repoUrl: dW.repoUrl || '',
+          demoUrl: dW.demoUrl || '',
+          screenshotFile: dW.screenshotFile || '',
+          guideName: 'Dr. P. Manimegalai'
+        });
+      }
+    }
+  }
+
   // Merge full deliverable fields into each submission
-  return validSubs.map(sub => {
+  return validSubs.sort((a, b) => a.week - b.week).map(sub => {
     const dWeek = StudentService.getDeliverables(`Week ${sub.week}`);
-    const isSubApproved = isGuideApproved || sub.status === 'Approved';
+    const isWeek0 = sub.week === 0;
+    const isSubRejected = sub.status === 'Changes Requested' || sub.status === 'Rejected' || (isWeek0 && studentTeam.guideApprovalStatus === 'Rejected');
+    const isSubApproved = !isSubRejected && (sub.status === 'Approved' || (isWeek0 && isGuideApproved));
 
     const pFile = sub.presentationFile || dWeek.presentationFile || (sub.week === 0 ? d0.presentationFile : '') || '';
     const rFile = sub.pdfFile || dWeek.reportFile || (sub.week === 0 ? d0.reportFile : '') || '';
     const fName = sub.fileName || pFile || rFile || '';
+    const guideComments = sub.comments || (isWeek0 && studentTeam.rejectionReason ? studentTeam.rejectionReason : '') || '';
 
     return {
       ...sub,
-      status: isSubApproved ? ('Approved' as const) : (sub.status === 'Changes Requested' || sub.status === 'Rejected') ? ('Changes Requested' as const) : ('Submitted' as const),
-      projectTitle: sub.projectTitle || dWeek.projectTitle || d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || 'Autonomous Crop Disease Segmentation & Yield Advisory Drone System',
+      status: isSubRejected ? ('Changes Requested' as const) : isSubApproved ? ('Approved' as const) : ('Submitted' as const),
+      projectTitle: sub.projectTitle || dWeek.projectTitle || d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
       problemStatement: sub.problemStatement || dWeek.problemStatement || (sub.week === 0 ? d0.problemStatement : '') || '',
       solution: sub.solution || dWeek.solution || (sub.week === 0 ? d0.solution : '') || '',
       technologyUsed: sub.technologyUsed || dWeek.technologyUsed || (sub.week === 0 ? d0.technologyUsed : '') || '',
@@ -87,7 +132,8 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
       repoUrl: sub.repoUrl || dWeek.repoUrl || (sub.week === 0 ? d0.repoUrl : '') || '',
       demoUrl: sub.demoUrl || dWeek.demoUrl || (sub.week === 0 ? d0.demoUrl : '') || '',
       screenshotFile: sub.screenshotFile || dWeek.screenshotFile || (sub.week === 0 ? d0.screenshotFile : '') || '',
-      guideName: sub.guideName || 'Dr. P. Manimegalai'
+      guideName: sub.guideName || 'Dr. P. Manimegalai',
+      comments: guideComments
     };
   });
 }

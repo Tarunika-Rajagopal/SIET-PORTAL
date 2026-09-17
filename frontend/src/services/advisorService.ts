@@ -35,6 +35,21 @@ function notifyListeners() {
   });
 }
 
+// Automatically sync when AdminService updates student roster or faculty roles
+AdminService.subscribe(() => {
+  notifyListeners();
+});
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('siet_admin_students_updated', () => notifyListeners());
+  window.addEventListener('siet_admin_faculties_updated', () => notifyListeners());
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'siet_admin_students' || e.key === 'siet_admin_faculties' || e.key?.startsWith('siet_advisor_teams_')) {
+      notifyListeners();
+    }
+  });
+}
+
 export const AdvisorService = {
   subscribe(listener: AdvisorListener): () => void {
     listeners.add(listener);
@@ -307,57 +322,155 @@ export const AdvisorService = {
       };
     }
 
-    // Locate source team
+    const allStudents = AdminService.getStudents();
+    const student = allStudents.find(s => s.rollNo === studentRollNo);
+    if (!student) {
+      return { success: false, message: "Student record not found." };
+    }
+
+    // Locate source team if any
     const sourceTeam = teams.find(t => t.members.some(m => m.rollNo === studentRollNo));
-    if (!sourceTeam) {
-      return { success: false, message: "Student is not currently in any team." };
-    }
+    let memberName = student.name;
+    let memberEmail = student.email;
 
-    if (sourceTeam.teamId === targetTeamId) {
-      return { success: false, message: "Student is already in this team." };
-    }
+    if (sourceTeam) {
+      if (sourceTeam.teamId === targetTeamId) {
+        return { success: false, message: "Student is already in this team." };
+      }
 
-    // Extract student
-    const studentMember = sourceTeam.members.find(m => m.rollNo === studentRollNo);
-    if (!studentMember) {
-      return { success: false, message: "Student member record not found." };
-    }
+      // Extract student from source team
+      const studentMember = sourceTeam.members.find(m => m.rollNo === studentRollNo);
+      if (studentMember) {
+        memberName = studentMember.name;
+        memberEmail = studentMember.email;
+      }
 
-    // Remove from source team
-    sourceTeam.members = sourceTeam.members.filter(m => m.rollNo !== studentRollNo);
-    sourceTeam.membersCount = sourceTeam.members.length;
-    // If was lead, reassign lead to first remaining member if available
-    if (studentMember.isLead && sourceTeam.members.length > 0) {
-      sourceTeam.members[0].isLead = true;
-      sourceTeam.leadStudent = `${sourceTeam.members[0].name} (${sourceTeam.members[0].rollNo})`;
-    } else if (sourceTeam.members.length === 0) {
-      sourceTeam.leadStudent = 'Unassigned';
+      // Remove from source team
+      sourceTeam.members = sourceTeam.members.filter(m => m.rollNo !== studentRollNo);
+      sourceTeam.membersCount = sourceTeam.members.length;
+      // If was lead, reassign lead to first remaining member if available
+      if (studentMember?.isLead && sourceTeam.members.length > 0) {
+        sourceTeam.members[0].isLead = true;
+        sourceTeam.leadStudent = `${sourceTeam.members[0].name} (${sourceTeam.members[0].rollNo})`;
+      } else if (sourceTeam.members.length === 0) {
+        sourceTeam.leadStudent = 'Unassigned';
+      }
     }
 
     // Add to target team
     const movedMember: TeamMemberRecord = {
-      ...studentMember,
-      isLead: false
+      rollNo: student.rollNo,
+      name: memberName,
+      email: memberEmail,
+      isLead: targetTeam.members.length === 0
     };
     targetTeam.members.push(movedMember);
     targetTeam.membersCount = targetTeam.members.length;
+    if (targetTeam.members.length === 1) {
+      targetTeam.leadStudent = `${memberName} (${student.rollNo})`;
+    }
 
     this.saveTeamsForClass(className, teams);
 
-    // Update in AdminService
-    const allStudents = AdminService.getStudents();
-    const student = allStudents.find(s => s.rollNo === studentRollNo);
-    if (student) {
-      student.teamNo = targetTeam.teamNo;
-      student.projectTitle = targetTeam.title;
-      student.guide = targetTeam.guide;
-      AdminService.saveStudents(allStudents);
-    }
+    // Update student in AdminService
+    student.teamNo = targetTeam.teamNo;
+    student.projectTitle = targetTeam.title;
+    student.guide = targetTeam.guide;
+    AdminService.saveStudents(allStudents);
 
     notifyListeners();
     return { 
       success: true, 
-      message: `Successfully moved ${studentMember.name} to ${targetTeam.teamNo}.` 
+      message: `Successfully allocated ${memberName} to ${targetTeam.teamNo} under Technical Guide ${targetTeam.guide}.` 
+    };
+  },
+
+  assignStudentGuideAndTeam(
+    className: string,
+    studentRollNo: string,
+    params: {
+      mode: 'existing' | 'new';
+      teamId?: string;
+      newTeamNo?: string;
+      guideName: string;
+      guideEmail?: string;
+      projectTitle?: string;
+      batch?: string;
+    }
+  ): { success: boolean; message: string } {
+    const allStudents = AdminService.getStudents();
+    const student = allStudents.find(s => s.rollNo === studentRollNo);
+    if (!student) {
+      return { success: false, message: "Student record not found." };
+    }
+
+    // If allocating to existing team, reuse moveStudent logic which handles guide inheritance
+    if (params.mode === 'existing' && params.teamId) {
+      return this.moveStudent(className, studentRollNo, params.teamId);
+    }
+
+    // Mode 'new': create a new team for this student with the chosen guide
+    const teams = this.getTeamsForClass(className);
+    const guideLoad = this.getGuideTeamCount(className, params.guideName);
+    if (guideLoad >= 5) {
+      return {
+        success: false,
+        message: `Cannot assign ${params.guideName}. Guide has reached the maximum capacity of 5 teams in this class.`
+      };
+    }
+
+    const cleanNo = params.newTeamNo?.trim() || `Team ${String(teams.length + 1).padStart(2, '0')}`;
+    const codeNo = cleanNo.replace(/[^0-9]/g, '') || String(teams.length + 1);
+    const teamId = `TEAM-CSE-Y3-B${codeNo.padStart(2, '0')}`;
+    const capacity = this.getTeamCapacity(className);
+
+    // If student was in another team, remove them first
+    const sourceTeam = teams.find(t => t.members.some(m => m.rollNo === studentRollNo));
+    if (sourceTeam) {
+      sourceTeam.members = sourceTeam.members.filter(m => m.rollNo !== studentRollNo);
+      sourceTeam.membersCount = sourceTeam.members.length;
+      if (sourceTeam.members.length > 0) {
+        sourceTeam.members[0].isLead = true;
+        sourceTeam.leadStudent = `${sourceTeam.members[0].name} (${sourceTeam.members[0].rollNo})`;
+      } else {
+        sourceTeam.leadStudent = 'Unassigned';
+      }
+    }
+
+    const newTeam: ClassTeam = {
+      teamId,
+      teamNo: cleanNo,
+      class: className,
+      batch: params.batch || student.batch || "2023-2027 (III Year)",
+      title: params.projectTitle || `Capstone Project - ${cleanNo}`,
+      guide: params.guideName,
+      guideEmail: params.guideEmail || `${params.guideName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@siet.ac.in`,
+      status: "Approved",
+      capacity,
+      membersCount: 1,
+      leadStudent: `${student.name} (${student.rollNo})`,
+      members: [
+        {
+          rollNo: student.rollNo,
+          name: student.name,
+          email: student.email,
+          isLead: true
+        }
+      ]
+    };
+
+    teams.push(newTeam);
+    this.saveTeamsForClass(className, teams);
+
+    student.teamNo = newTeam.teamNo;
+    student.projectTitle = newTeam.title;
+    student.guide = newTeam.guide;
+    AdminService.saveStudents(allStudents);
+
+    notifyListeners();
+    return {
+      success: true,
+      message: `Technical Guide ${newTeam.guide} assigned to ${student.name} in ${newTeam.teamNo}.`
     };
   },
 

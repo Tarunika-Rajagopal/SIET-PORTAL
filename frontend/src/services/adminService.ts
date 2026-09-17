@@ -416,6 +416,10 @@ export const AdminService = {
     try {
       localStorage.setItem("siet_admin_faculties", JSON.stringify(faculties));
       notifyListeners();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('siet_admin_faculties_updated'));
+        window.dispatchEvent(new Event('storage'));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -486,7 +490,12 @@ export const AdminService = {
     return true;
   },
 
-  removeAdvisor(facultyEmail: string, reason: string): boolean {
+  removeAdvisor(facultyEmail: string, reason: string, successorEmail?: string): boolean {
+    if (successorEmail) {
+      const res = this.removeAdvisorWithSuccessor(facultyEmail, successorEmail, reason);
+      return res.success;
+    }
+
     const list = this.getFaculties();
     const faculty = list.find(f => f.email === facultyEmail);
     if (!faculty) return false;
@@ -507,6 +516,64 @@ export const AdminService = {
     return true;
   },
 
+  removeAdvisorWithSuccessor(
+    currentAdvisorEmail: string,
+    successorEmail: string,
+    reason: string
+  ): { success: boolean; message: string } {
+    const list = this.getFaculties();
+    const current = list.find(f => f.email === currentAdvisorEmail);
+    if (!current) return { success: false, message: "Advisor record not found." };
+
+    const successor = list.find(f => f.email === successorEmail);
+    if (!successor) return { success: false, message: "Successor faculty record not found." };
+
+    const className = current.advisorClass || "CSE-B";
+    const batch = current.advisorBatch || "2023-2027 (III Year)";
+    const currentName = current.name;
+    const successorName = successor.name;
+
+    // 1. Relieve current advisor
+    if (current.role === 'Advisor & Guide') {
+      current.role = 'Guide';
+    } else {
+      current.role = 'None';
+    }
+    current.advisorClass = undefined;
+    current.advisorBatch = undefined;
+
+    // 2. Assign successor as class advisor
+    successor.advisorClass = className;
+    successor.advisorBatch = batch;
+    if (successor.role === 'Guide') {
+      successor.role = 'Advisor & Guide';
+    } else {
+      successor.role = 'Advisor';
+    }
+    successor.status = 'Active';
+
+    this.saveFaculties(list);
+
+    // 3. Dual Audit Log Entries
+    this.addAuditLog(
+      "Class Advisor Reassignment",
+      successorName,
+      `Inherited Class Advisor duties for Class ${className} (${batch}) from ${currentName}`,
+      reason
+    );
+    this.addAuditLog(
+      "Advisor Role Revocation",
+      currentName,
+      `Relieved from Class Advisor duties for Class ${className}. Handed over to non-advisor faculty ${successorName}. Role updated to ${current.role}`,
+      reason
+    );
+
+    return {
+      success: true,
+      message: `Shifted Class ${className} supervision to ${successorName} and removed advisor role from ${currentName}.`
+    };
+  },
+
   assignGuide(facultyEmail: string, reason: string): boolean {
     const list = this.getFaculties();
     const faculty = list.find(f => f.email === facultyEmail);
@@ -524,7 +591,12 @@ export const AdminService = {
     return true;
   },
 
-  removeGuide(facultyEmail: string, reason: string): boolean {
+  removeGuide(facultyEmail: string, reason: string, successorEmail?: string): boolean {
+    if (successorEmail) {
+      const res = this.removeGuideWithSuccessor(facultyEmail, successorEmail, reason);
+      return res.success;
+    }
+
     const list = this.getFaculties();
     const faculty = list.find(f => f.email === facultyEmail);
     if (!faculty) return false;
@@ -539,6 +611,104 @@ export const AdminService = {
     this.saveFaculties(list);
     this.addAuditLog("Guide Role Revocation", faculty.name, `Removed from Project Guide role. Role set to ${faculty.role}`, reason);
     return true;
+  },
+
+  removeGuideWithSuccessor(
+    currentGuideEmail: string,
+    successorEmail: string,
+    reason: string
+  ): { success: boolean; message: string } {
+    const list = this.getFaculties();
+    const current = list.find(f => f.email === currentGuideEmail);
+    if (!current) return { success: false, message: "Guide record not found." };
+
+    const successor = list.find(f => f.email === successorEmail);
+    if (!successor) return { success: false, message: "Successor faculty record not found." };
+
+    const currentName = current.name;
+    const successorName = successor.name;
+    const teamsToShift = current.teamsCount;
+
+    // 1. Relieve current guide
+    if (current.role === 'Advisor & Guide') {
+      current.role = 'Advisor';
+    } else {
+      current.role = 'None';
+    }
+    current.teamsCount = 0;
+
+    // 2. Assign successor as guide and transfer teams
+    successor.teamsCount += teamsToShift;
+    if (successor.role === 'Advisor') {
+      successor.role = 'Advisor & Guide';
+    } else {
+      successor.role = 'Guide';
+    }
+    successor.status = 'Active';
+
+    this.saveFaculties(list);
+
+    // 3. Update student records that had this guide
+    try {
+      const students = this.getStudents();
+      let updatedStudents = false;
+      students.forEach(s => {
+        if (s.guide === currentName) {
+          s.guide = successorName;
+          updatedStudents = true;
+        }
+      });
+      if (updatedStudents) {
+        this.saveStudents(students);
+      }
+    } catch (e) {
+      console.error("Error shifting student guides:", e);
+    }
+
+    // 4. Update advisor teams in localStorage if any
+    try {
+      ['CSE-A', 'CSE-B', 'CSE-C'].forEach(c => {
+        const key = `siet_advisor_teams_${c}`;
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            let updated = false;
+            parsed.forEach((t: any) => {
+              if (t.guide === currentName || t.guideEmail === currentGuideEmail) {
+                t.guide = successorName;
+                t.guideEmail = successor.email;
+                updated = true;
+              }
+            });
+            if (updated) {
+              localStorage.setItem(key, JSON.stringify(parsed));
+            }
+          }
+        }
+      });
+    } catch (e) {
+      console.error("Error updating advisor teams:", e);
+    }
+
+    // 5. Dual Audit Log Entries
+    this.addAuditLog(
+      "Guide Workload Reallocation",
+      successorName,
+      `Adopted ${teamsToShift} capstone project teams from departing guide ${currentName}. Designated as Project Guide.`,
+      reason
+    );
+    this.addAuditLog(
+      "Guide Role Revocation",
+      currentName,
+      `Relieved from Project Guide role. Reassigned ${teamsToShift} teams to non-guide faculty ${successorName}. Role set to ${current.role}`,
+      reason
+    );
+
+    return {
+      success: true,
+      message: `Shifted ${teamsToShift} teams to ${successorName} and removed guide role from ${currentName}.`
+    };
   },
 
   shiftWorkloadAndDeleteFaculty(
@@ -587,6 +757,50 @@ export const AdminService = {
           gdSuccessor.role = 'Guide';
         }
         gdSuccessor.status = 'Active';
+
+        // Update student records that had this guide
+        try {
+          const students = this.getStudents();
+          let updatedStudents = false;
+          students.forEach(s => {
+            if (s.guide === deletedName) {
+              s.guide = gdSuccessor.name;
+              updatedStudents = true;
+            }
+          });
+          if (updatedStudents) {
+            this.saveStudents(students);
+          }
+        } catch (e) {
+          console.error("Error updating student guides on delete:", e);
+        }
+
+        // Update advisor teams in localStorage
+        try {
+          ['CSE-A', 'CSE-B', 'CSE-C'].forEach(c => {
+            const key = `siet_advisor_teams_${c}`;
+            const stored = localStorage.getItem(key);
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed)) {
+                let updated = false;
+                parsed.forEach((t: any) => {
+                  if (t.guide === deletedName || t.guideEmail === deleteEmail) {
+                    t.guide = gdSuccessor.name;
+                    t.guideEmail = gdSuccessor.email;
+                    updated = true;
+                  }
+                });
+                if (updated) {
+                  localStorage.setItem(key, JSON.stringify(parsed));
+                }
+              }
+            }
+          });
+        } catch (e) {
+          console.error("Error updating advisor teams on delete:", e);
+        }
+
         this.addAuditLog(
           "Mentorship Reallocation",
           gdSuccessor.name,
@@ -639,6 +853,10 @@ export const AdminService = {
     try {
       localStorage.setItem("siet_admin_students", JSON.stringify(students));
       notifyListeners();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
+        window.dispatchEvent(new Event('storage'));
+      }
     } catch (e) {
       console.error(e);
     }

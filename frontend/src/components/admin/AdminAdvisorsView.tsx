@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserCheck, Search, RotateCw, Trash2, CheckCircle2, ArrowUpRight, UserMinus, RefreshCw } from 'lucide-react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
-import AdminReasonModal from './AdminReasonModal';
+import RemoveAdvisorShiftModal from './RemoveAdvisorShiftModal';
 
 interface AdminAdvisorsViewProps {
   onSelectAdvisor: (batch: string, className: string) => void;
@@ -18,8 +18,8 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
   const [classFilter, setClassFilter] = useState('ALL');
   const [isManageMode, setIsManageMode] = useState(false);
 
-  // Reason modal for revoking advisor role
-  const [reasonModalOpen, setReasonModalOpen] = useState(false);
+  // Shift & Reassignment modal for removing advisor role
+  const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [facultyToRevoke, setFacultyToRevoke] = useState<AdminFaculty | null>(null);
 
   useEffect(() => {
@@ -54,17 +54,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
 
   const handleOpenRevoke = (faculty: AdminFaculty) => {
     setFacultyToRevoke(faculty);
-    setReasonModalOpen(true);
-  };
-
-  const handleConfirmRevoke = (reason: string) => {
-    if (!facultyToRevoke) return;
-
-    AdminService.removeAdvisor(facultyToRevoke.email, reason);
-    setFaculties(AdminService.getFaculties());
-    onShowToast(`Revoked advisor designation for ${facultyToRevoke.name}.`);
-    setReasonModalOpen(false);
-    setFacultyToRevoke(null);
+    setShiftModalOpen(true);
   };
 
   return (
@@ -124,28 +114,26 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
             />
           </div>
 
-          {/* Manage Toggle */}
+          {/* Manage / Refresh Button */}
           <button
-            onClick={() => setIsManageMode(!isManageMode)}
-            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs ${
+            onClick={() => {
+              if (isManageMode) {
+                setFaculties(AdminService.getFaculties());
+                setIsManageMode(false);
+                onShowToast("Advisors data refreshed.");
+              } else {
+                setIsManageMode(true);
+              }
+            }}
+            title={isManageMode ? "Refresh page" : "Manage Advisors"}
+            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center justify-center gap-1.5 text-xs ${
               isManageMode
-                ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
+                ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs hover:bg-amber-200'
                 : 'bg-[#EFF3F1] hover:bg-mint-100 text-slate-700 border border-[#E2E8E4]'
             }`}
           >
             <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
-            <span>{isManageMode ? 'Done Managing' : 'Manage'}</span>
-          </button>
-
-          {/* Refresh button */}
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            title="Refresh page"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
-            aria-label="Refresh page"
-          >
-            <RefreshCw size={14} />
+            {!isManageMode && <span>Manage</span>}
           </button>
 
         </div>
@@ -162,14 +150,13 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
                 <th className="p-4">Assigned Section</th>
                 <th className="p-4">Academic Batch</th>
                 <th className="p-4">Total Students</th>
-                <th className="p-4">Status</th>
                 {isManageMode && <th className="p-4 text-center">Manage Role</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8E4] font-medium">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isManageMode ? 7 : 6} className="p-8 text-center text-slate-400">
+                  <td colSpan={isManageMode ? 6 : 5} className="p-8 text-center text-slate-400">
                     No advisors match the current filters.
                   </td>
                 </tr>
@@ -197,12 +184,6 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
                     </td>
                     <td className="p-4 text-slate-600 font-bold">{a.advisorBatch || 'N/A'}</td>
                     <td className="p-4 font-bold text-slate-800">64 Students</td>
-                    <td className="p-4">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-mint-800 bg-mint-100 border border-mint-200 px-2.5 py-0.5 rounded-full">
-                        <CheckCircle2 size={12} />
-                        <span>Active</span>
-                      </span>
-                    </td>
 
                     {isManageMode && (
                       <td className="p-4 text-center">
@@ -223,16 +204,18 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
         </div>
       </div>
 
-      {/* Mandatory Reason Modal for Revocation */}
-      <AdminReasonModal
-        isOpen={reasonModalOpen}
-        title="Revoke Class Advisor Status"
-        subtitle="Mandatory reason required for audit trail recording"
-        targetDescription={facultyToRevoke ? `${facultyToRevoke.name} • Class ${facultyToRevoke.advisorClass} (${facultyToRevoke.advisorBatch})` : ''}
-        confirmLabel="Confirm Revocation"
-        isDanger={true}
-        onClose={() => setReasonModalOpen(false)}
-        onConfirm={handleConfirmRevoke}
+      {/* Workload Shift Modal when removing advisor */}
+      <RemoveAdvisorShiftModal
+        isOpen={shiftModalOpen}
+        onClose={() => {
+          setShiftModalOpen(false);
+          setFacultyToRevoke(null);
+        }}
+        faculty={facultyToRevoke}
+        onSuccess={(msg) => {
+          setFaculties(AdminService.getFaculties());
+          onShowToast(msg);
+        }}
       />
 
     </div>

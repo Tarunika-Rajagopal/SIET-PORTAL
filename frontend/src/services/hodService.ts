@@ -35,6 +35,8 @@ export interface HodTeamDetails {
   classSection: string;
   status: 'Approved' | 'In Progress' | 'Review Required';
   progress: number;
+  rejectionReason?: string;
+  guideApprovalStatus?: string;
   advisor: {
     name: string;
     email: string;
@@ -117,11 +119,11 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
   {
     id: "TEAM-CSE-Y3-B04",
     teamNo: "Team 04",
-    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
+    projectTitle: "",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-B",
-    status: "Approved",
-    progress: 75,
+    status: "In Progress",
+    progress: 0,
     advisor: {
       name: "Dr. R. Karthikeyan",
       email: "dr.karthik@siet.ac.in",
@@ -139,93 +141,16 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
       { rollNo: "714023104189", name: "Vishnu Priya S", email: "vishnupriya.s@srishakthi.ac.in", isLead: false },
       { rollNo: "714023104066", name: "Kavitha R", email: "kavitha.r@srishakthi.ac.in", isLead: false }
     ],
-    submissions: [
-      {
-        week: 1,
-        title: "Project Proposal, Scope & Problem Formulation",
-        dueDate: "Week 1",
-        status: "Approved",
-        submissionDate: "14 Aug 2026",
-        fileName: "Week1_Proposal_Deck.pptx",
-        comments: "Approved by Dr. P. Manimegalai. Strong feasibility analysis and realistic hardware budget.",
-        score: 95,
-        maxScore: 100
-      },
-      {
-        week: 2,
-        title: "Dataset Acquisition & Preprocessing Pipeline",
-        dueDate: "Week 2",
-        status: "Approved",
-        submissionDate: "21 Aug 2026",
-        fileName: "Week2_Dataset_Report.pptx",
-        comments: "Annotation quality verified across 3,200 aerial foliage images.",
-        score: 92,
-        maxScore: 100
-      },
-      {
-        week: 3,
-        title: "Model Architecture & Benchmark Exploration",
-        dueDate: "Week 3",
-        status: "Approved",
-        submissionDate: "28 Aug 2026",
-        fileName: "Week3_Model_Benchmark.pptx",
-        comments: "YOLOv8 Nano inference verified on target Jetson compute board.",
-        score: 90,
-        maxScore: 100
-      },
-      {
-        week: 4,
-        title: "Zeroth Review Defense & Panel Presentation",
-        dueDate: "Week 4",
-        status: "Approved",
-        submissionDate: "04 Sep 2026",
-        fileName: "Zeroth_Review_Defense.pptx",
-        comments: "Clear articulation of camera telemetry and payload weight.",
-        score: 92,
-        maxScore: 100
-      },
-      {
-        week: 5,
-        title: "Edge Hardware Deployment on Jetson Platform",
-        dueDate: "Week 5",
-        status: "Changes Requested",
-        submissionDate: "07 Sep 2026",
-        fileName: "Jetson_Telemetry_Logs.pptx",
-        comments: "Thermal envelope throttling observed during continuous flight. Add heatsink testing notes before Review 1.",
-        score: 74,
-        maxScore: 100
-      },
-      {
-        week: 6,
-        title: "Field Prototype & Real-Time Dashboard Integration",
-        dueDate: "Week 6",
-        status: "Submitted",
-        submissionDate: "10 Sep 2026",
-        fileName: "Week6_Field_Report.pptx",
-        comments: "Under review by Project Technical Guide."
-      },
-      {
-        week: 7,
-        title: "Review 1 Milestone Defense & Technical Dossier",
-        dueDate: "Week 7 (Upcoming)",
-        status: "Pending"
-      },
-      {
-        week: 8,
-        title: "Yield Advisory Algorithm & Field Analytics",
-        dueDate: "Week 8 (Upcoming)",
-        status: "Pending"
-      }
-    ]
+    submissions: []
   },
   {
     id: "TEAM-CSE-Y3-B05",
     teamNo: "Team 05",
-    projectTitle: "Decentralized Smart Grid Energy Trading Protocol",
+    projectTitle: "",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-B",
-    status: "Approved",
-    progress: 70,
+    status: "In Progress",
+    progress: 0,
     advisor: {
       name: "Dr. R. Karthikeyan",
       email: "dr.karthik@siet.ac.in",
@@ -243,50 +168,16 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
       { rollNo: "714023104051", name: "Manoj V", email: "manoj.v@srishakthi.ac.in", isLead: false },
       { rollNo: "714023104058", name: "Nithya R", email: "nithya.r@srishakthi.ac.in", isLead: false }
     ],
-    submissions: [
-      {
-        week: 1,
-        title: "Microgrid Energy Settlement & Consensus Architecture",
-        dueDate: "Week 1",
-        status: "Approved",
-        submissionDate: "14 Aug 2026",
-        fileName: "Week1_Energy_Trading_Proposal.pptx",
-        comments: "Smart contract state diagram accepted by Dr. A. Devipriya.",
-        score: 93,
-        maxScore: 100
-      },
-      {
-        week: 2,
-        title: "Private EVM Testnet Setup & Gas Benchmarking",
-        dueDate: "Week 2",
-        status: "Approved",
-        submissionDate: "21 Aug 2026",
-        fileName: "Week2_EVM_Setup.pptx",
-        comments: "Latency benchmarks within 2.4 seconds per peer transaction.",
-        score: 91,
-        maxScore: 100
-      },
-      {
-        week: 3,
-        title: "IoT Smart Meter Telemetry Interface",
-        dueDate: "Week 3",
-        status: "Approved",
-        submissionDate: "28 Aug 2026",
-        fileName: "Week3_IoT_Meter.pptx",
-        comments: "Hardware MQTT connection validated.",
-        score: 88,
-        maxScore: 100
-      }
-    ]
+    submissions: []
   },
   {
     id: "TEAM-CSE-Y3-B06",
     teamNo: "Team 06",
-    projectTitle: "Edge-AI Wearable for Real-Time Cardiac Arrhythmia Detection",
+    projectTitle: "",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-B",
-    status: "Approved",
-    progress: 72,
+    status: "In Progress",
+    progress: 0,
     advisor: {
       name: "Dr. R. Karthikeyan",
       email: "dr.karthik@siet.ac.in",
@@ -304,28 +195,16 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
       { rollNo: "714023104095", name: "Raja Vignesh", email: "raja.v@srishakthi.ac.in", isLead: false },
       { rollNo: "714023104099", name: "Saranya K", email: "saranya.k@srishakthi.ac.in", isLead: false }
     ],
-    submissions: [
-      {
-        week: 1,
-        title: "ECG Signal Acquisition & Quantized CNN Proposal",
-        dueDate: "Week 1",
-        status: "Approved",
-        submissionDate: "14 Aug 2026",
-        fileName: "Week1_ECG_Wearable_Proposal.pptx",
-        comments: "Validated against MIT-BIH Arrhythmia benchmark dataset.",
-        score: 94,
-        maxScore: 100
-      }
-    ]
+    submissions: []
   },
   {
     id: "TEAM-CSE-Y3-B07",
     teamNo: "Team 07",
-    projectTitle: "LLM-Powered Multi-Lingual Legal Advisory System for Rural Citizens",
+    projectTitle: "",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-B",
-    status: "Approved",
-    progress: 70,
+    status: "In Progress",
+    progress: 0,
     advisor: {
       name: "Dr. R. Karthikeyan",
       email: "dr.karthik@siet.ac.in",
@@ -343,28 +222,16 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
       { rollNo: "714023104155", name: "Swetha V", email: "swetha.v@srishakthi.ac.in", isLead: false },
       { rollNo: "714023104162", name: "Varun K", email: "varun.k@srishakthi.ac.in", isLead: false }
     ],
-    submissions: [
-      {
-        week: 1,
-        title: "Multi-Lingual NLP Tokenizer & Indic Corpus Proposal",
-        dueDate: "Week 1",
-        status: "Approved",
-        submissionDate: "14 Aug 2026",
-        fileName: "Week1_Legal_LLM_Proposal.pptx",
-        comments: "Approved by Dr. P. Manimegalai. Benchmark against IndicGLUE dataset accepted.",
-        score: 93,
-        maxScore: 100
-      }
-    ]
+    submissions: []
   },
   {
     id: "TEAM-CSE-Y3-A01",
     teamNo: "Team 01",
-    projectTitle: "Distributed Ledger for Healthcare Interoperability",
+    projectTitle: "",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-A",
-    status: "Approved",
-    progress: 65,
+    status: "In Progress",
+    progress: 0,
     advisor: {
       name: "Dr. A. Ramesh",
       email: "ramesh.a@siet.ac.in",
@@ -382,28 +249,16 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
       { rollNo: "714023104025", name: "Charan K", email: "charan.k@srishakthi.ac.in", isLead: false },
       { rollNo: "714023104028", name: "Deepak R", email: "deepak.r@srishakthi.ac.in", isLead: false }
     ],
-    submissions: [
-      {
-        week: 1,
-        title: "HIPAA-Compliant Decentralized Storage Protocol",
-        dueDate: "Week 1",
-        status: "Approved",
-        submissionDate: "14 Aug 2026",
-        fileName: "Week1_Healthcare_Proposal.pptx",
-        comments: "Architecture approved by Dr. A. Devipriya.",
-        score: 92,
-        maxScore: 100
-      }
-    ]
+    submissions: []
   },
   {
     id: "TEAM-CSE-Y3-A02",
     teamNo: "Team 02",
-    projectTitle: "Autonomous Swarm UAV Platform",
+    projectTitle: "",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-A",
-    status: "Approved",
-    progress: 68,
+    status: "In Progress",
+    progress: 0,
     advisor: {
       name: "Dr. A. Ramesh",
       email: "ramesh.a@siet.ac.in",
@@ -421,28 +276,16 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
       { rollNo: "714023104028", name: "Divya M", email: "divya.m@srishakthi.ac.in", isLead: false },
       { rollNo: "714023104033", name: "Gokul K", email: "gokul.k@srishakthi.ac.in", isLead: false }
     ],
-    submissions: [
-      {
-        week: 1,
-        title: "UAV Swarm Collision Avoidance Mesh Protocol",
-        dueDate: "Week 1",
-        status: "Approved",
-        submissionDate: "14 Aug 2026",
-        fileName: "Week1_UAV_Swarm_Proposal.pptx",
-        comments: "Approved by Dr. P. Manimegalai. Flight telemetry protocol accepted.",
-        score: 91,
-        maxScore: 100
-      }
-    ]
+    submissions: []
   },
   {
     id: "TEAM-CSE-Y3-C08",
     teamNo: "Team 08",
-    projectTitle: "Autonomous Robotic Navigation in Agritech",
+    projectTitle: "",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-C",
-    status: "Approved",
-    progress: 68,
+    status: "In Progress",
+    progress: 0,
     advisor: {
       name: "Dr. S. Kavitha",
       email: "kavitha.s@siet.ac.in",
@@ -460,28 +303,16 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
       { rollNo: "714023104060", name: "Pradeep S", email: "pradeep.s@srishakthi.ac.in", isLead: false },
       { rollNo: "714023104065", name: "Rahul M", email: "rahul.m@srishakthi.ac.in", isLead: false }
     ],
-    submissions: [
-      {
-        week: 1,
-        title: "SLAM Navigation & Obstacle Avoidance Architecture",
-        dueDate: "Week 1",
-        status: "Approved",
-        submissionDate: "14 Aug 2026",
-        fileName: "Week1_Robotics_Proposal.pptx",
-        comments: "LiDAR and camera sensor fusion approved.",
-        score: 90,
-        maxScore: 100
-      }
-    ]
+    submissions: []
   },
   {
     id: "TEAM-CSE-Y3-C09",
     teamNo: "Team 09",
-    projectTitle: "Edge Computing AI Pipeline for Smart Agriculture",
+    projectTitle: "",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-C",
-    status: "Approved",
-    progress: 66,
+    status: "In Progress",
+    progress: 0,
     advisor: {
       name: "Dr. M. Suresh",
       email: "suresh.m@siet.ac.in",
@@ -499,21 +330,107 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
       { rollNo: "714023104212", name: "Farooq A", email: "farooq.a@srishakthi.ac.in", isLead: false },
       { rollNo: "714023104218", name: "Gayathri S", email: "gayathri.s@srishakthi.ac.in", isLead: false }
     ],
-    submissions: [
-      {
-        week: 1,
-        title: "Edge Node Pipeline Architecture & Microcontroller Spec",
-        dueDate: "Week 1",
-        status: "Approved",
-        submissionDate: "14 Aug 2026",
-        fileName: "Week1_Edge_AI_Proposal.pptx",
-        comments: "Approved by Dr. P. Manimegalai.",
-        score: 90,
-        maxScore: 100
-      }
-    ]
+    submissions: []
   }
 ];
+
+function syncTeamWithStudentData(baseTeam: HodTeamDetails): HodTeamDetails {
+  if (baseTeam.id === "TEAM-CSE-Y3-B04" || baseTeam.teamNo === "Team 04") {
+    try {
+      const sTeam = StudentService.getTeam();
+      const d0 = StudentService.getDeliverables("Week 0");
+      const realTitle = sTeam.submittedTitle || d0.projectTitle || sTeam.projectTitle || "";
+      const realSubs = getCanonicalStudentSubmissions(realTitle);
+
+      const isApproved = Boolean(sTeam.isTitleApproved || sTeam.guideApprovalStatus === 'Approved');
+      const isRejected = sTeam.guideApprovalStatus === 'Rejected';
+      const status: 'Approved' | 'In Progress' | 'Review Required' = isApproved
+        ? 'Approved'
+        : (isRejected ? 'Review Required' : 'In Progress');
+
+      const members = (sTeam.members && sTeam.members.length > 0)
+        ? sTeam.members.map((m: any) => ({
+            rollNo: m.rollNo,
+            name: m.name,
+            email: m.email,
+            isLead: m.role === 'Team Lead' || Boolean(m.isLead)
+          }))
+        : baseTeam.members;
+
+      return {
+        ...baseTeam,
+        projectTitle: realTitle,
+        status,
+        rejectionReason: sTeam.rejectionReason || '',
+        guideApprovalStatus: sTeam.guideApprovalStatus || (isApproved ? 'Approved' : 'Pending'),
+        members,
+        submissions: realSubs
+      };
+    } catch (e) {
+      console.error('Error syncing Team 04 with student data', e);
+    }
+  }
+
+  // Check guide storage siet_guide_portal_teams_v6 for guide evaluations and reasons
+  try {
+    const guideRaw = localStorage.getItem("siet_guide_portal_teams_v6");
+    if (guideRaw) {
+      const gTeams = JSON.parse(guideRaw);
+      if (Array.isArray(gTeams)) {
+        const gMatch = gTeams.find((gt: any) => 
+          gt.teamId === baseTeam.id || 
+          gt.teamNo === baseTeam.teamNo || 
+          (baseTeam.teamNo && gt.teamNumber === parseInt(baseTeam.teamNo.replace(/\D/g, ''), 10))
+        );
+        if (gMatch) {
+          const isGApproved = gMatch.titleStatus === 'Approved';
+          const isGRejected = gMatch.titleStatus === 'Rejected';
+          const status = isGApproved ? 'Approved' : (isGRejected ? 'Review Required' : baseTeam.status);
+          const gSubs: WeeklySubmission[] = Array.isArray(gMatch.submissions)
+            ? gMatch.submissions.map((gs: any) => ({
+                week: gs.weekNumber ?? gs.week ?? 0,
+                title: gs.title || `Milestone Week ${gs.weekNumber ?? gs.week ?? 0}`,
+                status: gs.status || 'Submitted',
+                comments: gs.comments || (isGRejected ? gMatch.rejectionReason : ''),
+                submissionDate: gs.submissionDate || '',
+                guideName: baseTeam.guide?.name || 'Dr. P. Manimegalai',
+                projectTitle: gMatch.projectTitle || baseTeam.projectTitle || ''
+              }))
+            : [];
+          return {
+            ...baseTeam,
+            projectTitle: gMatch.projectTitle || baseTeam.projectTitle || '',
+            status,
+            rejectionReason: gMatch.rejectionReason || '',
+            guideApprovalStatus: gMatch.titleStatus || 'Pending',
+            submissions: gSubs.length > 0 ? gSubs : baseTeam.submissions
+          };
+        }
+      }
+    }
+  } catch (e) {}
+
+  // For other teams, check local storage for real custom submissions
+  try {
+    const stored = localStorage.getItem(`siet_team_submissions_${baseTeam.id}`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const valid = parsed.filter(s => s && typeof s === 'object' && !String(s.presentationFile || '').includes('mock_ppt'));
+        return {
+          ...baseTeam,
+          submissions: valid
+        };
+      }
+    }
+  } catch (e) {}
+
+  return {
+    ...baseTeam,
+    projectTitle: baseTeam.projectTitle || "",
+    submissions: []
+  };
+}
 
 export const HodService = {
   getAdvisors(batchFilter?: string, classFilter?: string): HodAdvisor[] {
@@ -526,7 +443,9 @@ export const HodService = {
 
   getStudents(batchFilter?: string, classFilter?: string): HodStudent[] {
     const students: HodStudent[] = [];
-    MOCK_HOD_TEAMS.forEach(team => {
+    const syncedTeams = MOCK_HOD_TEAMS.map(syncTeamWithStudentData);
+
+    syncedTeams.forEach(team => {
       if (batchFilter && batchFilter !== 'ALL' && team.batch !== batchFilter) return;
       if (classFilter && classFilter !== 'ALL' && team.classSection !== classFilter) return;
 
@@ -549,29 +468,20 @@ export const HodService = {
   },
 
   getTeams(batchFilter?: string, classFilter?: string, searchTerm?: string): HodTeamDetails[] {
-    return MOCK_HOD_TEAMS.map(t => {
-      if (t.id === "TEAM-CSE-Y3-B04") {
-        return {
-          ...t,
-          submissions: getCanonicalStudentSubmissions(t.projectTitle)
-        };
-      }
-      return {
-        ...t,
-        submissions: []
-      };
-    }).filter(t => {
+    const syncedTeams = MOCK_HOD_TEAMS.map(syncTeamWithStudentData);
+
+    return syncedTeams.filter(t => {
       const matchBatch = !batchFilter || batchFilter === 'ALL' || t.batch === batchFilter;
       const matchClass = !classFilter || classFilter === 'ALL' || t.classSection === classFilter;
       
       let matchSearch = true;
       if (searchTerm && searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
-        const inTitle = t.projectTitle.toLowerCase().includes(q);
-        const inTeamNo = t.teamNo.toLowerCase().includes(q);
+        const inTitle = (t.projectTitle || '').toLowerCase().includes(q);
+        const inTeamNo = (t.teamNo || '').toLowerCase().includes(q);
         const inMembers = t.members.some(m => m.name.toLowerCase().includes(q) || m.rollNo.includes(q));
-        const inGuide = t.guide.name.toLowerCase().includes(q);
-        const inAdvisor = t.advisor.name.toLowerCase().includes(q);
+        const inGuide = (t.guide?.name || '').toLowerCase().includes(q);
+        const inAdvisor = (t.advisor?.name || '').toLowerCase().includes(q);
         matchSearch = inTitle || inTeamNo || inMembers || inGuide || inAdvisor;
       }
 
@@ -581,16 +491,10 @@ export const HodService = {
 
   getTeamByStudent(rollNoOrName: string): HodTeamDetails | undefined {
     const q = rollNoOrName.toLowerCase();
-    const team = MOCK_HOD_TEAMS.find(t =>
+    const syncedTeams = MOCK_HOD_TEAMS.map(syncTeamWithStudentData);
+    return syncedTeams.find(t =>
       t.members.some(m => m.rollNo.toLowerCase() === q || m.name.toLowerCase().includes(q))
     );
-    if (team && team.id === "TEAM-CSE-Y3-B04") {
-      return {
-        ...team,
-        submissions: getCanonicalStudentSubmissions(team.projectTitle)
-      };
-    }
-    return team ? { ...team, submissions: [] } : undefined;
   },
 
   getFacultyList() {

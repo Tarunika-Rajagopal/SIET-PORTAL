@@ -7,6 +7,7 @@ import { AdminService, AdminStudent } from '../../services/adminService';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 import AdvisorCreateTeamModal from './AdvisorCreateTeamModal';
+import AdvisorAssignGuideModal from './AdvisorAssignGuideModal';
 
 interface AdvisorStudentsViewProps {
   className: string;
@@ -23,8 +24,9 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   onSelectStudentToViewTeam,
   onShowToast
 }) => {
+  const [selectedBatch, setSelectedBatch] = useState<string>('ALL');
   const [students, setStudents] = useState<AdminStudent[]>(() => 
-    AdvisorService.getClassStudents(className, batch)
+    AdvisorService.getClassStudents(className, 'ALL')
   );
   const [teams, setTeams] = useState<ClassTeam[]>(() => 
     AdvisorService.getTeamsForClass(className)
@@ -37,6 +39,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [isAddStudentOpen, setIsAddStudentOpen] = useState<boolean>(false);
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState<boolean>(false);
   const [studentToMove, setStudentToMove] = useState<AdminStudent | null>(null);
+  const [studentForGuideAssign, setStudentForGuideAssign] = useState<AdminStudent | null>(null);
 
   // Add student form state
   const [newStudentName, setNewStudentName] = useState<string>('');
@@ -47,22 +50,25 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [targetTeamId, setTargetTeamId] = useState<string>('');
   const [moveError, setMoveError] = useState<string>('');
 
-  // Refresh when admin or advisor service updates
+  // Refresh when admin or advisor service updates or storage events occur
   useEffect(() => {
-    const unsubAdvisor = AdvisorService.subscribe(() => {
-      setStudents(AdvisorService.getClassStudents(className, batch));
+    const handleSync = () => {
+      setStudents(AdvisorService.getClassStudents(className, selectedBatch));
       setTeams(AdvisorService.getTeamsForClass(className));
-    });
-    const unsubAdmin = AdminService.subscribe(() => {
-      setStudents(AdvisorService.getClassStudents(className, batch));
-      setTeams(AdvisorService.getTeamsForClass(className));
-    });
+    };
+
+    const unsubAdvisor = AdvisorService.subscribe(handleSync);
+    const unsubAdmin = AdminService.subscribe(handleSync);
+    window.addEventListener('siet_admin_students_updated', handleSync);
+    window.addEventListener('storage', handleSync);
 
     return () => {
       unsubAdvisor();
       unsubAdmin();
+      window.removeEventListener('siet_admin_students_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
     };
-  }, [className, batch]);
+  }, [className, selectedBatch]);
 
   const teamCapacity = AdvisorService.getTeamCapacity(className);
   const areTeamsCreated = teams.length > 0 && students.some(s => s.teamNo && s.teamNo !== 'Unassigned');
@@ -247,6 +253,22 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
         <div className="flex flex-wrap items-center gap-2.5">
           
+          {/* Academic Batch Filter */}
+          <select
+            value={selectedBatch}
+            onChange={(e) => {
+              const b = e.target.value;
+              setSelectedBatch(b);
+              setStudents(AdvisorService.getClassStudents(className, b));
+            }}
+            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500 cursor-pointer"
+          >
+            <option value="ALL">All Batches</option>
+            <option value="2023-2027 (III Year)">2023-2027 (III Year)</option>
+            <option value="2024-2028 (II Year)">2024-2028 (II Year)</option>
+            <option value="2022-2026 (IV Year)">2022-2026 (IV Year)</option>
+          </select>
+
           {/* Search Bar */}
           <div className="relative w-full sm:w-60">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -262,7 +284,11 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
           {/* Refresh button updates all changes */}
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              setStudents(AdvisorService.getClassStudents(className, selectedBatch));
+              setTeams(AdvisorService.getTeamsForClass(className));
+              onShowToast("Class roster & teams refreshed.");
+            }}
             title="Refresh & Update All Changes"
             className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0 shadow-2xs"
           >
@@ -449,7 +475,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                             {s.teamNo}
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-semibold italic text-[11px]">
+                          <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-bold text-[11px]">
                             Unassigned
                           </span>
                         )}
@@ -457,24 +483,54 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
                       {/* Technical Guide */}
                       <td className="p-4 text-slate-700 whitespace-nowrap">
-                        <span className="font-bold">{s.guide || 'Unassigned'}</span>
+                        {s.guide && s.guide !== 'Unassigned' ? (
+                          <span className="font-bold text-slate-800">{s.guide}</span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-bold text-[11px]">
+                              Unassigned
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStudentForGuideAssign(s);
+                              }}
+                              className="px-2.5 py-1 bg-mint-500 hover:bg-mint-600 text-white rounded-lg font-extrabold text-[11px] shadow-2xs transition flex items-center gap-1 cursor-pointer active:scale-95"
+                            >
+                              <BookOpen size={11} />
+                              <span>Assign Guide</span>
+                            </button>
+                          </div>
+                        )}
                       </td>
 
-                      {/* Manage Actions (Move) */}
+                      {/* Manage Actions */}
                       {isManageMode && (
                         <td className="p-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setStudentToMove(s);
-                              setTargetTeamId('');
-                              setMoveError('');
-                            }}
-                            className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer"
-                          >
-                            <MoveRight size={13} />
-                            <span>Move</span>
-                          </button>
+                          {!hasTeam || !s.guide || s.guide === 'Unassigned' ? (
+                            <button
+                              type="button"
+                              onClick={() => setStudentForGuideAssign(s)}
+                              className="px-3 py-1.5 bg-mint-500 hover:bg-mint-600 text-white rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer active:scale-95"
+                            >
+                              <BookOpen size={13} />
+                              <span>Assign Guide</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStudentToMove(s);
+                                setTargetTeamId('');
+                                setMoveError('');
+                              }}
+                              className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer"
+                            >
+                              <MoveRight size={13} />
+                              <span>Move</span>
+                            </button>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -704,6 +760,17 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         students={students}
         existingTeamsCount={teams.length}
         onConfirmTeams={handleTeamsCreated}
+      />
+
+      {/* MODAL 4: Assign Guide & Team Wizard */}
+      <AdvisorAssignGuideModal
+        isOpen={Boolean(studentForGuideAssign)}
+        onClose={() => setStudentForGuideAssign(null)}
+        student={studentForGuideAssign}
+        className={className}
+        batch={selectedBatch !== 'ALL' ? selectedBatch : batch}
+        advisorName={advisorName}
+        onShowToast={onShowToast}
       />
 
     </div>

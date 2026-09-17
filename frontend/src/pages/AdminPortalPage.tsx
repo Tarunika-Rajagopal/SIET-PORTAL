@@ -9,8 +9,23 @@ import AdminHistoryView from '../components/admin/AdminHistoryView';
 import { Home, UserCheck, Briefcase, GraduationCap, History, CheckCircle2 } from 'lucide-react';
 
 export const AdminPortalPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'home' | 'advisors' | 'guides' | 'students' | 'history'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'advisors' | 'guides' | 'students' | 'history'>(() => {
+    try {
+      const saved = localStorage.getItem('siet_admin_active_tab');
+      if (saved && ['home', 'advisors', 'guides', 'students', 'history'].includes(saved)) {
+        return saved as any;
+      }
+    } catch (e) {}
+    return 'home';
+  });
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+
+  const changeTab = (tab: 'home' | 'advisors' | 'guides' | 'students' | 'history') => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem('siet_admin_active_tab', tab);
+    } catch (e) {}
+  };
 
   // Selected student filters passed to Students tab
   const [selectedStudentBatch, setSelectedStudentBatch] = useState('2023-2027 (III Year)');
@@ -29,7 +44,7 @@ export const AdminPortalPage: React.FC = () => {
   const handleSelectAdvisorRow = (batch: string, className: string) => {
     setSelectedStudentBatch(batch);
     setSelectedStudentClass(className);
-    setActiveTab('students');
+    changeTab('students');
     showToast(`Switched to Class ${className} (${batch}) students.`);
   };
 
@@ -48,7 +63,7 @@ export const AdminPortalPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">
             <button
-              onClick={() => setActiveTab('home')}
+              onClick={() => changeTab('home')}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'home'
                   ? 'bg-mint-500 text-white shadow-sm'
@@ -60,7 +75,7 @@ export const AdminPortalPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('advisors')}
+              onClick={() => changeTab('advisors')}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'advisors'
                   ? 'bg-mint-500 text-white shadow-sm'
@@ -72,7 +87,7 @@ export const AdminPortalPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('guides')}
+              onClick={() => changeTab('guides')}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'guides'
                   ? 'bg-mint-500 text-white shadow-sm'
@@ -84,7 +99,7 @@ export const AdminPortalPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('students')}
+              onClick={() => changeTab('students')}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'students'
                   ? 'bg-mint-500 text-white shadow-sm'
@@ -96,7 +111,7 @@ export const AdminPortalPage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('history')}
+              onClick={() => changeTab('history')}
               className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'history'
                   ? 'bg-mint-500 text-white shadow-sm'
