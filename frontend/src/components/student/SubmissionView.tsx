@@ -9,12 +9,12 @@ interface SubmissionViewProps {
 
 // Clean Pill badge with Approved or Pending status
 const SubmittedBadge = ({ isApproved }: { isApproved?: boolean }) => (
-  <div className={`px-3 py-1 rounded-full text-xs font-black inline-flex items-center justify-center shadow-xs select-none cursor-default shrink-0 gap-1.5 ${
+  <div className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center justify-center shadow-subtle select-none cursor-default shrink-0 gap-1.5 ${
     isApproved
-      ? 'bg-emerald-50 border border-emerald-300 text-emerald-700'
-      : 'bg-amber-50 border border-amber-300 text-amber-800'
+      ? 'bg-[#EDF1EC] border border-[#C4D1C2] text-[#4A5844]'
+      : 'bg-[#F7F2E7] border border-[#DBCFA8] text-[#8A6A32]'
   }`}>
-    {isApproved ? <Check size={12} className="text-emerald-600" /> : <Clock size={12} className="text-amber-600" />}
+    {isApproved ? <Check size={12} className="text-[#4A5844]" /> : <Clock size={12} className="text-[#8A6A32]" />}
     <span>{isApproved ? 'Approved' : 'Pending'}</span>
   </div>
 );
@@ -150,13 +150,13 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-[#E2E8E4] space-y-6 font-sans">
+    <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-card border border-[#D8CCBA] space-y-6 font-sans">
       
       {/* Header and Current Week Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E2E8E4]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#D8CCBA]">
         <div>
-          <h2 className="text-base font-extrabold text-slate-900">Milestone Submission Form</h2>
-          <p className="text-[11px] text-slate-500 mt-0.5">
+          <h2 className="text-base font-serif font-bold text-[#111111]">Milestone Submission Form</h2>
+          <p className="text-[11px] text-[#75695A] mt-0.5">
             {isTitleRejected
               ? "Guide has rejected the current proposal. Please review the reason below, update the required fields, and re-submit."
               : isRevisionRequired
@@ -195,44 +195,44 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                   if (onSuccess) onSuccess(`Week ${currentWeekNumber} submission deleted successfully.`);
                 }
               }}
-              className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
                 isMarksAssigned
-                  ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed opacity-75'
-                  : 'border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer'
+                  ? 'border-[#D8CCBA] bg-[#EDE7DB] text-[#75695A] cursor-not-allowed opacity-75'
+                  : 'border-[#D9AEAE] bg-[#F8EEEE] hover:bg-[#ECCED0] text-[#7C3838] cursor-pointer'
               }`}
               title={isMarksAssigned ? `Submission locked: Marks (${marksRecord?.teamAverage}/100) have been awarded by Class Advisor.` : "Delete current submission"}
             >
-              {isMarksAssigned ? <Lock size={13} className="text-slate-400" /> : <Trash2 size={13} />}
+              {isMarksAssigned ? <Lock size={13} className="text-[#75695A]" /> : <Trash2 size={13} />}
               <span>{isMarksAssigned ? 'Submission Locked (Marks Assigned)' : 'Delete Submission'}</span>
             </button>
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-600">Current Week:</span>
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 text-xs font-black shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-mint-500 animate-pulse"></span>
+            <span className="text-xs font-bold text-[#75695A]">Current Week:</span>
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-bold shadow-subtle">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#111111]"></span>
               <span>Week {currentWeekNumber}</span>
             </div>
 
             {/* Overall Status Pill Badge */}
             {!hasSubmission ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-300 text-xs font-black select-none">
-                <Clock size={12} className="text-slate-500" />
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F3EFE6] text-[#75695A] border border-[#D8CCBA] text-xs font-bold select-none">
+                <Clock size={12} className="text-[#75695A]" />
                 <span>No Submission</span>
               </div>
             ) : isApproved ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-black select-none">
-                <Check size={12} className="text-emerald-600" />
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EDF1EC] text-[#4A5844] border border-[#C4D1C2] text-xs font-bold select-none">
+                <Check size={12} className="text-[#4A5844]" />
                 <span>Approved</span>
               </div>
             ) : isRevisionRequired ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-800 border border-rose-300 text-xs font-black select-none">
-                <AlertTriangle size={12} className="text-rose-600" />
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F8EEEE] text-[#7C3838] border border-[#D9AEAE] text-xs font-bold select-none">
+                <AlertTriangle size={12} className="text-[#7C3838]" />
                 <span>Changes Requested</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-xs font-black select-none">
-                <Clock size={12} className="text-amber-600" />
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F7F2E7] text-[#8A6A32] border border-[#DBCFA8] text-xs font-bold select-none">
+                <Clock size={12} className="text-[#8A6A32]" />
                 <span>Pending</span>
               </div>
             )}
@@ -297,7 +297,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       <div className="space-y-5 text-xs">
         
         {/* 1. Project Title */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Project Title</label>
             {isFieldSubmitted('title') && <SubmittedBadge isApproved={isApproved} />}
@@ -309,7 +309,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
               value={title}
               disabled={isFieldSubmitted('title')}
               onChange={(e) => setTitle(e.target.value)}
-              className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
+              className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
             />
             {!isFieldSubmitted('title') && (
               <button
@@ -325,7 +325,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 2. Problem Statement */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Problem Statement</label>
             {isFieldSubmitted('problemStatement') && <SubmittedBadge isApproved={isApproved} />}
@@ -335,7 +335,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             value={problemStatement}
             disabled={isFieldSubmitted('problemStatement')}
             onChange={(e) => setProblemStatement(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
+            className="w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
           />
           {!isFieldSubmitted('problemStatement') && (
             <div className="flex justify-end">
@@ -352,7 +352,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 3. Proposed Solution */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Proposed Solution &amp; Technical Approach</label>
             {isFieldSubmitted('solution') && <SubmittedBadge isApproved={isApproved} />}
@@ -362,7 +362,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             value={solution}
             disabled={isFieldSubmitted('solution')}
             onChange={(e) => setSolution(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
+            className="w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
           />
           {!isFieldSubmitted('solution') && (
             <div className="flex justify-end">
@@ -379,7 +379,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 4. Technologies Used */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Technologies Used</label>
             {isFieldSubmitted('technologyUsed') && <SubmittedBadge isApproved={isApproved} />}
@@ -390,7 +390,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
               value={technology}
               disabled={isFieldSubmitted('technologyUsed')}
               onChange={(e) => setTechnology(e.target.value)}
-              className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
+              className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
             />
             {!isFieldSubmitted('technologyUsed') && (
               <button
@@ -406,7 +406,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 5. Obstacles Faced */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Obstacles Faced</label>
             {isFieldSubmitted('obstaclesFaced') && <SubmittedBadge isApproved={isApproved} />}
@@ -416,7 +416,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             value={obstaclesFaced}
             disabled={isFieldSubmitted('obstaclesFaced')}
             onChange={(e) => setObstaclesFaced(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
+            className="w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
           />
           {!isFieldSubmitted('obstaclesFaced') && (
             <div className="flex justify-end">
@@ -433,7 +433,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 6. Abstract */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Project Abstract</label>
             {isFieldSubmitted('abstract') && <SubmittedBadge isApproved={isApproved} />}
@@ -443,7 +443,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             value={abstract}
             disabled={isFieldSubmitted('abstract')}
             onChange={(e) => setAbstract(e.target.value)}
-            className="w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
+            className="w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
           />
           {!isFieldSubmitted('abstract') && (
             <div className="flex justify-end">
@@ -460,7 +460,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 7. Presentation File: PPT / PPTX only */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <div>
               <label className="font-bold text-slate-800">Presentation Deck (PowerPoint Only)</label>
@@ -471,7 +471,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
           <div className="flex items-center gap-3">
             {isFieldSubmitted('presentation') ? (
-              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#E2E8E4] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
+              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
                 <FileText size={14} className="text-slate-500" />
                 <span>{presentationFileName || "Presentation File Uploaded"}</span>
               </span>
@@ -504,7 +504,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 8. Technical Project Report: PDF only */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <div>
               <label className="font-bold text-slate-800">Technical Report Document (PDF Only)</label>
@@ -515,7 +515,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
           <div className="flex items-center gap-3">
             {isFieldSubmitted('report') ? (
-              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#E2E8E4] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
+              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
                 <FileText size={14} className="text-slate-500" />
                 <span>{reportFileName || deliverables.reportFile || "Technical Report Uploaded"}</span>
               </span>
@@ -548,7 +548,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 9. Repository Link (GitHub) */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Source Code Repository URL</label>
             {isFieldSubmitted('repoUrl') && <SubmittedBadge isApproved={isApproved} />}
@@ -559,7 +559,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
               value={repoUrl}
               disabled={isFieldSubmitted('repoUrl')}
               onChange={(e) => setRepoUrl(e.target.value)}
-              className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
+              className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
             />
             {!isFieldSubmitted('repoUrl') && (
               <button
@@ -575,7 +575,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 9. Live Demo Link */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Live Deployment / Demo URL</label>
             {isFieldSubmitted('demoUrl') && <SubmittedBadge isApproved={isApproved} />}
@@ -586,7 +586,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
               value={demoUrl}
               disabled={isFieldSubmitted('demoUrl')}
               onChange={(e) => setDemoUrl(e.target.value)}
-              className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
+              className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
             />
             {!isFieldSubmitted('demoUrl') && (
               <button
@@ -602,14 +602,14 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         </div>
 
         {/* 10. Output Screenshot */}
-        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#E2E8E4] space-y-2">
+        <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <div className="flex items-center justify-between">
             <label className="font-bold text-slate-800">Output Screenshot Upload</label>
             {isFieldSubmitted('screenshot') && <SubmittedBadge isApproved={isApproved} />}
           </div>
           <div className="flex items-center gap-3">
             {isFieldSubmitted('screenshot') ? (
-              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#E2E8E4] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
+              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
                 <Image size={14} className="text-slate-500" />
                 <span>{screenshotName || "Screenshot Uploaded"}</span>
               </span>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle } from 'lucide-react';
+import GlassSurface from './GlassSurface';
 
 export const LoginPage: React.FC = () => {
   const { login, currentUser } = useAuth();
@@ -50,69 +51,120 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#EFF3F1] flex flex-col justify-center items-center px-4 sm:px-6 py-8 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-[#EAE3DE] flex flex-col justify-center items-center px-4 sm:px-6 py-8 relative overflow-hidden font-sans">
       
-      {/* Ambient Decorative Background Glows */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-mint-200/60 rounded-full blur-3xl opacity-60 pointer-events-none animate-pulse"></div>
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-mint-100/70 rounded-full blur-3xl opacity-60 pointer-events-none"></div>
-      <div className="absolute top-1/3 -right-20 w-64 h-64 bg-teal-100/40 rounded-full blur-2xl opacity-40 pointer-events-none"></div>
+      {/* Full-Bleed Hand-Drawn Teal Ink Landscape Video Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <video
+          className="absolute inset-0 w-full h-full object-cover object-bottom pointer-events-none"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/4f690bd1-881a-4192-82f2-d714d34c8fb9.png"
+        >
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260901_122529_931c22c8-8d2d-47c0-ad51-b97f56a91e42.mp4"
+            type="video/mp4"
+          />
+        </video>
+      </div>
 
-      {/* Main Login Shell - Expanded horizontally and responsive */}
-      <div className="w-full max-w-lg sm:max-w-xl z-10">
+      {/* Main Login Shell - Responsive and centered */}
+      <div className="w-full max-w-lg sm:max-w-xl z-10 relative">
         
         {/* Brand Header */}
         <div className="text-center mb-6">
           
-          {/* Logo Container with Glow & Emblem */}
+          {/* Logo Container with Liquid Glass Emblem Frame */}
           <div className="relative inline-flex flex-col items-center mb-4">
-            <div className="relative group">
-              {/* Soft Ambient Glow */}
-              <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/30 via-mint-400/40 to-teal-500/30 rounded-3xl blur-xl group-hover:opacity-100 transition duration-500"></div>
-              
-              {/* Institutional Logo from Attached Image */}
-              <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-white p-2 shadow-xl shadow-mint-700/20 border border-mint-200 transform hover:scale-105 transition-all duration-300 flex items-center justify-center">
-                <img src="/logo.jpg" alt="Sri Shakthi Institute SIET CSE" className="w-full h-full object-contain rounded-2xl" />
+            <GlassSurface
+              width={104}
+              height={104}
+              borderRadius={26}
+              borderWidth={0.08}
+              displace={6}
+              distortionScale={-140}
+              redOffset={2}
+              greenOffset={8}
+              blueOffset={16}
+              brightness={65}
+              opacity={0.9}
+              backgroundOpacity={0.35}
+              saturation={1.8}
+              mixBlendMode="screen"
+              className="shadow-[0_12px_32px_rgba(23,90,103,0.18)] border border-white/60 hover:scale-105 transition-all duration-300"
+              contentClassName="flex items-center justify-center p-2.5 w-full h-full"
+            >
+              <div className="w-full h-full rounded-2xl bg-white/80 backdrop-blur-xs p-2 flex items-center justify-center border border-white/70 shadow-xs">
+                <img src="/logo.jpg" alt="Sri Shakthi Institute SIET CSE" className="w-full h-full object-contain rounded-xl" />
               </div>
-            </div>
+            </GlassSurface>
           </div>
 
           {/* Full College Name */}
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug max-w-lg mx-auto">
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#111111] tracking-tight leading-snug max-w-lg mx-auto drop-shadow-xs">
             Sri Shakthi Institute of Engineering and Technology
           </h1>
 
           {/* Department Name */}
-          <p className="text-xs sm:text-sm font-bold text-mint-700 mt-1.5">
+          <p className="text-xs sm:text-sm font-semibold text-[#175A67] mt-1.5 tracking-wide">
             Department of Computer Science and Engineering
           </p>
         </div>
 
-        {/* Crisp White Card - Expanded and Responsive */}
-        <div className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-9 shadow-card border border-[#E2E8E4] relative overflow-hidden">
-          {/* Subtle Top Accent Bar */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-mint-500 to-teal-500"></div>
+        {/* Liquid Glass Surface Card - Pure Crystal Water */}
+        <GlassSurface
+          theme="light"
+          width="100%"
+          height="auto"
+          borderRadius={32}
+          borderWidth={0.08}
+          brightness={75}
+          opacity={0.88}
+          blur={10}
+          displace={8}
+          backgroundOpacity={0.25}
+          saturation={1.75}
+          distortionScale={-140}
+          redOffset={3}
+          greenOffset={9}
+          blueOffset={18}
+          mixBlendMode="screen"
+          className="w-full shadow-[0_24px_50px_rgba(23,90,103,0.15),0_10px_20px_rgba(0,0,0,0.04),inset_0_1.5px_2px_rgba(255,255,255,0.95),inset_0_0_24px_rgba(255,255,255,0.35),inset_0_-2px_4px_rgba(23,90,103,0.08)] border border-white/80 backdrop-blur-xl transition-all duration-300 relative overflow-hidden"
+          contentClassName="p-6 sm:p-9 w-full flex flex-col items-stretch text-left relative"
+        >
+          {/* Liquid Glass Lens Curvature & Caustic Reflection */}
+          <div className="absolute -top-16 -left-16 -right-16 h-36 bg-gradient-to-b from-white/45 via-white/10 to-transparent rounded-[100%] pointer-events-none blur-[1px]"></div>
           
-          <div className="mb-5">
-            <h2 className="text-xl font-extrabold text-slate-900">Log in</h2>
+          {/* Subtle Top Pure Liquid Sheen Bar */}
+          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/90 to-transparent"></div>
+          
+          <div className="mb-5 flex items-center justify-between relative z-10">
+            <h2 className="text-2xl font-serif font-bold text-[#111111] tracking-tight">Log in</h2>
+            <span className="text-[10px] font-bold text-[#175A67] uppercase tracking-widest px-2.5 py-1 rounded-full bg-white/70 border border-white/90 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(255,255,255,0.9)]">
+              Secure Access
+            </span>
           </div>
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-rose-600"></span>
+            <div className="mb-4 p-3 rounded-xl bg-[#F8EEEE]/95 backdrop-blur-md border border-[#D9AEAE] text-[#7C3838] text-xs font-semibold flex items-center gap-2 shadow-xs relative z-10">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#7C3838]"></span>
               <span>{errorMessage}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
             
-            {/* Institutional Email Input */}
+            {/* Institutional Email Input with Liquid Glass Finish */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label className="block text-xs font-bold text-[#111111] mb-1.5">
                 Institutional Email
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#175A67]">
                   <Mail size={16} />
                 </div>
                 <input
@@ -121,25 +173,25 @@ export const LoginPage: React.FC = () => {
                   value={emailOrRoll}
                   onChange={(e) => setEmailOrRoll(e.target.value)}
                   placeholder="e.g. student@srishakthi.ac.in"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-[#E2E8E4] rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint-500/20 focus:border-mint-500 focus:bg-white transition"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/65 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md border border-white/90 rounded-xl text-xs font-medium text-[#111111] placeholder:text-[#175A67]/60 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.95),0_2px_8px_rgba(23,90,103,0.05)] focus:outline-none focus:ring-2 focus:ring-[#175A67]/30 focus:border-[#175A67] transition"
                 />
               </div>
             </div>
 
-            {/* Password Input */}
+            {/* Password Input with Liquid Glass Finish */}
             <div>
               <div className="flex justify-between items-center mb-1.5">
-                <label className="block text-xs font-bold text-slate-700">Password</label>
+                <label className="block text-xs font-bold text-[#111111]">Password</label>
                 <button
                   type="button"
                   onClick={() => setForgotModalOpen(true)}
-                  className="text-[11px] font-semibold text-mint-600 hover:text-mint-700 hover:underline focus:outline-none"
+                  className="text-[11px] font-semibold text-[#175A67] hover:text-[#0F454F] hover:underline focus:outline-none cursor-pointer"
                 >
                   Forgot Password?
                 </button>
               </div>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#175A67]">
                   <Lock size={16} />
                 </div>
                 <input
@@ -148,22 +200,22 @@ export const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50/80 border border-[#E2E8E4] rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-mint-500/20 focus:border-mint-500 focus:bg-white transition"
+                  className="w-full pl-10 pr-10 py-2.5 bg-white/65 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md border border-white/90 rounded-xl text-xs font-medium text-[#111111] placeholder:text-[#175A67]/60 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.95),0_2px_8px_rgba(23,90,103,0.05)] focus:outline-none focus:ring-2 focus:ring-[#175A67]/30 focus:border-[#175A67] transition"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#175A67] hover:text-[#0F454F] cursor-pointer"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
-            {/* Submit Button */}
+            {/* Submit Button with Liquid Ink Glass Sheen */}
             <button
               type="submit"
-              className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-mint-500 to-emerald-600 hover:from-mint-600 hover:to-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md hover:shadow-hover transition duration-200 flex items-center justify-center gap-2 group cursor-pointer"
+              className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-[#175A67] via-[#206C7B] to-[#124B56] hover:from-[#0F454F] hover:to-[#175A67] text-white font-bold text-xs rounded-xl shadow-[0_8px_24px_rgba(23,90,103,0.35),inset_0_1px_1px_rgba(255,255,255,0.6)] border border-white/30 transition duration-200 flex items-center justify-center gap-2 group cursor-pointer hover:shadow-[0_10px_28px_rgba(23,90,103,0.45)] active:scale-[0.99]"
             >
               <span>Log in</span>
               <ArrowRight size={15} className="transform group-hover:translate-x-1 transition" />
@@ -172,9 +224,9 @@ export const LoginPage: React.FC = () => {
           </form>
 
           {/* Quick Demo Credentials */}
-          <div className="mt-6 pt-5 border-t border-[#E2E8E4]">
+          <div className="mt-6 pt-5 border-t border-white/60 relative z-10">
             <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-[#175A67] uppercase tracking-wider">
                 Quick-Fill Demo Credentials (Click to Test):
               </span>
             </div>
@@ -183,7 +235,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFillDemo('student@srishakthi.ac.in', 'student@123')}
-                className="px-2.5 py-1.5 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-[11px] font-bold transition flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg bg-white/70 hover:bg-white/90 backdrop-blur-md text-[#111111] border border-white/90 text-[11px] font-bold transition shadow-[0_2px_8px_rgba(23,90,103,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.95)] flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <span>👨‍🎓</span> Student
               </button>
@@ -191,7 +243,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFillDemo('dr.manimegalai@siet.ac.in', 'guide@123')}
-                className="px-2.5 py-1.5 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-[11px] font-bold transition flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg bg-white/70 hover:bg-white/90 backdrop-blur-md text-[#111111] border border-white/90 text-[11px] font-bold transition shadow-[0_2px_8px_rgba(23,90,103,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.95)] flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <span>🔬</span> Guide
               </button>
@@ -199,7 +251,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFillDemo('dr.karthik@siet.ac.in', 'faculty@123')}
-                className="px-2.5 py-1.5 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-[11px] font-bold transition flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg bg-white/70 hover:bg-white/90 backdrop-blur-md text-[#111111] border border-white/90 text-[11px] font-bold transition shadow-[0_2px_8px_rgba(23,90,103,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.95)] flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <span>📋</span> Advisor
               </button>
@@ -207,7 +259,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFillDemo('hod.cse@siet.ac.in', 'hod@123')}
-                className="px-2.5 py-1.5 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-[11px] font-bold transition flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg bg-white/70 hover:bg-white/90 backdrop-blur-md text-[#111111] border border-white/90 text-[11px] font-bold transition shadow-[0_2px_8px_rgba(23,90,103,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.95)] flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <span>🏛️</span> HOD
               </button>
@@ -215,62 +267,73 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleFillDemo('admin@siet.ac.in', 'admin@123')}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-[11px] font-bold transition flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg bg-white/80 hover:bg-white/95 backdrop-blur-md text-[#111111] border border-white/90 text-[11px] font-bold transition shadow-[0_2px_8px_rgba(23,90,103,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.95)] flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <span>⚙️</span> Admin
               </button>
             </div>
           </div>
 
-        </div>
+        </GlassSurface>
 
       </div>
 
       {/* Forgot Password Modal */}
       {forgotModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-[#E2E8E4] text-left">
-            <h3 className="text-base font-extrabold text-slate-900">Reset Institutional Password</h3>
-            <p className="text-xs text-slate-500 mt-1">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <GlassSurface
+            width="100%"
+            height="auto"
+            borderRadius={24}
+            borderWidth={0.08}
+            brightness={70}
+            opacity={0.92}
+            backgroundOpacity={0.65}
+            saturation={1.8}
+            className="w-full max-w-md shadow-2xl border border-white/70 backdrop-blur-xl"
+            contentClassName="p-6 w-full text-left"
+          >
+            <h3 className="text-base font-serif font-bold text-[#111111]">Reset Institutional Password</h3>
+            <p className="text-xs text-[#75695A] mt-1">
               Enter your registered institutional email to receive a password reset link.
             </p>
 
             {forgotSuccess ? (
-              <div className="my-6 p-4 rounded-2xl bg-mint-50 border border-mint-200 text-center text-xs text-mint-800 font-bold flex flex-col items-center gap-2">
-                <CheckCircle size={28} className="text-mint-600" />
+              <div className="my-6 p-4 rounded-xl bg-[#EDF1EC]/90 border border-[#C4D1C2] text-center text-xs text-[#4A5844] font-bold flex flex-col items-center gap-2">
+                <CheckCircle size={28} className="text-[#4A5844]" />
                 <span>Reset instructions sent to your institutional email!</span>
               </div>
             ) : (
               <form onSubmit={handleSendResetLink} className="mt-4 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Institutional Email</label>
+                  <label className="block text-xs font-bold text-[#111111] mb-1">Institutional Email</label>
                   <input
                     type="email"
                     required
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="e.g. yourname@srishakthi.ac.in"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500"
+                    className="w-full px-3.5 py-2.5 bg-white/60 border border-white/80 rounded-lg text-xs font-medium text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#175A67]/30 focus:border-[#175A67]"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setForgotModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
+                    className="px-4 py-2 text-xs font-semibold text-[#75695A] hover:text-[#111111] cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-mint-500 hover:bg-mint-600 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                    className="px-5 py-2 bg-[#175A67] hover:bg-[#0F454F] text-[#FAF7F2] font-bold text-xs rounded-lg shadow-subtle border border-white/20 transition cursor-pointer"
                   >
                     Send Reset Link
                   </button>
                 </div>
               </form>
             )}
-          </div>
+          </GlassSurface>
         </div>
       )}
 

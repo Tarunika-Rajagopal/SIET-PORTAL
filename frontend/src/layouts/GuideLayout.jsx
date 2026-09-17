@@ -44,50 +44,50 @@ export const GuideLayout = () => {
       label: 'Approve Submissions',
       icon: CheckSquare,
       badge: stats.pendingTitleApprovalsCount > 0 ? `${stats.pendingTitleApprovalsCount} Pending` : null,
-      badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300'
+      badgeColor: 'bg-[#EDE7DB] text-[#8A6A32] border border-[#D4C39F]'
     },
     {
       to: '/guide/teams',
       label: 'My Teams',
       icon: Users,
       badge: `${stats.assignedTeamsCount}`,
-      badgeColor: 'bg-mint-100 text-mint-900 border border-mint-200'
+      badgeColor: 'bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]'
     },
     {
       to: '/guide/weekly-submissions',
       label: 'Weekly Submissions',
       icon: Clock,
       badge: stats.pendingWeeklySubmissionsCount > 0 ? `${stats.pendingWeeklySubmissionsCount} Due` : null,
-      badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300'
+      badgeColor: 'bg-[#EDE7DB] text-[#8A6A32] border border-[#D4C39F]'
     },
     {
       to: '/guide/submission-history',
       label: 'History',
       icon: History,
       badge: null,
-      badgeColor: 'bg-mint-100 text-mint-900 border border-mint-200'
+      badgeColor: 'bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#EFF3F1] text-slate-900 flex flex-col font-sans antialiased">
+    <div className="min-h-screen bg-[#F8F5EE] text-[#111111] flex flex-col font-sans antialiased">
       
       {/* 1. Sticky Header with Uploaded Logo & Title */}
-      <header className="sticky top-0 z-30 h-16 bg-white border-b border-[#E2E8E4] px-4 sm:px-6 lg:px-8 flex items-center justify-between shadow-xs">
+      <header className="sticky top-0 z-30 h-16 bg-[#F8F5EE] border-b border-[#D8CCBA] px-4 sm:px-6 lg:px-8 flex items-center justify-between shadow-xs">
         
         {/* Left Branding */}
         <div className="flex items-center gap-3">
           <img 
             src="/logo.jpg" 
             alt="SIET CSE" 
-            className="w-10 h-10 rounded-xl object-contain shadow-xs border border-mint-200 bg-white p-0.5 shrink-0" 
+            className="w-10 h-10 rounded-xl object-contain shadow-xs border border-[#D8CCBA] bg-white p-0.5 shrink-0" 
           />
           <div>
-            <div className="text-xs font-bold text-slate-900 tracking-wide flex items-center gap-1.5">
+            <div className="text-xs font-serif font-bold text-[#111111] tracking-wide flex items-center gap-1.5">
               <span>Faculty Guide Portal</span>
-              <span className="w-2 h-2 rounded-full bg-mint-500"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#111111]"></span>
             </div>
-            <div className="text-[10px] text-mint-700 font-bold hidden sm:block">
+            <div className="text-[10px] text-[#75695A] font-bold hidden sm:block">
               Department of Computer Science and Engineering &bull; Sri Shakthi Institute
             </div>
           </div>
@@ -96,8 +96,8 @@ export const GuideLayout = () => {
         {/* Right: Metric Pill & User Profile Avatar Dropdown */}
         <div className="flex items-center gap-3">
           {/* Assigned Teams Badge */}
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-mint-100 border border-mint-200 text-mint-900 text-xs font-bold shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-mint-600"></span>
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EDE7DB] border border-[#D8CCBA] text-[#111111] text-xs font-bold shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#111111]"></span>
             <span>Assigned: {stats.assignedTeamsCount} Teams</span>
           </div>
 
@@ -105,7 +105,7 @@ export const GuideLayout = () => {
           <div className="relative">
             <button
               onClick={() => setProfileDropdownOpen(v => !v)}
-              className="w-10 h-10 rounded-full bg-gradient-to-br from-mint-500 to-emerald-600 hover:from-mint-600 hover:to-emerald-700 text-white font-black text-xs sm:text-sm flex items-center justify-center shadow-md hover:ring-2 hover:ring-mint-400 hover:ring-offset-2 transition focus:outline-none cursor-pointer"
+              className="w-10 h-10 rounded-full bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-black text-xs sm:text-sm flex items-center justify-center shadow-subtle border border-[#292725] hover:ring-2 hover:ring-[#B8AA97] hover:ring-offset-2 transition focus:outline-none cursor-pointer"
               aria-label="User profile menu"
             >
               {facultyProfile.initials || 'SK'}
@@ -118,15 +118,15 @@ export const GuideLayout = () => {
                   className="fixed inset-0 z-40"
                   onClick={() => setProfileDropdownOpen(false)}
                 ></div>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-card border border-[#E2E8E4] p-1.5 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 mt-2 w-48 bg-[#FFFFFF] rounded-xl shadow-card border border-[#D8CCBA] p-1.5 z-50 animate-in fade-in slide-in-from-top-2">
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false);
                       setProfileModalOpen(true);
                     }}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-mint-50 hover:text-mint-800 rounded-xl flex items-center gap-2.5 transition cursor-pointer"
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
                   >
-                    <UserIcon size={16} className="text-mint-600" />
+                    <UserIcon size={16} className="text-[#75695A]" />
                     <span>Profile</span>
                   </button>
 
@@ -135,9 +135,9 @@ export const GuideLayout = () => {
                       setProfileDropdownOpen(false);
                       handleLogout();
                     }}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl flex items-center gap-2.5 transition cursor-pointer"
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#7C3838] hover:bg-[#F8EEEE] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
                   >
-                    <LogOut size={16} className="text-rose-500" />
+                    <LogOut size={16} className="text-[#7C3838]" />
                     <span>Logout</span>
                   </button>
                 </div>
@@ -149,7 +149,7 @@ export const GuideLayout = () => {
       </header>
 
       {/* 2. Top Navigation Bar (Full Portal Top Bar Navigation) */}
-      <div className="bg-white border-b border-[#E2E8E4] sticky top-16 z-20 shadow-xs">
+      <div className="bg-[#F8F5EE] border-b border-[#D8CCBA] sticky top-16 z-20 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold no-scrollbar">
             {navItems.map((item) => {
@@ -168,15 +168,15 @@ export const GuideLayout = () => {
                   to={item.to}
                   className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                     isActive
-                      ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                      : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
+                      ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                      : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
                   }`}
                 >
-                  <Icon size={16} className={isActive ? 'text-white' : 'text-slate-400'} />
+                  <Icon size={16} className={isActive ? 'text-[#F8F5EE]' : 'text-[#75695A]'} />
                   <span>{item.label}</span>
                   {item.badge && (
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                      isActive ? 'bg-white/25 text-white' : item.badgeColor
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      isActive ? 'bg-[#292725] text-[#F8F5EE] border border-[#3E3B38]' : item.badgeColor
                     }`}>
                       {item.badge}
                     </span>
@@ -200,18 +200,18 @@ export const GuideLayout = () => {
             key={toast.id}
             className={`pointer-events-auto flex items-start gap-2.5 p-3.5 rounded-xl shadow-modal text-xs font-semibold border transition-all animate-slideUp ${
               toast.type === 'success'
-                ? 'bg-mint-800 text-white border-mint-600'
+                ? 'bg-[#1B2119] text-[#EDF1EC] border-[#4A5844]'
                 : toast.type === 'error'
-                ? 'bg-rose-800 text-white border-rose-600'
+                ? 'bg-[#381717] text-[#F8EEEE] border-[#7C3838]'
                 : toast.type === 'warning'
-                ? 'bg-amber-800 text-white border-amber-600'
-                : 'bg-slate-900 text-white border-slate-700'
+                ? 'bg-[#382B14] text-[#F7F2E7] border-[#8A6A32]'
+                : 'bg-[#1A1A1A] text-[#F8F5EE] border-[#D8CCBA]'
             }`}
           >
-            {toast.type === 'success' && <CheckCircle2 size={16} className="text-mint-300 shrink-0 mt-0.5" />}
-            {toast.type === 'error' && <AlertCircle size={16} className="text-rose-300 shrink-0 mt-0.5" />}
-            {toast.type === 'warning' && <AlertCircle size={16} className="text-amber-300 shrink-0 mt-0.5" />}
-            {toast.type === 'info' && <Info size={16} className="text-sky-300 shrink-0 mt-0.5" />}
+            {toast.type === 'success' && <CheckCircle2 size={16} className="text-[#84A07B] shrink-0 mt-0.5" />}
+            {toast.type === 'error' && <AlertCircle size={16} className="text-[#D9AEAE] shrink-0 mt-0.5" />}
+            {toast.type === 'warning' && <AlertCircle size={16} className="text-[#DBCFA8] shrink-0 mt-0.5" />}
+            {toast.type === 'info' && <Info size={16} className="text-[#B8AA97] shrink-0 mt-0.5" />}
             <span className="flex-1 leading-snug">{toast.message}</span>
             <button
               onClick={() => removeToast(toast.id)}

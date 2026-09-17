@@ -1,61 +1,74 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=recia@400&f[]=erode@600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg-canvas: #EFF3F1;
-  --bg-canvas-subtle: #E5EBE7;
+  --bg-canvas: #F8F5EE;
+  --bg-canvas-subtle: #F3EFE6;
   --bg-surface: #FFFFFF;
-  --bg-surface-hover: #F8FAF9;
+  --bg-surface-hover: #F8F5EE;
 
-  --mint-50: #F0FDF4;
-  --mint-100: #DCFCE7;
-  --mint-200: #BBF7D0;
-  --mint-300: #A7F3D0;
-  --mint-500: #10B981;
-  --mint-600: #059669;
-  --mint-700: #047857;
-  --mint-800: #065F46;
-  --mint-900: #064E3B;
+  --mint-50: #F8F5EE;
+  --mint-100: #F3EFE6;
+  --mint-200: #EDE7DB;
+  --mint-300: #D8CCBA;
+  --mint-400: #B8AA97;
+  --mint-500: #111111;
+  --mint-600: #1A1A1A;
+  --mint-700: #292725;
+  --mint-800: #111111;
+  --mint-900: #111111;
 
-  --mint-circle-bg: #D4F7E2;
-  --mint-circle-icon: #065F46;
+  --mint-circle-bg: #EDE7DB;
+  --mint-circle-icon: #111111;
 
-  --border-card: #E2E8E4;
+  --border-card: #D8CCBA;
 }
 
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #EFF3F1;
-    color: #0F172A;
+    font-family: 'Recia', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #F8F5EE;
+    color: #111111;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Erode', serif;
+    letter-spacing: -0.015em;
+  }
+
+  /* Sophisticated, subtle focus state across all interactive inputs */
+  input:focus, textarea:focus, select:focus {
+    outline: none !important;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar in Warm Paper Neutrals */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #E5EBE7;
+  background: #F3EFE6;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #A7F3D0;
+  background: #D8CCBA;
   border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #10B981;
+  background: #B8AA97;
 }
 
 /* Floating animation */
 @keyframes floatAnim {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-5px); }
+  50% { transform: translateY(-4px); }
 }
 
 .animate-float {
@@ -66,3 +79,4 @@
 .transition-sidebar {
   transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
+

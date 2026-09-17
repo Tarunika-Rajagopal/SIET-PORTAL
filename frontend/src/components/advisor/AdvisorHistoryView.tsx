@@ -68,20 +68,20 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
     <div className="space-y-6 animate-fadeIn font-sans">
       
       {/* Top Filter and Action Bar */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-card border border-[#E2E8E4] flex flex-col gap-4">
+      <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-[#D8CCBA] flex flex-col gap-4">
         
         {/* Header Title & Record Count */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D8CCBA] pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
+              <h2 className="text-base sm:text-lg font-serif font-bold text-[#111111]">
                 My Activity History &amp; Evaluation Audit Log
               </h2>
-              <span className="text-xs text-mint-800 bg-mint-100 border border-mint-200 px-2.5 py-0.5 rounded-full font-bold">
+              <span className="text-xs text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] px-2.5 py-0.5 rounded-full font-medium">
                 {filteredLogs.length} Records
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[#75695A] mt-0.5">
               Personal chronological audit trail of all changes and evaluations performed by <strong>{advisorName}</strong> for Class {className}
             </p>
           </div>
@@ -90,7 +90,7 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
           <button
             type="button"
             onClick={() => setIsPdfModalOpen(true)}
-            className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold rounded-xl shadow-sm transition flex items-center gap-1.5 text-xs shrink-0 cursor-pointer self-start sm:self-auto active:scale-95"
+            className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-1.5 text-xs shrink-0 cursor-pointer self-start sm:self-auto active:scale-95"
           >
             <Download size={14} />
             <span>Download as PDF</span>
@@ -98,14 +98,14 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
         </div>
 
         {/* Filter Controls Row */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
           
           {/* 1. Filter by Action Type */}
           <div className="relative">
             <select
               value={selectedAction}
               onChange={(e) => setSelectedAction(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-mint-500 cursor-pointer"
+              className="appearance-none pl-3 pr-8 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer"
             >
               <option value="All Actions">All My Actions</option>
               <option value="Marks Evaluation">Marks Evaluation</option>
@@ -117,40 +117,40 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
               <option value="Student Enrollment">Student Enrollment</option>
               <option value="Department Governance">Department Governance</option>
             </select>
-            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#75695A] pointer-events-none" />
           </div>
 
           {/* 3. From Date */}
-          <div className="flex items-center gap-1.5 bg-[#EFF3F1] px-3 py-1.5 rounded-xl border border-[#E2E8E4]">
-            <span className="text-[10px] text-slate-500 font-extrabold uppercase">From:</span>
+          <div className="flex items-center gap-1.5 bg-[#F8F5EE] px-3 py-1.5 rounded-xl border border-[#D8CCBA]">
+            <span className="text-[10px] text-[#75695A] font-bold uppercase">From:</span>
             <input
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="bg-transparent text-slate-800 font-bold focus:outline-none text-xs cursor-pointer"
+              className="bg-transparent text-[#111111] font-medium focus:outline-none text-xs cursor-pointer"
             />
           </div>
 
           {/* 4. To Date */}
-          <div className="flex items-center gap-1.5 bg-[#EFF3F1] px-3 py-1.5 rounded-xl border border-[#E2E8E4]">
-            <span className="text-[10px] text-slate-500 font-extrabold uppercase">To:</span>
+          <div className="flex items-center gap-1.5 bg-[#F8F5EE] px-3 py-1.5 rounded-xl border border-[#D8CCBA]">
+            <span className="text-[10px] text-[#75695A] font-bold uppercase">To:</span>
             <input
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="bg-transparent text-slate-800 font-bold focus:outline-none text-xs cursor-pointer"
+              className="bg-transparent text-[#111111] font-medium focus:outline-none text-xs cursor-pointer"
             />
           </div>
 
           {/* 5. Search input */}
           <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#75695A]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search history by entity or detail..."
-              className="w-full pl-8 pr-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800 placeholder-slate-400"
+              className="w-full pl-8 pr-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]/60"
             />
           </div>
 
@@ -164,7 +164,7 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
               setSearchTerm('');
             }}
             title="Reset Filters"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 rounded-xl border border-[#E2E8E4] transition cursor-pointer flex items-center justify-center shrink-0"
+            className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] rounded-xl border border-[#D8CCBA] transition cursor-pointer flex items-center justify-center shrink-0"
           >
             <RefreshCw size={14} />
           </button>
@@ -173,10 +173,10 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
       </div>
 
       {/* History Records Table */}
-      <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-sm border border-[#D8CCBA] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8FAF9] text-slate-500 uppercase tracking-wider font-bold border-b border-[#E2E8E4]">
+            <thead className="bg-[#EDE7DB] text-[#75695A] uppercase tracking-wider font-semibold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4">Timestamp</th>
                 <th className="p-4">Role</th>
@@ -186,10 +186,10 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
                 <th className="p-4">Performed By</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8E4] font-medium">
+            <tbody className="divide-y divide-[#D8CCBA] font-normal">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400">
+                  <td colSpan={6} className="p-12 text-center text-[#75695A]">
                     No personal activity records found for {advisorName}.
                   </td>
                 </tr>
@@ -197,20 +197,20 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
                 filteredLogs.map((log) => {
                   const roleName = log.role || 'Class Advisor';
                   return (
-                    <tr key={log.id} className="hover:bg-mint-50/30 transition">
+                    <tr key={log.id} className="hover:bg-[#F8F5EE]/60 transition">
                       
                       {/* Timestamp */}
-                      <td className="p-4 whitespace-nowrap font-mono text-slate-500">
+                      <td className="p-4 whitespace-nowrap font-mono text-[#75695A]">
                         {log.dateFormatted}
                       </td>
 
                       {/* Role */}
                       <td className="p-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase border ${
-                          roleName === 'Class Advisor' ? 'bg-mint-50 text-mint-900 border-mint-200' :
-                          roleName === 'Faculty Guide' ? 'bg-amber-50 text-amber-900 border-amber-200' :
-                          roleName === 'Head of Department' ? 'bg-blue-50 text-blue-900 border-blue-200' :
-                          'bg-purple-50 text-purple-900 border-purple-200'
+                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-medium uppercase border ${
+                          roleName === 'Class Advisor' ? 'bg-[#F8F5EE] text-[#111111] border-[#D8CCBA]' :
+                          roleName === 'Faculty Guide' ? 'bg-[#EDE7DB] text-[#75695A] border-[#D8CCBA]' :
+                          roleName === 'Head of Department' ? 'bg-[#111111] text-white border-[#111111]' :
+                          'bg-[#F3EFE6] text-[#292725] border-[#D8CCBA]'
                         }`}>
                           {roleName}
                         </span>
@@ -218,31 +218,23 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
 
                       {/* Action Type */}
                       <td className="p-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${
-                          log.actionType === 'Marks Evaluation' ? 'bg-mint-100 text-mint-900 border-mint-200' :
-                          log.actionType === 'Project Approval' ? 'bg-emerald-100 text-emerald-900 border-emerald-200' :
-                          log.actionType === 'Milestone Review' ? 'bg-teal-100 text-teal-900 border-teal-200' :
-                          log.actionType === 'Student Transfer' ? 'bg-amber-100 text-amber-900 border-amber-200' :
-                          log.actionType === 'Guide Reassignment' ? 'bg-blue-100 text-blue-900 border-blue-200' :
-                          log.actionType === 'Team Formation' ? 'bg-purple-100 text-purple-900 border-purple-200' :
-                          'bg-slate-100 text-slate-800 border-slate-200'
-                        }`}>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-medium uppercase border bg-[#F8F5EE] text-[#111111] border-[#D8CCBA]">
                           {log.actionType}
                         </span>
                       </td>
 
                       {/* Target Entity */}
-                      <td className="p-4 font-extrabold text-slate-900 whitespace-nowrap">
+                      <td className="p-4 font-medium text-[#111111] whitespace-nowrap">
                         {log.target}
                       </td>
 
                       {/* Details */}
-                      <td className="p-4 text-slate-700 max-w-md leading-relaxed">
+                      <td className="p-4 text-[#292725] max-w-md leading-relaxed">
                         {log.details}
                       </td>
 
                       {/* Performed By */}
-                      <td className="p-4 text-slate-800 font-bold whitespace-nowrap">
+                      <td className="p-4 text-[#111111] font-medium whitespace-nowrap">
                         {log.actorName || log.advisorName}
                       </td>
 

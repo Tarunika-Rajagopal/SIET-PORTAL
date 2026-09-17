@@ -46,23 +46,23 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-[#E2E8E4] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs font-sans">
+      <div className="bg-white rounded-3xl w-full max-w-md shadow-xl border border-[#D8CCBA] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="p-6 border-b border-[#E2E8E4] flex items-center justify-between bg-mint-50/60">
+        <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-[#F8F5EE]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold shadow-xs">
               <UserCheck size={20} />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">Assign Class Advisor</h3>
-              <p className="text-xs text-slate-500">Designate faculty advisor for {className}</p>
+              <h3 className="text-base font-serif font-bold text-[#111111]">Assign Class Advisor</h3>
+              <p className="text-xs text-[#75695A]">Designate faculty advisor for {className}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition"
+            className="w-8 h-8 rounded-xl hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] flex items-center justify-center transition"
           >
             <X size={18} />
           </button>
@@ -71,26 +71,26 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
           
-          <div className="p-3.5 bg-mint-50/50 rounded-2xl border border-mint-200 text-mint-900 font-bold flex items-center justify-between">
+          <div className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA] text-[#111111] font-medium flex items-center justify-between">
             <span>Target Section:</span>
-            <span className="px-2.5 py-0.5 rounded-full bg-white border border-mint-300 text-mint-900">
+            <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#D8CCBA] text-[#111111]">
               {className} • {batch}
             </span>
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
               <AlertTriangle size={15} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           <div>
-            <label className="block text-slate-700 font-bold mb-1">Select Faculty Member</label>
+            <label className="block text-[#75695A] font-medium mb-1">Select Faculty Member</label>
             <select
               value={selectedEmail}
               onChange={(e) => setSelectedEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl font-bold text-slate-800 focus:outline-none focus:border-mint-500"
+              className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
             >
               {candidates.map(f => (
                 <option key={f.email} value={f.email}>
@@ -101,8 +101,8 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-slate-700 font-bold mb-1">
-              Assignment Reason <span className="text-red-500">*</span>
+            <label className="block text-[#75695A] font-medium mb-1">
+              Assignment Reason <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -110,22 +110,22 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Semester workload allocation"
-              className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl focus:outline-none focus:border-mint-500 font-medium"
+              className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-medium text-[#111111]"
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E2E8E4]">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#D8CCBA]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition"
+              className="px-4 py-2 rounded-xl text-[#75695A] font-medium hover:text-[#111111] transition"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold rounded-xl shadow-sm transition flex items-center gap-2"
+              className="px-5 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2"
             >
               <Check size={14} />
               <span>Confirm Appointment</span>

@@ -167,20 +167,20 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
   const isCapacityReached = selectedMemberRolls.length >= capacity;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-[#E2E8E4] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto animate-fadeIn font-sans">
+      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-xl border border-[#D8CCBA] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
-        <div className="p-5 border-b border-[#E2E8E4] flex items-center justify-between bg-slate-50">
+        <div className="p-5 border-b border-[#D8CCBA] flex items-center justify-between bg-[#F8F5EE]">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-900 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center font-bold">
               <UserPlus size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900">
+              <h3 className="text-base font-serif font-bold text-[#111111]">
                 Manual Team Creation &amp; Assignment
               </h3>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-[#75695A]">
                 Class {className} &bull; Form a team with unassigned students and assign a technical guide
               </p>
             </div>
@@ -189,7 +189,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition cursor-pointer"
+            className="w-8 h-8 rounded-xl hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] flex items-center justify-center transition cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -199,7 +199,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
         <form onSubmit={handleFormTeamSubmit} className="p-6 space-y-5">
           
           {errorMessage && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-xs text-rose-700 font-bold animate-fadeIn">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-xs text-rose-700 font-medium animate-fadeIn">
               <AlertCircle size={16} className="shrink-0 text-rose-600" />
               <span>{errorMessage}</span>
             </div>
@@ -207,7 +207,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
 
           {/* Team Number (Project title is NOT entered by advisor) */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-medium text-[#75695A] mb-1">
               Team Number:
             </label>
             <input
@@ -215,17 +215,17 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
               value={teamNo}
               onChange={(e) => setTeamNo(e.target.value)}
               placeholder="e.g. Team 05"
-              className="w-full px-3.5 py-2.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none focus:border-mint-500"
+              className="w-full px-3.5 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
               required
             />
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-[#75695A]/70 mt-1">
               * Note: Project proposal title will be submitted by the student team, not entered by advisors.
             </p>
           </div>
 
           {/* Dropdown to Select Unassigned Students */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-700">
+            <label className="block text-xs font-medium text-[#75695A]">
               Select Unassigned Members (Dropdown):
             </label>
 
@@ -235,7 +235,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
                 value=""
                 disabled={isCapacityReached || availableUnassignedToAdd.length === 0}
                 onChange={(e) => handleAddMemberFromDropdown(e.target.value)}
-                className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-mint-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <option value="">
                   {isCapacityReached 
@@ -250,16 +250,16 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
                   </option>
                 ))}
               </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#75695A] pointer-events-none" />
             </div>
 
             {/* Selected Members List */}
             <div className="mt-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                <span className="text-xs font-medium text-[#111111] uppercase tracking-wider">
                   Assigned Team Members ({selectedMemberRolls.length} / {capacity}):
                 </span>
-                <span className="text-[11px] font-bold text-mint-900 bg-mint-50 px-2 py-0.5 rounded-md border border-mint-200">
+                <span className="text-[11px] font-medium text-[#111111] bg-[#F8F5EE] px-2 py-0.5 rounded-md border border-[#D8CCBA]">
                   Capacity: {capacity} Max
                 </span>
               </div>
@@ -272,18 +272,18 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
                   return (
                     <div
                       key={m.rollNo}
-                      className="flex items-center justify-between p-2.5 bg-mint-50/60 border border-mint-200 rounded-xl text-xs shadow-2xs"
+                      className="flex items-center justify-between p-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs shadow-2xs"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900">{m.name}</span>
-                        <span className="text-[11px] font-mono text-slate-500">({m.rollNo})</span>
+                        <span className="font-medium text-[#111111]">{m.name}</span>
+                        <span className="text-[11px] font-mono text-[#75695A]">({m.rollNo})</span>
                         {isLead && (
-                          <span className="px-2 py-0.5 bg-mint-500 text-white rounded text-[10px] font-black uppercase">
+                          <span className="px-2 py-0.5 bg-[#111111] text-white rounded text-[10px] font-medium uppercase">
                             Leader
                           </span>
                         )}
                         {isInitial && (
-                          <span className="px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded text-[10px] font-bold">
+                          <span className="px-1.5 py-0.5 bg-[#EDE7DB] text-[#111111] rounded text-[10px] font-medium">
                             Selected
                           </span>
                         )}
@@ -294,7 +294,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
                           type="button"
                           onClick={() => handleRemoveMember(m.rollNo)}
                           title="Remove from team"
-                          className="p-1 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-lg transition cursor-pointer"
+                          className="p-1 hover:bg-rose-100 text-[#75695A] hover:text-rose-600 rounded-lg transition cursor-pointer"
                         >
                           <X size={14} />
                         </button>
@@ -309,14 +309,14 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
           {/* Designate Team Leader */}
           {selectedStudentObjects.length > 0 && (
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-[#75695A] mb-1">
                 Designate Team Leader:
               </label>
               <div className="relative">
                 <select
                   value={leadRollNo}
                   onChange={(e) => setLeadRollNo(e.target.value)}
-                  className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none focus:border-mint-500 cursor-pointer"
+                  className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer"
                 >
                   {selectedStudentObjects.map((m) => (
                     <option key={m.rollNo} value={m.rollNo}>
@@ -324,21 +324,21 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#75695A] pointer-events-none" />
               </div>
             </div>
           )}
 
           {/* Technical Guide Dropdown */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-medium text-[#75695A] mb-1">
               Select Technical Faculty Guide:
             </label>
             <div className="relative">
               <select
                 value={selectedGuide}
                 onChange={(e) => setSelectedGuide(e.target.value)}
-                className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none focus:border-mint-500 cursor-pointer"
+                className="w-full appearance-none pl-3.5 pr-8 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer"
               >
                 {availableGuides.map((g) => {
                   const assignedCount = AdvisorService.getGuideTeamCount(className, g.name);
@@ -351,23 +351,23 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
                   );
                 })}
               </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#75695A] pointer-events-none" />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-3 border-t border-[#E2E8E4] flex items-center justify-end gap-2.5">
+          <div className="pt-3 border-t border-[#D8CCBA] flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+              className="px-4 py-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] font-medium text-xs rounded-xl border border-[#D8CCBA] transition cursor-pointer"
             >
               Cancel
             </button>
 
             <button
               type="submit"
-              className="px-5 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+              className="px-5 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
               <Sparkles size={14} />
               <span>Form Team</span>

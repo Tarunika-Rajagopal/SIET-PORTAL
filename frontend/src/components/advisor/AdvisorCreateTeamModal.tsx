@@ -162,30 +162,30 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn font-sans">
       <div 
-        className="bg-white w-full max-w-3xl rounded-3xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all flex flex-col max-h-[90vh]"
+        className="bg-white w-full max-w-3xl rounded-3xl shadow-xl border border-[#D8CCBA] overflow-hidden transform transition-all flex flex-col max-h-[90vh]"
         role="dialog"
         aria-modal="true"
       >
         {/* Modal Header */}
-        <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between shrink-0">
+        <div className="bg-[#F8F5EE] px-6 py-4 border-b border-[#D8CCBA] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-mint-100 text-mint-800 border border-mint-200 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center shrink-0">
               <Users size={20} />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">
+              <h3 className="text-base font-serif font-bold text-[#111111]">
                 Capstone Team Generation Wizard
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#75695A]">
                 Class {className} &bull; Batch {batch} &bull; {students.length} Enrolled Students
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition"
+            className="text-[#75695A] hover:text-[#111111] p-2 rounded-xl hover:bg-[#EDE7DB] transition"
           >
             <X size={18} />
           </button>
@@ -194,7 +194,7 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-xs flex-1">
           {validationError && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-bold flex items-center gap-2 animate-fadeIn">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-medium flex items-center gap-2 animate-fadeIn">
               <AlertCircle size={16} className="shrink-0 text-rose-600" />
               <span>{validationError}</span>
             </div>
@@ -205,7 +205,7 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
               
               {/* Step 1: Member Capacity */}
               <div className="space-y-2">
-                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                <label className="block text-xs font-medium text-[#111111] uppercase tracking-wider">
                   1. Team Member Capacity (Per Team)
                 </label>
                 <div className="flex items-center gap-3">
@@ -214,25 +214,25 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                       key={cap}
                       type="button"
                       onClick={() => setCapacity(cap)}
-                      className={`flex-1 py-3 rounded-2xl border font-black text-sm transition flex flex-col items-center justify-center ${
+                      className={`flex-1 py-3 rounded-2xl border font-bold text-sm transition flex flex-col items-center justify-center ${
                         capacity === cap
-                          ? 'bg-mint-500 text-white border-mint-600 shadow-sm'
-                          : 'bg-slate-50 hover:bg-mint-50 text-slate-700 border-[#E2E8E4]'
+                          ? 'bg-[#111111] text-white border-[#111111] shadow-sm'
+                          : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#111111] border-[#D8CCBA]'
                       }`}
                     >
                       <span>{cap}</span>
-                      <span className="text-[10px] font-semibold opacity-80">Students</span>
+                      <span className="text-[10px] font-normal opacity-80">Students</span>
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[11px] text-[#75695A] mt-1">
                   Total of ~{Math.ceil(students.length / capacity)} teams will be configured from {students.length} students.
                 </p>
               </div>
 
               {/* Step 2: Formation Logic */}
               <div className="space-y-2">
-                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                <label className="block text-xs font-medium text-[#111111] uppercase tracking-wider">
                   2. Student Partitioning Methodology
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -240,14 +240,14 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                     onClick={() => setMode('sequential')}
                     className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
                       mode === 'sequential'
-                        ? 'bg-mint-50/70 border-mint-500 ring-2 ring-mint-400/30 shadow-xs'
-                        : 'bg-white border-[#E2E8E4] hover:bg-slate-50'
+                        ? 'bg-[#F8F5EE] border-[#111111] ring-2 ring-[#111111]/20 shadow-xs'
+                        : 'bg-white border-[#D8CCBA] hover:bg-[#F8F5EE]'
                     }`}
                   >
-                    <ListOrdered size={20} className={mode === 'sequential' ? 'text-mint-700' : 'text-slate-400'} />
+                    <ListOrdered size={20} className={mode === 'sequential' ? 'text-[#111111]' : 'text-[#75695A]'} />
                     <div>
-                      <span className="font-extrabold text-slate-900 block">Sequential Roll Number</span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <span className="font-bold text-[#111111] block">Sequential Roll Number</span>
+                      <p className="text-[11px] text-[#75695A] mt-0.5">
                         Students grouped in strictly ascending order of register numbers.
                       </p>
                     </div>
@@ -257,14 +257,14 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                     onClick={() => setMode('shuffle')}
                     className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
                       mode === 'shuffle'
-                        ? 'bg-mint-50/70 border-mint-500 ring-2 ring-mint-400/30 shadow-xs'
-                        : 'bg-white border-[#E2E8E4] hover:bg-slate-50'
+                        ? 'bg-[#F8F5EE] border-[#111111] ring-2 ring-[#111111]/20 shadow-xs'
+                        : 'bg-white border-[#D8CCBA] hover:bg-[#F8F5EE]'
                     }`}
                   >
-                    <Shuffle size={20} className={mode === 'shuffle' ? 'text-mint-700' : 'text-slate-400'} />
+                    <Shuffle size={20} className={mode === 'shuffle' ? 'text-[#111111]' : 'text-[#75695A]'} />
                     <div>
-                      <span className="font-extrabold text-slate-900 block">Shuffle Members</span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <span className="font-bold text-[#111111] block">Shuffle Members</span>
+                      <p className="text-[11px] text-[#75695A] mt-0.5">
                         Randomly distributes candidates across teams to foster diverse collaboration.
                       </p>
                     </div>
@@ -276,7 +276,7 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                 <button
                   type="button"
                   onClick={handleGenerateTeams}
-                  className="w-full py-3 bg-mint-500 hover:bg-mint-600 text-white font-extrabold rounded-2xl shadow-sm transition flex items-center justify-center gap-2 text-xs"
+                  className="w-full py-3 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-2xl shadow-sm transition flex items-center justify-center gap-2 text-xs"
                 >
                   <Sparkles size={16} />
                   <span>Generate Team Partitions &amp; Proceed to Guide Allocation</span>
@@ -288,19 +288,19 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
             <div className="space-y-6">
               
               {/* Step 3: Guide Allocation & Leader Selection */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8E4] pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#D8CCBA] pb-3">
                 <div>
-                  <h4 className="text-sm font-extrabold text-slate-900">
+                  <h4 className="text-sm font-serif font-bold text-[#111111]">
                     Mandatory Guide Assignment &amp; Team Leader Designation
                   </h4>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-[#75695A]">
                     Max 5 teams per guide allowed. Assign guides and choose team leaders for each team.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsGenerated(false)}
-                  className="text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition self-start"
+                  className="text-xs font-medium text-[#75695A] hover:text-[#111111] bg-[#F8F5EE] hover:bg-[#EDE7DB] border border-[#D8CCBA] px-3 py-1.5 rounded-xl transition self-start"
                 >
                   Change Partition Settings
                 </button>
@@ -312,14 +312,14 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                   return (
                     <div 
                       key={idx}
-                      className="p-4 bg-slate-50/60 rounded-2xl border border-[#E2E8E4] space-y-3.5"
+                      className="p-4 bg-[#F8F5EE]/60 rounded-2xl border border-[#D8CCBA] space-y-3.5"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8E4]/60 pb-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#D8CCBA]/60 pb-2">
                         <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-xs">
+                          <span className="px-2.5 py-0.5 rounded-lg bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-bold text-xs">
                             {team.teamNo}
                           </span>
-                          <span className="font-extrabold text-slate-800 text-xs">
+                          <span className="font-medium text-[#75695A] text-xs">
                             ({team.members.length} Members)
                           </span>
                         </div>
@@ -332,12 +332,12 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                             key={m.rollNo}
                             className={`p-2 rounded-xl border text-[11px] ${
                               team.leadRollNo === m.rollNo
-                                ? 'bg-mint-50 border-mint-300 ring-1 ring-mint-400'
-                                : 'bg-white border-[#E2E8E4]'
+                                ? 'bg-[#EDE7DB] border-[#111111] ring-1 ring-[#111111]'
+                                : 'bg-white border-[#D8CCBA]'
                             }`}
                           >
-                            <div className="font-extrabold text-slate-900 truncate">{m.name}</div>
-                            <div className="text-slate-400 font-mono text-[10px]">{m.rollNo}</div>
+                            <div className="font-bold text-[#111111] truncate">{m.name}</div>
+                            <div className="text-[#75695A] font-mono text-[10px]">{m.rollNo}</div>
                           </div>
                         ))}
                       </div>
@@ -347,13 +347,13 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                         
                         {/* Technical Guide Dropdown with live 5-team quota check */}
                         <div>
-                          <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
+                          <label className="block text-[10px] font-medium text-[#75695A] uppercase tracking-wider mb-1">
                             Assign Technical Guide <span className="text-rose-500">*</span>
                           </label>
                           <select
                             value={team.guide}
                             onChange={(e) => handleGuideChange(idx, e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-mint-500 shadow-xs"
+                            className="w-full px-3 py-2 bg-white border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs"
                           >
                             <option value="">Select Faculty Guide...</option>
                             {availableGuides.map((g) => {
@@ -376,13 +376,13 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
 
                         {/* Team Leader Dropdown */}
                         <div>
-                          <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
+                          <label className="block text-[10px] font-medium text-[#75695A] uppercase tracking-wider mb-1">
                             Designate Team Leader <span className="text-rose-500">*</span>
                           </label>
                           <select
                             value={team.leadRollNo}
                             onChange={(e) => handleLeaderChange(idx, e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-mint-500 shadow-xs"
+                            className="w-full px-3 py-2 bg-white border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs"
                           >
                             {team.members.map((m) => (
                               <option key={m.rollNo} value={m.rollNo}>
@@ -403,11 +403,11 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-[#F8FAF9] px-6 py-4 border-t border-[#E2E8E4] flex items-center justify-between shrink-0">
+        <div className="bg-[#F8F5EE] px-6 py-4 border-t border-[#D8CCBA] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition"
+            className="px-4 py-2 text-xs font-medium text-[#75695A] hover:text-[#111111] bg-white border border-[#D8CCBA] rounded-xl hover:bg-[#EDE7DB] transition"
           >
             Cancel
           </button>
@@ -416,7 +416,7 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
             <button
               type="button"
               onClick={handleFinalSubmit}
-              className="px-5 py-2 text-xs font-extrabold text-white bg-mint-500 hover:bg-mint-600 rounded-xl shadow-sm transition flex items-center gap-1.5"
+              className="px-5 py-2 text-xs font-medium text-white bg-[#111111] hover:bg-[#292725] rounded-xl shadow-sm transition flex items-center gap-1.5"
             >
               <CheckCircle2 size={15} />
               <span>Confirm &amp; Finalize {draftTeams.length} Teams</span>
