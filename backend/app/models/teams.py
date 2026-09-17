@@ -30,6 +30,7 @@ class Team(Base):
 
     __table_args__ = (
         CheckConstraint("progress >= 0 AND progress <= 100", name="chk_team_progress_range"),
+        UniqueConstraint("batch_id", "section_id", "team_no", name="uq_batch_section_team_no"),
     )
 
 class TeamMember(Base):

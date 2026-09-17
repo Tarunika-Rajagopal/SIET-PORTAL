@@ -12,6 +12,8 @@ export interface AdvisorHistoryLog {
     | 'Guide Reassignment' 
     | 'Student Enrollment' 
     | 'Team Formation'
+    | 'Team Modification'
+    | 'Team Deletion'
     | 'Project Approval'
     | 'Milestone Review'
     | 'Notice Dispatched'

@@ -39,3 +39,10 @@ class AddMemberRequest(BaseModel):
 
 class AllocateGuideRequest(BaseModel):
     guide_id: UUID = Field(..., alias="guideId")
+
+class TeamUpdate(BaseModel):
+    team_no: Optional[str] = Field(None, alias="teamNo")
+    guide_id: Optional[UUID] = Field(None, alias="guideId")
+    status: Optional[str] = None
+    progress: Optional[int] = None
+    student_rolls: Optional[List[str]] = Field(None, alias="studentRolls")

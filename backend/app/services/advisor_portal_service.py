@@ -9,7 +9,7 @@ from app.repositories.faculty_student_repository import FacultyStudentRepository
 from app.repositories.audit_notification_repository import AuditNotificationRepository
 from app.services.team_service import TeamService
 from app.schemas.portals import AdvisorDashboardResponse, StudentInspectionResponse, AutoGenerateTeamsRequest
-from app.schemas.teams import TeamCreate, TeamResponse
+from app.schemas.teams import TeamCreate, TeamUpdate, TeamResponse
 from app.exceptions.custom import NotFoundException, BadRequestException, ConflictException, ForbiddenException
 from app.models.users import User
 
@@ -62,6 +62,12 @@ class AdvisorPortalService:
     async def create_manual_team(self, data: TeamCreate, advisor_user: User) -> TeamResponse:
         return await self.team_service.create_team(data, advisor_user)
 
+    async def update_team(self, team_id: UUID, data: TeamUpdate, advisor_user: User) -> TeamResponse:
+        return await self.team_service.update_team(team_id, data, advisor_user)
+
+    async def delete_team(self, team_id: UUID, advisor_user: User) -> dict:
+        return await self.team_service.delete_team(team_id, advisor_user)
+
     async def auto_generate_teams(self, req: AutoGenerateTeamsRequest, advisor_user: User) -> List[TeamResponse]:
         unassigned = await self.portal_repo.get_unassigned_students_by_section(req.section_id)
         if not unassigned:
@@ -71,7 +77,12 @@ class AdvisorPortalService:
         created_teams = []
 
         existing_teams = await self.team_repo.get_all_teams(batch_id=req.batch_id, section_id=req.section_id)
-        current_max_num = len(existing_teams)
+        existing_numbers = []
+        for t in existing_teams:
+            digits = "".join(filter(str.isdigit, t.team_no))
+            if digits:
+                existing_numbers.append(int(digits))
+        current_max_num = max(existing_numbers) if existing_numbers else len(existing_teams)
 
         chunk_start = 0
         while chunk_start < len(unassigned):

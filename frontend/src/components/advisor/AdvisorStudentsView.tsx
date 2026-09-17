@@ -7,6 +7,7 @@ import { AdminService, AdminStudent } from '../../services/adminService';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 import AdvisorCreateTeamModal from './AdvisorCreateTeamModal';
+import AdvisorManualTeamModal from './AdvisorManualTeamModal';
 
 interface AdvisorStudentsViewProps {
   className: string;
@@ -36,16 +37,20 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   // Modals
   const [isAddStudentOpen, setIsAddStudentOpen] = useState<boolean>(false);
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState<boolean>(false);
+  const [isManualTeamOpen, setIsManualTeamOpen] = useState<boolean>(false);
   const [studentToMove, setStudentToMove] = useState<AdminStudent | null>(null);
+  const [studentForManualTeam, setStudentForManualTeam] = useState<AdminStudent | null>(null);
 
   // Add student form state
   const [newStudentName, setNewStudentName] = useState<string>('');
   const [newStudentRoll, setNewStudentRoll] = useState<string>('');
+  const [newStudentTargetTeam, setNewStudentTargetTeam] = useState<string>('unassigned');
   const [addStudentError, setAddStudentError] = useState<string>('');
 
   // Move student state
   const [targetTeamId, setTargetTeamId] = useState<string>('');
   const [moveError, setMoveError] = useState<string>('');
+  const [fullTeamSelected, setFullTeamSelected] = useState<ClassTeam | null>(null);
 
   // Refresh when admin or advisor service updates
   useEffect(() => {
@@ -91,7 +96,96 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       return;
     }
 
-    const res = AdvisorService.addStudentToClass(className, batch, newStudentName, newStudentRoll);
+    const cleanName = newStudentName.trim();
+    const cleanRoll = newStudentRoll.trim();
+
+    // If assigned to an existing team with capacity
+    if (newStudentTargetTeam && newStudentTargetTeam !== 'unassigned' && newStudentTargetTeam !== 'create_new') {
+      const targetTeam = teams.find(t => t.teamId === newStudentTargetTeam || t.teamNo === newStudentTargetTeam);
+      const cap = targetTeam?.capacity || teamCapacity;
+      if (targetTeam && targetTeam.members.length >= cap) {
+        // Team is full -> open manual team modal for this student
+        const res = AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll);
+        if (!res.success) {
+          setAddStudentError(res.message);
+          return;
+        }
+        AdvisorHistoryService.addLog(
+          className,
+          'Student Enrollment',
+          `${cleanName} (${cleanRoll})`,
+          `Enrolled into Class ${className}.`,
+          advisorName
+        );
+        const enrolledStudent: AdminStudent = {
+          name: cleanName,
+          rollNo: cleanRoll,
+          email: `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@srishakthi.ac.in`,
+          batch,
+          classSection: className,
+          teamNo: 'Unassigned',
+          projectTitle: '',
+          guide: 'Unassigned'
+        };
+        setIsAddStudentOpen(false);
+        setStudentForManualTeam(enrolledStudent);
+        setIsManualTeamOpen(true);
+        onShowToast(`Student ${cleanName} enrolled. Please create a new team for this student.`);
+        return;
+      }
+
+      const res = AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, newStudentTargetTeam);
+      if (!res.success) {
+        setAddStudentError(res.message);
+        return;
+      }
+
+      AdvisorHistoryService.addLog(
+        className,
+        'Student Enrollment',
+        `${cleanName} (${cleanRoll})`,
+        `Enrolled into Class ${className} and assigned to ${targetTeam?.teamNo || newStudentTargetTeam}.`,
+        advisorName
+      );
+      onShowToast(`Student ${cleanName} (${cleanRoll}) registered and assigned to ${targetTeam?.teamNo || 'team'}.`);
+      setNewStudentName('');
+      setNewStudentRoll('');
+      setNewStudentTargetTeam('unassigned');
+      setIsAddStudentOpen(false);
+      return;
+    }
+
+    if (newStudentTargetTeam === 'create_new') {
+      const res = AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll);
+      if (!res.success) {
+        setAddStudentError(res.message);
+        return;
+      }
+      AdvisorHistoryService.addLog(
+        className,
+        'Student Enrollment',
+        `${cleanName} (${cleanRoll})`,
+        `Enrolled into Class ${className}.`,
+        advisorName
+      );
+      const enrolledStudent: AdminStudent = {
+        name: cleanName,
+        rollNo: cleanRoll,
+        email: `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@srishakthi.ac.in`,
+        batch,
+        classSection: className,
+        teamNo: 'Unassigned',
+        projectTitle: '',
+        guide: 'Unassigned'
+      };
+      setIsAddStudentOpen(false);
+      setStudentForManualTeam(enrolledStudent);
+      setIsManualTeamOpen(true);
+      return;
+    }
+
+    // Default: Unassigned
+    const res = AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll);
     if (!res.success) {
       setAddStudentError(res.message);
       return;
@@ -101,18 +195,19 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     AdvisorHistoryService.addLog(
       className,
       'Student Enrollment',
-      `${newStudentName} (${newStudentRoll})`,
+      `${cleanName} (${cleanRoll})`,
       `Enrolled into Class ${className}.`,
       advisorName
     );
 
-    onShowToast(`Student ${newStudentName} (${newStudentRoll}) successfully registered to Class ${className}.`);
+    onShowToast(`Student ${cleanName} (${cleanRoll}) successfully registered to Class ${className}.`);
     setNewStudentName('');
     setNewStudentRoll('');
+    setNewStudentTargetTeam('unassigned');
     setIsAddStudentOpen(false);
   };
 
-  // Handle Move Student Submit
+  // Handle Move / Assign Student Submit
   const handleConfirmMoveStudent = () => {
     setMoveError('');
     if (!studentToMove || !targetTeamId) {
@@ -133,14 +228,17 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       className,
       'Student Transfer',
       `${studentToMove.name} (${studentToMove.rollNo})`,
-      `Transferred from ${studentToMove.teamNo || 'Unassigned'} to ${targetT?.teamNo || 'target team'}.`,
+      `Allocated to ${targetT?.teamNo || 'target team'}.`,
       advisorName
     );
 
     onShowToast(res.message);
     setStudentToMove(null);
     setTargetTeamId('');
+    setFullTeamSelected(null);
   };
+
+
 
   // Handle Team Creation from Modal
   const handleTeamsCreated = (
@@ -460,7 +558,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                         <span className="font-bold">{s.guide || 'Unassigned'}</span>
                       </td>
 
-                      {/* Manage Actions (Move) */}
+                      {/* Manage Actions (Move / Assign) */}
                       {isManageMode && (
                         <td className="p-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <button
@@ -469,11 +567,12 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                               setStudentToMove(s);
                               setTargetTeamId('');
                               setMoveError('');
+                              setFullTeamSelected(null);
                             }}
                             className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer"
                           >
-                            <MoveRight size={13} />
-                            <span>Move</span>
+                            {hasTeam ? <MoveRight size={13} /> : <UserPlus size={13} />}
+                            <span>{hasTeam ? 'Move' : 'Assign'}</span>
                           </button>
                         </td>
                       )}
@@ -552,6 +651,50 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1">
+                  Assign to Team (Optional)
+                </label>
+                <select
+                  value={newStudentTargetTeam}
+                  onChange={(e) => setNewStudentTargetTeam(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-mint-500 shadow-2xs cursor-pointer"
+                >
+                  <option value="unassigned">Keep Unassigned (Allocate Later)</option>
+                  {teams.map(t => {
+                    const isFull = t.members.length >= (t.capacity || teamCapacity);
+                    return (
+                      <option key={t.teamId} value={t.teamId}>
+                        {t.teamNo} ({t.members.length}/{t.capacity || teamCapacity} members{isFull ? ' - Full' : ''})
+                      </option>
+                    );
+                  })}
+                  <option value="create_new">➕ Create New Team for Candidate</option>
+                </select>
+              </div>
+
+              {/* If selected existing team is full, show helper notice */}
+              {(() => {
+                if (newStudentTargetTeam && newStudentTargetTeam !== 'unassigned' && newStudentTargetTeam !== 'create_new') {
+                  const selTeam = teams.find(t => t.teamId === newStudentTargetTeam || t.teamNo === newStudentTargetTeam);
+                  const isFull = selTeam && selTeam.members.length >= (selTeam.capacity || teamCapacity);
+                  if (isFull) {
+                    return (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-[11px] space-y-1">
+                        <div className="flex items-center gap-2 font-bold text-amber-800">
+                          <AlertCircle size={14} className="shrink-0 text-amber-600" />
+                          <span>Team {selTeam?.teamNo} is currently full ({selTeam?.members.length}/{selTeam?.capacity || teamCapacity} members).</span>
+                        </div>
+                        <p className="text-[11px] text-amber-700">
+                          Submitting will automatically open the team creation wizard so you can form a new team for this student.
+                        </p>
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
+
               <div className="pt-2 flex items-center justify-between border-t border-[#E2E8E4]">
                 <button
                   type="button"
@@ -573,7 +716,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         </div>
       )}
 
-      {/* MODAL 2: Move Student to Another Team */}
+      {/* MODAL 2: Move / Assign Student to Another Team */}
       {studentToMove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
           <div 
@@ -584,11 +727,11 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
             <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
-                  <MoveRight size={20} />
+                  {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? <MoveRight size={20} /> : <UserPlus size={20} />}
                 </div>
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900">
-                    Shift Student Team
+                    {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? 'Shift Student Team' : 'Assign Student Team'}
                   </h3>
                   <p className="text-[11px] text-slate-500">
                     {studentToMove.name} ({studentToMove.rollNo})
@@ -596,7 +739,10 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 </div>
               </div>
               <button
-                onClick={() => setStudentToMove(null)}
+                onClick={() => {
+                  setStudentToMove(null);
+                  setFullTeamSelected(null);
+                }}
                 className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition"
               >
                 <X size={18} />
@@ -612,9 +758,9 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
               )}
 
               <div className="p-3 bg-slate-50 rounded-xl border border-[#E2E8E4] space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Current Team:</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Current Status:</span>
                 <span className="font-extrabold text-slate-900 block text-xs">
-                  {studentToMove.teamNo || 'Unassigned'}
+                  {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? studentToMove.teamNo : 'Unassigned'}
                 </span>
               </div>
 
@@ -622,7 +768,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1.5">
                   Select Destination Team (Max Capacity: {teamCapacity} Members)
                 </label>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {teams.map((t) => {
                     const isCurrent = t.teamNo.toLowerCase() === (studentToMove.teamNo || '').toLowerCase();
                     const currentCount = t.members.length;
@@ -634,7 +780,12 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                       <div
                         key={t.teamId}
                         onClick={() => {
-                          if (!isCurrent && !isFull) {
+                          if (isCurrent) return;
+                          if (isFull) {
+                            setFullTeamSelected(t);
+                            setTargetTeamId('');
+                          } else {
+                            setFullTeamSelected(null);
                             setTargetTeamId(t.teamId);
                           }
                         }}
@@ -642,7 +793,9 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                           isCurrent
                             ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
                             : isFull
-                            ? 'bg-rose-50/50 border-rose-200 opacity-70 cursor-not-allowed'
+                            ? fullTeamSelected?.teamId === t.teamId
+                              ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-300/50 cursor-pointer'
+                              : 'bg-rose-50/50 border-rose-200 hover:border-amber-300 cursor-pointer'
                             : isSelected
                             ? 'bg-mint-50 border-mint-500 ring-2 ring-mint-400/40 shadow-xs cursor-pointer'
                             : 'bg-white border-[#E2E8E4] hover:bg-slate-50 cursor-pointer'
@@ -671,24 +824,77 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                     );
                   })}
                 </div>
+
+                {/* If selected team is full, allow direct creation of a new team */}
+                {fullTeamSelected && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 animate-fadeIn">
+                    <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                      <AlertCircle size={15} className="shrink-0 text-amber-600" />
+                      <span>{fullTeamSelected.teamNo} is at maximum capacity ({fullTeamSelected.members.length}/{fullTeamSelected.capacity || teamCapacity} members).</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800">
+                      Cannot add student to a full team. Would you like to form a new team for <strong>{studentToMove.name}</strong> instead?
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const student = studentToMove;
+                        setStudentToMove(null);
+                        setFullTeamSelected(null);
+                        setStudentForManualTeam(student);
+                        setIsManualTeamOpen(true);
+                      }}
+                      className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <Sparkles size={14} />
+                      <span>Create New Team for {studentToMove.name}</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Option to create new team instead of selecting existing */}
+                <div className="pt-3 border-t border-[#E2E8E4] mt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const student = studentToMove;
+                      setStudentToMove(null);
+                      setFullTeamSelected(null);
+                      setStudentForManualTeam(student);
+                      setIsManualTeamOpen(true);
+                    }}
+                    className="w-full py-2 px-3 bg-slate-50 hover:bg-mint-50 text-mint-900 font-bold border border-mint-200 border-dashed rounded-xl transition flex items-center justify-center gap-2 cursor-pointer text-xs"
+                  >
+                    <Plus size={14} className="text-mint-600" />
+                    <span>Or Create New Team Instead</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className="bg-[#F8FAF9] px-6 py-4 border-t border-[#E2E8E4] flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setStudentToMove(null)}
+                onClick={() => {
+                  setStudentToMove(null);
+                  setFullTeamSelected(null);
+                }}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition"
               >
                 Cancel
               </button>
               <button
                 type="button"
+                disabled={!targetTeamId}
                 onClick={handleConfirmMoveStudent}
-                className="px-5 py-2 text-xs font-extrabold text-white bg-mint-500 hover:bg-mint-600 rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                className={`px-5 py-2 text-xs font-extrabold text-white rounded-xl shadow-sm transition flex items-center gap-1.5 ${
+                  targetTeamId
+                    ? 'bg-mint-500 hover:bg-mint-600 cursor-pointer'
+                    : 'bg-slate-300 cursor-not-allowed'
+                }`}
               >
                 <Check size={14} />
-                <span>Confirm Shift</span>
+                <span>Confirm Assignment</span>
               </button>
             </div>
           </div>
@@ -704,6 +910,25 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         students={students}
         existingTeamsCount={teams.length}
         onConfirmTeams={handleTeamsCreated}
+      />
+
+      {/* MODAL 4: Manual Team Creation for New / Unassigned Student */}
+      <AdvisorManualTeamModal
+        isOpen={isManualTeamOpen}
+        onClose={() => {
+          setIsManualTeamOpen(false);
+          setStudentForManualTeam(null);
+        }}
+        className={className}
+        batch={batch}
+        advisorName={advisorName}
+        initialStudent={studentForManualTeam}
+        onTeamCreated={(newTeam) => {
+          setIsManualTeamOpen(false);
+          setStudentForManualTeam(null);
+          onShowToast(`Team ${newTeam.teamNo} successfully formed and allocated.`);
+        }}
+        onShowToast={onShowToast}
       />
 
     </div>

@@ -1,11 +1,12 @@
 from typing import List
+from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies.db_deps import get_db_session
 from app.dependencies.auth_deps import require_role, require_any_role
 from app.services.advisor_portal_service import AdvisorPortalService
 from app.schemas.portals import AdvisorDashboardResponse, StudentInspectionResponse, AutoGenerateTeamsRequest
-from app.schemas.teams import TeamCreate, TeamResponse
+from app.schemas.teams import TeamCreate, TeamUpdate, TeamResponse
 from app.models.users import User
 
 router = APIRouter(prefix="/api/v1/advisor", tags=["Advisor Portal"])
@@ -43,6 +44,25 @@ async def auto_generate_teams(
 ):
     service = AdvisorPortalService(db)
     return await service.auto_generate_teams(req, advisor_user)
+
+@router.put("/teams/{team_id}", response_model=TeamResponse)
+async def update_advisor_team(
+    team_id: UUID,
+    data: TeamUpdate,
+    advisor_user: User = Depends(require_any_role(["advisor", "admin", "hod"])),
+    db: AsyncSession = Depends(get_db_session)
+):
+    service = AdvisorPortalService(db)
+    return await service.update_team(team_id, data, advisor_user)
+
+@router.delete("/teams/{team_id}")
+async def delete_advisor_team(
+    team_id: UUID,
+    advisor_user: User = Depends(require_any_role(["advisor", "admin", "hod"])),
+    db: AsyncSession = Depends(get_db_session)
+):
+    service = AdvisorPortalService(db)
+    return await service.delete_team(team_id, advisor_user)
 
 @router.get("/students/inspection", response_model=List[StudentInspectionResponse])
 async def get_student_inspection(

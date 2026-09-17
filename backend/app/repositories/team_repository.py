@@ -51,6 +51,50 @@ class TeamRepository:
         tm = res_tm.unique().scalars().first()
         return tm.team if tm else None
 
+    async def get_team_by_team_no(
+        self,
+        team_no: str,
+        batch_id: Optional[UUID] = None,
+        section_id: Optional[UUID] = None
+    ) -> Optional[Team]:
+        clean_no = team_no.strip()
+        num_part = "".join(filter(str.isdigit, clean_no))
+        variations = {clean_no.lower()}
+        if num_part:
+            int_val = int(num_part)
+            variations.add(f"team {int_val}".lower())
+            variations.add(f"team {int_val:02d}".lower())
+            variations.add(f"team {int_val:03d}".lower())
+            variations.add(str(int_val))
+            variations.add(f"{int_val:02d}")
+
+        stmt = (
+            select(Team)
+            .options(
+                joinedload(Team.batch),
+                joinedload(Team.section),
+                joinedload(Team.guide),
+                joinedload(Team.advisor),
+                joinedload(Team.members).joinedload(TeamMember.student).joinedload(Student.user),
+                joinedload(Team.project)
+            )
+        )
+        if batch_id:
+            stmt = stmt.where(Team.batch_id == batch_id)
+        if section_id:
+            stmt = stmt.where(Team.section_id == section_id)
+
+        result = await self.db.execute(stmt)
+        teams = result.unique().scalars().all()
+        for t in teams:
+            t_no = t.team_no.strip().lower()
+            if t_no in variations:
+                return t
+            t_num = "".join(filter(str.isdigit, t_no))
+            if num_part and t_num and int(num_part) == int(t_num):
+                return t
+        return None
+
     async def get_all_teams(
         self,
         batch_id: Optional[UUID] = None,
@@ -129,3 +173,11 @@ class TeamRepository:
             team.guide_id = guide_user_id
             await self.db.flush()
         return team
+
+    async def delete_team(self, team_id: UUID) -> bool:
+        team = await self.get_team_by_id(team_id)
+        if team:
+            await self.db.delete(team)
+            await self.db.flush()
+            return True
+        return False

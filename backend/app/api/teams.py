@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies.db_deps import get_db_session
 from app.dependencies.auth_deps import get_current_user, require_any_role, require_role
 from app.services.team_service import TeamService
-from app.schemas.teams import TeamCreate, TeamResponse, AddMemberRequest, AllocateGuideRequest
+from app.schemas.teams import TeamCreate, TeamUpdate, TeamResponse, AddMemberRequest, AllocateGuideRequest
 from app.models.users import User
 
 router = APIRouter(prefix="/api/v1/teams", tags=["Teams"])
@@ -68,3 +68,22 @@ async def allocate_guide(
 ):
     service = TeamService(db)
     return await service.allocate_guide(team_id, req)
+
+@router.put("/{team_id}", response_model=TeamResponse)
+async def update_team(
+    team_id: UUID,
+    data: TeamUpdate,
+    advisor_user: User = Depends(require_any_role(["admin", "advisor", "hod"])),
+    db: AsyncSession = Depends(get_db_session)
+):
+    service = TeamService(db)
+    return await service.update_team(team_id, data, advisor_user)
+
+@router.delete("/{team_id}")
+async def delete_team(
+    team_id: UUID,
+    advisor_user: User = Depends(require_any_role(["admin", "advisor", "hod"])),
+    db: AsyncSession = Depends(get_db_session)
+):
+    service = TeamService(db)
+    return await service.delete_team(team_id, advisor_user)

@@ -143,34 +143,6 @@ export const AdvisorService = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          let updated = false;
-          parsed.forEach((t: any) => {
-            if (t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNo === 'Team 04' || t.teamNo === '04') {
-              const expectedLead = "Tarunika Rajgopal (714023104112)";
-              if (t.leadStudent !== expectedLead) {
-                t.leadStudent = expectedLead;
-                updated = true;
-              }
-              const isLeadCorrect = Array.isArray(t.members) &&
-                t.members.length === 4 &&
-                t.members[0]?.rollNo === '714023104112' &&
-                t.members[0]?.isLead === true &&
-                !t.members.slice(1).some((m: any) => m.isLead);
-              if (!isLeadCorrect) {
-                t.members = [
-                  { rollNo: "714023104112", name: "Tarunika Rajgopal", email: "tarunika.r@srishakthi.ac.in", isLead: true },
-                  { rollNo: "714023104178", name: "Vigneshwaran M", email: "vigneshwaran.m@srishakthi.ac.in", isLead: false },
-                  { rollNo: "714023104189", name: "Vishnu Priya S", email: "vishnupriya.s@srishakthi.ac.in", isLead: false },
-                  { rollNo: "714023104066", name: "Kavitha R", email: "kavitha.r@srishakthi.ac.in", isLead: false }
-                ];
-                t.membersCount = 4;
-                updated = true;
-              }
-            }
-          });
-          if (updated) {
-            localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(parsed));
-          }
           return parsed;
         }
       }
@@ -197,14 +169,77 @@ export const AdvisorService = {
 
   getClassStudents(className: string = "CSE-B", batch: string = "2023-2027 (III Year)"): AdminStudent[] {
     const allStudents = AdminService.getStudents();
-    return allStudents.filter(s => s.classSection === className && (batch === 'ALL' || s.batch === batch));
+    const classStudents = allStudents.filter(s => s.classSection === className && (batch === 'ALL' || s.batch === batch));
+    const teams = this.getTeamsForClass(className);
+
+    let hasMismatch = false;
+
+    // Dynamically synchronize student team assignments with live teams roster
+    const synchronized = classStudents.map(student => {
+      const assignedTeam = teams.find(t => t.members.some(m => m.rollNo === student.rollNo));
+      if (assignedTeam) {
+        if (student.teamNo !== assignedTeam.teamNo || student.guide !== assignedTeam.guide || student.projectTitle !== assignedTeam.title) {
+          student.teamNo = assignedTeam.teamNo;
+          student.guide = assignedTeam.guide;
+          student.projectTitle = assignedTeam.title;
+          hasMismatch = true;
+        }
+        return {
+          ...student,
+          teamNo: assignedTeam.teamNo,
+          projectTitle: assignedTeam.title,
+          guide: assignedTeam.guide
+        };
+      } else {
+        // If not in any team members list, check if student.teamNo was set to a valid team in this class
+        if (student.teamNo && student.teamNo !== 'Unassigned') {
+          const matchingTeam = teams.find(t => t.teamNo.toLowerCase() === student.teamNo.toLowerCase());
+          if (matchingTeam) {
+            const currentCap = matchingTeam.capacity || this.getTeamCapacity(className);
+            if (matchingTeam.members.length < currentCap) {
+              matchingTeam.members.push({
+                rollNo: student.rollNo,
+                name: student.name,
+                email: student.email,
+                isLead: matchingTeam.members.length === 0
+              });
+              matchingTeam.membersCount = matchingTeam.members.length;
+              this.saveTeamsForClass(className, teams);
+              return {
+                ...student,
+                teamNo: matchingTeam.teamNo,
+                projectTitle: matchingTeam.title,
+                guide: matchingTeam.guide
+              };
+            }
+          }
+          student.teamNo = 'Unassigned';
+          student.projectTitle = '';
+          student.guide = 'Unassigned';
+          hasMismatch = true;
+        }
+        return {
+          ...student,
+          teamNo: 'Unassigned',
+          projectTitle: '',
+          guide: 'Unassigned'
+        };
+      }
+    });
+
+    if (hasMismatch) {
+      AdminService.saveStudents(allStudents);
+    }
+
+    return synchronized;
   },
 
   addStudentToClass(
     className: string = "CSE-B",
     batch: string = "2023-2027 (III Year)",
     name: string,
-    rollNo: string
+    rollNo: string,
+    targetTeamId?: string
   ): { success: boolean; message: string } {
     const cleanName = name.trim();
     const cleanRoll = rollNo.trim();
@@ -219,6 +254,9 @@ export const AdvisorService = {
     }, `Added to Class ${className} by Class Advisor`);
 
     if (res.success) {
+      if (targetTeamId) {
+        this.assignStudentToTeam(className, cleanRoll, targetTeamId);
+      }
       notifyListeners();
     }
     return res;
@@ -288,13 +326,21 @@ export const AdvisorService = {
     return true;
   },
 
+  assignStudentToTeam(
+    className: string,
+    studentRollNo: string,
+    targetTeamId: string
+  ): { success: boolean; message: string } {
+    return this.moveStudent(className, studentRollNo, targetTeamId);
+  },
+
   moveStudent(
     className: string,
     studentRollNo: string,
     targetTeamId: string
   ): { success: boolean; message: string } {
     const teams = this.getTeamsForClass(className);
-    const targetTeam = teams.find(t => t.teamId === targetTeamId);
+    const targetTeam = teams.find(t => t.teamId === targetTeamId || t.teamNo === targetTeamId);
     if (!targetTeam) {
       return { success: false, message: "Target team does not exist." };
     }
@@ -303,50 +349,48 @@ export const AdvisorService = {
     if (targetTeam.members.length >= currentCap) {
       return { 
         success: false, 
-        message: `Target team is at maximum capacity (${targetTeam.members.length}/${currentCap} members). Cannot move student.` 
+        message: `Target team is at maximum capacity (${targetTeam.members.length}/${currentCap} members). Cannot assign student.` 
       };
     }
 
-    // Locate source team
+    // Locate source team if any
     const sourceTeam = teams.find(t => t.members.some(m => m.rollNo === studentRollNo));
-    if (!sourceTeam) {
-      return { success: false, message: "Student is not currently in any team." };
-    }
-
-    if (sourceTeam.teamId === targetTeamId) {
+    if (sourceTeam && sourceTeam.teamId === targetTeam.teamId) {
       return { success: false, message: "Student is already in this team." };
     }
 
-    // Extract student
-    const studentMember = sourceTeam.members.find(m => m.rollNo === studentRollNo);
-    if (!studentMember) {
-      return { success: false, message: "Student member record not found." };
-    }
+    const allStudents = AdminService.getStudents();
+    const student = allStudents.find(s => s.rollNo === studentRollNo);
 
-    // Remove from source team
-    sourceTeam.members = sourceTeam.members.filter(m => m.rollNo !== studentRollNo);
-    sourceTeam.membersCount = sourceTeam.members.length;
-    // If was lead, reassign lead to first remaining member if available
-    if (studentMember.isLead && sourceTeam.members.length > 0) {
-      sourceTeam.members[0].isLead = true;
-      sourceTeam.leadStudent = `${sourceTeam.members[0].name} (${sourceTeam.members[0].rollNo})`;
-    } else if (sourceTeam.members.length === 0) {
-      sourceTeam.leadStudent = 'Unassigned';
+    // If student was in a source team, remove them from source team
+    if (sourceTeam) {
+      const studentMember = sourceTeam.members.find(m => m.rollNo === studentRollNo);
+      sourceTeam.members = sourceTeam.members.filter(m => m.rollNo !== studentRollNo);
+      sourceTeam.membersCount = sourceTeam.members.length;
+      if (studentMember?.isLead && sourceTeam.members.length > 0) {
+        sourceTeam.members[0].isLead = true;
+        sourceTeam.leadStudent = `${sourceTeam.members[0].name} (${sourceTeam.members[0].rollNo})`;
+      } else if (sourceTeam.members.length === 0) {
+        sourceTeam.leadStudent = 'Unassigned';
+      }
     }
 
     // Add to target team
-    const movedMember: TeamMemberRecord = {
-      ...studentMember,
-      isLead: false
+    const newMember: TeamMemberRecord = {
+      rollNo: studentRollNo,
+      name: student ? student.name : `Student (${studentRollNo})`,
+      email: student ? student.email : `${studentRollNo}@srishakthi.ac.in`,
+      isLead: targetTeam.members.length === 0
     };
-    targetTeam.members.push(movedMember);
+    targetTeam.members.push(newMember);
     targetTeam.membersCount = targetTeam.members.length;
+    if (targetTeam.members.length === 1) {
+      targetTeam.leadStudent = `${newMember.name} (${newMember.rollNo})`;
+    }
 
     this.saveTeamsForClass(className, teams);
 
     // Update in AdminService
-    const allStudents = AdminService.getStudents();
-    const student = allStudents.find(s => s.rollNo === studentRollNo);
     if (student) {
       student.teamNo = targetTeam.teamNo;
       student.projectTitle = targetTeam.title;
@@ -357,7 +401,7 @@ export const AdvisorService = {
     notifyListeners();
     return { 
       success: true, 
-      message: `Successfully moved ${studentMember.name} to ${targetTeam.teamNo}.` 
+      message: `Successfully assigned ${student?.name || studentRollNo} to ${targetTeam.teamNo}.` 
     };
   },
 
@@ -437,6 +481,29 @@ export const AdvisorService = {
     }
 
     const cleanNo = teamData.teamNo?.trim() || `Team ${String(teams.length + 1).padStart(2, '0')}`;
+
+    // Team Number Uniqueness Validation
+    const isSameTeamNo = (a: string, b: string) => {
+      const normA = a.trim().toLowerCase();
+      const normB = b.trim().toLowerCase();
+      if (normA === normB) return true;
+      const numA = normA.replace(/^team\s*/i, '').replace(/^0+/, '') || normA;
+      const numB = normB.replace(/^team\s*/i, '').replace(/^0+/, '') || normB;
+      return numA === numB;
+    };
+
+    const isDuplicate = teams.some(t => 
+      isSameTeamNo(t.teamNo, cleanNo) || 
+      (teamData.teamNo ? isSameTeamNo(t.teamNo, teamData.teamNo) : false)
+    );
+
+    if (isDuplicate) {
+      return {
+        success: false,
+        message: "This team number is already being created."
+      };
+    }
+
     const codeNo = cleanNo.replace(/[^0-9]/g, '') || String(teams.length + 1);
     const teamId = `TEAM-CSE-Y3-B${codeNo.padStart(2, '0')}`;
 
@@ -501,6 +568,168 @@ export const AdvisorService = {
       success: true,
       message: `Team ${newTeam.teamNo} successfully formed and assigned to ${newTeam.guide}.`,
       team: newTeam
+    };
+  },
+
+  updateTeam(
+    className: string,
+    batch: string,
+    teamId: string,
+    updateData: {
+      teamNo?: string;
+      guide?: string;
+      guideEmail?: string;
+      leadRollNo?: string;
+      memberRollNos?: string[];
+      title?: string;
+    }
+  ): { success: boolean; message: string; team?: ClassTeam } {
+    const teams = this.getTeamsForClass(className);
+    const teamIndex = teams.findIndex(t => t.teamId === teamId);
+    if (teamIndex === -1) {
+      return { success: false, message: "Team not found." };
+    }
+
+    const team = { ...teams[teamIndex] };
+    const capacity = this.getTeamCapacity(className);
+
+    // 1. Team number uniqueness check if modified
+    if (updateData.teamNo && updateData.teamNo.trim() !== team.teamNo) {
+      const cleanNo = updateData.teamNo.trim();
+      const isSameTeamNo = (a: string, b: string) => {
+        const normA = a.trim().toLowerCase();
+        const normB = b.trim().toLowerCase();
+        if (normA === normB) return true;
+        const numA = normA.replace(/^team\s*/i, '').replace(/^0+/, '') || normA;
+        const numB = normB.replace(/^team\s*/i, '').replace(/^0+/, '') || normB;
+        return numA === numB;
+      };
+
+      const isDuplicate = teams.some(t => 
+        t.teamId !== teamId && (
+          isSameTeamNo(t.teamNo, cleanNo) || 
+          isSameTeamNo(t.teamNo, updateData.teamNo || '')
+        )
+      );
+
+      if (isDuplicate) {
+        return {
+          success: false,
+          message: "This team number is already being created."
+        };
+      }
+      team.teamNo = cleanNo;
+    }
+
+    // 2. Guide quota validation if modified
+    if (updateData.guide && updateData.guide !== team.guide) {
+      const guideLoad = this.getGuideTeamCount(className, updateData.guide);
+      if (guideLoad >= 5) {
+        return {
+          success: false,
+          message: `Cannot assign ${updateData.guide}. Guide has reached the maximum capacity of 5 teams in this class.`
+        };
+      }
+      team.guide = updateData.guide;
+      team.guideEmail = updateData.guideEmail || `${updateData.guide.toLowerCase().replace(/[^a-z0-9]/g, '.')}@siet.ac.in`;
+    }
+
+    if (updateData.title) {
+      team.title = updateData.title;
+    }
+
+    // 3. Member updates
+    const allStudents = AdminService.getStudents();
+    const oldMemberRolls = team.members.map(m => m.rollNo);
+
+    if (updateData.memberRollNos && updateData.memberRollNos.length > 0) {
+      if (updateData.memberRollNos.length > capacity) {
+        return {
+          success: false,
+          message: `Team member count (${updateData.memberRollNos.length}) exceeds the maximum team capacity (${capacity}).`
+        };
+      }
+
+      const newMembers: TeamMemberRecord[] = updateData.memberRollNos.map(rNo => {
+        const s = allStudents.find(x => x.rollNo === rNo);
+        const isLead = rNo === (updateData.leadRollNo || team.members.find(m => m.isLead)?.rollNo || updateData.memberRollNos![0]);
+        return {
+          rollNo: rNo,
+          name: s ? s.name : `Student (${rNo})`,
+          email: s ? s.email : `${rNo}@srishakthi.ac.in`,
+          isLead
+        };
+      });
+
+      team.members = newMembers;
+      team.membersCount = newMembers.length;
+      const lead = newMembers.find(m => m.isLead) || newMembers[0];
+      team.leadStudent = `${lead.name} (${lead.rollNo})`;
+
+      // Update student assignments in AdminService
+      allStudents.forEach(s => {
+        // Detached students -> Unassigned
+        if (oldMemberRolls.includes(s.rollNo) && !updateData.memberRollNos!.includes(s.rollNo)) {
+          s.teamNo = "Unassigned";
+          s.projectTitle = "";
+          s.guide = "";
+        }
+        // Attached students -> current team
+        if (updateData.memberRollNos!.includes(s.rollNo)) {
+          s.teamNo = team.teamNo;
+          s.projectTitle = team.title;
+          s.guide = team.guide;
+        }
+      });
+      AdminService.saveStudents(allStudents);
+    } else if (updateData.leadRollNo) {
+      team.members = team.members.map(m => ({
+        ...m,
+        isLead: m.rollNo === updateData.leadRollNo
+      }));
+      const lead = team.members.find(m => m.isLead) || team.members[0];
+      team.leadStudent = `${lead.name} (${lead.rollNo})`;
+    }
+
+    teams[teamIndex] = team;
+    this.saveTeamsForClass(className, teams);
+    notifyListeners();
+
+    return {
+      success: true,
+      message: `Team ${team.teamNo} was successfully updated.`,
+      team
+    };
+  },
+
+  deleteTeam(className: string, teamId: string): { success: boolean; message: string } {
+    let teams = this.getTeamsForClass(className);
+    const targetTeam = teams.find(t => t.teamId === teamId);
+    if (!targetTeam) {
+      return { success: false, message: "Team not found." };
+    }
+
+    const memberRolls = targetTeam.members.map(m => m.rollNo);
+
+    // Filter out deleted team
+    teams = teams.filter(t => t.teamId !== teamId);
+    this.saveTeamsForClass(className, teams);
+
+    // Reset student assignments in AdminService to Unassigned
+    const allStudents = AdminService.getStudents();
+    allStudents.forEach(s => {
+      if (memberRolls.includes(s.rollNo)) {
+        s.teamNo = "Unassigned";
+        s.projectTitle = "";
+        s.guide = "";
+      }
+    });
+    AdminService.saveStudents(allStudents);
+
+    notifyListeners();
+    return {
+      success: true,
+      message: `Team ${targetTeam.teamNo} was successfully deleted.`
     };
   }
 };

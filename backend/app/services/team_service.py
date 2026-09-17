@@ -5,7 +5,7 @@ from app.repositories.team_repository import TeamRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.faculty_student_repository import FacultyStudentRepository
 from app.repositories.academic_repository import AcademicRepository
-from app.schemas.teams import TeamCreate, TeamResponse, TeamMemberResponse, AddMemberRequest, AllocateGuideRequest
+from app.schemas.teams import TeamCreate, TeamUpdate, TeamResponse, TeamMemberResponse, AddMemberRequest, AllocateGuideRequest
 from app.exceptions.custom import NotFoundException, ConflictException, ForbiddenException, BadRequestException
 from app.models.teams import Team
 from app.models.users import User
@@ -98,6 +98,15 @@ class TeamService:
         if not section:
             raise NotFoundException(f"Section ID '{data.section_id}' not found")
 
+        # Validate team number uniqueness
+        existing_team_num = await self.team_repo.get_team_by_team_no(
+            data.team_no,
+            batch_id=batch.id,
+            section_id=section.id
+        )
+        if existing_team_num:
+            raise ConflictException("This team number is already being created.")
+
         team = await self.team_repo.create_team(
             team_no=data.team_no,
             batch_id=batch.id,
@@ -180,3 +189,74 @@ class TeamService:
         await self.db.commit()
         refreshed_team = await self.team_repo.get_team_by_id(team.id)
         return self._build_team_response(refreshed_team)
+
+    async def update_team(self, team_id: UUID, data: TeamUpdate, user: User) -> TeamResponse:
+        team = await self.team_repo.get_team_by_id(team_id)
+        if not team:
+            raise NotFoundException(f"Team ID '{team_id}' not found")
+
+        # 1. Team number change validation
+        if data.team_no and data.team_no.strip() != team.team_no:
+            existing = await self.team_repo.get_team_by_team_no(
+                data.team_no,
+                batch_id=team.batch_id,
+                section_id=team.section_id
+            )
+            if existing and existing.id != team_id:
+                raise ConflictException("This team number is already being created.")
+            team.team_no = data.team_no.strip()
+
+        # 2. Guide allocation change
+        if data.guide_id and data.guide_id != team.guide_id:
+            guide_user = await self.user_repo.get_user_by_id(data.guide_id)
+            if not guide_user:
+                raise NotFoundException(f"Guide user ID '{data.guide_id}' not found")
+            faculty = await self.team_repo.get_faculty_for_update(guide_user.id)
+            quota = faculty.guide_quota if faculty else 5
+            active_count = await self.team_repo.get_count_active_teams_by_guide(guide_user.id)
+            if active_count >= quota:
+                raise BadRequestException(f"Guide '{guide_user.name}' has reached max mentee quota limit ({quota} teams).")
+            team.guide_id = guide_user.id
+
+        # 3. Status & Progress
+        if data.status:
+            team.status = data.status
+        if data.progress is not None:
+            team.progress = data.progress
+
+        # 4. Student members update if provided
+        if data.student_rolls is not None:
+            # Remove existing members
+            for m in list(team.members):
+                await self.team_repo.remove_team_member(team.id, m.student_id)
+
+            for idx, roll in enumerate(data.student_rolls):
+                student = await self.fs_repo.get_student_by_roll_no(roll.strip())
+                if not student:
+                    await self.db.rollback()
+                    raise NotFoundException(f"Student with roll number '{roll}' not found")
+
+                existing_team = await self.team_repo.get_team_by_student_user_id(student.user_id)
+                if existing_team and existing_team.id != team.id:
+                    await self.db.rollback()
+                    raise ConflictException(f"Student '{roll}' is already assigned to team '{existing_team.team_no}'")
+
+                role_str = "Team Lead" if idx == 0 else "Team Member"
+                await self.team_repo.add_team_member(team.id, student.id, member_role=role_str)
+
+        await self.db.commit()
+        refreshed_team = await self.team_repo.get_team_by_id(team.id)
+        return self._build_team_response(refreshed_team)
+
+    async def delete_team(self, team_id: UUID, user: User) -> dict:
+        team = await self.team_repo.get_team_by_id(team_id)
+        if not team:
+            raise NotFoundException(f"Team ID '{team_id}' not found")
+
+        team_no = team.team_no
+        success = await self.team_repo.delete_team(team_id)
+        if not success:
+            raise NotFoundException(f"Team ID '{team_id}' could not be deleted")
+
+        await self.db.commit()
+        return {"message": f"Team '{team_no}' was successfully deleted.", "id": str(team_id)}

@@ -3,7 +3,7 @@ import {
   Users, Search, RefreshCw, BookOpen, Award, UserCheck, 
   ChevronRight, ChevronDown, CheckCircle2, AlertCircle, X, Check, UserX, UserPlus,
   FileText, FileCode, Github, ExternalLink, Download, Clock, Sparkles, Crown, 
-  Mail, GraduationCap, XCircle, User, Calendar, Layers
+  Mail, GraduationCap, XCircle, User, Calendar, Layers, Edit3, Trash2
 } from 'lucide-react';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { AdminService, AdminFaculty, AdminStudent } from '../../services/adminService';
@@ -13,6 +13,7 @@ import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsServ
 import { WeeklySubmission } from '../../types';
 import { StudentService } from '../../services/studentService';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
+import AdvisorEditTeamModal from './AdvisorEditTeamModal';
 
 interface AdvisorTeamsViewProps {
   className: string;
@@ -55,10 +56,11 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
   // Manual Team creation modal
   const [isManualTeamModalOpen, setIsManualTeamModalOpen] = useState<boolean>(false);
 
-  // Change Guide modal
-  const [isChangeGuideOpen, setIsChangeGuideOpen] = useState<boolean>(false);
-  const [selectedNewGuide, setSelectedNewGuide] = useState<string>('');
-  const [guideError, setGuideError] = useState<string>('');
+  // Edit Team modal
+  const [isEditTeamOpen, setIsEditTeamOpen] = useState<boolean>(false);
+
+  // Delete Team confirmation modal
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<boolean>(false);
 
   const [, setMarksUpdate] = useState<number>(0);
 
@@ -146,30 +148,38 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
     onShowToast(`Downloaded ${fileName}`);
   };
 
-  const handleConfirmChangeGuide = () => {
-    setGuideError('');
-    if (!selectedNewGuide || !activeTeam) {
-      setGuideError('Please select a faculty guide from the dropdown.');
-      return;
-    }
+  const handleConfirmDeleteTeam = () => {
+    if (!activeTeam) return;
+    const teamNoToDelete = activeTeam.teamNo;
+    const teamIdToDelete = activeTeam.teamId;
 
-    const res = AdvisorService.reassignGuide(className, activeTeam.teamId, selectedNewGuide);
+    const res = AdvisorService.deleteTeam(className, teamIdToDelete);
     if (!res.success) {
-      setGuideError(res.message);
+      onShowToast(res.message);
       return;
     }
 
     // Log history
     AdvisorHistoryService.addLog(
       className,
-      'Guide Reassignment',
-      activeTeam.teamNo,
-      `Reassigned project guide to ${selectedNewGuide}.`,
-      advisorName
+      'Team Deletion',
+      teamNoToDelete,
+      `Deleted project team ${teamNoToDelete}. Assigned students reverted to unassigned status.`,
+      advisorName,
+      'Class Advisor'
     );
 
-    setIsChangeGuideOpen(false);
-    onShowToast(res.message);
+    onShowToast(`Team ${teamNoToDelete} was successfully deleted.`);
+    setIsDeleteConfirmOpen(false);
+
+    const updatedTeams = AdvisorService.getTeamsForClass(className);
+    setTeams(updatedTeams);
+    if (updatedTeams.length > 0) {
+      setActiveTeamId(updatedTeams[0].teamId);
+      onSelectTeam(updatedTeams[0].teamId);
+    } else {
+      setActiveTeamId('');
+    }
   };
 
   return (
@@ -370,18 +380,24 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                 </p>
               </div>
 
-              {/* Action Buttons: Assign Marks & Change Guide */}
+              {/* Action Buttons: Make Changes, Delete Team, Assign Marks */}
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedNewGuide(activeTeam.guide);
-                    setGuideError('');
-                    setIsChangeGuideOpen(true);
-                  }}
-                  className="px-4 py-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 font-extrabold text-xs rounded-xl border border-[#E2E8E4] transition cursor-pointer shadow-2xs"
+                  onClick={() => setIsEditTeamOpen(true)}
+                  className="px-4 py-2 bg-white hover:bg-mint-50 text-mint-900 font-extrabold text-xs rounded-xl border border-mint-300 transition cursor-pointer shadow-2xs flex items-center gap-1.5"
                 >
-                  Change Guide
+                  <Edit3 size={14} className="text-mint-700" />
+                  <span>Make Changes</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-xs rounded-xl border border-rose-200 transition cursor-pointer shadow-2xs flex items-center gap-1.5"
+                >
+                  <Trash2 size={14} className="text-rose-600" />
+                  <span>Delete Team</span>
                 </button>
 
                 <button
@@ -1099,89 +1115,103 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
         </div>
       )}
 
-      {/* Change Guide Modal */}
-      {isChangeGuideOpen && activeTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all">
-            <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between">
+      {/* Modal: Delete Team Confirmation Dialog */}
+      {isDeleteConfirmOpen && activeTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div 
+            className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-rose-100 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200"
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Modal Header */}
+            <div className="p-5 border-b border-[#E2E8E4] flex items-center justify-between bg-rose-50/70">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
-                  <BookOpen size={20} />
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+                  <Trash2 size={20} />
                 </div>
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900">
-                    Reassign Project Guide &bull; {activeTeam.teamNo}
+                    Delete Project Team
                   </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Max 5 teams per guide per class
+                  <p className="text-[11px] text-rose-700 font-bold">
+                    Permanent Allocation Removal
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => setIsChangeGuideOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition"
+                type="button"
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
+            {/* Modal Body */}
             <div className="p-6 space-y-4 text-xs">
-              {guideError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-bold flex items-center gap-2">
-                  <AlertCircle size={15} className="shrink-0 text-rose-600" />
-                  <span>{guideError}</span>
+              <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-2xl space-y-2">
+                <span className="font-black text-rose-900 text-sm block">
+                  Are you sure you want to delete this team?
+                </span>
+                <p className="text-slate-600 leading-relaxed text-xs">
+                  You are about to delete <strong>{activeTeam.teamNo}</strong> (<em>{activeTeam.title}</em>).
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-[#E2E8E4] space-y-1.5 text-[11px]">
+                <div className="flex items-center justify-between text-slate-700">
+                  <span className="font-bold text-slate-500">Technical Guide:</span>
+                  <span className="font-extrabold">{activeTeam.guide}</span>
                 </div>
-              )}
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-[#E2E8E4]">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Current Assigned Guide:</span>
-                <span className="font-extrabold text-slate-900 block text-xs mt-0.5">{activeTeam.guide}</span>
+                <div className="flex items-center justify-between text-slate-700">
+                  <span className="font-bold text-slate-500">Team Members ({activeTeam.members.length}):</span>
+                  <span className="font-mono font-bold text-mint-900 truncate max-w-[200px]">{activeTeam.members.map(m => m.name).join(', ')}</span>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1.5">
-                  Select New Technical Guide
-                </label>
-                <select
-                  value={selectedNewGuide}
-                  onChange={(e) => setSelectedNewGuide(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-mint-500 shadow-xs"
-                >
-                  <option value="">Select Faculty Member...</option>
-                  {availableGuides.map((g) => {
-                    const assignedCount = AdvisorService.getGuideTeamCount(className, g.name);
-                    const isCurrent = activeTeam.guide.toLowerCase() === g.name.toLowerCase();
-                    const isMaxedOut = !isCurrent && assignedCount >= 5;
-
-                    return (
-                      <option key={g.id} value={g.name} disabled={isMaxedOut}>
-                        {g.name} ({assignedCount}/5 teams in class) {isCurrent ? '• [Current]' : isMaxedOut ? '• [MAX 5 REACHED]' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                * Note: Deleting this team will unassign the students and remove the team grouping. All individual student accounts and institutional records remain completely intact.
+              </p>
             </div>
 
+            {/* Modal Footer */}
             <div className="bg-[#F8FAF9] px-6 py-4 border-t border-[#E2E8E4] flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setIsChangeGuideOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition"
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={handleConfirmChangeGuide}
-                className="px-5 py-2 text-xs font-extrabold text-white bg-mint-500 hover:bg-mint-600 rounded-xl shadow-sm transition flex items-center gap-1.5"
+                onClick={handleConfirmDeleteTeam}
+                className="px-5 py-2 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer active:scale-95"
               >
-                <Check size={14} />
-                <span>Confirm Guide Change</span>
+                <Trash2 size={14} />
+                <span>Delete Team</span>
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal: Make Changes / Edit Team */}
+      {isEditTeamOpen && activeTeam && (
+        <AdvisorEditTeamModal
+          isOpen={isEditTeamOpen}
+          onClose={() => setIsEditTeamOpen(false)}
+          className={className}
+          batch={batch}
+          advisorName={advisorName}
+          team={activeTeam}
+          onTeamUpdated={(updatedTeam) => {
+            const updatedTeams = AdvisorService.getTeamsForClass(className);
+            setTeams(updatedTeams);
+            setActiveTeamId(updatedTeam.teamId);
+          }}
+          onShowToast={onShowToast}
+        />
       )}
 
       {/* Manual Team Creation Modal for Unassigned Students */}
