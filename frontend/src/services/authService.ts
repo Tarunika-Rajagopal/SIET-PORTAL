@@ -1,4 +1,5 @@
 import { User, Role } from '../types';
+import { ApiClient } from './apiClient';
 
 export function getUserInitials(name?: string): string {
   if (!name) return 'TR';
@@ -28,36 +29,29 @@ export const DEFAULT_USERS: User[] = [
     role: "student",
     teamId: "TEAM-CSE-Y3-B04",
     teamNo: "Team 04",
-    projectTitle: "AI-Powered Autonomous Grid Balancing with Edge Vision",
+    projectTitle: "",
     guideName: "Dr. P. Manimegalai",
     advisorName: "Dr. R. Karthikeyan",
-    overallProgress: 68,
-    currentWeek: 6
+    overallProgress: 0,
+    currentWeek: 0
   },
-  // 2. Department HOD
+  // 2. Dedicated Guide
   {
-    email: "hod.cse@siet.ac.in",
-    password: "hod@123",
-    name: "Dr. N. Saravanan",
+    email: "dr.manimegalai@siet.ac.in",
+    password: "guide@123",
+    name: "Dr. P. Manimegalai",
+    initials: "PM",
     department: "Computer Science and Engineering",
-    role: "hod",
-    designation: "Professor & Head of Department",
-    phone: "+91 94432 10987",
-    totalFaculty: 48,
-    totalStudents: 320,
-    departmentProgress: 74,
-    upcomingReviews: 3
+    role: "guide",
+    roles: ["guide"],
+    designation: "Professor & Research Mentor",
+    phone: "+91 98433 87654",
+    totalMentees: 4,
+    activeProjects: 1,
+    pendingApprovals: 0,
+    avgProgress: 0
   },
-  // 3. System Administrator
-  {
-    email: "admin@siet.ac.in",
-    password: "admin@123",
-    name: "Department Administrator",
-    department: "Computer Science and Engineering",
-    role: "admin",
-    designation: "System & Database Administrator"
-  },
-  // 4. Class Advisor Faculty
+  // 3. Class Advisor Faculty
   {
     email: "dr.karthik@siet.ac.in",
     password: "faculty@123",
@@ -69,32 +63,41 @@ export const DEFAULT_USERS: User[] = [
     advisorBatch: "2023-2027 (III Year)",
     designation: "Professor & Designated Class Advisor",
     phone: "+91 98421 23456",
-    totalMentees: 16,
-    activeProjects: 4,
-    pendingApprovals: 2,
-    avgProgress: 70,
-    totalStudents: 64,
-    totalTeams: 16,
-    allocatedGuides: 12
+    totalMentees: 4,
+    activeProjects: 1,
+    pendingApprovals: 0,
+    avgProgress: 0,
+    totalStudents: 4,
+    totalTeams: 1,
+    allocatedGuides: 1
   },
-  // 5. Dedicated Guide
+  // 4. Department HOD
   {
-    email: "dr.manimegalai@siet.ac.in",
-    password: "guide@123",
-    name: "Dr. P. Manimegalai",
+    email: "hod.cse@siet.ac.in",
+    password: "hod@123",
+    name: "Dr. N. Saravanan",
     department: "Computer Science and Engineering",
-    role: "guide",
-    designation: "Associate Professor & Research Mentor",
-    phone: "+91 98433 87654",
-    totalMentees: 16,
-    activeProjects: 4,
-    pendingApprovals: 3,
-    avgProgress: 75
+    role: "hod",
+    designation: "Professor & Head of Department",
+    phone: "+91 94432 10987",
+    totalFaculty: 48,
+    totalStudents: 4,
+    departmentProgress: 0,
+    upcomingReviews: 0
+  },
+  // 5. System Administrator
+  {
+    email: "admin@siet.ac.in",
+    password: "admin@123",
+    name: "Department Administrator",
+    department: "Computer Science and Engineering",
+    role: "admin",
+    designation: "System & Database Administrator"
   }
 ];
 
-const STORAGE_KEY = "siet_auth_user";
-const USERS_STORAGE_KEY = "siet_registered_users";
+const STORAGE_KEY = "siet_auth_user_v5";
+const USERS_STORAGE_KEY = "siet_registered_users_v5";
 
 export const AuthService = {
   getUserInitials,
@@ -118,7 +121,7 @@ export const AuthService = {
 
   getCurrentUser(): User | null {
     try {
-      const user = sessionStorage.getItem(STORAGE_KEY);
+      const user = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
       return user ? JSON.parse(user) : null;
     } catch (e) {
       return null;
@@ -134,12 +137,15 @@ export const AuthService = {
     };
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
     } catch (e) {}
   },
 
   logout(): void {
     try {
       sessionStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('siet_auth_token');
     } catch (e) {}
   },
 
@@ -161,6 +167,12 @@ export const AuthService = {
     }
 
     this.setCurrentUser(matchedUser, matchedUser.role);
+
+    // Asynchronously log in to backend API to obtain and save JWT token
+    ApiClient.login(emailOrRoll, password).catch(err => {
+      console.log('Backend login sync:', err);
+    });
+
     return { success: true, user: matchedUser };
   }
 };

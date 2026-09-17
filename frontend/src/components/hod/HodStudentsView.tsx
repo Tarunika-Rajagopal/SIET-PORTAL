@@ -21,6 +21,25 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   const [batchFilter, setBatchFilter] = useState(selectedBatch || initialBatch || 'ALL');
   const [classFilter, setClassFilter] = useState(selectedClass || initialClass || 'ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [, setMarksTick] = useState(0);
+
+  useEffect(() => {
+    const unsub = MarksService.subscribe(() => {
+      setMarksTick(n => n + 1);
+    });
+    const handleSync = () => {
+      setMarksTick(n => n + 1);
+    };
+    window.addEventListener('siet_marks_updated', handleSync);
+    window.addEventListener('siet_data_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      unsub();
+      window.removeEventListener('siet_marks_updated', handleSync);
+      window.removeEventListener('siet_data_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   // Update when parent props change
   useEffect(() => {

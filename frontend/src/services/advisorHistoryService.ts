@@ -14,6 +14,8 @@ export interface AdvisorHistoryLog {
     | 'Team Formation'
     | 'Project Approval'
     | 'Milestone Review'
+    | 'Notice Dispatched'
+    | 'Consultation Notice'
     | 'Department Governance';
   target: string;
   details: string;
@@ -211,6 +213,71 @@ export const AdvisorHistoryService = {
 
     notifyListeners();
     return newLog;
+  },
+
+  getGuideHistory(guideName?: string): AdvisorHistoryLog[] {
+    const knownSections = ['CSE-A', 'CSE-B', 'CSE-C'];
+    const allLogs: AdvisorHistoryLog[] = [];
+    const seenIds = new Set<string>();
+
+    // 1. Fetch from dedicated guide store
+    try {
+      const guideStored = localStorage.getItem('siet_guide_action_history');
+      if (guideStored) {
+        const parsed: AdvisorHistoryLog[] = JSON.parse(guideStored);
+        parsed.forEach(log => {
+          if (!seenIds.has(log.id)) {
+            seenIds.add(log.id);
+            allLogs.push(log);
+          }
+        });
+      }
+    } catch (e) {}
+
+    // 2. Fetch from section stores where role === 'Faculty Guide'
+    knownSections.forEach(sec => {
+      const logs = this.getHistory(sec);
+      logs.forEach(log => {
+        if (log.role === 'Faculty Guide' && !seenIds.has(log.id)) {
+          seenIds.add(log.id);
+          allLogs.push(log);
+        }
+      });
+    });
+
+    // 3. Optional filter by guideName if specified
+    let result = allLogs;
+    if (guideName) {
+      const target = guideName.toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
+      result = allLogs.filter(log => {
+        const actor = (log.actorName || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
+        return !target || !actor || actor.includes(target) || target.includes(actor);
+      });
+    }
+
+    return result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  },
+
+  addGuideLog(
+    actionType: AdvisorHistoryLog['actionType'],
+    target: string,
+    details: string,
+    guideName: string = 'Dr. P. Manimegalai',
+    classSection: string = 'CSE-B'
+  ): AdvisorHistoryLog {
+    const log = this.addLog(classSection, actionType, target, details, guideName, 'Faculty Guide');
+
+    try {
+      const raw = localStorage.getItem('siet_guide_action_history');
+      const list: AdvisorHistoryLog[] = raw ? JSON.parse(raw) : [];
+      if (!list.some(x => x.id === log.id)) {
+        list.unshift(log);
+        localStorage.setItem('siet_guide_action_history', JSON.stringify(list));
+      }
+    } catch (e) {}
+
+    notifyListeners();
+    return log;
   },
 
   subscribe(listener: HistoryListener): () => void {

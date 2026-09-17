@@ -59,6 +59,14 @@ export interface Team {
   progress: number;
 }
 
+export interface GuideNotice {
+  timing: string;
+  location: string;
+  comment: string;
+  date: string;
+  weekNumber?: number;
+}
+
 export interface WeeklySubmission {
   week: number;
   title: string;
@@ -83,6 +91,7 @@ export interface WeeklySubmission {
   screenshotFile?: string;
   guideName?: string;
   guideReviewDate?: string;
+  guideNotice?: GuideNotice;
 }
 
 export interface RubricCriteria {

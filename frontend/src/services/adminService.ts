@@ -113,6 +113,7 @@ export const DEFAULT_FACULTIES: AdminFaculty[] = [
 ];
 
 export const DEFAULT_STUDENTS: AdminStudent[] = [
+  // Class CSE-B - Team 04
   {
     rollNo: "714023104112",
     name: "Tarunika Rajgopal",
@@ -120,7 +121,7 @@ export const DEFAULT_STUDENTS: AdminStudent[] = [
     batch: "2023-2027 (III Year)",
     classSection: "CSE-B",
     teamNo: "Team 04",
-    projectTitle: "Autonomous Crop Disease Segmentation Drone",
+    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
     guide: "Dr. P. Manimegalai"
   },
   {
@@ -130,9 +131,31 @@ export const DEFAULT_STUDENTS: AdminStudent[] = [
     batch: "2023-2027 (III Year)",
     classSection: "CSE-B",
     teamNo: "Team 04",
-    projectTitle: "Autonomous Crop Disease Segmentation Drone",
+    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
     guide: "Dr. P. Manimegalai"
   },
+  {
+    rollNo: "714023104189",
+    name: "Vishnu Priya S",
+    email: "vishnupriya.s@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 04",
+    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
+    guide: "Dr. P. Manimegalai"
+  },
+  {
+    rollNo: "714023104066",
+    name: "Kavitha R",
+    email: "kavitha.r@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 04",
+    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
+    guide: "Dr. P. Manimegalai"
+  },
+
+  // Class CSE-B - Team 05
   {
     rollNo: "714023104035",
     name: "Harish Kumar K",
@@ -144,15 +167,121 @@ export const DEFAULT_STUDENTS: AdminStudent[] = [
     guide: "Dr. A. Devipriya"
   },
   {
+    rollNo: "714023104038",
+    name: "Janani S",
+    email: "janani.s@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 05",
+    projectTitle: "Decentralized Smart Grid Energy Trading Protocol",
+    guide: "Dr. A. Devipriya"
+  },
+  {
+    rollNo: "714023104051",
+    name: "Manoj V",
+    email: "manoj.v@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 05",
+    projectTitle: "Decentralized Smart Grid Energy Trading Protocol",
+    guide: "Dr. A. Devipriya"
+  },
+  {
+    rollNo: "714023104058",
+    name: "Nithya R",
+    email: "nithya.r@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 05",
+    projectTitle: "Decentralized Smart Grid Energy Trading Protocol",
+    guide: "Dr. A. Devipriya"
+  },
+
+  // Class CSE-B - Team 06
+  {
     rollNo: "714023104088",
     name: "Naveen Raj",
     email: "naveen.r@srishakthi.ac.in",
     batch: "2023-2027 (III Year)",
     classSection: "CSE-B",
     teamNo: "Team 06",
-    projectTitle: "Edge-AI Wearable for Real-Time Cardiac Arrhythmia",
+    projectTitle: "Edge-AI Wearable for Real-Time Cardiac Arrhythmia Detection",
     guide: "Dr. K. Vignesh"
   },
+  {
+    rollNo: "714023104092",
+    name: "Praveen S",
+    email: "praveen.s@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 06",
+    projectTitle: "Edge-AI Wearable for Real-Time Cardiac Arrhythmia Detection",
+    guide: "Dr. K. Vignesh"
+  },
+  {
+    rollNo: "714023104095",
+    name: "Raja Vignesh",
+    email: "raja.v@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 06",
+    projectTitle: "Edge-AI Wearable for Real-Time Cardiac Arrhythmia Detection",
+    guide: "Dr. K. Vignesh"
+  },
+  {
+    rollNo: "714023104099",
+    name: "Saranya K",
+    email: "saranya.k@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 06",
+    projectTitle: "Edge-AI Wearable for Real-Time Cardiac Arrhythmia Detection",
+    guide: "Dr. K. Vignesh"
+  },
+
+  // Class CSE-B - Team 07
+  {
+    rollNo: "714023104142",
+    name: "Sneha M",
+    email: "sneha.m@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 07",
+    projectTitle: "LLM-Powered Multi-Lingual Legal Advisory System for Rural Citizens",
+    guide: "Dr. P. Manimegalai"
+  },
+  {
+    rollNo: "714023104148",
+    name: "Suresh P",
+    email: "suresh.p@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 07",
+    projectTitle: "LLM-Powered Multi-Lingual Legal Advisory System for Rural Citizens",
+    guide: "Dr. P. Manimegalai"
+  },
+  {
+    rollNo: "714023104155",
+    name: "Swetha V",
+    email: "swetha.v@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 07",
+    projectTitle: "LLM-Powered Multi-Lingual Legal Advisory System for Rural Citizens",
+    guide: "Dr. P. Manimegalai"
+  },
+  {
+    rollNo: "714023104162",
+    name: "Varun K",
+    email: "varun.k@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    teamNo: "Team 07",
+    projectTitle: "LLM-Powered Multi-Lingual Legal Advisory System for Rural Citizens",
+    guide: "Dr. P. Manimegalai"
+  },
+
+  // Class CSE-A - Team 01 & Team 02
   {
     rollNo: "714023104015",
     name: "Ananya Sharma",
@@ -174,6 +303,28 @@ export const DEFAULT_STUDENTS: AdminStudent[] = [
     guide: "Dr. A. Devipriya"
   },
   {
+    rollNo: "714023104018",
+    name: "Aravind S",
+    email: "aravind.s@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-A",
+    teamNo: "Team 02",
+    projectTitle: "Autonomous Swarm UAV Platform",
+    guide: "Dr. P. Manimegalai"
+  },
+  {
+    rollNo: "714023104024",
+    name: "Balaji R",
+    email: "balaji.r@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-A",
+    teamNo: "Team 02",
+    projectTitle: "Autonomous Swarm UAV Platform",
+    guide: "Dr. P. Manimegalai"
+  },
+
+  // Class CSE-C - Team 08 & Team 09
+  {
     rollNo: "714023104050",
     name: "Meera Krishnan",
     email: "meera.k@srishakthi.ac.in",
@@ -181,6 +332,16 @@ export const DEFAULT_STUDENTS: AdminStudent[] = [
     classSection: "CSE-C",
     teamNo: "Team 08",
     projectTitle: "Autonomous Robotic Navigation in Agritech",
+    guide: "Dr. P. Manimegalai"
+  },
+  {
+    rollNo: "714023104205",
+    name: "Deepa N",
+    email: "deepa.n@srishakthi.ac.in",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-C",
+    teamNo: "Team 09",
+    projectTitle: "Edge Computing AI Pipeline for Smart Agriculture",
     guide: "Dr. P. Manimegalai"
   }
 ];
@@ -454,7 +615,19 @@ export const AdminService = {
   getStudents(): AdminStudent[] {
     try {
       const stored = localStorage.getItem("siet_admin_students");
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (!parsed.some((s: any) => s.rollNo === '714023104189')) {
+            const existingRolls = new Set(parsed.map((s: any) => s.rollNo));
+            const missing = DEFAULT_STUDENTS.filter(s => !existingRolls.has(s.rollNo));
+            const combined = [...parsed, ...missing];
+            localStorage.setItem("siet_admin_students", JSON.stringify(combined));
+            return combined;
+          }
+          return parsed;
+        }
+      }
       localStorage.setItem("siet_admin_students", JSON.stringify(DEFAULT_STUDENTS));
       return DEFAULT_STUDENTS;
     } catch (e) {

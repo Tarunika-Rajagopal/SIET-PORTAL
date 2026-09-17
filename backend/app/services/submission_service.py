@@ -14,6 +14,7 @@ from app.models.submissions import WeeklySubmission, SubmissionFile
 from app.models.users import User
 
 WEEK_TITLES = {
+    0: "Week 0 Deliverable Submission",
     1: "Project Proposal, Title & Problem Formulation",
     2: "Literature Survey & System Requirement Specification",
     3: "System Architecture & Design Diagram",
@@ -80,7 +81,7 @@ class SubmissionService:
         subs_dict = {s.week_number: s for s in existing_subs}
 
         resps = []
-        for week_num in range(1, 7):
+        for week_num in range(0, 7):
             if week_num in subs_dict:
                 resps.append(self._build_submission_response(subs_dict[week_num]))
             else:
@@ -99,8 +100,8 @@ class SubmissionService:
         return resps
 
     async def get_submission_by_week(self, week_number: int, student_user: User) -> SubmissionResponse:
-        if week_number < 1 or week_number > 6:
-            raise BadRequestException(f"Invalid week number {week_number}. Academic weeks range from 1 to 6.")
+        if week_number < 0 or week_number > 16:
+            raise BadRequestException(f"Invalid week number {week_number}. Academic weeks range from 0 to 16.")
 
         team = await self.team_repo.get_team_by_student_user_id(student_user.id)
         if not team:
@@ -125,8 +126,8 @@ class SubmissionService:
         data: SubmissionCreateUpdate,
         student_user: User
     ) -> SubmissionResponse:
-        if week_number < 1 or week_number > 6:
-            raise BadRequestException(f"Invalid week number {week_number}. Academic weeks range from 1 to 6.")
+        if week_number < 0 or week_number > 16:
+            raise BadRequestException(f"Invalid week number {week_number}. Academic weeks range from 0 to 16.")
 
         team = await self.team_repo.get_team_by_student_user_id(student_user.id)
         if not team:
@@ -134,9 +135,9 @@ class SubmissionService:
 
         sub = await self.sub_repo.get_submission_by_team_and_week(team.id, week_number)
 
-        # Enforce editable status checks
-        if sub and sub.status in ["SUBMITTED", "APPROVED"]:
-            raise BadRequestException(f"Submission for Week {week_number} is already submitted/approved and cannot be modified.")
+        # Enforce editable status checks: only prevent modification if already approved
+        if sub and sub.status == "APPROVED":
+            raise BadRequestException(f"Submission for Week {week_number} is already approved and cannot be modified.")
 
         title = WEEK_TITLES.get(week_number, f"Week {week_number} Deliverable")
         new_status = "SUBMITTED" if data.is_submit else "DRAFT"
@@ -286,7 +287,24 @@ class SubmissionService:
             if not team or team.guide_id != user.id:
                 raise ForbiddenException("Access denied to file belonging to unassigned team.")
 
-        if not self.storage_service.file_exists(file_rec.storage_path):
-            raise NotFoundException("File object not found on storage server.")
-
         return file_rec.storage_path, file_rec.original_filename, file_rec.content_type
+
+    async def delete_submission(self, week_number: int, student_user: User) -> bool:
+        team = await self.team_repo.get_team_by_student_user_id(student_user.id)
+        if not team:
+            raise NotFoundException("You are not currently assigned to any team.")
+
+        sub = await self.sub_repo.get_submission_by_team_and_week(team.id, week_number)
+        if not sub:
+            return True
+
+        for f in sub.files:
+            try:
+                self.storage_service.delete_file(f.storage_path)
+            except Exception:
+                pass
+
+        await self.db.delete(sub)
+        await self.db.commit()
+        return True
+

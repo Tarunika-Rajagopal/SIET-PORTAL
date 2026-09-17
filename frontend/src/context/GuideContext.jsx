@@ -1,33 +1,39 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { INITIAL_TEAMS, FACULTY_PROFILE } from '../data/guidePortalData';
 import { AuthService, getUserInitials } from '../services/authService';
 import { AdvisorHistoryService } from '../services/advisorHistoryService';
+import { StudentService } from '../services/studentService';
+import { ApiClient } from '../services/apiClient';
+import { isTeamFullySubmitted, hasAnyDetailSubmitted } from '../utils/submissionUtils';
+import { sanitizeAndSyncGuideTeams } from '../utils/teamSyncUtils';
 
-const TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v2';
-const ACTIVITIES_STORAGE_KEY = 'siet_guide_portal_activities_v2';
+const TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
+const ACTIVITIES_STORAGE_KEY = 'siet_guide_portal_activities_v6';
 
 const GuideContext = createContext(null);
 
 export const GuideProvider = ({ children }) => {
   const currentUser = AuthService.getCurrentUser();
-  const guideName = currentUser?.role === 'guide' ? currentUser.name : (currentUser?.name || FACULTY_PROFILE.name);
+  const guideName = (currentUser?.role === 'guide' ? currentUser.name : null) || FACULTY_PROFILE.name;
 
   const [allTeams, setAllTeams] = useState(() => {
     try {
       const stored = localStorage.getItem(TEAMS_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return sanitizeAndSyncGuideTeams(parsed);
+        }
       }
     } catch (e) {
       console.error('Error loading teams from localStorage:', e);
     }
-    return INITIAL_TEAMS;
+    return sanitizeAndSyncGuideTeams(INITIAL_TEAMS);
   });
 
   const normalizeName = (n) => (n || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
 
-  // Filter so guide only sees teams assigned to them
+  // Filter so guide only sees teams assigned to them (or single student team)
   const assignedTeams = useMemo(() => {
     if (!guideName) return allTeams;
     const target = normalizeName(guideName);
@@ -52,22 +58,7 @@ export const GuideProvider = ({ children }) => {
     } catch (e) {
       console.error('Error loading activities from localStorage:', e);
     }
-    return [
-      {
-        id: 'act-1',
-        title: 'Meeting Notice Dispatched',
-        details: 'Notified Team #2 for raw camera benchmarking discussion at Cabin 204.',
-        time: 'Today, 10:15 AM',
-        type: 'notify'
-      },
-      {
-        id: 'act-2',
-        title: 'Title Endorsement',
-        details: 'Approved project title for Team #4: Campus Service Management.',
-        time: 'Yesterday, 3:45 PM',
-        type: 'approve'
-      }
-    ];
+    return [];
   });
 
   const [toasts, setToasts] = useState([]);
@@ -89,6 +80,32 @@ export const GuideProvider = ({ children }) => {
     }
   }, [activities]);
 
+  // Real-time synchronization listener
+  const reloadFromStorage = useCallback(() => {
+    try {
+      const stored = localStorage.getItem(TEAMS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setAllTeams(sanitizeAndSyncGuideTeams(parsed));
+          return;
+        }
+      }
+      setAllTeams(sanitizeAndSyncGuideTeams(INITIAL_TEAMS));
+    } catch (e) {
+      console.error('Error reloading teams from storage:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('siet_data_updated', reloadFromStorage);
+    window.addEventListener('storage', reloadFromStorage);
+    return () => {
+      window.removeEventListener('siet_data_updated', reloadFromStorage);
+      window.removeEventListener('storage', reloadFromStorage);
+    };
+  }, [reloadFromStorage]);
+
   const showToast = (message, type = 'success') => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
     setToasts(prev => [...prev, { id, message, type }]);
@@ -108,14 +125,23 @@ export const GuideProvider = ({ children }) => {
 
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId) {
+        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
+          const updatedSubmissions = (team.submissions || []).map(s => ({
+            ...s,
+            evaluationStatus: 'Approved',
+            submissionStatus: 'Approved',
+            status: 'Approved',
+            isLocked: true
+          }));
+
           updatedTeam = {
             ...team,
             titleStatus: 'Approved',
             titleLocked: true,
             titleApprovedDate: today,
             rejectionReason: '',
-            latestSubmissionStatus: 'Title Approved – Ready for Weekly Sprints'
+            latestSubmissionStatus: 'Title Approved – Ready for Weekly Sprints',
+            submissions: updatedSubmissions
           };
           return updatedTeam;
         }
@@ -124,6 +150,43 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
+      // Synchronize to StudentService
+      try {
+        const studentTeam = StudentService.getTeam();
+        studentTeam.isTitleApproved = true;
+        studentTeam.guideApprovalStatus = 'Approved';
+        studentTeam.rejectionReason = '';
+        if (updatedTeam.projectTitle) {
+          studentTeam.projectTitle = updatedTeam.projectTitle;
+          studentTeam.submittedTitle = updatedTeam.projectTitle;
+        }
+        StudentService.saveTeam(studentTeam);
+
+        // Update student weekly submissions to Approved
+        const studentSubs = StudentService.getSubmissions();
+        const updatedSubs = studentSubs.map(s => ({
+          ...s,
+          status: 'Approved'
+        }));
+        StudentService.saveSubmissions(updatedSubs);
+
+        // Update Week 0 deliverable
+        const d0 = StudentService.getDeliverables('Week 0');
+        d0.isTitleApproved = true;
+        if (updatedTeam.projectTitle) d0.projectTitle = updatedTeam.projectTitle;
+        localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
+
+        // Call backend API if possible
+        ApiClient.getGuideTeams().then(bTeams => {
+          const t = bTeams.find(x => x.teamNo === 'Team 04');
+          if (t && t.id) {
+            ApiClient.approveProjectTitle(t.id, updatedTeam.projectTitle).catch(() => {});
+          }
+        }).catch(() => {});
+      } catch (e) {
+        console.error('Error synchronizing title approval:', e);
+      }
+
       const newActivity = {
         id: 'act-' + Date.now(),
         title: `Title Approved: Team #${updatedTeam.teamNumber}`,
@@ -134,17 +197,17 @@ export const GuideProvider = ({ children }) => {
       setActivities(prev => [newActivity, ...prev]);
 
       try {
-        AdvisorHistoryService.addLog(
-          updatedTeam.section || 'CSE-B',
+        AdvisorHistoryService.addGuideLog(
           'Project Approval',
           `Team #${updatedTeam.teamNumber} (${updatedTeam.projectTitle || 'Project Title'})`,
-          `Approved project title. Status updated to Approved. Scope locked.`,
+          `Approved project proposal. Status updated to Approved. Scope locked.`,
           guideName,
-          'Faculty Guide'
+          updatedTeam.section || 'CSE-B'
         );
       } catch (e) {}
 
-      showToast(`Team #${updatedTeam.teamNumber} title approved and scope permanently locked.`, 'success');
+      window.dispatchEvent(new Event('siet_data_updated'));
+      showToast(`Team #${updatedTeam.teamNumber} title approved and scope locked.`, 'success');
     }
   };
 
@@ -158,7 +221,7 @@ export const GuideProvider = ({ children }) => {
     let updatedTeam = null;
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId) {
+        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
           updatedTeam = {
             ...team,
             titleStatus: 'Rejected',
@@ -174,6 +237,30 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
+      // Synchronize to StudentService
+      try {
+        const studentTeam = StudentService.getTeam();
+        studentTeam.isTitleApproved = false;
+        studentTeam.guideApprovalStatus = 'Rejected';
+        studentTeam.rejectionReason = reason.trim();
+        StudentService.saveTeam(studentTeam);
+
+        const d0 = StudentService.getDeliverables('Week 0');
+        d0.isTitleApproved = false;
+        d0.submittedFields.title = false;
+        localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
+
+        // Call backend API
+        ApiClient.getGuideTeams().then(bTeams => {
+          const t = bTeams.find(x => x.teamNo === 'Team 04');
+          if (t && t.id) {
+            ApiClient.rejectProjectTitle(t.id, reason.trim()).catch(() => {});
+          }
+        }).catch(() => {});
+      } catch (e) {
+        console.error('Error synchronizing title rejection:', e);
+      }
+
       const newActivity = {
         id: 'act-' + Date.now(),
         title: `Title Rejected: Team #${updatedTeam.teamNumber}`,
@@ -184,16 +271,16 @@ export const GuideProvider = ({ children }) => {
       setActivities(prev => [newActivity, ...prev]);
 
       try {
-        AdvisorHistoryService.addLog(
-          updatedTeam.section || 'CSE-B',
+        AdvisorHistoryService.addGuideLog(
           'Project Approval',
           `Team #${updatedTeam.teamNumber} (${updatedTeam.projectTitle || 'Project Title'})`,
-          `Rejected project title. Status updated to Rejected. Mandated revision: "${reason.trim()}".`,
+          `Rejected project proposal. Status updated to Rejected. Mandated revision: "${reason.trim()}".`,
           guideName,
-          'Faculty Guide'
+          updatedTeam.section || 'CSE-B'
         );
       } catch (e) {}
 
+      window.dispatchEvent(new Event('siet_data_updated'));
       showToast(`Feedback sent. Team #${updatedTeam.teamNumber} instructed to revise title.`, 'warning');
       return true;
     }
@@ -207,12 +294,13 @@ export const GuideProvider = ({ children }) => {
 
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId) {
+        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
           const updatedSubmissions = (team.submissions || []).map(sub => {
             if (sub.weekNumber === Number(weekNumber)) {
               return {
                 ...sub,
-                evaluationStatus: 'Evaluated',
+                evaluationStatus: 'Approved',
+                status: 'Approved',
                 isLocked: true,
                 evaluatedDate: today,
                 guideRemarks: remarks || 'Endorsed. Satisfactory technical milestone deliverables.'
@@ -233,6 +321,28 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
+      // Synchronize to StudentService
+      try {
+        const studentSubs = StudentService.getSubmissions();
+        const item = studentSubs.find(s => s.week === Number(weekNumber));
+        if (item) {
+          item.status = 'Approved';
+          item.comments = remarks || 'Endorsed. Satisfactory technical milestone deliverables.';
+          item.guideReviewDate = today;
+          StudentService.saveSubmissions(studentSubs);
+        }
+
+        // Call backend review endpoint
+        ApiClient.getGuidePendingSubmissions().then(pSubs => {
+          const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
+          if (match && match.submissionId) {
+            ApiClient.reviewWeeklySubmission(match.submissionId, 'APPROVED', remarks).catch(() => {});
+          }
+        }).catch(() => {});
+      } catch (e) {
+        console.error('Error synchronizing evaluation:', e);
+      }
+
       const newActivity = {
         id: 'act-' + Date.now(),
         title: `Week ${weekNumber} Approved: Team #${updatedTeam.teamNumber}`,
@@ -243,16 +353,16 @@ export const GuideProvider = ({ children }) => {
       setActivities(prev => [newActivity, ...prev]);
 
       try {
-        AdvisorHistoryService.addLog(
-          updatedTeam.section || 'CSE-B',
+        AdvisorHistoryService.addGuideLog(
           'Milestone Review',
           `Team #${updatedTeam.teamNumber} - Milestone Week ${weekNumber}`,
           `Approved Week ${weekNumber} deliverables. Status updated to Approved. Remarks: "${remarks || 'Satisfactory'}".`,
           guideName,
-          'Faculty Guide'
+          updatedTeam.section || 'CSE-B'
         );
       } catch (e) {}
 
+      window.dispatchEvent(new Event('siet_data_updated'));
       showToast(`Week ${weekNumber} deliverables for Team #${updatedTeam.teamNumber} evaluated and locked.`, 'success');
     }
   };
@@ -267,7 +377,7 @@ export const GuideProvider = ({ children }) => {
     let updatedTeam = null;
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId) {
+        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
           const updatedSubmissions = (team.submissions || []).map(sub => {
             if (sub.weekNumber === Number(weekNumber)) {
               return {
@@ -292,6 +402,27 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
+      // Synchronize to StudentService
+      try {
+        const studentSubs = StudentService.getSubmissions();
+        const item = studentSubs.find(s => s.week === Number(weekNumber));
+        if (item) {
+          item.status = 'Changes Requested';
+          item.comments = reason.trim();
+          StudentService.saveSubmissions(studentSubs);
+        }
+
+        // Call backend review endpoint
+        ApiClient.getGuidePendingSubmissions().then(pSubs => {
+          const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
+          if (match && match.submissionId) {
+            ApiClient.reviewWeeklySubmission(match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
+          }
+        }).catch(() => {});
+      } catch (e) {
+        console.error('Error synchronizing revision request:', e);
+      }
+
       const newActivity = {
         id: 'act-' + Date.now(),
         title: `Week ${weekNumber} Needs Revision: Team #${updatedTeam.teamNumber}`,
@@ -302,16 +433,16 @@ export const GuideProvider = ({ children }) => {
       setActivities(prev => [newActivity, ...prev]);
 
       try {
-        AdvisorHistoryService.addLog(
-          updatedTeam.section || 'CSE-B',
+        AdvisorHistoryService.addGuideLog(
           'Milestone Review',
           `Team #${updatedTeam.teamNumber} - Milestone Week ${weekNumber}`,
           `Requested revision for Week ${weekNumber}. Status updated to Needs Revision. Reason: "${reason.trim()}".`,
           guideName,
-          'Faculty Guide'
+          updatedTeam.section || 'CSE-B'
         );
       } catch (e) {}
 
+      window.dispatchEvent(new Event('siet_data_updated'));
       showToast(`Revision requested for Week ${weekNumber} (Team #${updatedTeam.teamNumber}).`, 'warning');
       return true;
     }
@@ -319,7 +450,7 @@ export const GuideProvider = ({ children }) => {
   };
 
   // 5. Notify Team
-  const notifyTeam = (teamId, { comment, timing, location }) => {
+  const notifyTeam = (teamId, { comment, timing, location, weekNumber }) => {
     const formattedDate = new Date().toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -328,16 +459,37 @@ export const GuideProvider = ({ children }) => {
       hour12: true
     });
 
+    const targetWeek = (weekNumber !== undefined && weekNumber !== null) ? Number(weekNumber) : StudentService.getCurrentAcademicWeek();
+
     let updatedTeam = null;
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId) {
+        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
           const notificationEntry = {
             timing: timing || 'Today at 3:00 PM',
             location: location || 'Faculty Cabin 204',
             comment: comment || 'Report for project review consultation.',
-            date: formattedDate
+            date: formattedDate,
+            weekNumber: targetWeek
           };
+
+          // Attach notice to target week in team.submissions
+          const currentSubs = Array.isArray(team.submissions) ? [...team.submissions] : [];
+          let targetSub = currentSubs.find(s => s.weekNumber === targetWeek);
+          if (targetSub) {
+            targetSub.guideNotice = notificationEntry;
+          } else {
+            currentSubs.push({
+              weekNumber: targetWeek,
+              title: `Week ${targetWeek} Deliverables & Scope`,
+              submissionDate: new Date().toISOString().split('T')[0],
+              submissionStatus: 'Consultation Notice Dispatched',
+              evaluationStatus: 'Pending',
+              isLocked: false,
+              guideNotice: notificationEntry,
+              guideRemarks: comment || 'Report for consultation.'
+            });
+          }
 
           updatedTeam = {
             ...team,
@@ -346,7 +498,8 @@ export const GuideProvider = ({ children }) => {
             notifiedLocation: location || 'Faculty Cabin 204',
             notifiedComment: comment || 'Report for project review consultation.',
             notifiedAt: formattedDate,
-            notificationHistory: [notificationEntry, ...(team.notificationHistory || [])]
+            notificationHistory: [notificationEntry, ...(team.notificationHistory || [])],
+            submissions: currentSubs
           };
           return updatedTeam;
         }
@@ -355,9 +508,22 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
+      // Synchronize directly into StudentService for that respective week!
+      try {
+        StudentService.attachGuideNotice(targetWeek, {
+          timing: timing || 'Today at 3:00 PM',
+          location: location || 'Faculty Cabin 204',
+          comment: comment || 'Report for project review consultation.',
+          date: formattedDate,
+          weekNumber: targetWeek
+        });
+      } catch (e) {
+        console.error('Error synchronizing notice to student service:', e);
+      }
+
       const newActivity = {
         id: 'act-' + Date.now(),
-        title: `Notice Dispatched: Team #${updatedTeam.teamNumber}`,
+        title: `Notice Dispatched: Team #${updatedTeam.teamNumber} (Week ${targetWeek})`,
         details: `Meeting scheduled for ${timing || 'Today at 3:00 PM'} at ${location || 'Faculty Cabin 204'}.`,
         time: 'Just now',
         type: 'notify'
@@ -365,17 +531,17 @@ export const GuideProvider = ({ children }) => {
       setActivities(prev => [newActivity, ...prev]);
 
       try {
-        AdvisorHistoryService.addLog(
-          updatedTeam.section || 'CSE-B',
-          'Milestone Review',
-          `Team #${updatedTeam.teamNumber}`,
-          `Dispatched meeting notice for ${timing || 'Today at 3:00 PM'} at ${location || 'Faculty Cabin 204'}: "${comment || 'Consultation'}".`,
+        AdvisorHistoryService.addGuideLog(
+          'Notice Dispatched',
+          `Team #${updatedTeam.teamNumber} - Week ${targetWeek}`,
+          `Dispatched consultation notice for Week ${targetWeek}: "${comment || 'Consultation scheduled'}". Meeting: ${timing} at ${location}.`,
           guideName,
-          'Faculty Guide'
+          updatedTeam.section || 'CSE-B'
         );
       } catch (e) {}
 
-      showToast(`Team #${updatedTeam.teamNumber} notified for meeting (${timing}).`, 'info');
+      window.dispatchEvent(new Event('siet_data_updated'));
+      showToast(`Team #${updatedTeam.teamNumber} notified for Week ${targetWeek} consultation (${timing}).`, 'info');
       return true;
     }
     return false;
@@ -392,7 +558,7 @@ export const GuideProvider = ({ children }) => {
   // Computed Stats for assigned teams only
   const stats = useMemo(() => {
     const assignedTeamsCount = assignedTeams.length;
-    const pendingTitleApprovalsCount = assignedTeams.filter(t => t.titleStatus === 'Pending').length;
+    const pendingTitleApprovalsCount = assignedTeams.filter(t => t.titleStatus === 'Pending' && hasAnyDetailSubmitted(t)).length;
     const approvedTitlesCount = assignedTeams.filter(t => t.titleStatus === 'Approved').length;
     const rejectedTitlesCount = assignedTeams.filter(t => t.titleStatus === 'Rejected').length;
     const notifiedCount = assignedTeams.filter(t => t.isNotified).length;

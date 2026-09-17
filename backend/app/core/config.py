@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres@127.0.0.1:5433/siet_project_portal"
-    SYNC_DATABASE_URL: str = "postgresql+psycopg2://postgres@127.0.0.1:5433/siet_project_portal"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./siet_portal.db"
+    SYNC_DATABASE_URL: str = "sqlite:///./siet_portal.db"
     
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]

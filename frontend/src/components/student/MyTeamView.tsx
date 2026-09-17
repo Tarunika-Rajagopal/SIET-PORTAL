@@ -1,7 +1,7 @@
 import React from 'react';
 import { StudentTeamExtended } from '../../services/studentService';
 import { getUserInitials } from '../../services/authService';
-import { Users, BookOpen, Compass } from 'lucide-react';
+import { Users, BookOpen, Compass, AlertTriangle } from 'lucide-react';
 
 interface MyTeamViewProps {
   team: StudentTeamExtended;
@@ -19,6 +19,34 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
   return (
     <div className="space-y-6">
       
+      {/* Rejection Notice Alert Banner */}
+      {team.guideApprovalStatus === 'Rejected' && (
+        <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-5 sm:p-6 shadow-sm flex items-start gap-4">
+          <div className="p-2.5 rounded-2xl bg-rose-100 text-rose-700 shrink-0 mt-0.5">
+            <AlertTriangle size={22} />
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-extrabold text-rose-900">Project Proposal Revision Required</h3>
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 text-[10px] font-black uppercase tracking-wider">
+                Action Required
+              </span>
+            </div>
+            <p className="text-xs text-rose-800 font-semibold leading-relaxed">
+              Your Faculty Guide has reviewed your submission and requested revisions before this project can be approved:
+            </p>
+            {team.rejectionReason && (
+              <div className="mt-2 p-3.5 rounded-xl bg-white border border-rose-200 font-medium text-xs text-rose-950 italic">
+                "{team.rejectionReason}"
+              </div>
+            )}
+            <p className="text-[11px] text-rose-700 font-bold pt-1">
+              Please go to the <strong>Submissions</strong> tab to update your deliverables according to the guide's feedback.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Team Header Hero Card */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-[#E2E8E4]">
         <div className="space-y-3">

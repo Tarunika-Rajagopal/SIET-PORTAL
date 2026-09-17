@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/common/Header';
 import ProfileModal from '../components/common/ProfileModal';
 import MyTeamView from '../components/student/MyTeamView';
@@ -13,8 +13,20 @@ export const StudentPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<StudentTab>('my-team');
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [bottomToast, setBottomToast] = useState<string | null>(null);
+  const [team, setTeam] = useState(() => StudentService.getTeam());
 
-  const team = StudentService.getTeam();
+  useEffect(() => {
+    const handleSync = () => {
+      setTeam(StudentService.getTeam());
+    };
+    handleSync();
+    window.addEventListener('siet_data_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('siet_data_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   const showToast = (message: string) => {
     setBottomToast(message);

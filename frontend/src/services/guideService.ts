@@ -18,6 +18,7 @@ export interface MentoredTeam {
 export const GuideService = {
   getMentoredTeams(): MentoredTeam[] {
     const team = StudentService.getTeam();
+    const currentWeek = StudentService.getCurrentAcademicWeek();
     return [
       {
         teamId: team.id,
@@ -25,72 +26,46 @@ export const GuideService = {
         batch: team.batch,
         title: team.projectTitle,
         leadStudent: "Tarunika Rajgopal (714023104112)",
-        currentWeek: 6,
+        currentWeek: currentWeek,
         status: team.status,
-        guideApprovalStatus: "Approved",
-        lastSubmission: "10 Sep 2026",
-        reviewStatus: "Under Review",
+        guideApprovalStatus: team.guideApprovalStatus,
+        lastSubmission: "Week " + currentWeek,
+        reviewStatus: team.guideApprovalStatus === 'Approved' ? 'Approved' : 'Under Review',
         progress: team.progress
-      },
-      {
-        teamId: "TEAM-CSE-Y3-B05",
-        class: "CSE-B",
-        batch: "2023-2027 (III Year)",
-        title: "Decentralized Smart Grid Energy Trading Protocol",
-        leadStudent: "Harish Kumar K (714023104035)",
-        currentWeek: 5,
-        status: "In Progress",
-        guideApprovalStatus: "Approved",
-        lastSubmission: "06 Sep 2026",
-        reviewStatus: "Approved",
-        progress: 62
-      },
-      {
-        teamId: "TEAM-CSE-Y3-B08",
-        class: "CSE-B",
-        batch: "2023-2027 (III Year)",
-        title: "Zero-Knowledge Proof Authentication for Medical Records",
-        leadStudent: "Deepak S (714023104021)",
-        currentWeek: 6,
-        status: "Submitted",
-        guideApprovalStatus: "Pending",
-        lastSubmission: "09 Sep 2026",
-        reviewStatus: "Pending Approval",
-        progress: 55
       }
     ];
   },
 
   getPendingApprovals(): ApprovalItem[] {
-    return [
-      {
-        id: "app-1",
-        teamNo: "Team 08",
-        title: "Zero-Knowledge Proof Authentication for Medical Records",
-        proposedBy: "Deepak S (714023104021)",
-        submittedOn: "09 Sep 2026",
-        status: "Pending",
-        category: "Project Scope Revision",
-        description: "Requesting addition of Polygon zkEVM smart contracts module to existing healthcare data storage architecture."
-      },
-      {
-        id: "app-2",
-        teamNo: "Team 12",
-        title: "Hyperspectral Satellite Image De-noising with Diffusion Models",
-        proposedBy: "Praveen V (714023104099)",
-        submittedOn: "08 Sep 2026",
-        status: "Pending",
-        category: "Title Modification",
-        description: "Shifting focus from optical satellite imagery to Sentinel-2 multi-spectral bands."
-      }
-    ];
+    const team = StudentService.getTeam();
+    if (team.submittedTitle && !team.isTitleApproved) {
+      return [
+        {
+          id: "app-1",
+          teamNo: team.teamNo,
+          title: team.submittedTitle,
+          proposedBy: "Tarunika Rajgopal (714023104112)",
+          submittedOn: "Week 0",
+          status: "Pending",
+          category: "Project Title Proposal",
+          description: "Initial Capstone Project Title Proposal submitted by student."
+        }
+      ];
+    }
+    return [];
   },
 
-  approveItem(id: string): void {
-    // approve logic
+  approveItem(_id: string): void {
+    const team = StudentService.getTeam();
+    team.isTitleApproved = true;
+    team.guideApprovalStatus = 'Approved';
+    StudentService.saveTeam(team);
   },
 
-  rejectItem(id: string, reason?: string): void {
-    // reject logic
+  rejectItem(_id: string, _reason?: string): void {
+    const team = StudentService.getTeam();
+    team.isTitleApproved = false;
+    team.guideApprovalStatus = 'Revision Required';
+    StudentService.saveTeam(team);
   }
 };

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WeeklySubmission } from '../../types';
 import { StudentService } from '../../services/studentService';
 import { 
   Calendar, CheckCircle2, Clock, FileText, Upload, AlertTriangle, 
   MessageSquare, RefreshCw, X, FileCode, ExternalLink, Image as ImageIcon,
-  Award, User, Download, Check, XCircle
+  Award, User, Download, Check, XCircle, Bell, MapPin, Trash2
 } from 'lucide-react';
 
 interface MySubmissionViewProps {
@@ -13,17 +13,32 @@ interface MySubmissionViewProps {
 
 export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess }) => {
   const [submissions, setSubmissions] = useState<WeeklySubmission[]>(() => StudentService.getSubmissions());
+  const [team, setTeam] = useState(() => StudentService.getTeam());
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [activeWeekSub, setActiveWeekSub] = useState<WeeklySubmission | null>(null);
   const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
   const [resubmitNotes, setResubmitNotes] = useState('');
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handleSync = () => {
+      setSubmissions(StudentService.getSubmissions());
+      setTeam(StudentService.getTeam());
+    };
+    handleSync();
+    window.addEventListener('siet_data_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('siet_data_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
   const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
 
-  // Completed / submitted weeks up to current academic week
+  // Display only the current week number
   const completedWeeks = submissions.filter(
-    s => s.week <= currentAcademicWeek && (s.status === 'Approved' || s.status === 'Submitted' || s.status === 'Changes Requested' || s.status === 'Rejected')
+    s => s.week === currentAcademicWeek
   );
 
   const handleOpenDetail = (sub: WeeklySubmission) => {
@@ -145,161 +160,201 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
         <div className="p-5 border-b border-[#E2E8E4] flex items-center justify-between bg-slate-50/60">
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">
-              Completed Milestones
+              Current Academic Milestone
             </span>
             <span className="text-[11px] font-bold text-mint-800 bg-mint-100 px-2.5 py-0.5 rounded-full border border-mint-200">
-              {completedWeeks.length} Weeks Recorded (up to Week {currentAcademicWeek})
+              Week {currentAcademicWeek}
             </span>
           </div>
         </div>
 
-        <div className="divide-y divide-[#E2E8E4]">
-          {completedWeeks.map((sub) => {
-            const isRevisionRequired = sub.status === 'Changes Requested' || sub.status === 'Rejected';
-            const isApproved = sub.status === 'Approved';
-            const isSubmitted = sub.status === 'Submitted';
+        {completedWeeks.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 text-xs">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-300 mb-3 select-none">
+              <Clock size={12} className="text-slate-500" />
+              <span>No Submission</span>
+            </span>
+            <p className="font-bold text-slate-700 text-sm mb-1">No Milestone Submission for Week {currentAcademicWeek} Yet</p>
+            <p className="text-slate-400">Deliverables for Week {currentAcademicWeek} will appear here once submitted from the Submission Form.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[#E2E8E4]">
+            {completedWeeks.map((sub) => {
+              const isApproved = sub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved';
+              const isRevisionRequired = !isApproved && (sub.status === 'Changes Requested' || sub.status === 'Rejected');
+              const isPending = !isApproved && !isRevisionRequired;
 
-            return (
-              <div
-                key={sub.week}
-                onClick={() => handleOpenDetail(sub)}
-                className="p-5 sm:p-6 hover:bg-mint-50/40 transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 group"
-              >
-                <div className="flex items-start gap-4">
-                  
-                  {/* Week Badge */}
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs transition group-hover:scale-105 ${
-                    isApproved ? 'bg-mint-500 text-white' :
-                    isRevisionRequired ? 'bg-rose-500 text-white' :
-                    'bg-amber-500 text-white'
-                  }`}>
-                    W{sub.week}
+              return (
+                <div
+                  key={sub.week}
+                  onClick={() => handleOpenDetail(sub)}
+                  className="p-5 sm:p-6 hover:bg-mint-50/40 transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+                >
+                  <div className="flex items-start gap-4">
+                    
+                    {/* Week Badge */}
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs transition group-hover:scale-105 ${
+                      isApproved ? 'bg-mint-500 text-white' :
+                      isRevisionRequired ? 'bg-rose-500 text-white' :
+                      'bg-amber-500 text-white'
+                    }`}>
+                      W{sub.week}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Display week number */}
+                        <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-mint-700 transition">
+                          Week {sub.week}
+                        </h4>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${
+                          isApproved ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                          isRevisionRequired ? 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse' :
+                          'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            isApproved ? 'bg-emerald-500' :
+                            isRevisionRequired ? 'bg-rose-500' :
+                            'bg-amber-500'
+                          }`}></span>
+                          <span>{isApproved ? 'Approved' : isRevisionRequired ? sub.status : 'Pending'}</span>
+                        </span>
+                      </div>
+
+                      {/* Submitted project title if available */}
+                      {sub.projectTitle && (
+                        <p className="text-xs font-bold text-slate-800">
+                          {sub.projectTitle}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
+                        <span>Submitted: <strong className="text-slate-700 font-bold">{sub.submissionDate || "N/A"}</strong></span>
+                        {sub.score !== undefined && (
+                          <>
+                            <span>&bull;</span>
+                            <span className="text-mint-700 font-extrabold">Score: {sub.score} / {sub.maxScore || 100}</span>
+                          </>
+                        )}
+                        {sub.fileName && (
+                          <>
+                            <span>&bull;</span>
+                            <span className="font-mono text-slate-600 font-bold">{sub.fileName}</span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Technical metadata pills preview */}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {sub.technologyUsed ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#EFF3F1] border border-[#E2E8E4] text-slate-700 font-semibold text-[10px]">
+                            <span className="font-bold text-slate-500">Technologies:</span> <span className="font-mono">{sub.technologyUsed.split(',').slice(0, 3).join(', ')}{sub.technologyUsed.split(',').length > 3 ? '...' : ''}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-semibold">
+                            <span>No Tech Specified</span>
+                          </span>
+                        )}
+                        {sub.obstaclesFaced ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#EFF3F1] border border-[#E2E8E4] text-slate-700 text-[10px] font-semibold line-clamp-1 max-w-sm sm:max-w-md">
+                            <span className="font-bold text-slate-600 shrink-0">Obstacles:</span> <span className="truncate">{sub.obstaclesFaced}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-semibold">
+                            <span>Obstacles: Not Submitted</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Brief Preview of Guide Comment */}
+                      {sub.comments && (
+                        <p className="text-[11px] text-slate-600 line-clamp-1 italic mt-1">
+                          &ldquo;{sub.comments}&rdquo;
+                        </p>
+                      )}
+
+                      {/* Guide Consultation Notice (Updated directly in weekly submission) */}
+                      {sub.guideNotice && (
+                        <div className="mt-3 p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5 shadow-xs">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wider text-amber-900">
+                              <Bell size={13} className="text-amber-600" />
+                              <span>Guide Consultation Notice</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-amber-700">{sub.guideNotice.date}</span>
+                          </div>
+                          <p className="text-xs text-slate-800 font-medium whitespace-pre-wrap leading-relaxed">
+                            {sub.guideNotice.comment}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-3 text-xs font-bold pt-1.5 border-t border-amber-200/80 text-amber-900">
+                            <div className="flex items-center gap-1 bg-amber-100/90 px-2.5 py-1 rounded-lg">
+                              <Clock size={12} className="text-amber-700" />
+                              <span>Timing: {sub.guideNotice.timing}</span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-amber-100/90 px-2.5 py-1 rounded-lg">
+                              <MapPin size={12} className="text-amber-700" />
+                              <span>Location: {sub.guideNotice.location}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-mint-800 transition">
-                        {sub.title}
-                      </h4>
-                      
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
-                        isApproved ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                        isRevisionRequired ? 'bg-rose-50 text-rose-800 border-rose-200' :
-                        'bg-amber-50 text-amber-800 border-amber-200'
-                      }`}>
-                        {sub.status === 'Changes Requested' ? 'Needs Revision' : sub.status}
+                  <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
+                    {/* Always show Delete button */}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete the submission for Week ${sub.week}?`)) {
+                            StudentService.deleteSubmission(sub.week);
+                            setSubmissions(StudentService.getSubmissions());
+                            if (onSuccess) onSuccess(`Week ${sub.week} submission deleted.`);
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                        title="Delete this submission"
+                      >
+                        <Trash2 size={13} />
+                        <span>Delete</span>
+                      </button>
+
+                    {isRevisionRequired ? (
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenResubmit(sub, e)}
+                        className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <RefreshCw size={13} />
+                        <span>Update Milestone</span>
+                      </button>
+                    ) : isApproved ? (
+                      <span className="px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-black flex items-center gap-1.5 shadow-xs select-none">
+                        <Check size={13} className="text-emerald-700" />
+                        <span>Approved</span>
                       </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3 text-slate-500 font-medium text-xs">
-                      <span className="flex items-center gap-1">
-                        <Calendar size={13} className="text-slate-400" />
-                        <span>Submitted on {sub.submissionDate || 'N/A'}</span>
-                      </span>
-
-                      {sub.fileName ? (
-                        <>
-                          <span>&bull;</span>
-                          <span className="text-slate-700 font-bold flex items-center gap-1 font-mono">
-                            <FileText size={13} className="text-mint-700" />
-                            <span>{sub.fileName}</span>
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span>&bull;</span>
-                          <span className="text-rose-600 font-bold flex items-center gap-1">
-                            <XCircle size={13} />
-                            <span>No Presentation</span>
-                          </span>
-                        </>
-                      )}
-
-                      {sub.pdfFile ? (
-                        <>
-                          <span>&bull;</span>
-                          <span className="text-slate-700 font-bold flex items-center gap-1 font-mono">
-                            <FileCode size={13} className="text-mint-700" />
-                            <span>PDF Dossier</span>
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span>&bull;</span>
-                          <span className="text-rose-600 font-bold flex items-center gap-1">
-                            <XCircle size={13} />
-                            <span>No PDF Dossier</span>
-                          </span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Technologies Used & Obstacles Faced info */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
-                      {sub.technologyUsed ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#EFF3F1] border border-[#E2E8E4] text-slate-700 font-semibold text-[10px]">
-                          <span className="font-bold text-slate-500">Technologies:</span> <span className="font-mono">{sub.technologyUsed.split(',').slice(0, 3).join(', ')}{sub.technologyUsed.split(',').length > 3 ? '...' : ''}</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-semibold">
-                          <span>No Tech Specified</span>
-                        </span>
-                      )}
-                      {sub.obstaclesFaced ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#EFF3F1] border border-[#E2E8E4] text-slate-700 text-[10px] font-semibold line-clamp-1 max-w-sm sm:max-w-md">
-                          <span className="font-bold text-slate-600 shrink-0">Obstacles:</span> <span className="truncate">{sub.obstaclesFaced}</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-semibold">
-                          <span>Obstacles: Not Submitted</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Brief Preview of Guide Comment */}
-                    {sub.comments && (
-                      <p className="text-[11px] text-slate-600 line-clamp-1 italic mt-1">
-                        &ldquo;{sub.comments}&rdquo;
-                      </p>
+                    ) : (
+                      <div className="px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-800 font-black text-xs inline-flex items-center justify-center shadow-xs select-none cursor-default shrink-0 gap-1.5">
+                        <Clock size={12} className="text-amber-600" />
+                        <span>Pending</span>
+                      </div>
                     )}
                   </div>
-                </div>
 
-                <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
-                  {isRevisionRequired ? (
-                    <button
-                      type="button"
-                      onClick={(e) => handleOpenResubmit(sub, e)}
-                      className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-                    >
-                      <RefreshCw size={13} />
-                      <span>Resubmit</span>
-                    </button>
-                  ) : isSubmitted ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 cursor-not-allowed opacity-90"
-                    >
-                      <Check size={13} className="text-emerald-600" />
-                      <span>Submitted</span>
-                    </button>
-                  ) : isApproved ? (
-                    <span className="px-3 py-1.5 rounded-xl bg-mint-50 text-mint-800 border border-mint-200 text-xs font-bold flex items-center gap-1.5">
-                      <Check size={13} className="text-mint-700" />
-                      <span>Approved</span>
-                    </span>
-                  ) : null}
                 </div>
-
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Comprehensive Week Submission & Guide Review Detail Modal */}
-      {detailModalOpen && activeWeekSub && (
+      {detailModalOpen && activeWeekSub && (() => {
+        const isModalApproved = activeWeekSub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved';
+        const isModalRevision = !isModalApproved && (activeWeekSub.status === 'Changes Requested' || activeWeekSub.status === 'Rejected');
+
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl border border-[#E2E8E4] overflow-hidden flex flex-col">
             
@@ -307,25 +362,25 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
             <div className="p-6 border-b border-[#E2E8E4] flex items-center justify-between bg-slate-50/70 shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm text-white shadow-xs ${
-                  activeWeekSub.status === 'Approved' ? 'bg-mint-500' :
-                  activeWeekSub.status === 'Changes Requested' ? 'bg-rose-500' :
+                  isModalApproved ? 'bg-mint-500' :
+                  isModalRevision ? 'bg-rose-500' :
                   'bg-amber-500'
                 }`}>
                   W{activeWeekSub.week}
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900 leading-snug">
-                    Week {activeWeekSub.week}: {activeWeekSub.title}
+                    Week {activeWeekSub.week}
                   </h3>
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
                     <span>Submitted on {activeWeekSub.submissionDate || 'N/A'}</span>
                     <span>&bull;</span>
                     <span className={`font-bold ${
-                      activeWeekSub.status === 'Approved' ? 'text-emerald-700' :
-                      activeWeekSub.status === 'Changes Requested' ? 'text-rose-700' :
+                      isModalApproved ? 'text-emerald-700' :
+                      isModalRevision ? 'text-rose-700' :
                       'text-amber-700'
                     }`}>
-                      {activeWeekSub.status}
+                      {isModalApproved ? 'Approved' : isModalRevision ? activeWeekSub.status : 'Pending'}
                     </span>
                   </div>
                 </div>
@@ -343,6 +398,41 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
             {/* Modal Scrollable Body */}
             <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700 flex-1">
               
+              {/* Guide Consultation Notice in Modal */}
+              {activeWeekSub.guideNotice && (
+                <div className="bg-amber-50/90 rounded-2xl p-5 border border-amber-300 space-y-3">
+                  <div className="flex items-center justify-between border-b border-amber-200/80 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold">
+                        <Bell size={16} />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-amber-950 block text-xs">
+                          Consultation Notice from {activeWeekSub.guideName || 'Dr. P. Manimegalai'}
+                        </span>
+                        <span className="text-[10px] text-amber-700 font-bold">Dispatched on {activeWeekSub.guideNotice.date}</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-300">
+                      Action Required
+                    </span>
+                  </div>
+                  <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-amber-200">
+                    {activeWeekSub.guideNotice.comment}
+                  </p>
+                  <div className="flex flex-wrap gap-3 pt-1 text-xs font-bold text-amber-900">
+                    <div className="flex items-center gap-1.5 bg-amber-100/80 px-3 py-1.5 rounded-xl">
+                      <Clock size={13} className="text-amber-700" />
+                      <span>Timing: {activeWeekSub.guideNotice.timing}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-amber-100/80 px-3 py-1.5 rounded-xl">
+                      <MapPin size={13} className="text-amber-700" />
+                      <span>Location: {activeWeekSub.guideNotice.location}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Part 1: Review Given by Guide (NO MARKS SHOWN) */}
               <div className="bg-[#EFF3F1]/80 rounded-2xl p-5 border border-mint-200/80 space-y-3">
                 <div className="flex items-center justify-between border-b border-mint-200/60 pb-3">
@@ -359,11 +449,11 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   </div>
 
                   <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border ${
-                    activeWeekSub.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                    activeWeekSub.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800 border-rose-300' :
+                    isModalApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                    isModalRevision ? 'bg-rose-100 text-rose-800 border-rose-300' :
                     'bg-amber-100 text-amber-800 border-amber-300'
                   }`}>
-                    {activeWeekSub.status}
+                    {isModalApproved ? 'Approved' : isModalRevision ? activeWeekSub.status : 'Pending'}
                   </span>
                 </div>
 
@@ -372,7 +462,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Guide Evaluation Critique &amp; Remarks:
                   </span>
                   <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#E2E8E4]">
-                    {activeWeekSub.comments || 'Submission is under active evaluation by the project guide.'}
+                    {activeWeekSub.comments || (isModalApproved ? 'Project milestone endorsed and approved by faculty guide.' : 'Submission is under active evaluation by the project guide.')}
                   </p>
                 </div>
 
@@ -714,7 +804,23 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-[#E2E8E4] flex justify-end bg-slate-50 shrink-0">
+            <div className="p-4 border-t border-[#E2E8E4] flex items-center justify-between bg-slate-50 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Delete the submission for Week ${activeWeekSub.week}? This will unsubmit and reset all deliverables for this week.`)) {
+                    StudentService.deleteSubmission(activeWeekSub.week);
+                    setSubmissions(StudentService.getSubmissions());
+                    setDetailModalOpen(false);
+                    if (onSuccess) onSuccess(`Week ${activeWeekSub.week} submission deleted.`);
+                  }
+                }}
+                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 size={13} />
+                <span>Delete Submission</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setDetailModalOpen(false)}
@@ -726,7 +832,8 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Resubmit Modal for Weeks Requiring Revision */}
       {resubmitModalOpen && activeWeekSub && (

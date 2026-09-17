@@ -40,8 +40,8 @@ export const GuideLayout = () => {
 
   const navItems = [
     {
-      to: '/guide/approve-project',
-      label: 'Approve Project',
+      to: '/guide/approve-submissions',
+      label: 'Approve Submissions',
       icon: CheckSquare,
       badge: stats.pendingTitleApprovalsCount > 0 ? `${stats.pendingTitleApprovalsCount} Pending` : null,
       badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300'
@@ -155,7 +155,12 @@ export const GuideLayout = () => {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.to || 
-                (item.to === '/guide/approve-project' && location.pathname === '/guide');
+                (item.to === '/guide/approve-submissions' && (
+                  location.pathname === '/guide' || 
+                  location.pathname === '/guide/' || 
+                  location.pathname === '/guide/approve-project' ||
+                  location.pathname === '/guide/approve-submissions'
+                ));
 
               return (
                 <NavLink

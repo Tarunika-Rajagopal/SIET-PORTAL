@@ -38,6 +38,16 @@ async def create_or_update_student_submission(
     service = SubmissionService(db)
     return await service.create_or_update_submission(week_number, data, student_user)
 
+@router.delete("/api/v1/student/submissions/{week_number}")
+async def delete_student_submission(
+    week_number: int,
+    student_user: User = Depends(require_role("student")),
+    db: AsyncSession = Depends(get_db_session)
+):
+    service = SubmissionService(db)
+    await service.delete_submission(week_number, student_user)
+    return {"success": True, "message": f"Week {week_number} submission deleted successfully"}
+
 @router.post("/api/v1/submissions/{submission_id}/files", response_model=SubmissionFileResponse, status_code=201)
 async def upload_submission_file(
     submission_id: UUID,

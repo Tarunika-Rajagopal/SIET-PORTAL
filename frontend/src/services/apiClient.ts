@@ -1,0 +1,153 @@
+const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+function getToken(): string | null {
+  try {
+    const raw = localStorage.getItem('siet_auth_token') || sessionStorage.getItem('siet_auth_token');
+    if (raw) return raw;
+    const userRaw = localStorage.getItem('siet_auth_user') || sessionStorage.getItem('siet_auth_user');
+    if (userRaw) {
+      const parsed = JSON.parse(userRaw);
+      return parsed.token || null;
+    }
+  } catch (e) {}
+  return null;
+}
+
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    let errorDetail = 'API request failed';
+    try {
+      const errJson = await response.json();
+      errorDetail = errJson.detail || JSON.stringify(errJson);
+    } catch (e) {
+      errorDetail = `${response.status} ${response.statusText}`;
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+export const ApiClient = {
+  // Auth
+  async login(emailOrRoll: string, password: string) {
+    const data = await request<{ success: boolean; token: string; user: any }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ emailOrRoll, password }),
+    });
+    if (data.token) {
+      localStorage.setItem('siet_auth_token', data.token);
+    }
+    return data;
+  },
+
+  // Student Endpoints
+  async getStudentTeam() {
+    return request<any>('/student/team');
+  },
+
+  async getStudentSubmissions() {
+    return request<any[]>('/student/submissions');
+  },
+
+  async getStudentSubmissionByWeek(weekNumber: number) {
+    return request<any>(`/student/submissions/${weekNumber}`);
+  },
+
+  async submitStudentDeliverables(weekNumber: number, deliverables: {
+    problemStatement?: string;
+    solution?: string;
+    technologyUsed?: string;
+    obstaclesFaced?: string;
+    abstract?: string;
+    repoUrl?: string;
+    demoUrl?: string;
+    isSubmit?: boolean;
+  }) {
+    return request<any>(`/student/submissions/${weekNumber}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        problemStatement: deliverables.problemStatement,
+        solution: deliverables.solution,
+        technologyUsed: deliverables.technologyUsed,
+        obstaclesFaced: deliverables.obstaclesFaced,
+        abstract: deliverables.abstract,
+        repoUrl: deliverables.repoUrl,
+        demoUrl: deliverables.demoUrl,
+        isSubmit: deliverables.isSubmit ?? true
+      }),
+    });
+  },
+
+  async updateProjectTitle(teamId: string, title: string) {
+    return request<any>(`/projects/team/${teamId}/title`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    });
+  },
+
+  async deleteStudentSubmission(weekNumber: number) {
+    return request<any>(`/student/submissions/${weekNumber}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Guide Endpoints
+  async getGuideTeams() {
+    return request<any[]>('/guide/teams');
+  },
+
+  async getGuideDashboard() {
+    return request<any>('/guide/dashboard');
+  },
+
+  async getGuidePendingSubmissions() {
+    return request<any[]>('/guide/submissions/weekly');
+  },
+
+  async reviewWeeklySubmission(submissionId: string, status: 'APPROVED' | 'REVISION_REQUESTED', comments?: string, score?: number) {
+    return request<any>(`/guide/submissions/${submissionId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({
+        status,
+        comments,
+        score
+      }),
+    });
+  },
+
+  async approveProjectTitle(projectId: string, title?: string, remarks?: string) {
+    return request<any>(`/projects/${projectId}/title-approval`, {
+      method: 'POST',
+      body: JSON.stringify({
+        decision: 'APPROVED',
+        remarks: remarks || 'Title scope approved.'
+      }),
+    });
+  },
+
+  async rejectProjectTitle(projectId: string, reason: string) {
+    return request<any>(`/projects/${projectId}/title-approval`, {
+      method: 'POST',
+      body: JSON.stringify({
+        decision: 'REJECTED',
+        remarks: reason
+      }),
+    });
+  }
+};

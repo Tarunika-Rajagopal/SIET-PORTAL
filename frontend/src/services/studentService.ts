@@ -1,4 +1,59 @@
-import { Team, WeeklySubmission, ReviewScore, ChecklistState, Announcement } from '../types';
+import { Team, WeeklySubmission, ReviewScore, ChecklistState, Announcement, GuideNotice } from '../types';
+import { ApiClient } from './apiClient';
+import { INITIAL_TEAMS } from '../data/guidePortalData';
+import { MarksService } from './marksService';
+
+// Purge any stale legacy cache from previous revisions
+try {
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (
+      key.startsWith('siet_student_submissions_v') ||
+      key.startsWith('siet_deliverable_v') ||
+      key.startsWith('siet_student_team_v') ||
+      key.startsWith('siet_guide_portal_teams_v') ||
+      key.startsWith('siet_guide_portal_activities_v')
+    )) {
+      if (!key.includes('_v6')) {
+        keysToRemove.push(key);
+      }
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+
+  // Purge any mock submissions from v6 storage
+  const guideRaw = localStorage.getItem("siet_guide_portal_teams_v6");
+  if (guideRaw) {
+    const guideTeams = JSON.parse(guideRaw);
+    if (Array.isArray(guideTeams)) {
+      let cleaned = false;
+      guideTeams.forEach((t: any) => {
+        if (t.teamId !== 'TEAM-CSE-Y3-B04' && t.teamNumber !== 4) {
+          if ((t.submissions && t.submissions.length > 0) || t.projectTitle === 'Wildfire Prediction Mesh Network' || t.projectTitle === 'Automated Legal Document Summarizer' || t.projectTitle === 'Autonomous Solar Panel Cleaning Drone') {
+            t.submissions = [];
+            t.projectTitle = '';
+            t.problemStatement = '';
+            t.proposedSolution = '';
+            t.technologiesUsed = [];
+            t.githubUrl = '';
+            t.liveDemoUrl = '';
+            t.abstract = '';
+            t.titleStatus = 'Pending';
+            cleaned = true;
+          }
+        }
+      });
+      if (cleaned) {
+        localStorage.setItem("siet_guide_portal_teams_v6", JSON.stringify(guideTeams));
+      }
+    }
+  }
+} catch (e) {}
+
+const TEAM_STORAGE_KEY = "siet_student_team_v6";
+const SUBMISSIONS_STORAGE_KEY = "siet_student_submissions_v6";
+const GUIDE_TEAMS_STORAGE_KEY = "siet_guide_portal_teams_v6";
 
 export interface StudentDeliverableState {
   week: string;
@@ -10,6 +65,7 @@ export interface StudentDeliverableState {
   obstaclesFaced?: string;
   abstract?: string;
   presentationFile?: string;
+  reportFile?: string;
   repoUrl?: string;
   demoUrl?: string;
   screenshotFile?: string;
@@ -21,6 +77,7 @@ export interface StudentDeliverableState {
     obstaclesFaced: boolean;
     abstract: boolean;
     presentation: boolean;
+    report: boolean;
     repoUrl: boolean;
     demoUrl: boolean;
     screenshot: boolean;
@@ -30,229 +87,94 @@ export interface StudentDeliverableState {
 export interface StudentTeamExtended extends Team {
   submittedTitle?: string;
   isTitleApproved: boolean;
-  guideApprovalStatus: 'Approved' | 'Pending Review' | 'Revision Required';
+  guideApprovalStatus: 'Approved' | 'Pending Review' | 'Pending' | 'Revision Required' | 'Rejected';
+  rejectionReason?: string;
 }
 
 export const DEFAULT_STUDENT_TEAM: StudentTeamExtended = {
   id: "TEAM-CSE-Y3-B04",
   teamNo: "Team 04",
-  projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-  submittedTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-  isTitleApproved: true,
-  guideApprovalStatus: "Approved",
+  projectTitle: "",
+  submittedTitle: "",
+  isTitleApproved: false,
+  guideApprovalStatus: "Pending Review",
   guideName: "Dr. P. Manimegalai",
   advisorName: "Dr. R. Karthikeyan",
   batch: "2023-2027 (III Year)",
   section: "CSE-B",
-  status: "Approved",
-  progress: 68,
+  status: "In Progress",
+  progress: 0,
   members: [
-    { rollNo: "714023104112", name: "Tarunika Rajgopal", email: "tarunika.r@srishakthi.ac.in", role: "Team Lead" },
+    { rollNo: "714023104112", name: "Tarunika Rajgopal", email: "student@srishakthi.ac.in", role: "Team Lead" },
     { rollNo: "714023104178", name: "Vigneshwaran M", email: "vigneshwaran.m@srishakthi.ac.in", role: "Team Member" },
     { rollNo: "714023104189", name: "Vishnu Priya S", email: "vishnupriya.s@srishakthi.ac.in", role: "Team Member" },
     { rollNo: "714023104066", name: "Kavitha R", email: "kavitha.r@srishakthi.ac.in", role: "Team Member" }
   ]
 };
 
-export const DEFAULT_COMPLETED_WEEKS: WeeklySubmission[] = [
-  {
-    week: 1,
-    title: "Project Proposal, Title & Problem Formulation",
-    dueDate: "Week 1",
-    status: "Approved",
-    submissionDate: "14 Aug 2026",
-    fileName: "Week1_Project_Proposal.pptx",
-    fileSize: "4.2 MB",
-    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-    problemStatement: "Early-stage fungal crop diseases inflict substantial agricultural output losses before visible foliage symptoms appear. Traditional manual scouting is labor-intensive and lacks spatial precision.",
-    solution: "An autonomous multi-rotor UAV outfitted with high-resolution edge vision hardware and YOLOv8 segmentation for real-time foliage disease mapping.",
-    technologyUsed: "Python 3.10, PyTorch, YOLOv8 Nano, ROS2 Humble, NVIDIA Jetson Orin Nano",
-    obstaclesFaced: "Difficulty in acquiring raw multi-spectral training data with annotated plant pathogen masks; hardware delivery lead time for Jetson carrier board.",
-    abstract: "This project engineering endeavor formulates a lightweight computer vision pipeline hosted directly onboard unmanned aerial vehicles.",
-    presentationFile: "Week1_Project_Proposal.pptx",
-    pdfFile: "Week1_Proposal_Dossier.pdf",
-    repoUrl: "https://github.com/tarunika-r/crop-disease-drone",
-    demoUrl: "https://crop-drone-demo.siet.ac.in",
-    screenshotFile: "/logo.jpg",
-    guideName: "Dr. P. Manimegalai",
-    guideReviewDate: "15 Aug 2026",
-    comments: "Title and problem statement thoroughly vetted and approved. Technical viability is sound. Proceed with dataset acquisition.",
-    score: 95,
-    maxScore: 100
-  },
-  {
-    week: 2,
-    title: "Dataset Acquisition & Preprocessing Pipeline",
-    dueDate: "Week 2",
-    status: "Approved",
-    submissionDate: "21 Aug 2026",
-    fileName: "Week2_Dataset_Pipeline.pptx",
-    fileSize: "8.6 MB",
-    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-    problemStatement: "Field imagery exhibits high variance in illumination, shadow occlusions, and wind motion blur, requiring specialized preprocessing.",
-    solution: "Collected 4,500 multispectral drone foliage images. Built CLAHE contrast normalization, affine rotations, and color jitter pipeline.",
-    technologyUsed: "OpenCV, Albumentations, Roboflow, Python, NumPy",
-    obstaclesFaced: "Severe illumination variability across drone passes during peak sunlight hours; high class imbalance between healthy foliage and early-stage fungal blight patches.",
-    abstract: "Data pipeline delivering 4,500 annotated foliage patches with 5-class disease labeling and stratified validation splits.",
-    presentationFile: "Week2_Dataset_Pipeline.pptx",
-    pdfFile: "Week2_Dataset_Report.pdf",
-    repoUrl: "https://github.com/tarunika-r/crop-disease-drone/tree/main/dataset",
-    demoUrl: "https://crop-drone-demo.siet.ac.in/dataset",
-    screenshotFile: "/logo.jpg",
-    guideName: "Dr. P. Manimegalai",
-    guideReviewDate: "22 Aug 2026",
-    comments: "High quality data augmentation and normalization pipeline. Dataset balance between classes is well maintained.",
-    score: 90,
-    maxScore: 100
-  },
-  {
-    week: 3,
-    title: "Model Architecture & Benchmark Exploration",
-    dueDate: "Week 3",
-    status: "Approved",
-    submissionDate: "28 Aug 2026",
-    fileName: "Week3_Model_Benchmark.pptx",
-    fileSize: "6.1 MB",
-    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-    problemStatement: "Standard semantic segmentation models exceed the edge compute budget of lightweight UAV flight controllers.",
-    solution: "Benchmarked YOLOv8n-seg against MobileNetV3-UNet. YOLOv8 nano achieved 89.4% mAP50 at 42 FPS on edge GPU.",
-    technologyUsed: "Ultralytics YOLOv8, PyTorch CUDA, TensorRT 8.6",
-    obstaclesFaced: "Standard YOLOv8 segmentation inference exceeded edge compute thermal limitations on battery power; memory bandwidth latency during real-time frame transfers.",
-    abstract: "Comparative algorithmic benchmark identifying YOLOv8n-seg as the optimal model balancing mAP accuracy and flight telemetry constraints.",
-    presentationFile: "Week3_Model_Benchmark.pptx",
-    pdfFile: "Week3_Model_Architecture.pdf",
-    repoUrl: "https://github.com/tarunika-r/crop-disease-drone/tree/main/models",
-    demoUrl: "https://crop-drone-demo.siet.ac.in/benchmarks",
-    screenshotFile: "/logo.jpg",
-    guideName: "Dr. P. Manimegalai",
-    guideReviewDate: "29 Aug 2026",
-    comments: "YOLOv8 nano models show promising mAP scores. Inference speed meets real-time flight thresholds.",
-    score: 92,
-    maxScore: 100
-  },
-  {
-    week: 4,
-    title: "Zeroth Review Presentation & Panel Evaluation",
-    dueDate: "Week 4",
-    status: "Approved",
-    submissionDate: "04 Sep 2026",
-    fileName: "Zeroth_Review_Defense.pptx",
-    fileSize: "12.4 MB",
-    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-    problemStatement: "Formal defense of project scope, hardware BOM, literature gap, and implementation feasibility before the departmental panel.",
-    solution: "Delivered 20-slide technical presentation covering architectural blueprint, Jetson integration roadmap, and expected KPIs.",
-    technologyUsed: "PowerPoint, LaTeX Documentation, Hardware Schematics",
-    obstaclesFaced: "Harmonizing divergent feedback from external department evaluators regarding power consumption envelopes and fail-safe return-to-home algorithms.",
-    abstract: "Comprehensive departmental Zeroth Review defense document validating novelty, milestones, and guide-mentored deliverable trajectory.",
-    presentationFile: "Zeroth_Review_Defense.pptx",
-    pdfFile: "Zeroth_Review_Executive_Summary.pdf",
-    repoUrl: "https://github.com/tarunika-r/crop-disease-drone",
-    demoUrl: "https://crop-drone-demo.siet.ac.in",
-    screenshotFile: "/logo.jpg",
-    guideName: "Dr. P. Manimegalai",
-    guideReviewDate: "05 Sep 2026",
-    comments: "Review 0 successfully completed. Panel commended team coordination and clarity of mathematical formulation. Approved for subsequent milestone implementation.",
-    score: 92,
-    maxScore: 100
-  },
-  {
-    week: 5,
-    title: "Edge Hardware Deployment on Jetson Platform",
-    dueDate: "Week 5",
-    status: "Changes Requested",
-    submissionDate: "07 Sep 2026",
-    fileName: "Jetson_Telemetry_Logs.pptx",
-    fileSize: "14.8 MB",
-    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-    problemStatement: "Quantization of weights to FP16 and TensorRT engine serialization under 15W power cap on NVIDIA Jetson Orin Nano.",
-    solution: "Compiled TensorRT engine with FP16 precision. Connected CSI camera over GStreamer pipeline with zero-copy shared memory.",
-    technologyUsed: "NVIDIA JetPack 5.1, TensorRT, GStreamer, C++20, ROS2 Humble",
-    obstaclesFaced: "Thermal throttling encountered during sustained 10-minute inference on Jetson Orin Nano under full 15W power mode; frame drops on CSI GStreamer pipeline.",
-    abstract: "Hardware telemetry analysis measuring inference wattage, frame latency, and temperature throttling under sustained flight simulation.",
-    presentationFile: "Jetson_Telemetry_Logs.pptx",
-    pdfFile: "Jetson_Thermal_Telemetry.pdf",
-    repoUrl: "https://github.com/tarunika-r/crop-disease-drone/tree/main/jetson",
-    demoUrl: "https://crop-drone-demo.siet.ac.in/telemetry",
-    screenshotFile: "/logo.jpg",
-    guideName: "Dr. P. Manimegalai",
-    guideReviewDate: "08 Sep 2026",
-    comments: "Thermal throttling observed during 10-minute continuous inference. Re-test with active cooling fan and update power envelope benchmarks before Review 1.",
-    score: 72,
-    maxScore: 100
-  },
-  {
-    week: 6,
-    title: "Field Prototype & Real-Time Dashboard Integration",
-    dueDate: "Week 6",
-    status: "Submitted",
-    submissionDate: "10 Sep 2026",
-    fileName: "Week6_Field_Report.pptx",
-    fileSize: "9.3 MB",
-    projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-    problemStatement: "Telemetry data streaming from drone to ground web station over WebSocket protocol with geo-tagged disease heatmaps.",
-    solution: "React frontend dashboard displaying live video stream with overlay segmentation masks, GPS coordinates, and disease severity index.",
-    technologyUsed: "React, WebSockets, Leaflet Maps, Fastify, Jetson Telemetry Server",
-    obstaclesFaced: "Packet latency during WebSocket video streaming over 5GHz Wi-Fi bridge in outdoor open-field trials; GPS coordinate drift under dense foliage.",
-    presentationFile: "Week6_Field_Report.pptx",
-    guideName: "Dr. P. Manimegalai",
-    guideReviewDate: "Pending Review",
-    comments: "Currently under review by Project Guide Dr. P. Manimegalai. Preliminary prototype inspected at robotics lab."
-  }
-];
+export const DEFAULT_COMPLETED_WEEKS: WeeklySubmission[] = [];
 
 export const StudentService = {
   getCurrentAcademicWeek(): number {
-    // Academic semester began Sunday, August 2, 2026.
-    // Each Sunday rolls over to the next academic week automatically.
-    const semesterStart = new Date(2026, 7, 2); // August is month 7 (0-indexed)
+    // Academic semester Week 0 began Sunday, September 13, 2026.
+    // Each Sunday rolls over to the next academic week automatically (Week 0, Week 1, Week 2, ...).
+    const semesterStart = new Date(2026, 8, 13); // September 13, 2026 (Month 8 is September in JS 0-indexed)
     const now = new Date();
     const diffTime = now.getTime() - semesterStart.getTime();
-    if (diffTime < 0) return 1;
+    if (diffTime < 0) return 0;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const weekNumber = Math.floor(diffDays / 7) + 1;
-    return Math.max(1, Math.min(16, weekNumber));
+    const weekNumber = Math.floor(diffDays / 7);
+    return Math.max(0, Math.min(16, weekNumber));
   },
+
   getTeam(): StudentTeamExtended {
     try {
-      const stored = localStorage.getItem("siet_student_team");
+      const stored = localStorage.getItem(TEAM_STORAGE_KEY);
       if (stored) return JSON.parse(stored);
     } catch (e) {}
-    localStorage.setItem("siet_student_team", JSON.stringify(DEFAULT_STUDENT_TEAM));
+    localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(DEFAULT_STUDENT_TEAM));
     return DEFAULT_STUDENT_TEAM;
   },
 
   saveTeam(team: StudentTeamExtended): void {
-    localStorage.setItem("siet_student_team", JSON.stringify(team));
+    localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(team));
+    window.dispatchEvent(new Event('siet_data_updated'));
   },
 
   getSubmissions(): WeeklySubmission[] {
     try {
-      const stored = localStorage.getItem("siet_student_submissions_v2");
+      const stored = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
       if (stored) {
-        const parsed: WeeklySubmission[] = JSON.parse(stored);
-        parsed.forEach(p => {
-          if (!p.obstaclesFaced) {
-            const def = DEFAULT_COMPLETED_WEEKS.find(w => w.week === p.week);
-            if (def?.obstaclesFaced) p.obstaclesFaced = def.obstaclesFaced;
-          }
-          if (!p.technologyUsed) {
-            const def = DEFAULT_COMPLETED_WEEKS.find(w => w.week === p.week);
-            if (def?.technologyUsed) p.technologyUsed = def.technologyUsed;
-          }
-        });
-        return parsed;
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Filter out legacy mock submissions so only real student submissions remain
+          const team = this.getTeam();
+          const isGuideApproved = Boolean(team?.isTitleApproved || team?.guideApprovalStatus === 'Approved');
+          return parsed.filter((sub: any) => {
+            if (!sub || typeof sub !== 'object') return false;
+            if (sub.presentationFile === 'mock_ppt_w0' || sub.presentationFile === 'Week0_Topic_Feasibility_Tarunika.pptx') return false;
+            if (sub.title === 'Topic Finalization & Feasibility Defense') return false;
+            return true;
+          }).map((sub: any) => {
+            if (isGuideApproved && (sub.status === 'Submitted' || sub.status === 'Pending' || !sub.status)) {
+              return { ...sub, status: 'Approved' as const };
+            }
+            return sub;
+          });
+        }
       }
     } catch (e) {}
-    localStorage.setItem("siet_student_submissions_v2", JSON.stringify(DEFAULT_COMPLETED_WEEKS));
+    localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(DEFAULT_COMPLETED_WEEKS));
     return DEFAULT_COMPLETED_WEEKS;
   },
 
   saveSubmissions(submissions: WeeklySubmission[]): void {
-    localStorage.setItem("siet_student_submissions_v2", JSON.stringify(submissions));
+    localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(submissions));
+    window.dispatchEvent(new Event('siet_data_updated'));
   },
 
   getDeliverables(weekText: string): StudentDeliverableState {
-    const key = `siet_deliverable_${weekText.replace(/\s+/g, '_').toLowerCase()}`;
+    const key = `siet_deliverable_v6_${weekText.replace(/\s+/g, '_').toLowerCase()}`;
     try {
       const stored = localStorage.getItem(key);
       if (stored) return JSON.parse(stored);
@@ -260,28 +182,30 @@ export const StudentService = {
 
     const defaultState: StudentDeliverableState = {
       week: weekText,
-      projectTitle: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
-      isTitleApproved: true,
-      problemStatement: "Early-stage fungal crop diseases inflict substantial agricultural output losses before visible foliage symptoms appear. Traditional manual scouting is labor-intensive and lacks spatial precision.",
-      solution: "An autonomous multi-rotor UAV outfitted with high-resolution edge vision hardware and YOLOv8 segmentation for real-time foliage disease mapping.",
-      technologyUsed: "Python 3.10, PyTorch, YOLOv8 Nano, ROS2 Humble, NVIDIA Jetson Orin Nano",
-      obstaclesFaced: "Packet latency during WebSocket video streaming over 5GHz Wi-Fi bridge in outdoor open-field trials; GPS coordinate drift under dense foliage.",
-      abstract: "This project engineering endeavor formulates a lightweight computer vision pipeline hosted directly onboard unmanned aerial vehicles.",
-      presentationFile: "Milestone_Presentation.pptx",
-      repoUrl: "https://github.com/tarunika-r/crop-disease-drone",
-      demoUrl: "https://crop-drone-demo.siet.ac.in",
-      screenshotFile: "dashboard_output.png",
+      projectTitle: "",
+      isTitleApproved: false,
+      problemStatement: "",
+      solution: "",
+      technologyUsed: "",
+      obstaclesFaced: "",
+      abstract: "",
+      presentationFile: "",
+      reportFile: "",
+      repoUrl: "",
+      demoUrl: "",
+      screenshotFile: "",
       submittedFields: {
-        title: true,
-        problemStatement: true,
-        solution: true,
-        technologyUsed: true,
-        obstaclesFaced: true,
-        abstract: true,
-        presentation: true,
-        repoUrl: true,
-        demoUrl: true,
-        screenshot: true
+        title: false,
+        problemStatement: false,
+        solution: false,
+        technologyUsed: false,
+        obstaclesFaced: false,
+        abstract: false,
+        presentation: false,
+        report: false,
+        repoUrl: false,
+        demoUrl: false,
+        screenshot: false
       }
     };
     return defaultState;
@@ -292,20 +216,25 @@ export const StudentService = {
     field: keyof StudentDeliverableState['submittedFields'],
     value: string
   ): StudentDeliverableState {
-    const key = `siet_deliverable_${weekText.replace(/\s+/g, '_').toLowerCase()}`;
+    const key = `siet_deliverable_v6_${weekText.replace(/\s+/g, '_').toLowerCase()}`;
     const current = this.getDeliverables(weekText);
 
     if (field === 'title') {
       current.projectTitle = value;
-      // If Week 1 proposal, submitting title resets approval until Guide signs off
-      if (weekText.toLowerCase().includes('week 1') || weekText.toLowerCase() === '1') {
-        const team = this.getTeam();
-        team.submittedTitle = value;
-        team.isTitleApproved = false;
-        team.guideApprovalStatus = 'Pending Review';
-        this.saveTeam(team);
-        current.isTitleApproved = false;
-      }
+      const team = this.getTeam();
+      team.submittedTitle = value;
+      team.projectTitle = value;
+      team.isTitleApproved = false;
+      team.guideApprovalStatus = 'Pending Review';
+      this.saveTeam(team);
+      current.isTitleApproved = false;
+
+      // Also trigger backend title update
+      ApiClient.getStudentTeam().then(backendTeam => {
+        if (backendTeam?.id) {
+          ApiClient.updateProjectTitle(backendTeam.id, value).catch(() => {});
+        }
+      }).catch(() => {});
     } else if (field === 'problemStatement') {
       current.problemStatement = value;
     } else if (field === 'solution') {
@@ -318,6 +247,8 @@ export const StudentService = {
       current.abstract = value;
     } else if (field === 'presentation') {
       current.presentationFile = value;
+    } else if (field === 'report') {
+      current.reportFile = value;
     } else if (field === 'repoUrl') {
       current.repoUrl = value;
     } else if (field === 'demoUrl') {
@@ -329,40 +260,175 @@ export const StudentService = {
     current.submittedFields[field] = true;
     localStorage.setItem(key, JSON.stringify(current));
 
-    // Synchronize field change to current week in submissions ledger
-    try {
-      const match = weekText.match(/\d+/);
-      if (match) {
-        const weekNum = parseInt(match[0], 10);
-        const list = this.getSubmissions();
-        const item = list.find(s => s.week === weekNum);
-        if (item) {
-          if (field === 'title') item.projectTitle = value;
-          if (field === 'problemStatement') item.problemStatement = value;
-          if (field === 'solution') item.solution = value;
-          if (field === 'technologyUsed') item.technologyUsed = value;
-          if (field === 'obstaclesFaced') item.obstaclesFaced = value;
-          if (field === 'abstract') item.abstract = value;
-          if (field === 'presentation') { item.presentationFile = value; item.fileName = value; }
-          if (field === 'repoUrl') item.repoUrl = value;
-          if (field === 'demoUrl') item.demoUrl = value;
-          if (field === 'screenshot') item.screenshotFile = value;
-          this.saveSubmissions(list);
-        }
-      }
-    } catch (e) {}
+    // Extract week number (supports "Week 0", "Week 1", etc.)
+    const match = weekText.match(/\d+/);
+    const weekNum = match ? parseInt(match[0], 10) : 0;
 
-    // Auto-notify Guide, Advisor, HOD
+    // 1. Synchronize to student's submissions ledger
     try {
-      const notifs = JSON.parse(localStorage.getItem('siet_faculty_notifications') || '[]');
-      notifs.unshift({
-        id: `NOTIF-${Date.now()}`,
-        date: new Date().toLocaleDateString('en-GB'),
-        title: `Team 04 Submitted ${field.toUpperCase()} for ${weekText}`,
-        targetRoles: ['guide', 'advisor', 'hod']
-      });
-      localStorage.setItem('siet_faculty_notifications', JSON.stringify(notifs));
-    } catch (e) {}
+      const list = this.getSubmissions();
+      let item = list.find(s => s.week === weekNum);
+      if (!item) {
+        item = {
+          week: weekNum,
+          title: `Week ${weekNum} Deliverable Submission`,
+          dueDate: `Week ${weekNum}`,
+          status: 'Submitted',
+          submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          projectTitle: current.projectTitle || this.getTeam().projectTitle || '',
+          problemStatement: current.problemStatement,
+          solution: current.solution,
+          technologyUsed: current.technologyUsed,
+          obstaclesFaced: current.obstaclesFaced,
+          abstract: current.abstract,
+          presentationFile: current.presentationFile,
+          pdfFile: current.reportFile,
+          fileName: current.presentationFile || current.reportFile,
+          repoUrl: current.repoUrl,
+          demoUrl: current.demoUrl,
+          screenshotFile: current.screenshotFile,
+          guideName: this.getTeam().guideName || 'Dr. P. Manimegalai'
+        };
+        list.push(item);
+      } else {
+        item.status = 'Submitted';
+        item.submissionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        if (field === 'title') item.projectTitle = value;
+        if (field === 'problemStatement') item.problemStatement = value;
+        if (field === 'solution') item.solution = value;
+        if (field === 'technologyUsed') item.technologyUsed = value;
+        if (field === 'obstaclesFaced') item.obstaclesFaced = value;
+        if (field === 'abstract') item.abstract = value;
+        if (field === 'presentation') { item.presentationFile = value; item.fileName = value; }
+        if (field === 'report') { item.pdfFile = value; }
+        if (field === 'repoUrl') item.repoUrl = value;
+        if (field === 'demoUrl') item.demoUrl = value;
+        if (field === 'screenshot') item.screenshotFile = value;
+      }
+      this.saveSubmissions(list);
+    } catch (e) {
+      console.error('Error saving submission ledger:', e);
+    }
+
+    // 2. Synchronize directly into Guide Portal storage (siet_guide_portal_teams_v6)
+    try {
+      const rawTeams = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
+      let guideTeams = rawTeams ? JSON.parse(rawTeams) : [];
+      if (!Array.isArray(guideTeams) || guideTeams.length === 0) {
+        guideTeams = INITIAL_TEAMS;
+      }
+
+      let guideTeam = guideTeams.find((t: any) => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNumber === 4) || guideTeams[0];
+      if (guideTeam) {
+        if (current.projectTitle) {
+          guideTeam.projectTitle = current.projectTitle;
+        }
+        if (field === 'title' || guideTeam.titleStatus === 'Rejected') {
+          guideTeam.titleStatus = 'Pending';
+          guideTeam.titleLocked = false;
+          guideTeam.rejectionReason = '';
+          guideTeam.latestSubmissionStatus = `${field.toUpperCase()} Submitted – Pending Guide Review`;
+        }
+
+        try {
+          const studentTeam = this.getTeam();
+          if (studentTeam.guideApprovalStatus === 'Rejected') {
+            studentTeam.guideApprovalStatus = 'Pending';
+            studentTeam.rejectionReason = '';
+            this.saveTeam(studentTeam);
+          }
+        } catch (e) {}
+
+        if (current.problemStatement) guideTeam.problemStatement = current.problemStatement;
+        if (current.solution) guideTeam.proposedSolution = current.solution;
+        if (current.technologyUsed) guideTeam.technologiesUsed = current.technologyUsed.split(',').map((s: string) => s.trim());
+        if (current.repoUrl) guideTeam.githubUrl = current.repoUrl;
+        if (current.demoUrl) guideTeam.liveDemoUrl = current.demoUrl;
+        if (current.abstract) guideTeam.abstract = current.abstract;
+
+        if (!guideTeam.submissions) guideTeam.submissions = [];
+        let sub = guideTeam.submissions.find((s: any) => s.weekNumber === weekNum);
+        
+        const isPdf = Boolean(current.presentationFile && current.presentationFile.toLowerCase().endsWith('.pdf'));
+        const isPpt = Boolean(current.presentationFile && (current.presentationFile.toLowerCase().endsWith('.ppt') || current.presentationFile.toLowerCase().endsWith('.pptx')));
+        
+        if (!sub) {
+          sub = {
+            weekNumber: weekNum,
+            title: `Week ${weekNum}`,
+            submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            submissionStatus: 'Submitted On Time',
+            evaluationStatus: 'Pending',
+            isLocked: false,
+            guideRemarks: '',
+            abstractSummary: current.abstract || '',
+            problemStatement: current.problemStatement || '',
+            proposedSolution: current.solution || '',
+            technologiesUsed: current.technologyUsed ? current.technologyUsed.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+            githubUrl: current.repoUrl || '',
+            liveDemoUrl: current.demoUrl || '',
+            presentationFileName: current.presentationFile || '',
+            reportUrl: current.reportFile || (isPdf ? current.presentationFile : ''),
+            pdfFile: current.reportFile || (isPdf ? current.presentationFile : ''),
+            pptUrl: isPpt ? current.presentationFile : '',
+            images: current.screenshotFile ? [current.screenshotFile] : [],
+            problemsFaced: current.obstaclesFaced || '',
+            obstaclesFaced: current.obstaclesFaced || '',
+            nextWeekPlan: ''
+          };
+          guideTeam.submissions.push(sub);
+        } else {
+          sub.submissionStatus = 'Submitted On Time';
+          sub.evaluationStatus = 'Pending';
+          sub.submissionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+          if (field === 'abstract') sub.abstractSummary = value;
+          if (field === 'problemStatement') sub.problemStatement = value;
+          if (field === 'solution') sub.proposedSolution = value;
+          if (field === 'technologyUsed') sub.technologiesUsed = value ? value.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+          if (field === 'obstaclesFaced') { sub.problemsFaced = value; sub.obstaclesFaced = value; }
+          if (field === 'report') {
+            sub.reportUrl = value;
+            sub.pdfFile = value;
+          }
+          if (field === 'presentation') {
+            sub.presentationFileName = value;
+            if (value.toLowerCase().endsWith('.pdf')) {
+              sub.reportUrl = value;
+              sub.pdfFile = value;
+              sub.pptUrl = '';
+            } else {
+              sub.pptUrl = value;
+            }
+          }
+          if (field === 'repoUrl') sub.githubUrl = value;
+          if (field === 'demoUrl') sub.liveDemoUrl = value;
+          if (field === 'screenshot') sub.images = value ? [value] : [];
+        }
+
+        guideTeam.latestSubmissionStatus = `Week ${weekNum} Deliverables Submitted for Review`;
+        localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
+      }
+    } catch (e) {
+      console.error('Error syncing guide team:', e);
+    }
+
+    // 3. Send asynchronous API call to Backend
+    ApiClient.submitStudentDeliverables(weekNum, {
+      problemStatement: current.problemStatement,
+      solution: current.solution,
+      technologyUsed: current.technologyUsed,
+      obstaclesFaced: current.obstaclesFaced,
+      abstract: current.abstract,
+      repoUrl: current.repoUrl,
+      demoUrl: current.demoUrl,
+      isSubmit: true
+    }).catch(err => {
+      console.log('Backend sync queued or offline:', err);
+    });
+
+    // 4. Dispatch global events for instant UI synchronization across tabs and pages
+    window.dispatchEvent(new Event('siet_data_updated'));
+    window.dispatchEvent(new Event('storage'));
 
     return current;
   },
@@ -372,15 +438,147 @@ export const StudentService = {
     const item = list.find(s => s.week === weekNumber);
     if (!item) return false;
 
-    // Only allowed if status is Changes Requested or Rejected
-    if (item.status !== 'Changes Requested' && item.status !== 'Pending') {
-      return false;
-    }
-
     item.status = 'Submitted';
     item.submissionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     item.comments = `Updated: ${updatedComments}`;
     this.saveSubmissions(list);
+
+    // Call backend
+    ApiClient.submitStudentDeliverables(weekNumber, {
+      isSubmit: true
+    }).catch(() => {});
+
+    window.dispatchEvent(new Event('siet_data_updated'));
+    window.dispatchEvent(new Event('storage'));
     return true;
+  },
+
+  deleteSubmission(weekNumber: number): boolean {
+    try {
+      const team = this.getTeam();
+
+      // 1. Remove from submissions list
+      const list = this.getSubmissions().filter(s => s.week !== weekNumber);
+      this.saveSubmissions(list);
+
+      // 2. Clear deliverable state for that week
+      const key = `siet_deliverable_v6_week_${weekNumber}`;
+      localStorage.removeItem(key);
+
+      // 3. Reset title & status in student team
+      team.projectTitle = '';
+      team.submittedTitle = '';
+      team.isTitleApproved = false;
+      team.guideApprovalStatus = 'Pending Review';
+      this.saveTeam(team);
+
+      // 4. Reset Guide Portal storage so guide reflects clean unsubmitted state
+      try {
+        const rawTeams = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
+        let guideTeams = rawTeams ? JSON.parse(rawTeams) : [];
+        if (Array.isArray(guideTeams) && guideTeams.length > 0) {
+          const guideTeam = guideTeams.find((t: any) => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNumber === 4) || guideTeams[0];
+          if (guideTeam) {
+            guideTeam.submissions = (guideTeam.submissions || []).filter((s: any) => s.weekNumber !== weekNumber);
+            guideTeam.projectTitle = '';
+            guideTeam.titleStatus = 'Pending';
+            guideTeam.titleLocked = false;
+            guideTeam.latestSubmissionStatus = 'Awaiting Student Title Submission';
+            guideTeam.problemStatement = '';
+            guideTeam.proposedSolution = '';
+            guideTeam.technologiesUsed = [];
+            guideTeam.githubUrl = '';
+            guideTeam.liveDemoUrl = '';
+            guideTeam.abstract = '';
+            localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
+          }
+        }
+      } catch (e) {}
+
+      // 5. Asynchronous call to backend to delete submission
+      ApiClient.deleteStudentSubmission(weekNumber).catch(() => {});
+
+      // 6. Global event dispatch
+      window.dispatchEvent(new Event('siet_data_updated'));
+      window.dispatchEvent(new Event('storage'));
+      return true;
+    } catch (e) {
+      console.error('Error deleting submission:', e);
+      return false;
+    }
+  },
+
+  /** Clears ALL submissions and deliverable data across all portals */
+  clearAllSubmissions(): void {
+    // Clear submissions list
+    this.saveSubmissions([]);
+
+    // Clear all deliverable keys
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('siet_deliverable_v6_')) keysToRemove.push(key);
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    // Reset team data
+    const team = this.getTeam();
+    team.projectTitle = '';
+    team.submittedTitle = '';
+    team.isTitleApproved = false;
+    team.guideApprovalStatus = 'Pending Review';
+    team.progress = 0;
+    this.saveTeam(team);
+
+    // Reset guide portal
+    try {
+      const rawTeams = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
+      let guideTeams = rawTeams ? JSON.parse(rawTeams) : [];
+      if (Array.isArray(guideTeams)) {
+        guideTeams.forEach((t: any) => {
+          t.submissions = [];
+          t.projectTitle = '';
+          t.titleStatus = 'Pending';
+          t.titleLocked = false;
+          t.latestSubmissionStatus = 'Awaiting Student Title Submission';
+          t.problemStatement = '';
+          t.proposedSolution = '';
+          t.technologiesUsed = [];
+          t.githubUrl = '';
+          t.liveDemoUrl = '';
+          t.abstract = '';
+        });
+        localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
+      }
+    } catch (e) {}
+
+    window.dispatchEvent(new Event('siet_data_updated'));
+    window.dispatchEvent(new Event('storage'));
+  },
+
+  attachGuideNotice(weekNumber: number, notice: GuideNotice): void {
+    try {
+      const list = this.getSubmissions();
+      let item = list.find(s => s.week === weekNumber);
+      if (!item) {
+        item = {
+          week: weekNumber,
+          title: `Week ${weekNumber} Deliverable Submission`,
+          dueDate: `Week ${weekNumber}`,
+          status: 'Pending',
+          guideNotice: notice,
+          guideName: this.getTeam().guideName || 'Dr. P. Manimegalai'
+        };
+        list.push(item);
+      } else {
+        item.guideNotice = notice;
+      }
+      this.saveSubmissions(list);
+      window.dispatchEvent(new Event('siet_data_updated'));
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {
+      console.error('Error attaching guide notice:', e);
+    }
   }
 };
+

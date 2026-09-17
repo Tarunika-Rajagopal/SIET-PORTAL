@@ -12,15 +12,16 @@ export const GuidePortalPage: React.FC = () => {
     <GuideProvider>
       <Routes>
         <Route element={<GuideLayout />}>
-          <Route index element={<Navigate to="approve-project" replace />} />
+          <Route index element={<Navigate to="approve-submissions" replace />} />
+          <Route path="approve-submissions" element={<ApproveProject />} />
           <Route path="approve-project" element={<ApproveProject />} />
           <Route path="teams" element={<MyTeams />} />
           <Route path="weekly-submissions" element={<WeeklySubmissions />} />
-          <Route path="submission-history" element={<Navigate to="/guide/teams" replace />} />
-          <Route path="title-approval" element={<Navigate to="approve-project" replace />} />
-          <Route path="dashboard" element={<Navigate to="approve-project" replace />} />
+          <Route path="submission-history" element={<SubmissionHistory />} />
+          <Route path="title-approval" element={<Navigate to="approve-submissions" replace />} />
+          <Route path="dashboard" element={<Navigate to="approve-submissions" replace />} />
           <Route path="weekly-review" element={<Navigate to="weekly-submissions" replace />} />
-          <Route path="*" element={<Navigate to="approve-project" replace />} />
+          <Route path="*" element={<Navigate to="approve-submissions" replace />} />
         </Route>
       </Routes>
     </GuideProvider>

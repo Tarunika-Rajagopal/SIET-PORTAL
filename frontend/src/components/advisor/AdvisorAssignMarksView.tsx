@@ -229,9 +229,9 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                   onChange={(e) => setSelectedWeek(Number(e.target.value))}
                   className="appearance-none pl-3.5 pr-8 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-mint-500 shadow-xs cursor-pointer"
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((w) => (
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((w) => (
                     <option key={w} value={w}>
-                      Week {w} Milestone
+                      {w === 0 ? 'Week 0: Project Initiation & Title Proposal' : `Week ${w} Milestone`}
                     </option>
                   ))}
                 </select>
@@ -242,7 +242,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
 
           {/* Quick Week Pill Buttons */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((w) => {
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((w) => {
               const isCurrent = w === selectedWeek;
               const wMarks = MarksService.getWeeklyMarks(activeTeam.teamId, w);
 

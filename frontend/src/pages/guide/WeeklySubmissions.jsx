@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { 
   Clock, CheckCircle2, AlertCircle, FileText, Search, Filter, 
-  ExternalLink, ArrowUpRight, Lock, Eye, CheckSquare, RefreshCw 
+  ExternalLink, ArrowUpRight, Lock, Eye, CheckSquare, RefreshCw,
+  Bell
 } from 'lucide-react';
 import { useGuide } from '../../context/GuideContext';
 import WeeklyReviewDrawer from '../../components/guide/WeeklyReviewDrawer';
 import DocumentPreviewModal from '../../components/guide/DocumentPreviewModal';
 import ImageViewerModal from '../../components/guide/ImageViewerModal';
+import NotifyTeamModal from '../../components/guide/NotifyTeamModal';
 
 export const WeeklySubmissions = () => {
-  const { teams, stats, evaluateWeeklySubmission, requestWeeklyRevision } = useGuide();
+  const { teams, stats, notifyTeam } = useGuide();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [weekFilter, setWeekFilter] = useState('ALL');
-  const [evalFilter, setEvalFilter] = useState('ALL');
+  const [classFilter, setClassFilter] = useState('ALL');
 
   // Drawer and Modal States
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -26,18 +28,33 @@ export const WeeklySubmissions = () => {
   const [imgModalOpen, setImgModalOpen] = useState(false);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
 
-  // Flatten all submissions with parent team info
+  // Notify Modal state
+  const [isNotifyOpen, setIsNotifyOpen] = useState(false);
+  const [notifyTargetTeam, setNotifyTargetTeam] = useState(null);
+  const [notifyWeekNumber, setNotifyWeekNumber] = useState(null);
+
+  // Flatten all submissions with parent team info - strictly real student submissions only
   const allSubmissions = [];
   teams.forEach(team => {
     (team.submissions || []).forEach(sub => {
-      allSubmissions.push({
-        ...sub,
-        teamId: team.teamId,
-        teamNumber: team.teamNumber,
-        projectTitle: team.projectTitle,
-        teamLeader: team.teamLeader,
-        parentTeam: team
-      });
+      const hasRealContent = Boolean(
+        sub.submissionDate &&
+        (sub.abstractSummary || sub.problemStatement || sub.proposedSolution || sub.pptUrl || sub.reportUrl || sub.presentationFileName || sub.pdfFile || sub.githubUrl || sub.liveDemoUrl || (sub.images && sub.images.length > 0)) &&
+        !String(sub.pptUrl || '').includes('mock_ppt') &&
+        !String(sub.presentationFileName || '').includes('mock_ppt')
+      );
+
+      if (hasRealContent) {
+        allSubmissions.push({
+          ...sub,
+          teamId: team.teamId,
+          teamNumber: team.teamNumber,
+          projectTitle: team.projectTitle || sub.projectTitle || sub.title,
+          teamLeader: team.teamLeader,
+          classSection: team.classSection || `${team.class}-${team.section}`,
+          parentTeam: team
+        });
+      }
     });
   });
 
@@ -47,16 +64,16 @@ export const WeeklySubmissions = () => {
   // Filter submissions
   const filteredSubmissions = allSubmissions.filter(sub => {
     const matchesWeek = weekFilter === 'ALL' || String(sub.weekNumber) === weekFilter;
-    const matchesEval = evalFilter === 'ALL' || sub.evaluationStatus === evalFilter;
+    const matchesClass = classFilter === 'ALL' || sub.classSection === classFilter;
     const q = searchTerm.toLowerCase();
     const matchesSearch = !searchTerm.trim() ||
       `team ${sub.teamNumber}`.includes(q) ||
       `#${sub.teamNumber}`.includes(q) ||
-      sub.projectTitle.toLowerCase().includes(q) ||
-      sub.teamLeader.toLowerCase().includes(q) ||
+      (sub.projectTitle || '').toLowerCase().includes(q) ||
+      (sub.teamLeader || '').toLowerCase().includes(q) ||
       `week ${sub.weekNumber}`.includes(q);
 
-    return matchesWeek && matchesEval && matchesSearch;
+    return matchesWeek && matchesClass && matchesSearch;
   });
 
   const handleOpenReview = (sub) => {
@@ -75,70 +92,62 @@ export const WeeklySubmissions = () => {
     setImgModalOpen(true);
   };
 
+  const handleOpenNotifyModal = (team, weekNum) => {
+    setNotifyTargetTeam(team);
+    setNotifyWeekNumber(weekNum);
+    setIsNotifyOpen(true);
+  };
+
   return (
-    <div className="space-y-6 pb-12 animate-fadeIn">
+    <div className="space-y-6 pb-12 animate-fadeIn font-sans">
       
       {/* 1. Header */}
       <div>
         <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-          Weekly Sprint Submissions &amp; Milestone Audits
+          Weekly Sprint Submissions
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Evaluate technical reports, presentation decks, and hardware bench results submitted by students.
+          View deliverables submitted by student teams across sprint milestones.
         </p>
       </div>
 
-      {/* 2. Top 4 Stat Cards in White & Mint theme */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        
+      {/* 2. Top 3 Stat Cards in White & Mint theme */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Total Logs */}
         <div className="bg-white p-5 rounded-2xl border border-[#E2E8E4] shadow-card flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Sprints Logged</span>
-            <div className="text-2xl font-black text-slate-900 mt-1">{stats.totalSubmissionsCount}</div>
-            <span className="text-[10px] text-slate-500 mt-0.5 block">Across all 5 assigned teams</span>
+            <div className="text-2xl font-black text-slate-900 mt-1">{allSubmissions.length}</div>
+            <span className="text-[10px] text-slate-500 mt-0.5 block">Across all assigned teams</span>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-slate-50 text-slate-700 flex items-center justify-center font-bold border border-[#E2E8E4]">
             <FileText size={20} />
           </div>
         </div>
 
-        {/* Pending Review (Amber) */}
+        {/* Total Teams with Submissions */}
         <div className="bg-white p-5 rounded-2xl border border-[#E2E8E4] shadow-card flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Pending Review</span>
-            <div className="text-2xl font-black text-amber-600 mt-1">{stats.pendingWeeklySubmissionsCount}</div>
-            <span className="text-[10px] text-amber-800 font-semibold mt-0.5 block">Requires guide action</span>
-          </div>
-          <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold border border-amber-200">
-            <Clock size={20} />
-          </div>
-        </div>
-
-        {/* Evaluated & Locked (Mint) */}
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8E4] shadow-card flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-mint-800 block">Evaluated &amp; Locked</span>
-            <div className="text-2xl font-black text-mint-700 mt-1">{stats.evaluatedSubmissionsCount}</div>
-            <span className="text-[10px] text-mint-700 font-semibold mt-0.5 block">Academic credit verified</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-mint-800 block">Active Teams</span>
+            <div className="text-2xl font-black text-mint-700 mt-1">{teams.length}</div>
+            <span className="text-[10px] text-mint-700 font-semibold mt-0.5 block">Mentored capstone groups</span>
           </div>
           <div className="w-11 h-11 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold border border-mint-200">
             <CheckCircle2 size={20} />
           </div>
         </div>
 
-        {/* Revision Required (Rose) */}
+        {/* Active Consultation Notices */}
         <div className="bg-white p-5 rounded-2xl border border-[#E2E8E4] shadow-card flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 block">Revision Required</span>
-            <div className="text-2xl font-black text-rose-600 mt-1">{stats.revisionRequiredCount}</div>
-            <span className="text-[10px] text-rose-700 font-semibold mt-0.5 block">Deficiencies notified</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Active Notices Dispatched</span>
+            <div className="text-2xl font-black text-amber-600 mt-1">{stats.notifiedCount || 0}</div>
+            <span className="text-[10px] text-amber-800 font-semibold mt-0.5 block">Consultations scheduled</span>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold border border-rose-200">
-            <AlertCircle size={20} />
+          <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold border border-amber-200">
+            <Bell size={20} />
           </div>
         </div>
-
       </div>
 
       {/* 3. Controls & Filter Bar */}
@@ -161,23 +170,13 @@ export const WeeklySubmissions = () => {
           <select
             value={weekFilter}
             onChange={(e) => setWeekFilter(e.target.value)}
-            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500 cursor-pointer"
           >
             <option value="ALL">All Sprint Weeks</option>
+            <option value="0">Week 0 Only</option>
             <option value="1">Week 1 Only</option>
             <option value="2">Week 2 Only</option>
             <option value="3">Week 3 Only</option>
-          </select>
-
-          <select
-            value={evalFilter}
-            onChange={(e) => setEvalFilter(e.target.value)}
-            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
-          >
-            <option value="ALL">All Evaluation States</option>
-            <option value="Pending">Pending Review</option>
-            <option value="Evaluated">Evaluated &amp; Locked</option>
-            <option value="Revision Required">Revision Required</option>
           </select>
 
           {/* Refresh button */}
@@ -200,34 +199,37 @@ export const WeeklySubmissions = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-[#F8FAF9] text-slate-600 font-bold border-b border-[#E2E8E4] uppercase text-[10px] tracking-wider">
               <tr>
-                <th className="p-4">Team ID</th>
+                <th className="p-4">Team</th>
+                <th className="p-4">Class</th>
                 <th className="p-4">Sprint Week</th>
                 <th className="p-4">Project Title</th>
                 <th className="p-4">Submission Date</th>
-                <th className="p-4">Submission Status</th>
-                <th className="p-4">Evaluation Status</th>
-                <th className="p-4 text-right">Action</th>
+                <th className="p-4">Deliverables Status</th>
+                <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8E4] font-medium">
               {filteredSubmissions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-400">
-                    No weekly sprint submissions found.
+                    No weekly sprint submissions found matching the criteria.
                   </td>
                 </tr>
               ) : (
                 filteredSubmissions.map((sub, idx) => {
-                  const isEvaluated = sub.evaluationStatus === 'Evaluated';
-                  const isPending = sub.evaluationStatus === 'Pending';
-                  const isRevision = sub.evaluationStatus === 'Revision Required';
-
                   return (
                     <tr key={idx} className="hover:bg-mint-50/30 transition">
                       {/* Team ID */}
                       <td className="p-4">
                         <span className="px-2.5 py-1 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-xs">
                           #{sub.teamNumber}
+                        </span>
+                      </td>
+
+                      {/* Class */}
+                      <td className="p-4">
+                        <span className="font-bold text-slate-700 text-xs">
+                          {sub.classSection}
                         </span>
                       </td>
 
@@ -240,60 +242,67 @@ export const WeeklySubmissions = () => {
 
                       {/* Project Title */}
                       <td className="p-4">
-                        <div className="font-bold text-slate-900 max-w-sm">{sub.projectTitle}</div>
+                        <div className="font-bold text-slate-900 max-w-xs truncate">{sub.projectTitle || 'No Title'}</div>
                         <span className="text-[10px] text-slate-400">Lead: {sub.teamLeader}</span>
                       </td>
 
                       {/* Submission Date */}
                       <td className="p-4 text-slate-600 font-mono text-[11px]">
-                        {sub.submissionDate}
+                        {sub.submissionDate || 'N/A'}
                       </td>
 
                       {/* Submission Status */}
                       <td className="p-4">
-                        <span className="text-slate-700 font-medium text-[11px]">
-                          {sub.submissionStatus}
-                        </span>
+                        {(() => {
+                          const isApproved = sub.evaluationStatus === 'Approved' || sub.status === 'Approved' || sub.parentTeam?.isTitleApproved || sub.parentTeam?.titleStatus === 'Approved';
+                          const isRevision = !isApproved && sub.evaluationStatus === 'Revision Required';
+
+                          if (isApproved) {
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border-emerald-300">
+                                <CheckCircle2 size={11} className="text-emerald-600" />
+                                <span>Approved</span>
+                              </span>
+                            );
+                          }
+                          if (isRevision) {
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border inline-flex items-center gap-1 bg-rose-50 text-rose-800 border-rose-300">
+                                <AlertCircle size={11} className="text-rose-600" />
+                                <span>Changes Requested</span>
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black border inline-flex items-center gap-1 bg-amber-50 text-amber-900 border-amber-300">
+                              <Clock size={11} className="text-amber-600" />
+                              <span>Pending</span>
+                            </span>
+                          );
+                        })()}
                       </td>
 
-                      {/* Evaluation Status */}
-                      <td className="p-4">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-flex items-center gap-1 ${
-                          isEvaluated
-                            ? 'bg-mint-100 text-mint-900 border-mint-200'
-                            : isPending
-                            ? 'bg-amber-50 text-amber-900 border-amber-200'
-                            : 'bg-rose-50 text-rose-900 border-rose-200'
-                        }`}>
-                          {isEvaluated && <CheckCircle2 size={11} className="text-mint-700" />}
-                          {isPending && <Clock size={11} className="text-amber-600" />}
-                          {isRevision && <AlertCircle size={11} className="text-rose-600" />}
-                          <span>{sub.evaluationStatus}</span>
-                        </span>
-                      </td>
-
-                      {/* Action */}
+                      {/* Actions: View and Notify (NO approval or reject option) */}
                       <td className="p-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => handleOpenReview(sub)}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ml-auto shadow-xs ${
-                            isPending
-                              ? 'bg-mint-500 hover:bg-mint-600 text-white shadow-sm'
-                              : 'bg-mint-50 hover:bg-mint-100 text-mint-900 border border-mint-200'
-                          }`}
-                        >
-                          {isPending ? (
-                            <>
-                              <CheckSquare size={13} />
-                              <span>Review</span>
-                            </>
-                          ) : (
-                            <>
-                              <Eye size={13} />
-                              <span>View</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenNotifyModal(sub.parentTeam, sub.weekNumber)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                          >
+                            <Bell size={13} className="text-amber-700" />
+                            <span>Notify</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReview(sub)}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold text-mint-900 bg-mint-50 hover:bg-mint-100 border border-mint-200 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Eye size={13} />
+                            <span>View</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -304,20 +313,15 @@ export const WeeklySubmissions = () => {
         </div>
       </div>
 
-      {/* Review Drawer */}
+      {/* Review Drawer: View-only with Notify option (NO approval or reject option) */}
       <WeeklyReviewDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         team={selectedTeam}
         submission={selectedSubmission}
-        onEvaluate={(teamId, weekNumber, remarks) => {
-          evaluateWeeklySubmission(teamId, weekNumber, remarks);
-        }}
-        onRequestRevision={(teamId, weekNumber, reason) => {
-          return requestWeeklyRevision(teamId, weekNumber, reason);
-        }}
         onOpenDocPreview={handleOpenDocPreview}
         onOpenImageViewer={handleOpenImageViewer}
+        onOpenNotify={(team, weekNumber) => handleOpenNotifyModal(team, weekNumber)}
       />
 
       {/* Document Viewer Modal */}
@@ -336,6 +340,14 @@ export const WeeklySubmissions = () => {
         images={selectedSubmission?.images || []}
         initialIndex={activeImgIndex}
         title={selectedTeam?.projectTitle}
+      />
+
+      {/* Notify Team Modal */}
+      <NotifyTeamModal
+        isOpen={isNotifyOpen}
+        onClose={() => setIsNotifyOpen(false)}
+        team={notifyTargetTeam}
+        onNotify={(teamId, data) => notifyTeam(teamId, { ...data, weekNumber: notifyWeekNumber })}
       />
 
     </div>

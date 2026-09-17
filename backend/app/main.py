@@ -18,14 +18,29 @@ from app.api import (
     advisor_portal, hod_portal, admin, notifications
 )
 
+from contextlib import asynccontextmanager
+from app.core.database import engine, Base
+from seed import seed_data
+
 setup_logging()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    try:
+        await seed_data()
+    except Exception as e:
+        pass
+    yield
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    lifespan=lifespan
 )
 
 # Configure CORS

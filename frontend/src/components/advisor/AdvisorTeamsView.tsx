@@ -69,17 +69,29 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
     const unsubMarks = MarksService.subscribe(() => {
       setMarksUpdate(n => n + 1);
     });
+    const handleSync = () => {
+      setTeams(AdvisorService.getTeamsForClass(className));
+      setMarksUpdate(n => n + 1);
+    };
+    window.addEventListener('siet_data_updated', handleSync);
+    window.addEventListener('siet_marks_updated', handleSync);
+    window.addEventListener('storage', handleSync);
     return () => {
       unsubAdvisor();
       unsubMarks();
+      window.removeEventListener('siet_data_updated', handleSync);
+      window.removeEventListener('siet_marks_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
     };
   }, [className]);
 
   useEffect(() => {
     if (selectedTeamId) {
       setActiveTeamId(selectedTeamId);
+    } else if (!activeTeamId && teams.length > 0) {
+      setActiveTeamId(teams[0].teamId);
     }
-  }, [selectedTeamId]);
+  }, [selectedTeamId, teams, activeTeamId]);
 
   // Check if current flow is an unassigned student
   const isStudentUnassigned = onlyShowStudentTeam && (
@@ -106,11 +118,17 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
     f => f.role === 'Guide' || f.role === 'Advisor & Guide'
   );
 
-  // Submissions for currently selected active team (Weeks 1 to current week)
-  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
+  // Submissions for currently selected active team (Strictly authentic student submissions)
   const teamSubmissions: WeeklySubmission[] = activeTeam 
-    ? AdvisorSubmissionsService.getTeamSubmissions(activeTeam).filter(s => s.week <= currentAcademicWeek) 
+    ? AdvisorSubmissionsService.getTeamSubmissions(activeTeam)
     : [];
+
+  // Keep selectedWeek aligned with actual submissions when team changes
+  useEffect(() => {
+    if (teamSubmissions.length > 0 && !teamSubmissions.some(s => s.week === selectedWeek)) {
+      setSelectedWeek(teamSubmissions[0].week);
+    }
+  }, [activeTeamId, teamSubmissions, selectedWeek]);
 
   const activeSubmission: WeeklySubmission | undefined = 
     teamSubmissions.find(s => s.week === selectedWeek) || teamSubmissions[0];
@@ -235,7 +253,43 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
             )}
           </div>
         </div>
-      ) : onlyShowStudentTeam && activeTeam ? null : (
+      ) : onlyShowStudentTeam && activeTeam ? null : filteredTeams.length === 0 ? (
+        <div className="bg-white rounded-3xl p-8 sm:p-10 shadow-card border border-[#E2E8E4] text-center space-y-4 max-w-xl mx-auto my-4 animate-fadeIn">
+          <div className="w-16 h-16 rounded-3xl bg-mint-50 border border-mint-200 text-mint-700 flex items-center justify-center mx-auto shadow-xs">
+            <Users size={32} />
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-900">
+              {teams.length === 0 ? `No Teams Registered in Class ${className}` : `No Teams Found`}
+            </h3>
+            <p className="text-xs text-slate-600 mt-1.5 max-w-md mx-auto leading-relaxed">
+              {teams.length === 0
+                ? 'No project teams have been registered for this class section yet. You can create a team and assign students manually.'
+                : `No project teams match your search term "${searchTerm}". Try searching by a different name, roll number, or guide.`}
+            </p>
+          </div>
+          <div className="pt-2 flex items-center justify-center gap-3">
+            {teams.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setIsManualTeamModalOpen(true)}
+                className="px-5 py-2.5 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"
+              >
+                <UserPlus size={16} />
+                <span>Assign / Create Team</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="px-5 py-2.5 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-sm transition cursor-pointer"
+              >
+                Clear Search
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
         /* 3. Grid of All Teams when directly navigated or all teams requested */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {filteredTeams.map((t) => {
@@ -490,61 +544,86 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                     id="selectAdvisorSprintWeek"
                     value={selectedWeek}
                     onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                    className="appearance-none pl-3.5 pr-8 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-mint-500 shadow-xs cursor-pointer"
+                    disabled={teamSubmissions.length === 0}
+                    className="appearance-none pl-3.5 pr-8 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-mint-500 shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {teamSubmissions.map((s) => (
-                      <option key={s.week} value={s.week}>
-                        Week {s.week}: {s.title} ({s.status})
-                      </option>
-                    ))}
+                    {teamSubmissions.length === 0 ? (
+                      <option value="">No submissions available</option>
+                    ) : (
+                      teamSubmissions.map((s) => (
+                        <option key={s.week} value={s.week}>
+                          Week {s.week}: {s.title} ({s.status})
+                        </option>
+                      ))
+                    )}
                   </select>
                   <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
               </div>
             </div>
 
-            {/* Quick Week Pill Buttons (Weeks 1 through 8) */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {teamSubmissions.map((s) => {
-                const isSelected = s.week === selectedWeek;
-                const weekMarks = MarksService.getWeeklyMarks(activeTeam.teamId, s.week);
+            {/* Quick Week Pill Buttons (Weeks with Submissions) */}
+            {teamSubmissions.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {teamSubmissions.map((s) => {
+                  const isSelected = s.week === selectedWeek;
+                  const weekMarks = MarksService.getWeeklyMarks(activeTeam.teamId, s.week);
 
-                return (
-                  <button
-                    key={s.week}
-                    type="button"
-                    onClick={() => setSelectedWeek(s.week)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-2 cursor-pointer shadow-2xs ${
-                      isSelected
-                        ? 'bg-mint-500 text-white shadow-sm font-extrabold ring-2 ring-mint-400/30'
-                        : 'bg-slate-50 hover:bg-mint-50 text-slate-700 border border-[#E2E8E4]'
-                    }`}
-                  >
-                    <span>Week {s.week}</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase ${
-                      isSelected 
-                        ? 'bg-white/20 text-white' 
-                        : s.status === 'Approved' ? 'bg-emerald-100 text-emerald-800'
-                        : s.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800'
-                        : s.status === 'Submitted' ? 'bg-amber-100 text-amber-900'
-                        : 'bg-slate-200 text-slate-600'
-                    }`}>
-                      {s.status}
-                    </span>
-                    {weekMarks && (
-                      <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                        isSelected ? 'bg-white text-mint-950' : 'bg-mint-100 text-mint-900'
+                  return (
+                    <button
+                      key={s.week}
+                      type="button"
+                      onClick={() => setSelectedWeek(s.week)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-2 cursor-pointer shadow-2xs ${
+                        isSelected
+                          ? 'bg-mint-500 text-white shadow-sm font-extrabold ring-2 ring-mint-400/30'
+                          : 'bg-slate-50 hover:bg-mint-50 text-slate-700 border border-[#E2E8E4]'
+                      }`}
+                    >
+                      <span>Week {s.week}</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase ${
+                        isSelected 
+                          ? 'bg-white/20 text-white' 
+                          : s.status === 'Approved' ? 'bg-emerald-100 text-emerald-800'
+                          : s.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800'
+                          : (s.status === 'Submitted' || s.status === 'Pending') ? 'bg-amber-100 text-amber-900'
+                          : 'bg-slate-200 text-slate-600'
                       }`}>
-                        {weekMarks.teamAverage}%
+                        {s.status === 'Submitted' ? 'Pending' : s.status}
                       </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                      {weekMarks && (
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                          isSelected ? 'bg-white text-mint-950' : 'bg-mint-100 text-mint-900'
+                        }`}>
+                          {weekMarks.teamAverage}%
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-            {/* Active Submission Details */}
-            {activeSubmission ? (
+            {/* Submissions Details or Empty State */}
+            {teamSubmissions.length === 0 ? (
+              <div className="p-10 rounded-2xl bg-slate-50/80 border border-dashed border-slate-300 text-center space-y-3 animate-fadeIn">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center mx-auto">
+                  <Layers size={24} />
+                </div>
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-300 mb-2.5 select-none">
+                    <Clock size={12} className="text-slate-500" />
+                    <span>No Submission</span>
+                  </span>
+                  <h4 className="text-sm font-black text-slate-800">
+                    No Milestone Deliverables Submitted Yet
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
+                    This team has not yet submitted any weekly milestone deliverables. Only authentic submissions made by students will appear here for your review and mark evaluation.
+                  </p>
+                </div>
+              </div>
+            ) : activeSubmission ? (
               <div className="space-y-6 pt-1 text-xs">
                 
                 {/* 1. Milestone Overview Card */}
@@ -557,10 +636,10 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                       <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black uppercase border ${
                         activeSubmission.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                         activeSubmission.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                        activeSubmission.status === 'Submitted' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                        (activeSubmission.status === 'Submitted' || activeSubmission.status === 'Pending') ? 'bg-amber-100 text-amber-800 border-amber-300' :
                         'bg-slate-100 text-slate-700 border-slate-300'
                       }`}>
-                        {activeSubmission.status}
+                        {activeSubmission.status === 'Submitted' ? 'Pending' : activeSubmission.status}
                       </span>
                       {activeSubmission.submissionDate && (
                         <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
@@ -618,7 +697,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                         activeSubmission.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800 border-rose-300' :
                         'bg-amber-100 text-amber-800 border-amber-300'
                       }`}>
-                        Guide: {activeSubmission.status}
+                        Guide: {activeSubmission.status === 'Submitted' ? 'Pending' : activeSubmission.status}
                       </span>
                     </div>
                   </div>

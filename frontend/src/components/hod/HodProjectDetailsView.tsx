@@ -60,6 +60,25 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
 
   // Selected sprint week for week-wise details
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [, setMarksTick] = useState<number>(0);
+
+  useEffect(() => {
+    const unsubMarks = MarksService.subscribe(() => {
+      setMarksTick(n => n + 1);
+    });
+    const handleSync = () => {
+      setMarksTick(n => n + 1);
+    };
+    window.addEventListener('siet_marks_updated', handleSync);
+    window.addEventListener('siet_data_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      unsubMarks();
+      window.removeEventListener('siet_marks_updated', handleSync);
+      window.removeEventListener('siet_data_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
 
   // When initial props change (e.g. from student row click)
   useEffect(() => {
@@ -82,10 +101,17 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
 
   const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
 
-  // Active submission for the selected week (capped to current week)
-  const availableSubmissions = (activeTeam?.submissions || []).filter(s => s.week <= currentAcademicWeek);
+  // Active submission for the selected week (Strictly authentic student submissions)
+  const availableSubmissions: WeeklySubmission[] = activeTeam?.submissions || [];
   const activeSubmission: WeeklySubmission | undefined = availableSubmissions.find(s => s.week === selectedWeek) || 
     availableSubmissions[0];
+
+  // Auto-align selected week if team changes or week not in submissions
+  useEffect(() => {
+    if (availableSubmissions.length > 0 && !availableSubmissions.some(s => s.week === selectedWeek)) {
+      setSelectedWeek(availableSubmissions[0].week);
+    }
+  }, [selectedTeamId, availableSubmissions, selectedWeek]);
 
   // Reset batch and class to ALL when search is initiated and clear search text
   const handleSearchClick = () => {
@@ -452,7 +478,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                 Select Milestone Week to Inspect Evaluation:
               </span>
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                {[1, 2, 3, 4, 5, 6, 7, 8].filter(w => w <= currentAcademicWeek).map((w) => {
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((w) => {
                   const isSelected = w === selectedWeek;
                   const wMarks = MarksService.getWeeklyMarks(activeTeam.id, w);
 
@@ -674,9 +700,10 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                     <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border ${
                       activeSubmission.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                       activeSubmission.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                      'bg-amber-100 text-amber-800 border-amber-300'
+                      (activeSubmission.status === 'Submitted' || activeSubmission.status === 'Pending') ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                      'bg-slate-100 text-slate-700 border-slate-300'
                     }`}>
-                      {activeSubmission.status}
+                      {activeSubmission.status === 'Submitted' ? 'Pending' : activeSubmission.status}
                     </span>
                   </div>
 
@@ -982,7 +1009,11 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
               </div>
             ) : (
               <div className="py-8 text-center text-xs text-slate-400">
-                No submission logged for Week {selectedWeek}.
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-300 mb-2 select-none">
+                  <Clock size={12} className="text-slate-500" />
+                  <span>No Submission</span>
+                </span>
+                <p>No milestone deliverables submitted yet for Week {selectedWeek}.</p>
               </div>
             )}
 

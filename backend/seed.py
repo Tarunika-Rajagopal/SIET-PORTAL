@@ -1,5 +1,5 @@
 import asyncio
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine, Base
 from app.repositories.academic_repository import AcademicRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.faculty_student_repository import FacultyStudentRepository
@@ -15,6 +15,9 @@ from app.models.projects import Project
 from app.models.submissions import WeeklySubmission
 
 async def seed_data():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     async with AsyncSessionLocal() as db:
         academic_repo = AcademicRepository(db)
         user_repo = UserRepository(db)
@@ -45,17 +48,17 @@ async def seed_data():
             section = await academic_repo.create_section(batch.id, "CSE-B")
             logger.info("Created section: CSE-B")
 
-        # 4. Seed Academic Weeks (1-6, Week 6 is current)
-        for w_num in range(1, 7):
+        # 4. Seed Academic Weeks (0-16, Week 0 is current)
+        for w_num in range(0, 17):
             res_w = await db.execute(select(AcademicWeek).where(AcademicWeek.batch_id == batch.id, AcademicWeek.week_number == w_num))
             existing_w = res_w.scalars().first()
             if not existing_w:
                 await academic_repo.create_academic_week(
                     week_number=w_num,
-                    is_current=(w_num == 6),
+                    is_current=(w_num == 0),
                     batch_id=batch.id
                 )
-        logger.info("Seeded academic weeks 1 to 6 (Week 6 marked current)")
+        logger.info("Seeded academic weeks 0 to 16 (Week 0 marked current)")
 
         # 5. Seed Roles
         role_names = ["student", "guide", "advisor", "hod", "admin"]
@@ -68,7 +71,7 @@ async def seed_data():
         logger.info("Seeded 5 standard RBAC roles: student, guide, advisor, hod, admin")
 
         # 6. Seed Accounts
-        # A. Student
+        # A. Student - Lead
         student_user = await user_repo.get_user_by_email("student@srishakthi.ac.in")
         if not student_user:
             student_user = await user_repo.create_user(
@@ -87,6 +90,33 @@ async def seed_data():
             logger.info("Seeded student account: student@srishakthi.ac.in")
         else:
             student_rec = await fs_repo.get_student_by_user_id(student_user.id)
+
+        # Team Members (Vigneshwaran M, Vishnu Priya S, Kavitha R)
+        other_members_data = [
+            ("vigneshwaran.m@srishakthi.ac.in", "Vigneshwaran M", "714023104178", "Team Member"),
+            ("vishnupriya.s@srishakthi.ac.in", "Vishnu Priya S", "714023104189", "Team Member"),
+            ("kavitha.r@srishakthi.ac.in", "Kavitha R", "714023104066", "Team Member")
+        ]
+        other_student_recs = []
+        for email, name, roll_no, m_role in other_members_data:
+            u = await user_repo.get_user_by_email(email)
+            if not u:
+                u = await user_repo.create_user(
+                    email=email,
+                    password_hash=get_password_hash("student@123"),
+                    name=name,
+                    department_id=dept.id
+                )
+                await user_repo.assign_role_to_user(u.id, roles_dict["student"].id)
+                s_rec = await fs_repo.create_student(
+                    user_id=u.id,
+                    roll_no=roll_no,
+                    batch_id=batch.id,
+                    section_id=section.id
+                )
+            else:
+                s_rec = await fs_repo.get_student_by_user_id(u.id)
+            other_student_recs.append((s_rec, m_role))
 
         # B. Guide
         guide_user = await user_repo.get_user_by_email("dr.manimegalai@siet.ac.in")
@@ -176,38 +206,40 @@ async def seed_data():
             await team_repo.assign_guide(team.id, guide_user.id)
             if student_rec:
                 await team_repo.add_team_member(team.id, student_rec.id, member_role="Team Lead")
+            for s_rec, m_role in other_student_recs:
+                if s_rec:
+                    await team_repo.add_team_member(team.id, s_rec.id, member_role=m_role)
 
-            # Create Project for Team 04
+            # Create Project for Team 04 with empty title initially
             proj = await proj_repo.create_project(
                 team_id=team.id,
-                title="AI-Based Real-Time Student Attendance & Deliverables Tracking System",
-                abstract="Automated project tracking and student deliverables evaluation platform."
+                title="",
+                abstract=""
             )
             proj.status = "PENDING"
             proj.guide_approval_status = "Pending Review"
 
-            # Create Weekly Submissions 1-5
-            for w in range(1, 6):
-                await sub_repo.create_submission(
-                    team_id=team.id,
-                    week_number=w,
-                    title=f"Week {w} Project Deliverable",
-                    due_date=f"Week {w}",
-                    status="APPROVED" if w < 5 else "SUBMITTED",
-                    problem_statement="Problem statement for week " + str(w),
-                    solution="Proposed engineering solution for week " + str(w),
-                    technology_used="FastAPI, PostgreSQL, React, TypeScript",
-                    repo_url="https://github.com/siet-cse/project-portal"
-                )
-
-            logger.info("Seeded Team 04, Project, and Submissions 1-5")
+            logger.info("Seeded Team 04 with 4 members and unsubmitted project")
         else:
-            # Reset project status to PENDING for idempotent test runs
+            # Ensure all 4 members are assigned
+            existing_members = await db.execute(select(TeamMember).where(TeamMember.team_id == team.id))
+            m_set = {m.student_id for m in existing_members.scalars().all()}
+            if student_rec and student_rec.id not in m_set:
+                await team_repo.add_team_member(team.id, student_rec.id, member_role="Team Lead")
+            for s_rec, m_role in other_student_recs:
+                if s_rec and s_rec.id not in m_set:
+                    await team_repo.add_team_member(team.id, s_rec.id, member_role=m_role)
+
             res_p = await db.execute(select(Project).where(Project.team_id == team.id))
             proj = res_p.scalars().first()
-            if proj:
-                proj.status = "PENDING"
-                proj.guide_approval_status = "Pending Review"
+            if not proj:
+                proj = await proj_repo.create_project(
+                    team_id=team.id,
+                    title="",
+                    abstract=""
+                )
+            proj.status = "PENDING"
+            proj.guide_approval_status = "Pending Review"
 
         await db.commit()
         logger.info("Database seeding successfully completed!")

@@ -1,5 +1,6 @@
 import { WeeklySubmission } from '../types';
 import { StudentService } from './studentService';
+import { getCanonicalStudentSubmissions } from './advisorSubmissionsService';
 
 export interface HodAdvisor {
   id: string;
@@ -238,9 +239,9 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
     },
     members: [
       { rollNo: "714023104035", name: "Harish Kumar K", email: "harish.k@srishakthi.ac.in", isLead: true },
-      { rollNo: "714023104040", name: "Janani S", email: "janani.s@srishakthi.ac.in", isLead: false },
-      { rollNo: "714023104045", name: "Kishore M", email: "kishore.m@srishakthi.ac.in", isLead: false },
-      { rollNo: "714023104052", name: "Logesh R", email: "logesh.r@srishakthi.ac.in", isLead: false }
+      { rollNo: "714023104038", name: "Janani S", email: "janani.s@srishakthi.ac.in", isLead: false },
+      { rollNo: "714023104051", name: "Manoj V", email: "manoj.v@srishakthi.ac.in", isLead: false },
+      { rollNo: "714023104058", name: "Nithya R", email: "nithya.r@srishakthi.ac.in", isLead: false }
     ],
     submissions: [
       {
@@ -318,6 +319,45 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
     ]
   },
   {
+    id: "TEAM-CSE-Y3-B07",
+    teamNo: "Team 07",
+    projectTitle: "LLM-Powered Multi-Lingual Legal Advisory System for Rural Citizens",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-B",
+    status: "Approved",
+    progress: 70,
+    advisor: {
+      name: "Dr. R. Karthikeyan",
+      email: "dr.karthik@siet.ac.in",
+      designation: "Professor, CSE"
+    },
+    guide: {
+      name: "Dr. P. Manimegalai",
+      email: "dr.manimegalai@siet.ac.in",
+      designation: "Associate Professor, CSE",
+      specialization: "AI, Deep Learning & UAV Vision"
+    },
+    members: [
+      { rollNo: "714023104142", name: "Sneha M", email: "sneha.m@srishakthi.ac.in", isLead: true },
+      { rollNo: "714023104148", name: "Suresh P", email: "suresh.p@srishakthi.ac.in", isLead: false },
+      { rollNo: "714023104155", name: "Swetha V", email: "swetha.v@srishakthi.ac.in", isLead: false },
+      { rollNo: "714023104162", name: "Varun K", email: "varun.k@srishakthi.ac.in", isLead: false }
+    ],
+    submissions: [
+      {
+        week: 1,
+        title: "Multi-Lingual NLP Tokenizer & Indic Corpus Proposal",
+        dueDate: "Week 1",
+        status: "Approved",
+        submissionDate: "14 Aug 2026",
+        fileName: "Week1_Legal_LLM_Proposal.pptx",
+        comments: "Approved by Dr. P. Manimegalai. Benchmark against IndicGLUE dataset accepted.",
+        score: 93,
+        maxScore: 100
+      }
+    ]
+  },
+  {
     id: "TEAM-CSE-Y3-A01",
     teamNo: "Team 01",
     projectTitle: "Distributed Ledger for Healthcare Interoperability",
@@ -357,6 +397,45 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
     ]
   },
   {
+    id: "TEAM-CSE-Y3-A02",
+    teamNo: "Team 02",
+    projectTitle: "Autonomous Swarm UAV Platform",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-A",
+    status: "Approved",
+    progress: 68,
+    advisor: {
+      name: "Dr. A. Ramesh",
+      email: "ramesh.a@siet.ac.in",
+      designation: "Associate Professor, CSE"
+    },
+    guide: {
+      name: "Dr. P. Manimegalai",
+      email: "dr.manimegalai@siet.ac.in",
+      designation: "Associate Professor, CSE",
+      specialization: "AI, Deep Learning & UAV Vision"
+    },
+    members: [
+      { rollNo: "714023104018", name: "Aravind S", email: "aravind.s@srishakthi.ac.in", isLead: true },
+      { rollNo: "714023104024", name: "Balaji R", email: "balaji.r@srishakthi.ac.in", isLead: false },
+      { rollNo: "714023104028", name: "Divya M", email: "divya.m@srishakthi.ac.in", isLead: false },
+      { rollNo: "714023104033", name: "Gokul K", email: "gokul.k@srishakthi.ac.in", isLead: false }
+    ],
+    submissions: [
+      {
+        week: 1,
+        title: "UAV Swarm Collision Avoidance Mesh Protocol",
+        dueDate: "Week 1",
+        status: "Approved",
+        submissionDate: "14 Aug 2026",
+        fileName: "Week1_UAV_Swarm_Proposal.pptx",
+        comments: "Approved by Dr. P. Manimegalai. Flight telemetry protocol accepted.",
+        score: 91,
+        maxScore: 100
+      }
+    ]
+  },
+  {
     id: "TEAM-CSE-Y3-C08",
     teamNo: "Team 08",
     projectTitle: "Autonomous Robotic Navigation in Agritech",
@@ -390,6 +469,45 @@ export const MOCK_HOD_TEAMS: HodTeamDetails[] = [
         submissionDate: "14 Aug 2026",
         fileName: "Week1_Robotics_Proposal.pptx",
         comments: "LiDAR and camera sensor fusion approved.",
+        score: 90,
+        maxScore: 100
+      }
+    ]
+  },
+  {
+    id: "TEAM-CSE-Y3-C09",
+    teamNo: "Team 09",
+    projectTitle: "Edge Computing AI Pipeline for Smart Agriculture",
+    batch: "2023-2027 (III Year)",
+    classSection: "CSE-C",
+    status: "Approved",
+    progress: 66,
+    advisor: {
+      name: "Dr. M. Suresh",
+      email: "suresh.m@siet.ac.in",
+      designation: "Assistant Professor, CSE"
+    },
+    guide: {
+      name: "Dr. P. Manimegalai",
+      email: "dr.manimegalai@siet.ac.in",
+      designation: "Associate Professor, CSE",
+      specialization: "AI, Deep Learning & UAV Vision"
+    },
+    members: [
+      { rollNo: "714023104205", name: "Deepa N", email: "deepa.n@srishakthi.ac.in", isLead: true },
+      { rollNo: "714023104208", name: "Ezhil V", email: "ezhil.v@srishakthi.ac.in", isLead: false },
+      { rollNo: "714023104212", name: "Farooq A", email: "farooq.a@srishakthi.ac.in", isLead: false },
+      { rollNo: "714023104218", name: "Gayathri S", email: "gayathri.s@srishakthi.ac.in", isLead: false }
+    ],
+    submissions: [
+      {
+        week: 1,
+        title: "Edge Node Pipeline Architecture & Microcontroller Spec",
+        dueDate: "Week 1",
+        status: "Approved",
+        submissionDate: "14 Aug 2026",
+        fileName: "Week1_Edge_AI_Proposal.pptx",
+        comments: "Approved by Dr. P. Manimegalai.",
         score: 90,
         maxScore: 100
       }
@@ -435,10 +553,13 @@ export const HodService = {
       if (t.id === "TEAM-CSE-Y3-B04") {
         return {
           ...t,
-          submissions: StudentService.getSubmissions()
+          submissions: getCanonicalStudentSubmissions(t.projectTitle)
         };
       }
-      return t;
+      return {
+        ...t,
+        submissions: []
+      };
     }).filter(t => {
       const matchBatch = !batchFilter || batchFilter === 'ALL' || t.batch === batchFilter;
       const matchClass = !classFilter || classFilter === 'ALL' || t.classSection === classFilter;
@@ -466,10 +587,10 @@ export const HodService = {
     if (team && team.id === "TEAM-CSE-Y3-B04") {
       return {
         ...team,
-        submissions: StudentService.getSubmissions()
+        submissions: getCanonicalStudentSubmissions(team.projectTitle)
       };
     }
-    return team;
+    return team ? { ...team, submissions: [] } : undefined;
   },
 
   getFacultyList() {

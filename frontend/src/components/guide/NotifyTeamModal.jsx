@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Bell, MapPin, Clock, MessageSquare, History, X, Check } from 'lucide-react';
+import { Bell, MapPin, Clock, MessageSquare, History, X, Check, Calendar } from 'lucide-react';
+import { StudentService } from '../../services/studentService';
 
 const TIMING_PRESETS = [
   "Tomorrow at 10:30 AM",
@@ -9,6 +10,8 @@ const TIMING_PRESETS = [
 ];
 
 export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
+  const currentWeek = StudentService.getCurrentAcademicWeek();
+  const [weekNumber, setWeekNumber] = useState(currentWeek);
   const [timing, setTiming] = useState(team?.notifiedTiming || "Today at 3:00 PM");
   const [location, setLocation] = useState(team?.notifiedLocation || "Faculty Cabin 204");
   const [comment, setComment] = useState(team?.notifiedComment || "");
@@ -26,7 +29,8 @@ export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
     const success = onNotify(team.teamId, {
       timing: timing.trim() || "Today at 3:00 PM",
       location: location.trim() || "Faculty Cabin 204",
-      comment: comment.trim()
+      comment: comment.trim(),
+      weekNumber: Number(weekNumber)
     });
 
     if (success !== false) {
@@ -67,6 +71,33 @@ export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* Target Milestone Week */}
+          <div>
+            <label className="block text-xs font-extrabold text-slate-800 mb-1.5 flex items-center gap-1.5">
+              <Calendar size={13} className="text-amber-600" />
+              <span>Target Milestone Week in Student Submissions:</span>
+            </label>
+            <div className="flex items-center gap-2">
+              {[0, 1, 2, 3, 4, 5].map((wk) => (
+                <button
+                  key={wk}
+                  type="button"
+                  onClick={() => setWeekNumber(wk)}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer ${
+                    weekNumber === wk
+                      ? 'bg-amber-500 border-amber-600 text-white shadow-xs'
+                      : 'bg-slate-50 border-[#E2E8E4] text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Week {wk}{wk === currentWeek ? ' (Current)' : ''}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1">
+              Notice will be dispatched and displayed directly in the student's <strong>Week {weekNumber}</strong> milestone view.
+            </p>
+          </div>
+
           {/* Quick timing presets */}
           <div>
             <label className="block text-xs font-extrabold text-slate-800 mb-1.5 flex items-center gap-1.5">

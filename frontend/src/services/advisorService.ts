@@ -75,8 +75,8 @@ export const AdvisorService = {
         members: [
           { rollNo: "714023104112", name: "Tarunika Rajgopal", email: "tarunika.r@srishakthi.ac.in", isLead: true },
           { rollNo: "714023104178", name: "Vigneshwaran M", email: "vigneshwaran.m@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104040", name: "Karthik R", email: "karthik.r@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104045", name: "Kavya P", email: "kavya.p@srishakthi.ac.in", isLead: false }
+          { rollNo: "714023104189", name: "Vishnu Priya S", email: "vishnupriya.s@srishakthi.ac.in", isLead: false },
+          { rollNo: "714023104066", name: "Kavitha R", email: "kavitha.r@srishakthi.ac.in", isLead: false }
         ]
       },
       {
@@ -142,7 +142,37 @@ export const AdvisorService = {
       const stored = localStorage.getItem(`siet_advisor_teams_${className}`);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          let updated = false;
+          parsed.forEach((t: any) => {
+            if (t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNo === 'Team 04' || t.teamNo === '04') {
+              const expectedLead = "Tarunika Rajgopal (714023104112)";
+              if (t.leadStudent !== expectedLead) {
+                t.leadStudent = expectedLead;
+                updated = true;
+              }
+              const isLeadCorrect = Array.isArray(t.members) &&
+                t.members.length === 4 &&
+                t.members[0]?.rollNo === '714023104112' &&
+                t.members[0]?.isLead === true &&
+                !t.members.slice(1).some((m: any) => m.isLead);
+              if (!isLeadCorrect) {
+                t.members = [
+                  { rollNo: "714023104112", name: "Tarunika Rajgopal", email: "tarunika.r@srishakthi.ac.in", isLead: true },
+                  { rollNo: "714023104178", name: "Vigneshwaran M", email: "vigneshwaran.m@srishakthi.ac.in", isLead: false },
+                  { rollNo: "714023104189", name: "Vishnu Priya S", email: "vishnupriya.s@srishakthi.ac.in", isLead: false },
+                  { rollNo: "714023104066", name: "Kavitha R", email: "kavitha.r@srishakthi.ac.in", isLead: false }
+                ];
+                t.membersCount = 4;
+                updated = true;
+              }
+            }
+          });
+          if (updated) {
+            localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(parsed));
+          }
+          return parsed;
+        }
       }
       localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(defaultTeams));
       return defaultTeams;
