@@ -139,9 +139,6 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
               </p>
             </div>
           </div>
-          <span className="text-xs font-bold text-mint-800 bg-mint-50 px-3 py-1 rounded-full border border-mint-200">
-            Advisory Verified
-          </span>
         </div>
       )}
 
@@ -169,9 +166,14 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                 </tr>
               ) : (
                 filteredStudents.map((s) => {
-                  const w1 = MarksService.getMemberMark(s.teamId, 1, s.rollNo);
-                  const w2 = MarksService.getMemberMark(s.teamId, 2, s.rollNo);
-                  const displayMark = typeof w2 === 'number' ? `W2: ${w2}/100` : typeof w1 === 'number' ? `W1: ${w1}/100` : null;
+                  const availableWeeks = MarksService.getAvailableWeeks(s.teamId, [s.rollNo]);
+                  const latestWeekWithMarks = availableWeeks.slice().reverse().find(w => {
+                    const m = MarksService.getMemberMark(s.teamId, w, s.rollNo);
+                    return typeof m === 'number' && m > 0;
+                  }) ?? (availableWeeks.length > 0 ? availableWeeks[availableWeeks.length - 1] : null);
+
+                  const latestMark = latestWeekWithMarks !== null ? MarksService.getMemberMark(s.teamId, latestWeekWithMarks, s.rollNo) : null;
+                  const displayMark = typeof latestMark === 'number' && latestMark > 0 ? `W${latestWeekWithMarks}: ${latestMark}/100` : null;
 
                   return (
                     <tr
@@ -195,8 +197,8 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                         </span>
                       </td>
                       <td className="p-4 font-bold text-mint-700 whitespace-nowrap">{s.teamNo}</td>
-                      <td className="p-4 max-w-xs truncate text-slate-700 font-semibold" title={s.projectTitle}>
-                        {s.projectTitle}
+                      <td className="p-4 max-w-xs truncate text-slate-700 font-semibold" title={s.projectTitle || 'Not Submitted'}>
+                        {s.projectTitle || <span className="text-slate-400 italic font-normal">Not Submitted</span>}
                       </td>
                       <td className="p-4 whitespace-nowrap">
                         {displayMark ? (

@@ -195,23 +195,23 @@ export const SubmissionHistory = () => {
       {/* 1. Page Header with Mode Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#111111] tracking-tight">
             History &amp; Audit Governance
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[#75695A] mt-0.5">
             Audit Faculty Guide actions, approvals, rejections, consultation notices, and chronological team progress.
           </p>
         </div>
 
         {/* Segmented Mode Selector */}
-        <div className="flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-[#E2E8E4] shadow-2xs self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-[#D8CCBA] shadow-xs self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setHistoryMode('guide-audit')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               historyMode === 'guide-audit'
-                ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                : 'text-slate-600 hover:bg-mint-50'
+                ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold'
+                : 'text-[#75695A] hover:bg-[#F8F5EE]'
             }`}
           >
             Guide Action History ({guideLogs.length})
@@ -221,8 +221,8 @@ export const SubmissionHistory = () => {
             onClick={() => setHistoryMode('team-submissions')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               historyMode === 'team-submissions'
-                ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                : 'text-slate-600 hover:bg-mint-50'
+                ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold'
+                : 'text-[#75695A] hover:bg-[#F8F5EE]'
             }`}
           >
             Team Milestone Timeline
@@ -234,18 +234,18 @@ export const SubmissionHistory = () => {
       {historyMode === 'guide-audit' ? (
         <div className="space-y-4">
           {/* Controls Bar: Search, Action Filter, Download, Print */}
-          <div className="bg-white p-4 rounded-3xl border border-[#E2E8E4] shadow-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="bg-white p-4 rounded-3xl border border-[#D8CCBA] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             {/* Search & Filter */}
             <div className="flex flex-wrap items-center gap-2.5 flex-1">
               <div className="relative w-full sm:w-64">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#75695A]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search guide history..."
-                  className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs text-slate-800 focus:outline-none focus:border-mint-500 focus:bg-white transition font-medium"
+                  className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111] focus:bg-white transition font-medium"
                 />
               </div>
 
@@ -264,8 +264,8 @@ export const SubmissionHistory = () => {
                     onClick={() => setActionFilter(tab.key)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                       actionFilter === tab.key
-                        ? 'bg-mint-100 text-mint-900 border border-mint-300 shadow-2xs font-extrabold'
-                        : 'bg-slate-50 text-slate-600 border border-[#E2E8E4] hover:bg-slate-100'
+                        ? 'bg-[#111111] text-[#F8F5EE] border border-[#111111] shadow-2xs font-bold'
+                        : 'bg-[#F8F5EE] text-[#75695A] border border-[#D8CCBA] hover:bg-[#EDE7DB]'
                     }`}
                   >
                     {tab.label}
@@ -279,17 +279,17 @@ export const SubmissionHistory = () => {
               <button
                 type="button"
                 onClick={handlePrint}
-                className="px-3.5 py-2 rounded-xl bg-white border border-[#E2E8E4] hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                className="px-3.5 py-2 rounded-xl bg-white border border-[#D8CCBA] hover:bg-[#F8F5EE] text-[#111111] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 title="Print or Save PDF"
               >
-                <Printer size={14} className="text-slate-500" />
+                <Printer size={14} className="text-[#75695A]" />
                 <span>Print Report</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleDownloadCsv}
-                className="px-4 py-2 rounded-xl bg-mint-500 hover:bg-mint-600 text-white text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                className="px-4 py-2 rounded-xl bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
                 title="Download Guide Audit History CSV"
               >
                 <Download size={14} />
@@ -300,10 +300,10 @@ export const SubmissionHistory = () => {
 
           {/* Audit Logs List */}
           {filteredLogs.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-[#E2E8E4] p-12 text-center text-slate-500 space-y-2 shadow-card">
-              <Clock size={32} className="mx-auto text-slate-400" />
-              <h3 className="text-sm font-extrabold text-slate-800">No Guide Actions Recorded Yet</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
+            <div className="bg-white rounded-3xl border border-[#D8CCBA] p-12 text-center text-[#75695A] space-y-2 shadow-xs">
+              <Clock size={32} className="mx-auto text-[#75695A]" />
+              <h3 className="text-sm font-bold text-[#111111]">No Guide Actions Recorded Yet</h3>
+              <p className="text-xs text-[#75695A] max-w-md mx-auto">
                 Actions performed by the Faculty Guide (project approvals, rejections, weekly reviews, and consultation notices) will appear here automatically.
               </p>
             </div>
@@ -312,35 +312,35 @@ export const SubmissionHistory = () => {
               {filteredLogs.map((log) => (
                 <div
                   key={log.id}
-                  className="bg-white rounded-2xl border border-[#E2E8E4] p-5 shadow-card hover:shadow-hover transition space-y-3"
+                  className="bg-white rounded-2xl border border-[#D8CCBA] p-5 shadow-xs hover:border-[#111111] transition space-y-3"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8E4] pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#D8CCBA] pb-3">
                     <div className="flex flex-wrap items-center gap-2.5">
                       {getLogBadge(log)}
-                      <h3 className="text-sm font-extrabold text-slate-900">
+                      <h3 className="text-sm font-serif font-bold text-[#111111]">
                         {log.target}
                       </h3>
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-md bg-[#F8F5EE] text-[#111111] border border-[#D8CCBA] font-mono text-[10px] font-bold">
                         Class {log.classSection || 'CSE-B'}
                       </span>
                     </div>
 
-                    <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5 shrink-0">
-                      <Calendar size={13} className="text-slate-400" />
+                    <span className="text-[11px] font-bold text-[#75695A] flex items-center gap-1.5 shrink-0">
+                      <Calendar size={13} className="text-[#75695A]" />
                       <span>{log.dateFormatted || log.date}</span>
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-800 leading-relaxed font-medium bg-[#F8FAF9] p-3.5 rounded-xl border border-[#E2E8E4]">
+                  <p className="text-xs text-[#111111] leading-relaxed font-medium bg-[#F8F5EE] p-3.5 rounded-xl border border-[#D8CCBA]">
                     {log.details}
                   </p>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#75695A] pt-1">
                     <span className="flex items-center gap-1.5 font-bold">
-                      <Shield size={13} className="text-mint-600" />
-                      <span>Authorized Faculty Guide: <strong className="text-slate-800">{log.actorName || facultyProfile.name}</strong></span>
+                      <Shield size={13} className="text-[#111111]" />
+                      <span>Authorized Faculty Guide: <strong className="text-[#111111]">{log.actorName || facultyProfile.name}</strong></span>
                     </span>
-                    <span className="font-mono text-slate-400">
+                    <span className="font-mono text-[#75695A]">
                       Ref: {log.id}
                     </span>
                   </div>
@@ -353,8 +353,8 @@ export const SubmissionHistory = () => {
         /* Mode 2: Team Milestone Timeline */
         <>
           {/* Horizontal Team Carousel */}
-          <div className="bg-white p-3.5 rounded-2xl border border-[#E2E8E4] shadow-card">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-1">
+          <div className="bg-white p-3.5 rounded-2xl border border-[#D8CCBA] shadow-xs">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#75695A] mb-2 px-1">
               Select Student Team Portfolio Ledger:
             </div>
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
@@ -368,16 +368,16 @@ export const SubmissionHistory = () => {
                     onClick={() => setSelectedTeamId(team.teamId)}
                     className={`px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-2 shrink-0 border ${
                       isSelected
-                        ? 'bg-mint-100 text-mint-900 border-mint-300 shadow-sm font-extrabold'
-                        : 'bg-white text-slate-700 border-[#E2E8E4] hover:bg-slate-50'
+                        ? 'bg-[#111111] text-[#F8F5EE] border-[#111111] shadow-sm font-bold'
+                        : 'bg-white text-[#111111] border-[#D8CCBA] hover:bg-[#F8F5EE]'
                     }`}
                   >
                     {isSelected && (
-                      <span className="w-2 h-2 rounded-full bg-mint-600"></span>
+                      <span className="w-2 h-2 rounded-full bg-[#F8F5EE]"></span>
                     )}
                     <span>Team #{team.teamNumber}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      isSelected ? 'bg-mint-600 text-white' : 'bg-slate-100 text-slate-600'
+                      isSelected ? 'bg-white text-[#111111]' : 'bg-[#EDE7DB] text-[#111111]'
                     }`}>
                       {weekCount} {weekCount === 1 ? 'Week' : 'Weeks'}
                     </span>
@@ -389,16 +389,16 @@ export const SubmissionHistory = () => {
 
           {/* Team Summary Banner */}
           {activeTeam && (
-            <div className="bg-white rounded-2xl border border-[#E2E8E4] p-6 shadow-card space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
+            <div className="bg-white rounded-2xl border border-[#D8CCBA] p-6 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D8CCBA] pb-4">
                 <div className="flex items-center gap-3">
-                  <span className="px-3 py-1.5 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-xs shadow-xs">
+                  <span className="px-3 py-1.5 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-extrabold text-xs shadow-xs">
                     Team #{activeTeam.teamNumber}
                   </span>
                   <div>
-                    <h2 className="text-base font-extrabold text-slate-900">{activeTeam.projectTitle}</h2>
-                    <span className="text-xs text-slate-500">
-                      {activeTeam.class}-{activeTeam.section} &bull; Batch {activeTeam.batch}
+                    <h2 className="text-base font-serif font-bold text-[#111111]">{activeTeam.projectTitle}</h2>
+                    <span className="text-xs text-[#75695A]">
+                      Class {activeTeam.classSection || `${activeTeam.class}-${activeTeam.section}`} &bull; Batch {activeTeam.batch}
                     </span>
                   </div>
                 </div>
@@ -412,14 +412,14 @@ export const SubmissionHistory = () => {
                     return (
                       <span className={`px-3 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 ${
                         isApp
-                          ? 'bg-mint-100 text-mint-900 border-mint-200'
+                          ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
                           : isPending
                           ? 'bg-amber-50 text-amber-900 border-amber-200'
-                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                          : 'bg-[#F8F5EE] text-[#75695A] border-[#D8CCBA]'
                       }`}>
-                        {isApp && <CheckCircle2 size={13} className="text-mint-700" />}
+                        {isApp && <CheckCircle2 size={13} className="text-emerald-700" />}
                         {isPending && <Clock size={13} className="text-amber-600" />}
-                        {isNoSub && <XCircle size={13} className="text-slate-400" />}
+                        {isNoSub && <XCircle size={13} className="text-[#75695A]" />}
                         <span>{isApp ? 'Approved' : isPending ? 'Pending' : 'No Submission'}</span>
                       </span>
                     );
@@ -428,28 +428,28 @@ export const SubmissionHistory = () => {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                <div className="p-3 bg-[#EFF3F1]/70 rounded-xl border border-[#E2E8E4]">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Team Leader</span>
-                  <span className="font-extrabold text-slate-900 mt-0.5 block">{activeTeam.teamLeader}</span>
-                  <span className="text-[10px] text-slate-400 font-mono">{activeTeam.leaderRollNo}</span>
+                <div className="p-3 bg-[#F8F5EE] rounded-xl border border-[#D8CCBA]">
+                  <span className="text-[10px] text-[#75695A] font-bold uppercase block">Team Leader</span>
+                  <span className="font-bold text-[#111111] mt-0.5 block">{activeTeam.teamLeader}</span>
+                  <span className="text-[10px] text-[#75695A] font-mono">{activeTeam.leaderRollNo}</span>
                 </div>
 
-                <div className="p-3 bg-[#EFF3F1]/70 rounded-xl border border-[#E2E8E4]">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Total Students</span>
-                  <span className="font-extrabold text-slate-900 mt-0.5 block">{activeTeam.membersCount || 4} Enrolled</span>
-                  <span className="text-[10px] text-slate-500">4th Year Capstone</span>
+                <div className="p-3 bg-[#F8F5EE] rounded-xl border border-[#D8CCBA]">
+                  <span className="text-[10px] text-[#75695A] font-bold uppercase block">Total Students</span>
+                  <span className="font-bold text-[#111111] mt-0.5 block">{activeTeam.membersCount || 4} Enrolled</span>
+                  <span className="text-[10px] text-[#75695A]">4th Year Capstone</span>
                 </div>
 
-                <div className="p-3 bg-[#EFF3F1]/70 rounded-xl border border-[#E2E8E4]">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Class Advisor</span>
-                  <span className="font-extrabold text-slate-900 mt-0.5 block">{activeTeam.advisor}</span>
-                  <span className="text-[10px] text-slate-500">Section Supervisor</span>
+                <div className="p-3 bg-[#F8F5EE] rounded-xl border border-[#D8CCBA]">
+                  <span className="text-[10px] text-[#75695A] font-bold uppercase block">Class Advisor</span>
+                  <span className="font-bold text-[#111111] mt-0.5 block">{activeTeam.advisor}</span>
+                  <span className="text-[10px] text-[#75695A]">Section Supervisor</span>
                 </div>
 
-                <div className="p-3 bg-[#EFF3F1]/70 rounded-xl border border-[#E2E8E4]">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Total Sprints</span>
-                  <span className="font-extrabold text-mint-700 mt-0.5 block">{submissions.length} Logged (up to Week {currentAcademicWeek})</span>
-                  <span className="text-[10px] text-slate-500">IEEE Deliverables</span>
+                <div className="p-3 bg-[#F8F5EE] rounded-xl border border-[#D8CCBA]">
+                  <span className="text-[10px] text-[#75695A] font-bold uppercase block">Total Sprints</span>
+                  <span className="font-bold text-[#111111] mt-0.5 block">{submissions.length} Logged (up to Week {currentAcademicWeek})</span>
+                  <span className="text-[10px] text-[#75695A]">IEEE Deliverables</span>
                 </div>
               </div>
             </div>
@@ -457,19 +457,19 @@ export const SubmissionHistory = () => {
 
           {/* Timeline Ledger */}
           <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <History size={14} className="text-mint-600" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#75695A] flex items-center gap-1.5">
+              <History size={14} className="text-[#111111]" />
               <span>Chronological Milestone Timeline (Sprint Progress)</span>
             </h3>
 
             {submissions.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-[#E2E8E4] p-12 text-center text-slate-500 space-y-2 shadow-card">
-                <Clock size={28} className="mx-auto text-slate-400" />
-                <p className="text-xs font-bold text-slate-800">No weekly sprint logs submitted yet.</p>
-                <p className="text-[11px] text-slate-400">Team will begin weekly logs once initial setup is complete.</p>
+              <div className="bg-white rounded-2xl border border-[#D8CCBA] p-12 text-center text-[#75695A] space-y-2 shadow-xs">
+                <Clock size={28} className="mx-auto text-[#75695A]" />
+                <p className="text-xs font-bold text-[#111111]">No weekly sprint logs submitted yet.</p>
+                <p className="text-[11px] text-[#75695A]">Team will begin weekly logs once initial setup is complete.</p>
               </div>
             ) : (
-              <div className="relative pl-6 sm:pl-8 border-l-2 border-mint-200 space-y-6">
+              <div className="relative pl-6 sm:pl-8 border-l-2 border-[#D8CCBA] space-y-6">
                 {submissions.map((sub, idx) => {
                   const isApproved = sub.evaluationStatus === 'Approved' || sub.evaluationStatus === 'Evaluated' || activeTeam?.titleStatus === 'Approved';
                   const isRevision = sub.evaluationStatus === 'Revision Required';
@@ -478,41 +478,41 @@ export const SubmissionHistory = () => {
                   return (
                     <div key={idx} className="relative group">
                       {/* Timeline Node Bullet */}
-                      <div className={`absolute -left-[31px] sm:-left-[39px] top-4 w-7 h-7 rounded-full flex items-center justify-center font-extrabold text-[11px] shadow-sm border-2 ${
+                      <div className={`absolute -left-[31px] sm:-left-[39px] top-4 w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] shadow-sm border-2 ${
                         isApproved
-                          ? 'bg-mint-500 text-white border-white'
+                          ? 'bg-[#111111] text-[#F8F5EE] border-white'
                           : isPending
-                          ? 'bg-amber-500 text-white border-white'
-                          : 'bg-rose-500 text-white border-white'
+                          ? 'bg-amber-600 text-white border-white'
+                          : 'bg-rose-600 text-white border-white'
                       }`}>
                         W{sub.weekNumber}
                       </div>
 
                       {/* Card Container */}
-                      <div className="bg-white rounded-2xl border border-[#E2E8E4] p-5 shadow-card hover:shadow-hover transition space-y-3">
+                      <div className="bg-white rounded-2xl border border-[#D8CCBA] p-5 shadow-xs hover:border-[#111111] transition space-y-3">
                         
                         {/* Week Title & Status */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E2E8E4] pb-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#D8CCBA] pb-3">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-md bg-mint-50 text-mint-900 font-bold text-xs border border-mint-200">
+                              <span className="px-2.5 py-0.5 rounded-md bg-[#EDE7DB] text-[#111111] font-bold text-xs border border-[#D8CCBA]">
                                 Week {sub.weekNumber}
                               </span>
-                              <h4 className="text-sm font-extrabold text-slate-900">{sub.title || `Milestone Sprint ${sub.weekNumber}`}</h4>
+                              <h4 className="text-sm font-serif font-bold text-[#111111]">{sub.title || `Milestone Sprint ${sub.weekNumber}`}</h4>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                            <span className="text-[10px] text-[#75695A] font-mono mt-0.5 block">
                               Submitted on {sub.submissionDate}
                             </span>
                           </div>
 
                           <span className={`self-start sm:self-center px-3 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 ${
                             isApproved
-                              ? 'bg-mint-100 text-mint-900 border-mint-200'
+                              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
                               : isPending
                               ? 'bg-amber-50 text-amber-900 border-amber-200'
                               : 'bg-rose-50 text-rose-900 border-rose-200'
                           }`}>
-                            {isApproved && <CheckCircle2 size={13} className="text-mint-700" />}
+                            {isApproved && <CheckCircle2 size={13} className="text-emerald-700" />}
                             {isPending && <Clock size={13} className="text-amber-600" />}
                             {isRevision && <AlertCircle size={13} className="text-rose-600" />}
                             <span>{isApproved ? 'Approved' : isPending ? 'Pending' : 'Revision Required'}</span>

@@ -124,23 +124,23 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-[#E2E8E4] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+      <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-[#D8CCBA] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
-        <div className="p-6 border-b border-[#E2E8E4] flex items-center justify-between bg-mint-50/60">
+        <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-[#F8F5EE]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-[#111111] text-[#F8F5EE] flex items-center justify-center font-bold shadow-sm">
               <FileSpreadsheet size={20} />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">Import Students from Spreadsheet</h3>
-              <p className="text-xs text-slate-500">Batch upload candidates via .csv or Excel export</p>
+              <h3 className="text-base font-serif font-bold text-[#111111]">Import Students from Spreadsheet</h3>
+              <p className="text-xs text-[#75695A]">Batch upload candidates via .csv or Excel export</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition"
+            className="w-8 h-8 rounded-xl hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] flex items-center justify-center transition"
           >
             <X size={18} />
           </button>
@@ -150,24 +150,24 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
         <form onSubmit={handleImportSubmit} className="p-6 space-y-4 text-xs">
           
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
               <AlertTriangle size={15} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Download Template Banner */}
-          <div className="p-4 rounded-2xl bg-[#EFF3F1] border border-[#E2E8E4] flex items-center justify-between">
+          <div className="p-4 rounded-2xl bg-[#F8F5EE] border border-[#D8CCBA] flex items-center justify-between">
             <div>
-              <span className="font-extrabold text-slate-800 block text-xs">Need the standard column format?</span>
-              <span className="text-[11px] text-slate-500">Headers: Name, Register Number, Email, Password, Batch, Class</span>
+              <span className="font-bold text-[#111111] block text-xs">Need the standard column format?</span>
+              <span className="text-[11px] text-[#75695A]">Headers: Name, Register Number, Email, Password, Batch, Class</span>
             </div>
             <button
               type="button"
               onClick={handleDownloadTemplate}
-              className="px-3.5 py-1.5 rounded-xl bg-white border border-[#E2E8E4] text-mint-900 font-bold hover:bg-mint-50 flex items-center gap-1.5 transition text-[11px] shrink-0"
+              className="px-3.5 py-1.5 rounded-xl bg-white border border-[#D8CCBA] text-[#111111] font-semibold hover:bg-[#EDE7DB] flex items-center gap-1.5 transition text-[11px] shrink-0"
             >
-              <Download size={13} className="text-mint-600" />
+              <Download size={13} className="text-[#75695A]" />
               <span>Download Template</span>
             </button>
           </div>
@@ -175,7 +175,7 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
           {/* Upload Dropzone */}
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-mint-300 hover:border-mint-500 bg-mint-50/20 hover:bg-mint-50/50 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2"
+            className="border-2 border-dashed border-[#D8CCBA] hover:border-[#111111] bg-[#F8F5EE]/40 hover:bg-[#F8F5EE] rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2"
           >
             <input
               ref={fileInputRef}
@@ -184,14 +184,14 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
               className="hidden"
               onChange={handleFileChange}
             />
-            <div className="w-12 h-12 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
+            <div className="w-12 h-12 rounded-2xl bg-[#EDE7DB] text-[#111111] flex items-center justify-center font-bold">
               <UploadCloud size={24} />
             </div>
             <div>
-              <p className="font-extrabold text-slate-800 text-sm">
+              <p className="font-bold text-[#111111] text-sm">
                 {fileName ? fileName : "Click to browse or drop CSV file here"}
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <p className="text-[11px] text-[#75695A] mt-0.5">
                 Comma-separated file (.csv) with student roster records
               </p>
             </div>
@@ -200,17 +200,17 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
           {/* Parsed Preview Table */}
           {parsedRows.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between font-bold text-slate-700">
-                <span className="flex items-center gap-1.5 text-mint-800">
-                  <CheckCircle2 size={15} className="text-mint-600" />
+              <div className="flex items-center justify-between font-medium text-[#75695A]">
+                <span className="flex items-center gap-1.5 text-[#4A5844] font-semibold">
+                  <CheckCircle2 size={15} className="text-[#4A5844]" />
                   <span>Ready to import {parsedRows.length} candidates</span>
                 </span>
-                <span className="text-[11px] text-slate-500">Showing first 3 rows</span>
+                <span className="text-[11px] text-[#75695A]">Showing first 3 rows</span>
               </div>
 
-              <div className="bg-slate-50 rounded-2xl border border-[#E2E8E4] overflow-hidden max-h-36 overflow-y-auto">
+              <div className="bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA] overflow-hidden max-h-36 overflow-y-auto">
                 <table className="w-full text-left text-[11px]">
-                  <thead className="bg-slate-100 font-bold text-slate-600 border-b border-slate-200">
+                  <thead className="bg-[#EDE7DB] font-semibold text-[#75695A] border-b border-[#D8CCBA]">
                     <tr>
                       <th className="p-2">Reg No</th>
                       <th className="p-2">Name</th>
@@ -218,13 +218,13 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
                       <th className="p-2">Class</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
+                  <tbody className="divide-y divide-[#D8CCBA]">
                     {parsedRows.slice(0, 3).map((r, idx) => (
-                      <tr key={idx}>
-                        <td className="p-2 font-mono font-bold text-mint-900">{r.rollNo}</td>
-                        <td className="p-2 font-bold text-slate-800">{r.name}</td>
-                        <td className="p-2 text-slate-500 font-mono">{r.email}</td>
-                        <td className="p-2 font-bold text-slate-700">{r.classSection}</td>
+                      <tr key={idx} className="hover:bg-white/60 transition">
+                        <td className="p-2 font-mono font-bold text-[#111111]">{r.rollNo}</td>
+                        <td className="p-2 font-semibold text-[#111111]">{r.name}</td>
+                        <td className="p-2 text-[#75695A] font-mono">{r.email}</td>
+                        <td className="p-2 font-medium text-[#292725]">{r.classSection}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -235,7 +235,7 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
 
           {/* Audit Reason Input */}
           <div>
-            <label className="block text-slate-700 font-bold mb-1">
+            <label className="block text-[#111111] font-semibold mb-1">
               Import Justification (Audit Trail) <span className="text-red-500">*</span>
             </label>
             <input
@@ -244,23 +244,23 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Official semester student roster sync"
-              className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl focus:outline-none focus:border-mint-500 font-medium"
+              className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-medium text-[#111111]"
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E2E8E4]">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#D8CCBA]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition"
+              className="px-4 py-2 rounded-xl text-[#75695A] font-medium hover:bg-[#EDE7DB] hover:text-[#111111] transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={parsedRows.length === 0}
-              className="px-5 py-2 bg-mint-500 hover:bg-mint-600 disabled:opacity-50 text-white font-extrabold rounded-xl shadow-sm transition flex items-center gap-2"
+              className="px-5 py-2 bg-[#111111] hover:bg-[#292725] disabled:opacity-50 text-[#F8F5EE] font-semibold rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
             >
               <FileSpreadsheet size={14} />
               <span>Finalize Import ({parsedRows.length})</span>

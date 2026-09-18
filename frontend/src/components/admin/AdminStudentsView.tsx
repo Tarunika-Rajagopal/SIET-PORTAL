@@ -149,28 +149,26 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
             <span>Import</span>
           </button>
 
-          {/* Manage Toggle */}
+          {/* Manage / Refresh Button */}
           <button
-            onClick={() => setIsManageMode(!isManageMode)}
-            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs ${
+            onClick={() => {
+              if (isManageMode) {
+                setStudents(AdminService.getStudents());
+                setIsManageMode(false);
+                onShowToast("Students roster refreshed.");
+              } else {
+                setIsManageMode(true);
+              }
+            }}
+            title={isManageMode ? "Refresh page" : "Manage Students"}
+            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center justify-center gap-1.5 text-xs ${
               isManageMode
-                ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
+                ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs hover:bg-amber-200'
                 : 'bg-[#EFF3F1] hover:bg-mint-100 text-slate-700 border border-[#E2E8E4]'
             }`}
           >
             <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
-            <span>{isManageMode ? 'Done Managing' : 'Manage'}</span>
-          </button>
-
-          {/* Refresh button */}
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            title="Refresh page"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
-            aria-label="Refresh page"
-          >
-            <RefreshCw size={14} />
+            {!isManageMode && <span>Manage</span>}
           </button>
 
         </div>

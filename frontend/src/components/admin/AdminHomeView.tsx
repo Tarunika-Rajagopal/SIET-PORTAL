@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
 import { Users, UserCheck, Briefcase, Plus, CheckCircle2, RotateCw, Trash2, ShieldAlert, ArrowRight } from 'lucide-react';
 import FacultyDeleteShiftModal from './FacultyDeleteShiftModal';
+import RemoveAdvisorShiftModal from './RemoveAdvisorShiftModal';
+import RemoveGuideShiftModal from './RemoveGuideShiftModal';
+import FacultyAssignAdvisorModal from './FacultyAssignAdvisorModal';
 
 interface AdminHomeViewProps {
   onNavigateTab: (tab: 'home' | 'advisors' | 'guides' | 'students' | 'history') => void;
@@ -23,6 +26,17 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
   // Deletion modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [facultyToDelete, setFacultyToDelete] = useState<AdminFaculty | null>(null);
+
+  // Role revocation shift modals state
+  const [advisorShiftModalOpen, setAdvisorShiftModalOpen] = useState(false);
+  const [facultyToShiftAdvisor, setFacultyToShiftAdvisor] = useState<AdminFaculty | null>(null);
+
+  const [guideShiftModalOpen, setGuideShiftModalOpen] = useState(false);
+  const [facultyToShiftGuide, setFacultyToShiftGuide] = useState<AdminFaculty | null>(null);
+
+  // Assign Advisor Modal state
+  const [assignAdvisorModalOpen, setAssignAdvisorModalOpen] = useState(false);
+  const [facultyToAssignAdvisor, setFacultyToAssignAdvisor] = useState<AdminFaculty | null>(null);
 
   useEffect(() => {
     return AdminService.subscribe(() => {
@@ -64,20 +78,21 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
 
   const handleToggleAdvisor = (fac: AdminFaculty) => {
     if (fac.role === 'Advisor' || fac.role === 'Advisor & Guide') {
-      AdminService.removeAdvisor(fac.email, "Removed advisor role from Available Faculties table");
-      onShowToast(`Removed Advisor role from ${fac.name}`);
+      // Must shift class to a non-advisor faculty
+      setFacultyToShiftAdvisor(fac);
+      setAdvisorShiftModalOpen(true);
     } else {
-      // Find first unassigned class
-      const availableClass = ['CSE-A', 'CSE-B', 'CSE-C'].find(c => !assignedClassesInBatch.includes(c)) || 'CSE-A';
-      AdminService.assignAdvisor(fac.email, batch, availableClass, "Assigned advisor role from Available Faculties table");
-      onShowToast(`Assigned ${fac.name} as Advisor for ${availableClass}`);
+      // Ask which batch and section, with assigned classes disabled
+      setFacultyToAssignAdvisor(fac);
+      setAssignAdvisorModalOpen(true);
     }
   };
 
   const handleToggleGuide = (fac: AdminFaculty) => {
     if (fac.role === 'Guide' || fac.role === 'Advisor & Guide') {
-      AdminService.removeGuide(fac.email, "Removed guide role from Available Faculties table");
-      onShowToast(`Removed Guide role from ${fac.name}`);
+      // Must shift teams to a non-guide faculty
+      setFacultyToShiftGuide(fac);
+      setGuideShiftModalOpen(true);
     } else {
       AdminService.assignGuide(fac.email, "Assigned guide role from Available Faculties table");
       onShowToast(`Assigned ${fac.name} as Project Guide`);
@@ -267,21 +282,29 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
       <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
         <div className="p-5 border-b border-[#E2E8E4] flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-extrabold text-slate-900">Available Faculties Roster</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Faculty credentials, active appointments, and workload reallocation</p>
+            <h3 className="text-sm font-extrabold text-slate-900">Available Faculties</h3>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsManageMode(!isManageMode)}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 text-xs ${
+              onClick={() => {
+                if (isManageMode) {
+                  setFaculties(AdminService.getFaculties());
+                  setIsManageMode(false);
+                  onShowToast("Faculties roster refreshed.");
+                } else {
+                  setIsManageMode(true);
+                }
+              }}
+              title={isManageMode ? "Refresh page" : "Manage Available Faculties"}
+              className={`px-3.5 py-1.5 rounded-xl font-bold transition flex items-center justify-center gap-1.5 text-xs ${
                 isManageMode
-                  ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs hover:bg-amber-200'
                   : 'bg-[#EFF3F1] hover:bg-mint-100 text-slate-700 border border-[#E2E8E4]'
               }`}
             >
               <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
-              <span>{isManageMode ? 'Close Manage' : 'Manage'}</span>
+              {!isManageMode && <span>Manage</span>}
             </button>
           </div>
         </div>
@@ -293,7 +316,7 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                 <th className="p-4">Faculty Name</th>
                 <th className="p-4">Institutional Email</th>
                 <th className="p-4">Designation</th>
-                <th className="p-4">Current Role</th>
+                <th className="p-4 text-center whitespace-nowrap">Current Role</th>
                 <th className="p-4">Assigned Workload</th>
                 {isManageMode && (
                   <>
@@ -310,8 +333,8 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                   <td className="p-4 font-bold text-slate-900">{f.name}</td>
                   <td className="p-4 text-slate-500 font-mono">{f.email}</td>
                   <td className="p-4 text-slate-700">{f.designation}</td>
-                  <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] border ${
+                  <td className="p-4 text-center whitespace-nowrap">
+                    <span className={`inline-flex items-center justify-center min-w-[125px] px-3 py-1 rounded-full font-bold text-[10px] text-center border ${
                       f.role === 'Advisor' ? 'bg-amber-50 text-amber-900 border-amber-200' :
                       f.role === 'Guide' ? 'bg-mint-100 text-mint-900 border-mint-200' :
                       f.role === 'Advisor & Guide' ? 'bg-purple-50 text-purple-900 border-purple-200' :
@@ -381,6 +404,39 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
         faculty={facultyToDelete}
+        onSuccess={(msg) => onShowToast(msg)}
+      />
+
+      {/* Remove Advisor Shift Modal */}
+      <RemoveAdvisorShiftModal
+        isOpen={advisorShiftModalOpen}
+        onClose={() => {
+          setAdvisorShiftModalOpen(false);
+          setFacultyToShiftAdvisor(null);
+        }}
+        faculty={facultyToShiftAdvisor}
+        onSuccess={(msg) => onShowToast(msg)}
+      />
+
+      {/* Remove Guide Shift Modal */}
+      <RemoveGuideShiftModal
+        isOpen={guideShiftModalOpen}
+        onClose={() => {
+          setGuideShiftModalOpen(false);
+          setFacultyToShiftGuide(null);
+        }}
+        faculty={facultyToShiftGuide}
+        onSuccess={(msg) => onShowToast(msg)}
+      />
+
+      {/* Assign Advisor Modal with Batch and Class Selection */}
+      <FacultyAssignAdvisorModal
+        isOpen={assignAdvisorModalOpen}
+        onClose={() => {
+          setAssignAdvisorModalOpen(false);
+          setFacultyToAssignAdvisor(null);
+        }}
+        faculty={facultyToAssignAdvisor}
         onSuccess={(msg) => onShowToast(msg)}
       />
 

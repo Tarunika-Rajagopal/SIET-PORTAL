@@ -29,7 +29,7 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
 
       return {
         ...team,
-        submissions: [],
+        submissions: isMockTitle ? [] : (team.submissions || []),
         projectTitle: isMockTitle ? '' : (team.projectTitle || ''),
         problemStatement: (team.problemStatement && team.problemStatement.toLowerCase().includes('wildfire')) ? '' : (team.problemStatement || ''),
         proposedSolution: (team.proposedSolution && team.proposedSolution.toLowerCase().includes('mesh')) ? '' : (team.proposedSolution || ''),

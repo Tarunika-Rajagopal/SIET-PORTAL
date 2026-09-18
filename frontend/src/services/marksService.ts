@@ -50,45 +50,89 @@ function loadAllMarks(): Record<string, Record<number, WeeklyMarksRecord>> {
   return {};
 }
 
-// Helper to resolve alias ids (e.g. team-1 <-> TEAM-CSE-Y3-B04)
-const ALIAS_MAP: Record<string, string> = {
-  "team-1": "TEAM-CSE-Y3-B04",
-  "TEAM-CSE-Y3-B04": "team-1",
-  "team-4": "TEAM-CSE-Y3-B04",
-  "Team 04": "TEAM-CSE-Y3-B04",
-  "Team 4": "TEAM-CSE-Y3-B04",
-  "04": "TEAM-CSE-Y3-B04",
-  "4": "TEAM-CSE-Y3-B04",
-  "team-2": "TEAM-CSE-Y3-B05",
-  "TEAM-CSE-Y3-B05": "team-2",
-};
+// Helper to resolve alias ids across team aliases (e.g. team-4, TEAM-CSE-Y3-B04, Team 04, etc.)
+const ALL_ALIAS_GROUPS: string[][] = [
+  ["TEAM-CSE-Y3-B04", "team-4", "Team 04", "Team 4", "team-1", "04", "4"],
+  ["TEAM-CSE-Y3-B05", "team-5", "Team 05", "Team 5", "team-2", "05", "5"],
+  ["TEAM-CSE-Y3-B06", "team-6", "Team 06", "Team 6", "team-3", "06", "6"],
+  ["TEAM-CSE-Y3-B07", "team-7", "Team 07", "Team 7", "07", "7"],
+  ["TEAM-CSE-Y3-C08", "team-8", "Team 08", "Team 8", "08", "8"],
+  ["TEAM-CSE-Y3-C09", "team-9", "Team 09", "Team 9", "09", "9"]
+];
+
+function getAliasesForTeam(teamId: string): string[] {
+  const tLower = teamId.toLowerCase();
+  const group = ALL_ALIAS_GROUPS.find(g => g.some(a => a.toLowerCase() === tLower));
+  return group ? group : [teamId];
+}
 
 export const MarksService = {
   getAllMarks(): Record<string, Record<number, WeeklyMarksRecord>> {
     return loadAllMarks();
   },
 
-  getAllTeamMarks(teamId: string): Record<number, WeeklyMarksRecord> {
+  getAllTeamMarks(teamId: string, memberRollNos?: string[]): Record<number, WeeklyMarksRecord> {
     const all = loadAllMarks();
-    if (all[teamId]) return all[teamId];
-    const alias = ALIAS_MAP[teamId];
-    if (alias && all[alias]) return all[alias];
-    return {};
+    const result: Record<number, WeeklyMarksRecord> = {};
+
+    // 1. Direct key match
+    if (all[teamId]) {
+      Object.assign(result, all[teamId]);
+    }
+
+    // 2. All alias group keys
+    const aliases = getAliasesForTeam(teamId);
+    for (const a of aliases) {
+      if (all[a]) {
+        for (const [wStr, rec] of Object.entries(all[a])) {
+          const w = Number(wStr);
+          if (!result[w] || (rec.teamAverage > 0 && result[w].teamAverage === 0)) {
+            result[w] = rec;
+          }
+        }
+      }
+    }
+
+    // 3. Case-insensitive key match
+    const lower = teamId.toLowerCase();
+    for (const [k, v] of Object.entries(all)) {
+      if (k.toLowerCase() === lower && v) {
+        for (const [wStr, rec] of Object.entries(v)) {
+          const w = Number(wStr);
+          if (!result[w] || (rec.teamAverage > 0 && result[w].teamAverage === 0)) {
+            result[w] = rec;
+          }
+        }
+      }
+    }
+
+    // 4. Member roll numbers match across all recorded marks
+    if (memberRollNos && memberRollNos.length > 0) {
+      for (const v of Object.values(all)) {
+        if (!v) continue;
+        for (const [wStr, rec] of Object.entries(v)) {
+          const w = Number(wStr);
+          if (rec && rec.memberMarks && memberRollNos.some(r => r in rec.memberMarks)) {
+            if (!result[w] || (rec.teamAverage > 0 && result[w].teamAverage === 0)) {
+              result[w] = rec;
+            }
+          }
+        }
+      }
+    }
+
+    return result;
   },
 
-  getAvailableWeeks(teamId: string): number[] {
-    const teamMarks = this.getAllTeamMarks(teamId);
+  getAvailableWeeks(teamId: string, memberRollNos?: string[]): number[] {
+    const teamMarks = this.getAllTeamMarks(teamId, memberRollNos);
     return Object.keys(teamMarks).map(Number).sort((a, b) => a - b);
   },
 
-  getWeeklyMarks(teamId: string, weekNumber: number): WeeklyMarksRecord | null {
-    const all = loadAllMarks();
-    if (all[teamId]?.[weekNumber]) {
-      return all[teamId][weekNumber];
-    }
-    const alias = ALIAS_MAP[teamId];
-    if (alias && all[alias]?.[weekNumber]) {
-      return all[alias][weekNumber];
+  getWeeklyMarks(teamId: string, weekNumber: number, memberRollNos?: string[]): WeeklyMarksRecord | null {
+    const allTeamMarks = this.getAllTeamMarks(teamId, memberRollNos);
+    if (allTeamMarks[weekNumber]) {
+      return allTeamMarks[weekNumber];
     }
     return null;
   },
@@ -101,9 +145,6 @@ export const MarksService = {
     gradedBy: string = 'Class Advisor'
   ): WeeklyMarksRecord {
     const all = loadAllMarks();
-    if (!all[teamId]) {
-      all[teamId] = {};
-    }
 
     const marksValues = Object.values(memberMarks).filter(m => typeof m === 'number' && !isNaN(m));
     const sum = marksValues.reduce((acc, curr) => acc + curr, 0);
@@ -119,13 +160,15 @@ export const MarksService = {
       gradedBy
     };
 
+    // Save under primary teamId
+    if (!all[teamId]) all[teamId] = {};
     all[teamId][weekNumber] = record;
 
-    // Also sync alias if present
-    const alias = ALIAS_MAP[teamId];
-    if (alias) {
-      if (!all[alias]) all[alias] = {};
-      all[alias][weekNumber] = { ...record, teamId: alias };
+    // Synchronize to ALL known alias keys for this team
+    const aliases = getAliasesForTeam(teamId);
+    for (const a of aliases) {
+      if (!all[a]) all[a] = {};
+      all[a][weekNumber] = { ...record, teamId: a };
     }
 
     try {
@@ -142,13 +185,13 @@ export const MarksService = {
     return record;
   },
 
-  getTeamAverage(teamId: string, weekNumber: number): number | null {
-    const record = this.getWeeklyMarks(teamId, weekNumber);
+  getTeamAverage(teamId: string, weekNumber: number, memberRollNos?: string[]): number | null {
+    const record = this.getWeeklyMarks(teamId, weekNumber, memberRollNos);
     return record ? record.teamAverage : null;
   },
 
   getMemberMark(teamId: string, weekNumber: number, rollNo: string): number | null {
-    const record = this.getWeeklyMarks(teamId, weekNumber);
+    const record = this.getWeeklyMarks(teamId, weekNumber, [rollNo]);
     if (!record || record.memberMarks[rollNo] === undefined) return null;
     return record.memberMarks[rollNo];
   },

@@ -93,19 +93,19 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-[#E2E8E4] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto font-sans">
+      <div className="bg-white rounded-3xl w-full max-w-4xl shadow-xl border border-[#D8CCBA] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Controls Bar (Hidden during print - Shows "Format Alone" preview notification) */}
-        <div className="p-4 border-b border-[#E2E8E4] flex flex-wrap items-center justify-between gap-3 bg-slate-50 print:hidden">
-          <div className="flex items-center gap-2 text-slate-800 font-bold text-xs">
-            <FileText size={16} className="text-mint-600" />
+        <div className="p-4 border-b border-[#D8CCBA] flex flex-wrap items-center justify-between gap-3 bg-[#F8F5EE] print:hidden">
+          <div className="flex items-center gap-2 text-[#111111] font-medium text-xs">
+            <FileText size={16} className="text-[#111111]" />
             <span>Document Format Preview (Review layout before downloading)</span>
           </div>
 
           <div className="flex items-center gap-2">
             {downloadSuccess && (
-              <span className="text-xs text-mint-700 font-bold flex items-center gap-1 bg-mint-50 px-2.5 py-1 rounded-lg border border-mint-200 animate-fadeIn">
+              <span className="text-xs text-[#111111] font-medium flex items-center gap-1 bg-[#EDE7DB] px-2.5 py-1 rounded-lg border border-[#D8CCBA] animate-fadeIn">
                 <CheckCircle2 size={13} />
                 <span>Downloaded Successfully!</span>
               </span>
@@ -115,7 +115,7 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
               type="button"
               onClick={handlePrint}
               title="Print directly"
-              className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-xl border border-[#E2E8E4] transition flex items-center gap-1.5 text-xs cursor-pointer shadow-2xs"
+              className="px-3 py-2 bg-white hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] font-medium rounded-xl border border-[#D8CCBA] transition flex items-center gap-1.5 text-xs cursor-pointer shadow-2xs"
             >
               <Printer size={14} />
               <span className="hidden sm:inline">Print</span>
@@ -125,7 +125,7 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
               type="button"
               disabled={isGeneratingPdf}
               onClick={handleDownloadPdf}
-              className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold rounded-xl shadow-sm transition flex items-center gap-2 text-xs cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2 text-xs cursor-pointer disabled:opacity-50"
             >
               {isGeneratingPdf ? (
                 <>
@@ -143,7 +143,7 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition cursor-pointer"
+              className="w-8 h-8 rounded-xl hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] flex items-center justify-center transition cursor-pointer"
             >
               <X size={18} />
             </button>
@@ -151,25 +151,25 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
         </div>
 
         {/* Printable Document Container: Displays Document Format Alone */}
-        <div className="p-6 sm:p-10 space-y-6 text-slate-800 bg-white" id="printableAdvisorReport">
+        <div className="p-6 sm:p-10 space-y-6 text-[#111111] bg-white" id="printableAdvisorReport">
           
           {/* Institutional Letterhead */}
-          <div className="border-b-2 border-mint-700 pb-5 text-center space-y-1">
+          <div className="border-b-2 border-[#111111] pb-5 text-center space-y-1">
             <div className="flex items-center justify-center gap-3 mb-2">
-              <img src="/logo.jpg" alt="SIET Logo" className="w-12 h-12 object-contain rounded-lg border border-[#E2E8E4]" />
+              <img src="/logo.jpg" alt="SIET Logo" className="w-12 h-12 object-contain rounded-lg border border-[#D8CCBA]" />
               <div className="text-left">
-                <h1 className="text-base sm:text-lg font-extrabold text-slate-900 uppercase tracking-wide">
+                <h1 className="text-base sm:text-lg font-serif font-bold text-[#111111] uppercase tracking-wide">
                   Sri Shakthi Institute of Engineering and Technology
                 </h1>
-                <p className="text-xs text-mint-700 font-bold">
+                <p className="text-xs text-[#75695A] font-medium">
                   Department of Computer Science and Engineering
                 </p>
               </div>
             </div>
-            <h2 className="text-sm font-black text-slate-900 tracking-wider uppercase pt-1">
+            <h2 className="text-sm font-serif font-bold text-[#111111] tracking-wider uppercase pt-1">
               Multi-Role Activity History &amp; Evaluation Audit Dossier
             </h2>
-            <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-slate-500 font-medium pt-1">
+            <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-[#75695A] font-normal pt-1">
               <span><strong>Designated Class Advisor:</strong> {advisorName}</span>
               <span>&bull;</span>
               <span><strong>Class &amp; Section:</strong> Class {className}</span>
@@ -178,32 +178,32 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
             </div>
 
             {/* Filter Summary Tags */}
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-[10px] font-bold">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-[10px] font-medium">
               {(dateRange.from || dateRange.to) && (
-                <span className="text-mint-900 bg-mint-50 border border-mint-200 py-0.5 px-2.5 rounded-md">
+                <span className="text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] py-0.5 px-2.5 rounded-md">
                   Date Range: {dateRange.from || 'Start'} to {dateRange.to || 'Present'}
                 </span>
               )}
               {selectedRole && selectedRole !== 'All Roles' && (
-                <span className="text-blue-900 bg-blue-50 border border-blue-200 py-0.5 px-2.5 rounded-md">
+                <span className="text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] py-0.5 px-2.5 rounded-md">
                   Filtered Role: {selectedRole}
                 </span>
               )}
               {selectedAction && selectedAction !== 'All Actions' && (
-                <span className="text-purple-900 bg-purple-50 border border-purple-200 py-0.5 px-2.5 rounded-md">
+                <span className="text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] py-0.5 px-2.5 rounded-md">
                   Action: {selectedAction}
                 </span>
               )}
-              <span className="text-slate-600 bg-slate-100 border border-slate-200 py-0.5 px-2.5 rounded-md">
+              <span className="text-[#75695A] bg-[#EDE7DB] border border-[#D8CCBA] py-0.5 px-2.5 rounded-md">
                 Total Records: {logs.length}
               </span>
             </div>
           </div>
 
           {/* Table of Records */}
-          <div className="border border-[#E2E8E4] rounded-xl overflow-hidden">
+          <div className="border border-[#D8CCBA] rounded-xl overflow-hidden">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#F8FAF9] text-slate-700 font-extrabold border-b border-[#E2E8E4] uppercase text-[10px]">
+              <thead className="bg-[#EDE7DB] text-[#75695A] font-semibold border-b border-[#D8CCBA] uppercase text-[10px]">
                 <tr>
                   <th className="p-3">Timestamp</th>
                   <th className="p-3">Role</th>
@@ -213,22 +213,22 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
                   <th className="p-3">Performed By</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E2E8E4] text-[11px]">
+              <tbody className="divide-y divide-[#D8CCBA] text-[11px]">
                 {logs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                    <td colSpan={6} className="p-8 text-center text-[#75695A]">
                       No evaluation or management records found matching the active filter criteria.
                     </td>
                   </tr>
                 ) : (
                   logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50">
-                      <td className="p-3 whitespace-nowrap font-mono text-slate-500">{log.dateFormatted}</td>
-                      <td className="p-3 whitespace-nowrap font-bold text-slate-800">{log.role || 'Class Advisor'}</td>
-                      <td className="p-3 whitespace-nowrap font-bold text-mint-800">{log.actionType}</td>
-                      <td className="p-3 whitespace-nowrap font-extrabold text-slate-900">{log.target}</td>
-                      <td className="p-3 text-slate-700 leading-relaxed">{log.details}</td>
-                      <td className="p-3 whitespace-nowrap text-slate-600 font-medium">{log.actorName || log.advisorName}</td>
+                    <tr key={log.id} className="hover:bg-[#F8F5EE]/50">
+                      <td className="p-3 whitespace-nowrap font-mono text-[#75695A]">{log.dateFormatted}</td>
+                      <td className="p-3 whitespace-nowrap font-medium text-[#111111]">{log.role || 'Class Advisor'}</td>
+                      <td className="p-3 whitespace-nowrap font-medium text-[#111111]">{log.actionType}</td>
+                      <td className="p-3 whitespace-nowrap font-bold text-[#111111]">{log.target}</td>
+                      <td className="p-3 text-[#292725] leading-relaxed">{log.details}</td>
+                      <td className="p-3 whitespace-nowrap text-[#75695A] font-medium">{log.actorName || log.advisorName}</td>
                     </tr>
                   ))
                 )}
@@ -237,16 +237,16 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
           </div>
 
           {/* Institutional Signature Lines */}
-          <div className="pt-8 border-t border-[#E2E8E4] flex items-center justify-between text-xs text-slate-600">
+          <div className="pt-8 border-t border-[#D8CCBA] flex items-center justify-between text-xs text-[#75695A]">
             <div className="text-center">
-              <div className="w-44 border-b border-slate-400 mb-1"></div>
-              <span className="font-bold block">{advisorName}</span>
-              <span className="text-[10px] text-slate-400">Class Advisor Signature</span>
+              <div className="w-44 border-b border-[#75695A] mb-1"></div>
+              <span className="font-bold text-[#111111] block">{advisorName}</span>
+              <span className="text-[10px] text-[#75695A]">Class Advisor Signature</span>
             </div>
             <div className="text-center">
-              <div className="w-44 border-b border-slate-400 mb-1"></div>
-              <span className="font-bold block">Head of Department</span>
-              <span className="text-[10px] text-slate-400">CSE Department Seal &amp; Signature</span>
+              <div className="w-44 border-b border-[#75695A] mb-1"></div>
+              <span className="font-bold text-[#111111] block">Head of Department</span>
+              <span className="text-[10px] text-[#75695A]">CSE Department Seal &amp; Signature</span>
             </div>
           </div>
 

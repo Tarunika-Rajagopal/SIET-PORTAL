@@ -103,7 +103,11 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
   const activeTeam = isStudentUnassigned
     ? null
-    : (teams.find(t => t.teamId === activeTeamId) || (onlyShowStudentTeam ? null : teams[0]));
+    : (teams.find(t => 
+        t.teamId === activeTeamId || 
+        (activeTeamId && t.teamNo.toLowerCase() === activeTeamId.toLowerCase()) ||
+        (activeTeamId && t.teamId.toLowerCase() === activeTeamId.toLowerCase())
+      ) || (onlyShowStudentTeam ? null : (activeTeamId ? null : teams[0])));
 
   const filteredTeams = teams.filter(t => {
     if (!searchTerm.trim()) return true;
@@ -127,13 +131,17 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
   // Keep selectedWeek aligned with actual submissions when team changes
   useEffect(() => {
-    if (teamSubmissions.length > 0 && !teamSubmissions.some(s => s.week === selectedWeek)) {
-      setSelectedWeek(teamSubmissions[0].week);
+    if (teamSubmissions.length > 0) {
+      if (!teamSubmissions.some(s => s.week === selectedWeek)) {
+        setSelectedWeek(teamSubmissions[0].week);
+      }
     }
   }, [activeTeamId, teamSubmissions, selectedWeek]);
 
   const activeSubmission: WeeklySubmission | undefined = 
-    teamSubmissions.find(s => s.week === selectedWeek) || teamSubmissions[0];
+    teamSubmissions.length > 0
+      ? (teamSubmissions.find(s => s.week === selectedWeek) || teamSubmissions[0])
+      : undefined;
 
   // Marks map for all evaluated weeks of the active team
   const teamMarksMap = activeTeam ? MarksService.getAllTeamMarks(activeTeam.teamId) : {};

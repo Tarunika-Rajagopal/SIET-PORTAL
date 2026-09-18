@@ -25,9 +25,7 @@ import {
   User,
   XCircle,
   ChevronDown,
-  RefreshCw,
-  Award,
-  Lock
+  RefreshCw
 } from 'lucide-react';
 
 interface HodProjectDetailsViewProps {
@@ -49,17 +47,22 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
   // All matching teams based on batch/class filters and search
   const matchingTeams = HodService.getTeams(batchFilter, classFilter, searchTerm);
 
-  // Selected team state
-  const [selectedTeamId, setSelectedTeamId] = useState<string>(() => {
+  // Selected team state (null initially; details only visible when a team is clicked)
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(() => {
     if (initialStudentRollNo) {
       const team = HodService.getTeamByStudent(initialStudentRollNo);
       if (team) return team.id;
     }
-    return matchingTeams[0]?.id || "TEAM-CSE-Y3-B04";
+    return null;
   });
+  const [selectedTeamOnly, setSelectedTeamOnly] = useState<boolean>(Boolean(initialStudentRollNo));
 
-  // Selected sprint week for week-wise details
-  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
+
+  // Selected sprint week for week-wise details (defaults to current academic week)
+  const [selectedWeek, setSelectedWeek] = useState<number>(() => {
+    return StudentService.getCurrentAcademicWeek();
+  });
   const [, setMarksTick] = useState<number>(0);
 
   useEffect(() => {
@@ -88,30 +91,65 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
       const team = HodService.getTeamByStudent(initialStudentRollNo);
       if (team) {
         setSelectedTeamId(team.id);
+        setSelectedTeamOnly(true);
         setSearchTerm(team.members.find(m => m.rollNo === initialStudentRollNo)?.name || '');
       }
+    } else {
+      setSelectedTeamId(null);
+      setSelectedTeamOnly(false);
     }
   }, [initialBatch, initialClass, initialStudentRollNo]);
 
-  // Keep selected team synced
-  const activeTeam = matchingTeams.find(t => t.id === selectedTeamId) || 
-    HodService.getTeams().find(t => t.id === selectedTeamId) || 
-    matchingTeams[0] || 
-    HodService.getTeams()[0];
+  // Keep selected team synced (only when a team is selected)
+  const activeTeam = selectedTeamId
+    ? (matchingTeams.find(t => t.id === selectedTeamId) || 
+       HodService.getTeams().find(t => t.id === selectedTeamId) || 
+       null)
+    : null;
 
-  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
+  // Teams to display in the grid: if a team is clicked, do not show the remaining teams
+  const displayedTeams = selectedTeamOnly && selectedTeamId
+    ? matchingTeams.filter(t => t.id === selectedTeamId)
+    : matchingTeams;
 
-  // Active submission for the selected week (Strictly authentic student submissions)
+  // Active team members roll numbers for precise marks lookup
+  const activeMemberRollNos = activeTeam?.members?.map(m => m.rollNo) || [];
+  const activeTeamMarks = activeTeam ? MarksService.getAllTeamMarks(activeTeam.id, activeMemberRollNos) : {};
+  const gradedWeeks = Object.keys(activeTeamMarks).map(Number);
+  const submissionWeeks = (activeTeam?.submissions || []).map(s => s.week);
+
+  // Highest evaluated or active week (ensures evaluated weeks like Week 1 are selectable in dropdown)
+  const maxEvaluatedOrActiveWeek = Math.max(
+    currentAcademicWeek,
+    ...gradedWeeks,
+    ...submissionWeeks
+  );
+
+  // Available weeks from 0 up to max evaluated/active week (no next/future unstarted weeks)
+  const availableWeeks = Array.from({ length: Math.max(1, maxEvaluatedOrActiveWeek + 1) }, (_, i) => i);
+
+  // Active submission strictly for the selected week (no fallback to other weeks)
   const availableSubmissions: WeeklySubmission[] = activeTeam?.submissions || [];
-  const activeSubmission: WeeklySubmission | undefined = availableSubmissions.find(s => s.week === selectedWeek) || 
-    availableSubmissions[0];
+  const activeSubmission: WeeklySubmission | undefined = availableSubmissions.find(s => s.week === selectedWeek);
 
-  // Auto-align selected week if team changes or week not in submissions
+  // Automatically align selectedWeek with the latest evaluated week when activeTeam changes
   useEffect(() => {
-    if (availableSubmissions.length > 0 && !availableSubmissions.some(s => s.week === selectedWeek)) {
-      setSelectedWeek(availableSubmissions[0].week);
+    if (!activeTeam) return;
+    const mRolls = activeTeam.members?.map(m => m.rollNo) || [];
+    const tMarks = MarksService.getAllTeamMarks(activeTeam.id, mRolls);
+    const weeksWithPositiveMarks = Object.keys(tMarks)
+      .map(Number)
+      .filter(w => tMarks[w]?.teamAverage > 0);
+
+    if (weeksWithPositiveMarks.length > 0) {
+      const highestEvaluated = Math.max(...weeksWithPositiveMarks);
+      setSelectedWeek(highestEvaluated);
+    } else if (activeTeam.submissions && activeTeam.submissions.length > 0) {
+      setSelectedWeek(Math.max(...activeTeam.submissions.map(s => s.week)));
+    } else {
+      setSelectedWeek(currentAcademicWeek);
     }
-  }, [selectedTeamId, availableSubmissions, selectedWeek]);
+  }, [activeTeam?.id]);
 
   // Reset batch and class to ALL when search is initiated and clear search text
   const handleSearchClick = () => {
@@ -268,10 +306,16 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
         {/* Refresh Button */}
         <button
           type="button"
-          onClick={() => window.location.reload()}
-          title="Refresh page"
+          onClick={() => {
+            setSelectedTeamId(null);
+            setSelectedTeamOnly(false);
+            setSearchTerm('');
+            setBatchFilter('ALL');
+            setClassFilter('ALL');
+          }}
+          title="Refresh and show all teams"
           className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
-          aria-label="Refresh page"
+          aria-label="Refresh and show all teams"
         >
           <RefreshCw size={14} />
         </button>
@@ -283,21 +327,30 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
         <div className="flex items-center justify-between border-b border-[#E2E8E4] pb-3">
           <div className="flex items-center gap-2">
             <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-              {classFilter === 'ALL' ? 'All Student Teams' : `Teams in Class ${classFilter}`}
+              {selectedTeamOnly ? 'Selected Team' : (classFilter === 'ALL' ? 'All Student Teams' : `Teams in Class ${classFilter}`)}
             </h3>
             <span className="px-2 py-0.5 rounded-full bg-mint-100 text-mint-900 border border-mint-200 text-[10px] font-black">
-              {matchingTeams.length} {matchingTeams.length === 1 ? 'Team' : 'Teams'}
+              {displayedTeams.length} {displayedTeams.length === 1 ? 'Team' : 'Teams'}
             </span>
           </div>
+          {selectedTeamOnly && (
+            <button
+              type="button"
+              onClick={() => setSelectedTeamOnly(false)}
+              className="text-xs font-bold text-mint-700 hover:text-mint-800 underline cursor-pointer"
+            >
+              Show all teams
+            </button>
+          )}
         </div>
 
-        {matchingTeams.length === 0 ? (
+        {displayedTeams.length === 0 ? (
           <div className="py-8 text-center text-xs text-slate-400">
             No teams found for the selected class or filters.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {matchingTeams.map((team) => {
+            {displayedTeams.map((team) => {
               const isSelected = activeTeam?.id === team.id;
               const leadMember = team.members.find(m => m.isLead) || team.members[0];
 
@@ -307,7 +360,21 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                   type="button"
                   onClick={() => {
                     setSelectedTeamId(team.id);
-                    setSelectedWeek(team.submissions?.[0]?.week || 1);
+                    setSelectedTeamOnly(true);
+                    
+                    const mRolls = team.members?.map(m => m.rollNo) || [];
+                    const tMarks = MarksService.getAllTeamMarks(team.id, mRolls);
+                    const weeksWithPositiveMarks = Object.keys(tMarks)
+                      .map(Number)
+                      .filter(w => tMarks[w]?.teamAverage > 0);
+
+                    if (weeksWithPositiveMarks.length > 0) {
+                      setSelectedWeek(Math.max(...weeksWithPositiveMarks));
+                    } else if (team.submissions && team.submissions.length > 0) {
+                      setSelectedWeek(Math.max(...team.submissions.map(s => s.week)));
+                    } else {
+                      setSelectedWeek(currentAcademicWeek);
+                    }
                   }}
                   className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between gap-2.5 cursor-pointer ${
                     isSelected
@@ -319,23 +386,23 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                     <span className="px-2.5 py-0.5 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 text-xs font-black">
                       {team.teamNo}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      Class {team.classSection}
+                    <span className={`text-[11px] font-extrabold ${
+                      team.status === 'Approved' ? 'text-emerald-700' :
+                      team.status === 'Review Required' ? 'text-amber-700' : 'text-slate-600'
+                    }`}>
+                      {team.status}
                     </span>
                   </div>
 
                   <div>
                     <h4 className="font-extrabold text-slate-900 text-xs line-clamp-1">
-                      {team.projectTitle}
+                      {team.projectTitle || (
+                        <span className="text-slate-400 italic font-normal">No Title Submitted</span>
+                      )}
                     </h4>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       Lead: {leadMember?.name || 'Student'} ({leadMember?.rollNo})
                     </p>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-[#E2E8E4]/60 pt-2 mt-0.5">
-                    <span>Guide: {team.guide?.name?.split(' ')?.[0] || 'Guide'}</span>
-                    <span className="font-extrabold text-mint-700">{team.status}</span>
                   </div>
                 </button>
               );
@@ -348,30 +415,45 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
       {activeTeam && (
         <div className="space-y-6">
           
-          {/* Team Header Summary Card */}
-          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-card border border-[#E2E8E4] space-y-4">
+          {/* 3.1. Team Header & Members Merged Container */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-card border border-[#E2E8E4] space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="px-3 py-1 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-black text-xs">
                     {activeTeam.teamNo}
                   </span>
-                  <span className="text-xs text-slate-500 font-mono font-bold bg-slate-100 px-2 py-0.5 rounded-md">
-                    {activeTeam.id}
-                  </span>
                 </div>
                 <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
-                  {activeTeam.projectTitle}
+                  {activeTeam.projectTitle || (
+                    <span className="text-slate-400 italic font-normal">No Project Title Submitted</span>
+                  )}
                 </h2>
-                <span className="text-xs text-slate-500">
-                  Batch: {activeTeam.batch} &bull; Section: Class {activeTeam.classSection}
+                <span className="text-xs text-slate-500 block">
+                  Batch: {activeTeam.batch}
                 </span>
+                {activeTeam.rejectionReason && activeTeam.status === 'Review Required' && (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-950 flex items-start gap-2">
+                    <AlertTriangle size={15} className="text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-extrabold text-rose-800 block text-[10px] uppercase tracking-wide">
+                        Guide Project Proposal Rejection Reason:
+                      </span>
+                      <p className="italic font-medium mt-0.5">&ldquo;{activeTeam.rejectionReason}&rdquo;</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-3 self-start sm:self-center">
                 <div className="text-right">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Status</span>
-                  <span className="text-sm font-extrabold text-mint-700">{activeTeam.status}</span>
+                  <span className={`text-sm font-extrabold ${
+                    activeTeam.status === 'Approved' ? 'text-emerald-700' :
+                    activeTeam.status === 'Review Required' ? 'text-amber-700' : 'text-slate-600'
+                  }`}>
+                    {activeTeam.status}
+                  </span>
                 </div>
                 <div className="w-10 h-10 rounded-2xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-xs">
                   <ShieldCheck size={20} />
@@ -404,618 +486,559 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
               </div>
             </div>
 
-            {/* Team Members */}
-            <div>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-2">
-                Team Members ({activeTeam.members?.length || 4}):
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                {activeTeam.members?.map((m) => {
-                  const memberMark = MarksService.getMemberMark(activeTeam.id, selectedWeek, m.rollNo);
+            {/* Team Members (Merged Directly Inside Container) */}
+            <div className="pt-3 border-t border-[#E2E8E4] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-mint-100 text-mint-900 flex items-center justify-center font-bold">
+                    <Users size={14} />
+                  </div>
+                  <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Team Members ({activeTeam.members?.length || 0})
+                  </h3>
+                </div>
+              </div>
 
-                  return (
-                    <div key={m.rollNo} className="p-2.5 rounded-xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-900 truncate">{m.name}</span>
-                          {m.isLead && (
-                            <span className="px-1.5 py-0.2 rounded bg-mint-100 text-mint-900 text-[9px] font-black uppercase">
-                              Lead
-                            </span>
-                          )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {activeTeam.members?.map((m) => (
+                  <div key={m.rollNo} className="p-3.5 rounded-2xl bg-[#EFF3F1]/70 border border-[#E2E8E4] flex flex-col justify-between gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-mint-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                          {getUserInitials(m.name)}
                         </div>
-                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">{m.rollNo}</span>
+                        <div className="min-w-0">
+                          <div className="font-extrabold text-slate-900 text-xs truncate">
+                            {m.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono font-bold mt-0.5">
+                            {m.rollNo}
+                          </div>
+                        </div>
                       </div>
-
-                      {typeof memberMark === 'number' && (
-                        <div className="mt-2 pt-1.5 border-t border-[#E2E8E4]/60 flex items-center justify-between text-[10px]">
-                          <span className="text-slate-400 font-semibold">W{selectedWeek} Mark:</span>
-                          <span className="font-extrabold text-mint-900 bg-mint-100 px-1.5 py-0.2 rounded border border-mint-200">
-                            {memberMark} / 100
-                          </span>
-                        </div>
+                      {m.isLead && (
+                        <span className="px-1.5 py-0.5 rounded bg-mint-100 text-mint-900 border border-mint-200 text-[9px] font-black uppercase shrink-0">
+                          Lead
+                        </span>
                       )}
                     </div>
-                  );
-                })}
+                    <div className="text-[10px] text-slate-500 truncate pt-2 border-t border-[#E2E8E4]/60 font-mono">
+                      {m.email}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* 3.5. Class Advisor Milestone Marks (Week-wise View for HOD - Strictly Read-Only) */}
-          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-card border border-[#E2E8E4] space-y-5 animate-fadeIn">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-mint-500 to-emerald-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0 mt-0.5">
-                  <Award size={20} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-extrabold text-slate-900">
-                      Class Advisor Milestone Marks (Week-wise Assessment)
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-md bg-mint-100 text-mint-900 border border-mint-200 text-[10px] font-black uppercase">
-                      {activeTeam.teamNo}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Official milestone evaluation recorded by Class Advisor <strong>{activeTeam.advisor?.name || 'Class Advisor'}</strong> for Class {activeTeam.classSection}
-                  </p>
-                </div>
-              </div>
-
-              {/* Read-Only Notice Badge */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-extrabold shadow-2xs shrink-0 self-start sm:self-center">
-                <Lock size={13} className="text-slate-500" />
-                <span>Read-Only</span>
-              </div>
-            </div>
-
-            {/* Week Selector Tabs */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                Select Milestone Week to Inspect Evaluation:
-              </span>
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((w) => {
-                  const isSelected = w === selectedWeek;
-                  const wMarks = MarksService.getWeeklyMarks(activeTeam.id, w);
-
+          {/* 3.3. Week-Wise Milestone Assessment & Deliverables */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-card border border-[#E2E8E4] space-y-6 animate-fadeIn">
+            
+            {/* Milestone Week Dropdown (Left side alone, only weeks up to evaluated/current week) */}
+            <div className="flex items-center gap-3 border-b border-[#E2E8E4] pb-4">
+              <label htmlFor="hodMilestoneWeekSelect" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                Select Milestone Week:
+              </label>
+              <select
+                id="hodMilestoneWeekSelect"
+                value={selectedWeek}
+                onChange={(e) => setSelectedWeek(Number(e.target.value))}
+                className="px-3.5 py-1.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-mint-500 cursor-pointer shadow-2xs"
+              >
+                {availableWeeks.map((w) => {
+                  const wMarks = activeTeamMarks[w];
+                  const hasMarks = wMarks && wMarks.teamAverage > 0;
                   return (
-                    <button
-                      key={w}
-                      type="button"
-                      onClick={() => setSelectedWeek(w)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer shadow-2xs ${
-                        isSelected
-                          ? 'bg-mint-500 text-white shadow-sm font-extrabold ring-2 ring-mint-400/30'
-                          : 'bg-slate-50 hover:bg-mint-50 text-slate-700 border border-[#E2E8E4]'
-                      }`}
-                    >
-                      <span>Week {w}</span>
-                      {wMarks ? (
-                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                          isSelected ? 'bg-white text-mint-950' : 'bg-mint-100 text-mint-900'
-                        }`}>
-                          Avg: {wMarks.teamAverage}
-                        </span>
-                      ) : (
-                        <span className={`text-[9px] font-medium ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
-                          --
-                        </span>
-                      )}
-                    </button>
+                    <option key={w} value={w}>
+                      Week {w}{hasMarks ? ` — Evaluated (${wMarks.teamAverage}/100)` : (w === currentAcademicWeek ? ' (Current Week)' : '')}
+                    </option>
                   );
                 })}
-              </div>
+              </select>
             </div>
 
-            {/* Active Week Marks Details */}
-            {(() => {
-              const marks = MarksService.getWeeklyMarks(activeTeam.id, selectedWeek);
+            {/* MARKS ASSIGNED BY CLASS ADVISOR (Shown First At The Top of the Week View) */}
+            <div className="space-y-3">
 
-              if (!marks) {
+              {(() => {
+                const memberRollNos = activeTeam?.members?.map(m => m.rollNo) || [];
+                const marks = MarksService.getWeeklyMarks(activeTeam.id, selectedWeek, memberRollNos);
+
+                const isBlankZeroRecord = marks && marks.teamAverage === 0 && 
+                  (!marks.remarks || marks.remarks.trim() === '') && 
+                  Object.values(marks.memberMarks || {}).every(v => v === 0);
+
+                if (!marks || isBlankZeroRecord) {
+                  return (
+                    <div className="p-6 rounded-2xl bg-slate-50/80 border border-dashed border-slate-300 text-center space-y-1">
+                      <p className="text-xs font-bold text-slate-700">
+                        Class Advisor ({activeTeam.advisor?.name || 'Class Advisor'}) has not assigned marks for Week {selectedWeek} yet.
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Evaluations and marks recorded by the advisor will appear here.
+                      </p>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div className="p-8 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 text-center space-y-1">
-                    <p className="text-xs font-bold text-slate-700">
-                      Class Advisor has not entered marks for Week {selectedWeek} yet.
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      Evaluations and marks will appear here once saved by Advisor ({activeTeam.advisor?.name || 'Class Advisor'}).
-                    </p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-4 animate-fadeIn">
-                  {/* Team Average Score Banner */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-mint-50 via-emerald-50 to-teal-50 border border-mint-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                    <div>
-                      <span className="text-[10px] text-mint-800 font-extrabold uppercase tracking-wider block">
-                        Team Milestone Assessment &bull; Week {selectedWeek}
-                      </span>
-                      <span className="text-base sm:text-lg font-black text-slate-900 mt-0.5 block">
-                        Calculated Team Score: <span className="text-mint-800">{marks.teamAverage}</span> / 100
-                      </span>
-                      <span className="text-[11px] text-slate-500 block mt-0.5">
-                        Evaluated by <strong>{marks.gradedBy || activeTeam.advisor?.name || 'Class Advisor'}</strong>
-                        {marks.gradedAt && ` on ${new Date(marks.gradedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
-                      </span>
+                  <div className="space-y-3 animate-fadeIn">
+                    {/* Team Milestone Assessment Score Banner (Showing Team Average as Team Score) */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-mint-50 via-emerald-50 to-teal-50 border border-mint-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                      <div>
+                        <span className="text-[10px] text-mint-800 font-extrabold uppercase tracking-wider block">
+                          Team Milestone Assessment Score &bull; Week {selectedWeek}
+                        </span>
+                        <span className="text-base sm:text-lg font-black text-slate-900 mt-0.5 block">
+                          Team Score: <span className="text-mint-800">{marks.teamAverage}</span> / 100
+                        </span>
+                        <span className="text-[11px] text-slate-500 block mt-0.5">
+                          Evaluated by <strong>{marks.gradedBy || activeTeam.advisor?.name || 'Class Advisor'}</strong>
+                          {marks.gradedAt && ` on ${new Date(marks.gradedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="px-3 py-1.5 rounded-xl bg-white border border-mint-200 shadow-2xs self-start sm:self-center text-center">
-                      <span className="text-[10px] uppercase font-extrabold text-slate-400 block">Team Average</span>
-                      <span className="text-sm font-black text-mint-700">{marks.teamAverage}%</span>
-                    </div>
-                  </div>
-
-                  {/* Individual Student Marks Grid */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                      Individual Student Marks &bull; Week {selectedWeek} ({activeTeam.members?.length || 4} Students):
-                    </span>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                      {activeTeam.members?.map((m) => {
-                        const score = marks.memberMarks?.[m.rollNo];
-                        return (
-                          <div
-                            key={m.rollNo}
-                            className="p-3.5 bg-slate-50 rounded-2xl border border-[#E2E8E4] flex flex-col justify-between gap-2 shadow-2xs"
-                          >
-                            <div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="font-extrabold text-slate-900 text-xs truncate">
+                    {/* Individual Student Marks Grid */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                        Individual Student Marks ({activeTeam.members?.length || 0} Students):
+                      </span>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                        {activeTeam.members?.map((m) => {
+                          const score = marks.memberMarks?.[m.rollNo];
+                          return (
+                            <div
+                              key={m.rollNo}
+                              className="p-3 bg-white rounded-xl border border-[#E2E8E4] flex items-center justify-between shadow-2xs"
+                            >
+                              <div className="min-w-0 pr-2">
+                                <div className="font-extrabold text-slate-900 text-xs truncate">
                                   {m.name}
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono block">
+                                  {m.rollNo}
                                 </span>
-                                {m.isLead && (
-                                  <span className="px-1.5 py-0.2 rounded text-[8px] bg-mint-100 text-mint-900 border border-mint-200 font-black uppercase shrink-0">
-                                    Lead
-                                  </span>
-                                )}
                               </div>
-                              <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                                {m.rollNo}
-                              </span>
-                            </div>
 
-                            <div className="pt-2 border-t border-[#E2E8E4] flex items-center justify-between">
-                              <span className="text-[10px] text-slate-500 font-bold">Week {selectedWeek} Mark:</span>
-                              <span className="px-2 py-0.5 rounded-lg bg-mint-100 text-mint-950 font-black text-xs border border-mint-200">
+                              <span className="px-2 py-1 rounded-lg bg-mint-100 text-mint-950 font-black text-xs border border-mint-200 shrink-0">
                                 {typeof score === 'number' ? `${score} / 100` : '-- / 100'}
                               </span>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Advisor Evaluation Remarks */}
-                  {marks.remarks && (
-                    <div className="p-4 bg-[#EFF3F1]/80 rounded-2xl border border-[#E2E8E4] text-xs space-y-1">
-                      <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
-                        Class Advisor Evaluation Critique &amp; Remarks:
-                      </span>
-                      <p className="text-slate-800 font-medium italic leading-relaxed">
-                        &ldquo;{marks.remarks}&rdquo;
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* 4. Gentle Dropdown for Week-wise Details and Full Student Submission Display */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-[#E2E8E4] space-y-6">
-            
-            {/* Header with Gentle Dropdown for Sprint Weeks */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8E4] pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-extrabold text-slate-900">
-                    Milestone Sprint Deliverables
-                  </h3>
-                  {(() => {
-                    const avg = MarksService.getTeamAverage(activeTeam.id, selectedWeek);
-                    if (avg !== null) {
-                      return (
-                        <span className="px-2.5 py-0.5 rounded-full bg-mint-100 text-mint-900 border border-mint-200 text-[11px] font-black flex items-center gap-1">
-                          <Award size={12} className="text-mint-700" />
-                          <span>Team Avg: {avg} / 100</span>
+                    {/* Advisor Evaluation Remarks */}
+                    {marks.remarks && (
+                      <div className="p-3.5 bg-white rounded-xl border border-[#E2E8E4] text-xs space-y-1">
+                        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                          Class Advisor Evaluation Critique &amp; Remarks:
                         </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              </div>
-
-              {/* Gentle Dropdown */}
-              <div className="flex items-center gap-2">
-                <label htmlFor="selectSprintWeek" className="text-xs font-bold text-slate-600 whitespace-nowrap">
-                  Milestone Week:
-                </label>
-                <div className="relative">
-                  <select
-                    id="selectSprintWeek"
-                    value={selectedWeek}
-                    onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                    className="appearance-none pl-3.5 pr-8 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-mint-500 shadow-xs cursor-pointer"
-                  >
-                    {availableSubmissions.map((s) => (
-                      <option key={s.week} value={s.week}>
-                        Week {s.week}: {s.title} ({s.status})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Week Pill Buttons */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {availableSubmissions.map((s) => {
-                const isCurrentWeek = s.week === selectedWeek;
-                return (
-                  <button
-                    key={s.week}
-                    type="button"
-                    onClick={() => setSelectedWeek(s.week)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                      isCurrentWeek
-                        ? 'bg-mint-500 text-white shadow-xs font-extrabold'
-                        : 'bg-slate-100 hover:bg-mint-50 text-slate-700 border border-[#E2E8E4]'
-                    }`}
-                  >
-                    Week {s.week}
-                  </button>
+                        <p className="text-slate-800 font-medium italic leading-relaxed">
+                          &ldquo;{marks.remarks}&rdquo;
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 );
-              })}
+              })()}
             </div>
 
-            {/* Week Submission Details: FORMATTED EXACTLY LIKE STUDENT'S MY SUBMISSIONS PAGE */}
-            {activeSubmission ? (
-              <div className="space-y-6 pt-2 text-xs">
-                
-                {/* Part 1: Review Given by Guide */}
-                <div className="bg-[#EFF3F1]/80 rounded-2xl p-5 border border-mint-200/80 space-y-3">
-                  <div className="flex items-center justify-between border-b border-mint-200/60 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-mint-500 text-white flex items-center justify-center font-bold">
-                        <User size={16} />
-                      </div>
-                      <div>
-                        <span className="font-extrabold text-slate-900 block text-xs">
-                          Review by {activeSubmission.guideName || activeTeam.guide?.name || 'Faculty Guide'}
-                        </span>
-                        <span className="text-[10px] text-mint-700 font-bold">Faculty Project Guide</span>
-                      </div>
-                    </div>
+            {/* SUBMITTED DELIVERABLES (Shown According to Clicked Week) */}
+            <div className="border-t border-[#E2E8E4] pt-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
+                    <FileText size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                      Submitted Deliverables &bull; Week {selectedWeek}
+                    </h4>
+                    <span className="text-[10px] text-slate-400">
+                      Milestone work submitted by students for evaluation
+                    </span>
+                  </div>
+                </div>
 
-                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border ${
+                {activeSubmission && (
+                  <div className="flex items-center gap-2.5 self-start sm:self-center">
+                    <span className="text-xs text-slate-500 font-medium">
+                      Submitted Date: <strong className="text-slate-800 font-bold">{activeSubmission.submissionDate || 'N/A'}</strong>
+                    </span>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${
                       activeSubmission.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                      activeSubmission.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                      (activeSubmission.status === 'Submitted' || activeSubmission.status === 'Pending') ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                      'bg-slate-100 text-slate-700 border-slate-300'
+                      activeSubmission.status === 'Changes Requested' || activeSubmission.status === 'Rejected' ? 'bg-rose-100 text-rose-800 border-rose-300' :
+                      'bg-amber-100 text-amber-800 border-amber-300'
                     }`}>
-                      {activeSubmission.status === 'Submitted' ? 'Pending' : activeSubmission.status}
+                      {activeSubmission.status === 'Changes Requested' || activeSubmission.status === 'Rejected' ? 'Revision Requested / Rejected' : activeSubmission.status}
                     </span>
                   </div>
+                )}
+              </div>
 
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Guide Evaluation Critique &amp; Remarks:
-                    </span>
-                    <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#E2E8E4]">
-                      {activeSubmission.comments || 'Submission is under active evaluation by the project guide.'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Part 2: Complete Submission by Student */}
-                <div className="space-y-4">
-                  <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#E2E8E4] pb-2">
-                    Complete Student Submission Details
-                  </h4>
-
-                  {/* Project Title */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Project Title
-                    </span>
-                    {activeSubmission.projectTitle || activeTeam.projectTitle ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900">
-                        {activeSubmission.projectTitle || activeTeam.projectTitle}
+              {activeSubmission ? (
+                <div className="space-y-4 pt-1 text-xs">
+                  
+                  {/* Guide Review & Approval/Rejection with Reason Banner */}
+                  <div className={`p-4 rounded-2xl border text-xs space-y-2.5 ${
+                    activeSubmission.status === 'Approved'
+                      ? 'bg-emerald-50/80 border-emerald-200'
+                      : activeSubmission.status === 'Changes Requested' || activeSubmission.status === 'Rejected'
+                      ? 'bg-rose-50/80 border-rose-200'
+                      : 'bg-amber-50/80 border-amber-200'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                          activeSubmission.status === 'Approved'
+                            ? 'bg-emerald-600'
+                            : activeSubmission.status === 'Changes Requested' || activeSubmission.status === 'Rejected'
+                            ? 'bg-rose-600'
+                            : 'bg-amber-600'
+                        }`} />
+                        <span className={`font-extrabold uppercase text-[11px] tracking-wide ${
+                          activeSubmission.status === 'Approved'
+                            ? 'text-emerald-900'
+                            : activeSubmission.status === 'Changes Requested' || activeSubmission.status === 'Rejected'
+                            ? 'text-rose-900'
+                            : 'text-amber-900'
+                        }`}>
+                          {activeSubmission.status === 'Approved'
+                            ? 'Approved by Project Technical Guide'
+                            : activeSubmission.status === 'Changes Requested' || activeSubmission.status === 'Rejected'
+                            ? 'Rejected / Revision Required by Guide'
+                            : 'Awaiting Technical Guide Evaluation'}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>Not Uploaded / No Project Title specified</span>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Problem Statement */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Problem Statement
-                    </span>
-                    {activeSubmission.problemStatement ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                        {activeSubmission.problemStatement}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>Not Uploaded / No Problem Statement submitted for this milestone</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Proposed Solution */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Proposed Solution &amp; Technical Approach
-                    </span>
-                    {activeSubmission.solution ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                        {activeSubmission.solution}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>Not Uploaded / No Technical Solution submitted for this milestone</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Technologies Used */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Technologies Used
-                    </span>
-                    {activeSubmission.technologyUsed ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 font-mono font-bold">
-                        {activeSubmission.technologyUsed}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>Not Uploaded / No Technologies specified</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Obstacles Faced */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Obstacles Faced
-                    </span>
-                    {activeSubmission.obstaclesFaced ? (
-                      <div className="p-3.5 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-slate-800 leading-relaxed">
-                        {activeSubmission.obstaclesFaced}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>Not Uploaded / No Obstacles Reported</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Abstract */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Project Abstract
-                    </span>
-                    {activeSubmission.abstract ? (
-                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                        {activeSubmission.abstract}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>Not Uploaded / No Abstract provided for this milestone</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Submitted Files, Repositories & Media */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
-                      Submitted Files, Repositories &amp; Media
-                    </span>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      
-                      {/* Presentation PPT */}
-                      {activeSubmission.fileName || activeSubmission.presentationFile ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                              <FileText size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                                {activeSubmission.fileName || activeSubmission.presentationFile}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {activeSubmission.fileSize || '4.2 MB'} &bull; PowerPoint
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDownloadFile(activeSubmission.fileName || activeSubmission.presentationFile || `Week_${activeSubmission.week}_Presentation.pptx`, 'ppt', activeSubmission, e)}
-                            className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                          >
-                            <Download size={13} />
-                            <span>Download</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                              <FileText size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-500 block">Presentation Deck</span>
-                              <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>✕ Not Uploaded</span>
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Technical Report PDF */}
-                      {activeSubmission.pdfFile ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
-                              <FileCode size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                                {activeSubmission.pdfFile}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">PDF Document</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDownloadFile(activeSubmission.pdfFile || `Week_${activeSubmission.week}_Report.pdf`, 'pdf', activeSubmission, e)}
-                            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                          >
-                            <Download size={13} />
-                            <span>Download</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                              <FileCode size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-500 block">Technical Dossier</span>
-                              <span className="text-[10px] text-slate-400">Report (.pdf)</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>✕ Not Uploaded</span>
-                          </span>
-                        </div>
-                      )}
-
-                      {/* GitHub Repo Link */}
-                      {activeSubmission.repoUrl ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
-                              <Github size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block">GitHub Repository</span>
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
-                                {activeSubmission.repoUrl}
-                              </span>
-                            </div>
-                          </div>
-                          <a
-                            href={activeSubmission.repoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
-                          >
-                            <ExternalLink size={13} />
-                            <span>Open</span>
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                              <Github size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-500 block">Source Code Repository</span>
-                              <span className="text-[10px] text-slate-400">GitHub Link</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>✕ Not Uploaded</span>
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Live Demo Link */}
-                      {activeSubmission.demoUrl ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                              <ExternalLink size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block">Live Demo / Telemetry</span>
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
-                                {activeSubmission.demoUrl}
-                              </span>
-                            </div>
-                          </div>
-                          <a
-                            href={activeSubmission.demoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
-                          >
-                            <ExternalLink size={13} />
-                            <span>Launch</span>
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                              <ExternalLink size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-500 block">Live Deployment</span>
-                              <span className="text-[10px] text-slate-400">Demo URL</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>✕ Not Uploaded</span>
-                          </span>
-                        </div>
-                      )}
-
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Guide: <strong className="text-slate-800">{activeSubmission.guideName || activeTeam.guide?.name || 'Project Technical Guide'}</strong>
+                      </span>
                     </div>
+
+                    {(activeSubmission.status === 'Changes Requested' || activeSubmission.status === 'Rejected') ? (
+                      <div className="p-3 bg-white rounded-xl border border-rose-200 text-rose-950 font-medium space-y-1">
+                        <span className="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider block">
+                          Guide Rejection Reason &bull; Feedback:
+                        </span>
+                        <p className="leading-relaxed italic">
+                          &ldquo;{activeSubmission.comments || activeTeam.rejectionReason || 'Guide has requested technical revisions on the submitted milestone deliverables before approval.'}&rdquo;
+                        </p>
+                      </div>
+                    ) : activeSubmission.status === 'Approved' ? (
+                      <div className="p-3 bg-white rounded-xl border border-emerald-200 text-emerald-950 font-medium space-y-1">
+                        <span className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block">
+                          Guide Endorsement &bull; Remarks:
+                        </span>
+                        <p className="leading-relaxed">
+                          {activeSubmission.comments || 'Deliverables verified, technical progress validated, and approved.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-white rounded-xl border border-amber-200 text-amber-900 font-medium">
+                        <p className="text-[11px]">
+                          Milestone work has been received and is awaiting review and evaluation from {activeSubmission.guideName || activeTeam.guide?.name || 'Faculty Guide'}.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Student-Entered Details */}
+                  <div className="space-y-3">
+                    
+                    {/* Project Title */}
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                        Project Title
+                      </span>
+                      <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900">
+                        {activeSubmission.projectTitle || activeTeam.projectTitle || (
+                          <span className="text-slate-400 italic font-normal">No Project Title Specified</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Problem Statement */}
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                        Problem Statement
+                      </span>
+                      {activeSubmission.problemStatement ? (
+                        <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                          {activeSubmission.problemStatement}
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                          <XCircle size={14} className="text-slate-400" />
+                          <span>Not Uploaded / No Problem Statement submitted for this milestone</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Proposed Solution */}
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                        Proposed Solution &amp; Technical Approach
+                      </span>
+                      {activeSubmission.solution ? (
+                        <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                          {activeSubmission.solution}
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                          <XCircle size={14} className="text-slate-400" />
+                          <span>Not Uploaded / No Technical Solution submitted for this milestone</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Technologies Used */}
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                        Technologies Used
+                      </span>
+                      {activeSubmission.technologyUsed ? (
+                        <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 font-mono font-bold">
+                          {activeSubmission.technologyUsed}
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                          <XCircle size={14} className="text-slate-400" />
+                          <span>Not Uploaded / No Technologies specified</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Obstacles Faced */}
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                        Obstacles Faced
+                      </span>
+                      {activeSubmission.obstaclesFaced ? (
+                        <div className="p-3.5 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-slate-800 leading-relaxed">
+                          {activeSubmission.obstaclesFaced}
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                          <XCircle size={14} className="text-slate-400" />
+                          <span>Not Uploaded / No Obstacles Reported</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Abstract */}
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                        Project Abstract
+                      </span>
+                      {activeSubmission.abstract ? (
+                        <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                          {activeSubmission.abstract}
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                          <XCircle size={14} className="text-slate-400" />
+                          <span>Not Uploaded / No Abstract provided for this milestone</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Submitted Files, Repositories & Media */}
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
+                        Submitted Files, Repositories &amp; Media
+                      </span>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        
+                        {/* Presentation PPT */}
+                        {activeSubmission.fileName || activeSubmission.presentationFile ? (
+                          <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                                <FileText size={18} />
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-900 block truncate max-w-[150px]">
+                                  {activeSubmission.fileName || activeSubmission.presentationFile}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  PowerPoint (.pptx)
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDownloadFile(activeSubmission.fileName || activeSubmission.presentationFile || `Week_${activeSubmission.week}_Presentation.pptx`, 'ppt', activeSubmission, e)}
+                              className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                            >
+                              <Download size={13} />
+                              <span>Download</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                                <FileText size={18} />
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-500 block">Presentation Deck</span>
+                                <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                              <XCircle size={12} />
+                              <span>✕ Not Uploaded</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Technical Report PDF */}
+                        {activeSubmission.pdfFile ? (
+                          <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
+                                <FileCode size={18} />
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-900 block truncate max-w-[150px]">
+                                  {activeSubmission.pdfFile}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">PDF Document</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDownloadFile(activeSubmission.pdfFile || `Week_${activeSubmission.week}_Report.pdf`, 'pdf', activeSubmission, e)}
+                              className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                            >
+                              <Download size={13} />
+                              <span>Download</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                                <FileCode size={18} />
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-500 block">Technical Dossier</span>
+                                <span className="text-[10px] text-slate-400">Report (.pdf)</span>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                              <XCircle size={12} />
+                              <span>✕ Not Uploaded</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {/* GitHub Repo Link */}
+                        {activeSubmission.repoUrl ? (
+                          <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
+                                <Github size={18} />
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-900 block">GitHub Repository</span>
+                                <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
+                                  {activeSubmission.repoUrl}
+                                </span>
+                              </div>
+                            </div>
+                            <a
+                              href={activeSubmission.repoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                            >
+                              <ExternalLink size={13} />
+                              <span>Open</span>
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                                <Github size={18} />
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-500 block">Source Code Repository</span>
+                                <span className="text-[10px] text-slate-400">GitHub Link</span>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                              <XCircle size={12} />
+                              <span>✕ Not Uploaded</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Live Demo Link */}
+                        {activeSubmission.demoUrl ? (
+                          <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                                <ExternalLink size={18} />
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-900 block">Live Demo / Telemetry</span>
+                                <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
+                                  {activeSubmission.demoUrl}
+                                </span>
+                              </div>
+                            </div>
+                            <a
+                              href={activeSubmission.demoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                            >
+                              <ExternalLink size={13} />
+                              <span>Launch</span>
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                                <ExternalLink size={18} />
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-500 block">Live Deployment</span>
+                                <span className="text-[10px] text-slate-400">Demo URL</span>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                              <XCircle size={12} />
+                              <span>✕ Not Uploaded</span>
+                            </span>
+                          </div>
+                        )}
+
+                      </div>
+                    </div>
+
                   </div>
 
                 </div>
-
-              </div>
-            ) : (
-              <div className="py-8 text-center text-xs text-slate-400">
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-300 mb-2 select-none">
-                  <Clock size={12} className="text-slate-500" />
-                  <span>No Submission</span>
-                </span>
-                <p>No milestone deliverables submitted yet for Week {selectedWeek}.</p>
-              </div>
-            )}
+              ) : (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-300 mb-2 select-none">
+                    <Clock size={12} className="text-slate-500" />
+                    <span>No Submission</span>
+                  </span>
+                  <p>No milestone deliverables submitted by students for Week {selectedWeek} yet.</p>
+                </div>
+              )}
+            </div>
 
           </div>
 

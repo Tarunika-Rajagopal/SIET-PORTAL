@@ -22,7 +22,7 @@ try {
   }
   keysToRemove.forEach(k => localStorage.removeItem(k));
 
-  // Purge any mock submissions from v6 storage
+  // Purge any legacy mock submissions from v6 storage (only purge explicit mock titles)
   const guideRaw = localStorage.getItem("siet_guide_portal_teams_v6");
   if (guideRaw) {
     const guideTeams = JSON.parse(guideRaw);
@@ -30,7 +30,12 @@ try {
       let cleaned = false;
       guideTeams.forEach((t: any) => {
         if (t.teamId !== 'TEAM-CSE-Y3-B04' && t.teamNumber !== 4) {
-          if ((t.submissions && t.submissions.length > 0) || t.projectTitle === 'Wildfire Prediction Mesh Network' || t.projectTitle === 'Automated Legal Document Summarizer' || t.projectTitle === 'Autonomous Solar Panel Cleaning Drone') {
+          const isMockTitle = (
+            t.projectTitle === 'Wildfire Prediction Mesh Network' || 
+            t.projectTitle === 'Automated Legal Document Summarizer' || 
+            t.projectTitle === 'Autonomous Solar Panel Cleaning Drone'
+          );
+          if (isMockTitle) {
             t.submissions = [];
             t.projectTitle = '';
             t.problemStatement = '';

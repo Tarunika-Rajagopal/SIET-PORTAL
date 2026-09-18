@@ -138,18 +138,48 @@ export const AdvisorService = {
       }
     ];
 
+    const syncWithGuideApprovals = (teamList: ClassTeam[]): ClassTeam[] => {
+      try {
+        const guideRaw = localStorage.getItem('siet_guide_portal_teams_v6');
+        if (guideRaw) {
+          const guideTeams = JSON.parse(guideRaw);
+          if (Array.isArray(guideTeams)) {
+            teamList.forEach(t => {
+              const tNum = parseInt(String(t.teamNo || t.teamId).replace(/\D/g, ''), 10);
+              const gt = guideTeams.find((g: any) => 
+                (g.teamId && g.teamId.toLowerCase() === t.teamId.toLowerCase()) || 
+                (g.teamNo && g.teamNo.toLowerCase() === t.teamNo.toLowerCase()) || 
+                (Number(g.teamNumber) === tNum && !Number.isNaN(tNum))
+              );
+              if (gt && (gt.titleStatus === 'Approved' || gt.titleLocked)) {
+                if (gt.projectTitle && gt.projectTitle.trim()) {
+                  t.title = gt.projectTitle.trim();
+                }
+                t.status = 'Approved';
+                if (gt.guide) {
+                  t.guide = gt.guide;
+                }
+              }
+            });
+          }
+        }
+      } catch (e) {}
+      return teamList;
+    };
+
     try {
       const stored = localStorage.getItem(`siet_advisor_teams_${className}`);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return syncWithGuideApprovals(parsed);
         }
       }
-      localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(defaultTeams));
-      return defaultTeams;
+      const syncedDefaults = syncWithGuideApprovals(defaultTeams);
+      localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(syncedDefaults));
+      return syncedDefaults;
     } catch (e) {
-      return defaultTeams;
+      return syncWithGuideApprovals(defaultTeams);
     }
   },
 
@@ -569,6 +599,32 @@ export const AdvisorService = {
       message: `Team ${newTeam.teamNo} successfully formed and assigned to ${newTeam.guide}.`,
       team: newTeam
     };
+  },
+
+  assignStudentGuideAndTeam(
+    className: string,
+    studentRollNo: string,
+    options: {
+      mode: 'existing' | 'new';
+      targetTeamId?: string;
+      newTeamNo?: string;
+      guideName?: string;
+      guideEmail?: string;
+      projectTitle?: string;
+      batch?: string;
+    }
+  ): { success: boolean; message: string; team?: ClassTeam } {
+    if (options.mode === 'existing' && options.targetTeamId) {
+      return this.moveStudent(className, studentRollNo, options.targetTeamId);
+    }
+    return this.addManualTeam(className, options.batch || "2023-2027 (III Year)", {
+      teamNo: options.newTeamNo,
+      title: options.projectTitle || `Capstone Project - ${options.newTeamNo || 'Team'}`,
+      guide: options.guideName || 'Dr. P. Manimegalai',
+      guideEmail: options.guideEmail,
+      leadRollNo: studentRollNo,
+      memberRollNos: [studentRollNo]
+    });
   },
 
   updateTeam(

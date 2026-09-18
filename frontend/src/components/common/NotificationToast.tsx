@@ -31,14 +31,14 @@ export const NotificationToast: React.FC<ToastProps> = ({
 
   return (
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-5">
-      <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl text-white text-xs font-semibold backdrop-blur-md ${
-        type === 'success' ? 'bg-siet-dark/95 border border-emerald-500/30' :
-        type === 'error' ? 'bg-rose-700/95 border border-rose-500/30' :
-        'bg-slate-800/95 border border-slate-700'
+      <div className={`flex items-center gap-3 px-5 py-3 rounded-xl shadow-modal text-xs font-semibold backdrop-blur-md ${
+        type === 'success' ? 'bg-[#1B2119] text-[#EDF1EC] border border-[#4A5844]' :
+        type === 'error' ? 'bg-[#381717] text-[#F8EEEE] border border-[#7C3838]' :
+        'bg-[#1A1A1A] text-[#F8F5EE] border border-[#D8CCBA]'
       }`}>
-        {type === 'success' && <CheckCircle2 size={17} className="text-siet-yellow" />}
-        {type === 'error' && <AlertCircle size={17} className="text-rose-300" />}
-        {type === 'info' && <Info size={17} className="text-sky-300" />}
+        {type === 'success' && <CheckCircle2 size={17} className="text-[#84A07B]" />}
+        {type === 'error' && <AlertCircle size={17} className="text-[#D9AEAE]" />}
+        {type === 'info' && <Info size={17} className="text-[#B8AA97]" />}
         
         <span>{message}</span>
 

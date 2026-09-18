@@ -75,16 +75,16 @@ export const ApproveProject = () => {
       {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#111111] tracking-tight">
             Approve Submissions
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[#75695A] mt-0.5">
             Review student project deliverables and proposal details. Approve or reject submissions directly or inspect all materials.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-3.5 py-1.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-extrabold shadow-2xs flex items-center gap-1.5">
+          <span className="px-3.5 py-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-xs font-semibold shadow-2xs flex items-center gap-1.5">
             <Clock size={13} className="text-amber-700" />
             <span>{pendingTeams.length} Submissions Awaiting Review</span>
           </span>
@@ -92,14 +92,14 @@ export const ApproveProject = () => {
       </div>
 
       {/* 2. Control Bar: Filter Pill & Live Search */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-[#E2E8E4] shadow-card">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-[#D8CCBA] shadow-xs">
         {/* Active Pending Count Pill */}
         <div className="flex items-center gap-2 text-xs font-bold">
-          <div className="px-4 py-2 rounded-xl bg-mint-500 text-white font-extrabold shadow-sm flex items-center gap-2">
+          <div className="px-4 py-2 rounded-xl bg-[#111111] text-[#F8F5EE] font-bold shadow-sm flex items-center gap-2">
             <CheckSquare size={15} />
             <span>Pending Submissions ({pendingTeams.length})</span>
           </div>
-          <span className="text-[11px] text-slate-400 hidden sm:inline">
+          <span className="text-[11px] text-[#75695A] hidden sm:inline">
             Showing teams with submitted details awaiting guide review
           </span>
         </div>
@@ -107,13 +107,13 @@ export const ApproveProject = () => {
         {/* Live Search Bar & Refresh */}
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="relative w-full md:w-72">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#75695A]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search team, title, student..."
-              className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs text-slate-800 focus:outline-none focus:border-mint-500 focus:bg-white transition"
+              className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111] focus:bg-white transition"
             />
           </div>
 
@@ -121,7 +121,7 @@ export const ApproveProject = () => {
             type="button"
             onClick={() => window.location.reload()}
             title="Refresh page"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
+            className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-slate-700 hover:text-black border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
             aria-label="Refresh page"
           >
             <RefreshCw size={14} />
@@ -131,8 +131,8 @@ export const ApproveProject = () => {
 
       {/* 3. Proposals Card Feed: Display Only Team Title and Team Members */}
       {filteredTeams.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#E2E8E4] p-12 text-center space-y-3 shadow-card">
-          <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto border border-[#E2E8E4]">
+        <div className="bg-white rounded-2xl border border-[#D8CCBA] p-12 text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#F8F5EE] text-[#75695A] flex items-center justify-center mx-auto border border-[#D8CCBA]">
             <Search size={22} />
           </div>
           <h3 className="text-sm font-bold text-slate-800">No project proposals match criteria</h3>
@@ -150,15 +150,15 @@ export const ApproveProject = () => {
             return (
               <div 
                 key={team.teamId}
-                className="bg-white rounded-2xl border border-[#E2E8E4] shadow-card hover:shadow-hover transition overflow-hidden"
+                className="bg-white rounded-2xl border border-[#D8CCBA] shadow-xs hover:shadow-sm transition overflow-hidden"
               >
                 {/* Proposal Header: Team Title & Status Badge */}
-                <div className="p-5 border-b border-[#E2E8E4] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F8FAF9]">
+                <div className="p-5 border-b border-[#D8CCBA] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F8F5EE]">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="px-3 py-1 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-xs shadow-2xs">
+                    <span className="px-3 py-1 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-extrabold text-xs shadow-2xs">
                       Team #{team.teamNumber}
                     </span>
-                    <span className="text-xs font-semibold text-slate-500">
+                    <span className="text-xs font-semibold text-[#75695A]">
                       Class {team.class}-{team.section} &bull; Batch {team.batch}
                     </span>
                   </div>
@@ -167,12 +167,12 @@ export const ApproveProject = () => {
                   <div className="flex items-center gap-2">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 border ${
                       isApproved
-                        ? 'bg-mint-100 text-mint-900 border-mint-200'
+                        ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
                         : isPending
                         ? 'bg-amber-50 text-amber-900 border-amber-200'
                         : 'bg-rose-50 text-rose-900 border-rose-200'
                     }`}>
-                      {isApproved && <CheckCircle2 size={13} className="text-mint-700" />}
+                      {isApproved && <CheckCircle2 size={13} className="text-emerald-700" />}
                       {isPending && <Clock size={13} className="text-amber-600" />}
                       {isRejected && <XCircle size={13} className="text-rose-600" />}
                       <span>{isApproved ? 'Approved' : isPending ? 'Pending Review' : 'Revision Required'}</span>
@@ -181,11 +181,11 @@ export const ApproveProject = () => {
                 </div>
 
                 {/* Team Title Display */}
-                <div className="px-5 py-4 bg-white border-b border-[#E2E8E4]">
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                <div className="px-5 py-4 bg-white border-b border-[#D8CCBA]">
+                  <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
                     Capstone Project Title
                   </span>
-                  <h2 className="text-base font-extrabold text-slate-900 leading-snug">
+                  <h2 className="text-base font-serif font-bold text-[#111111] leading-snug">
                     {team.projectTitle ? (
                       team.projectTitle
                     ) : (
@@ -197,12 +197,12 @@ export const ApproveProject = () => {
                 {/* Team Members List (Only Team Title and Members shown) */}
                 <div className="p-5 space-y-3 bg-white">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <Users size={14} className="text-mint-600" />
+                    <span className="text-xs font-bold text-[#111111] uppercase tracking-wider flex items-center gap-1.5">
+                      <Users size={14} className="text-[#111111]" />
                       <span>Team Members ({team.members?.length || 4} Students)</span>
                     </span>
-                    <span className="text-[11px] text-slate-400">
-                      Class Advisor: <strong className="text-slate-700">{team.advisor}</strong>
+                    <span className="text-[11px] text-[#75695A]">
+                      Class Advisor: <strong className="text-[#111111]">{team.advisor}</strong>
                     </span>
                   </div>
 
@@ -214,23 +214,23 @@ export const ApproveProject = () => {
                           key={idx}
                           className={`p-3 rounded-xl border flex flex-col justify-between gap-1.5 ${
                             isLead 
-                              ? 'bg-mint-50/50 border-mint-200' 
-                              : 'bg-slate-50/60 border-[#E2E8E4]'
+                              ? 'bg-[#F8F5EE] border-[#D8CCBA]' 
+                              : 'bg-white border-[#D8CCBA]'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-1">
-                            <span className="font-extrabold text-slate-900 text-xs leading-snug truncate">
+                            <span className="font-bold text-[#111111] text-xs leading-snug truncate">
                               {m.name}
                             </span>
                             {isLead && (
-                              <span className="px-1.5 py-0.2 rounded text-[8px] bg-mint-100 text-mint-900 border border-mint-200 font-black uppercase shrink-0">
+                              <span className="px-1.5 py-0.2 rounded text-[8px] bg-[#111111] text-[#F8F5EE] font-black uppercase shrink-0">
                                 Lead
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                          <div className="flex items-center justify-between text-[10px] text-[#75695A] font-mono">
                             <span>{m.rollNo}</span>
-                            <span className="text-slate-500 font-sans">{isLead ? 'Team Lead' : 'Member'}</span>
+                            <span className="text-[#75695A] font-sans">{isLead ? 'Team Lead' : 'Member'}</span>
                           </div>
                         </div>
                       );
@@ -239,7 +239,7 @@ export const ApproveProject = () => {
                 </div>
 
                 {/* Proposal Footer Action: View (and Notify) */}
-                <div className="px-5 py-3.5 bg-[#F8FAF9] border-t border-[#E2E8E4] flex flex-wrap items-center justify-between gap-3">
+                <div className="px-5 py-3.5 bg-[#F8F5EE] border-t border-[#D8CCBA] flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Notify Team */}
                     <button

@@ -70,29 +70,29 @@ export const TeamDetailsModal = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-xs animate-fadeIn">
       <div 
-        className="bg-white w-full max-w-3xl rounded-3xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all flex flex-col max-h-[90vh]"
+        className="bg-white w-full max-w-3xl rounded-3xl shadow-xl border border-[#D8CCBA] overflow-hidden transform transition-all flex flex-col max-h-[90vh]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="team-details-title"
       >
         {/* Header */}
-        <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between shrink-0">
+        <div className="bg-[#F8F5EE] px-6 py-4 border-b border-[#D8CCBA] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <span className="px-2.5 py-1 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-xs">
+            <span className="px-2.5 py-1 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-extrabold text-xs">
               Team #{team.teamNumber}
             </span>
             <div>
-              <h3 id="team-details-title" className="text-sm font-extrabold text-slate-900 truncate max-w-lg">
+              <h3 id="team-details-title" className="text-sm font-serif font-bold text-[#111111] truncate max-w-lg">
                 {hasTitle ? team.projectTitle : <span className="text-rose-600 font-bold">Title Not Submitted</span>}
               </h3>
-              <p className="text-[11px] text-slate-500 font-semibold">
+              <p className="text-[11px] text-[#75695A] font-semibold">
                 Class {team.class}-{team.section} &bull; Batch {team.batch} &bull; Advisor: {team.advisor}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+            className="text-[#75695A] hover:text-[#111111] p-1.5 rounded-xl hover:bg-[#EDE7DB] transition cursor-pointer"
             aria-label="Close modal"
           >
             <X size={18} />
@@ -103,17 +103,17 @@ export const TeamDetailsModal = ({
         <div className="p-6 space-y-5 overflow-y-auto text-xs">
           
           {/* Status & Overall Verification Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-[#EFF3F1]/60 border border-[#E2E8E4]">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-[#F8F5EE] border border-[#D8CCBA]">
             <div className="flex items-center gap-2.5">
-              <span className="font-extrabold text-slate-700 text-xs">Current Endorsement Status:</span>
-              <span className={`px-3 py-1 rounded-full font-extrabold text-xs inline-flex items-center gap-1.5 border ${
+              <span className="font-bold text-[#111111] text-xs">Current Endorsement Status:</span>
+              <span className={`px-3 py-1 rounded-full font-bold text-xs inline-flex items-center gap-1.5 border ${
                 team.titleStatus === 'Approved'
-                  ? 'bg-mint-100 text-mint-900 border-mint-200'
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
                   : team.titleStatus === 'Pending'
                   ? 'bg-amber-50 text-amber-900 border-amber-200'
                   : 'bg-rose-50 text-rose-900 border-rose-200'
               }`}>
-                {team.titleStatus === 'Approved' && <CheckCircle2 size={13} className="text-mint-700" />}
+                {team.titleStatus === 'Approved' && <CheckCircle2 size={13} className="text-emerald-700" />}
                 {team.titleStatus === 'Pending' && <Clock size={13} className="text-amber-600" />}
                 {team.titleStatus === 'Rejected' && <AlertCircle size={13} className="text-rose-600" />}
                 <span>{team.titleStatus === 'Approved' ? 'Approved' : team.titleStatus === 'Rejected' ? 'Revision Required' : 'Pending Review'}</span>
@@ -130,7 +130,7 @@ export const TeamDetailsModal = ({
 
           {/* Section: Submissions Breakdown */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between pb-1 border-b border-[#E2E8E4]">
+            <div className="flex items-center justify-between pb-1 border-b border-[#D8CCBA]">
               <span className="font-extrabold text-slate-900 uppercase tracking-wider text-xs">
                 Student Deliverables &amp; Artifacts Checklist
               </span>
@@ -140,7 +140,7 @@ export const TeamDetailsModal = ({
             </div>
 
             {/* 1. Project Title */}
-            <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+            <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-slate-700 text-xs">1. Capstone Project Title</span>
                 {hasTitle ? (
@@ -161,7 +161,7 @@ export const TeamDetailsModal = ({
             </div>
 
             {/* 2. Problem Statement */}
-            <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+            <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-slate-700 text-xs">2. Problem Statement</span>
                 {hasProblemStatement ? (
@@ -182,7 +182,7 @@ export const TeamDetailsModal = ({
             </div>
 
             {/* 3. Proposed Solution Architecture */}
-            <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+            <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-slate-700 text-xs">3. Proposed Solution Architecture</span>
                 {hasSolution ? (
@@ -203,7 +203,7 @@ export const TeamDetailsModal = ({
             </div>
 
             {/* 4. Project Abstract / Scope */}
-            <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+            <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-slate-700 text-xs">4. Project Abstract &amp; Scope</span>
                 {hasAbstract ? (
@@ -224,7 +224,7 @@ export const TeamDetailsModal = ({
             </div>
 
             {/* 5. Technologies Used */}
-            <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1.5">
+            <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-slate-700 text-xs">5. Technologies &amp; Hardware Stack</span>
                 {hasTechStack ? (
@@ -250,7 +250,7 @@ export const TeamDetailsModal = ({
 
             {/* 6 & 7: GitHub & Live Staging Links */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+              <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
                     <Github size={13} /> 6. GitHub Repository
@@ -268,7 +268,7 @@ export const TeamDetailsModal = ({
                 )}
               </div>
 
-              <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+              <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
                     <ExternalLink size={13} /> 7. Live Demo URL
@@ -289,7 +289,7 @@ export const TeamDetailsModal = ({
 
             {/* 8 & 9: Presentation & Report Dossier Files */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+              <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
                     <Presentation size={13} /> 8. Proposal Slides (PPT)
@@ -307,7 +307,7 @@ export const TeamDetailsModal = ({
                 )}
               </div>
 
-              <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+              <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
                     <FileText size={13} /> 9. Technical Report (PDF)
@@ -327,7 +327,7 @@ export const TeamDetailsModal = ({
             </div>
 
             {/* 10. Prototype / Hardware Captures */}
-            <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1.5">
+            <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
                   <ImageIcon size={13} /> 10. Prototype Bench / Hardware Captures
@@ -341,7 +341,7 @@ export const TeamDetailsModal = ({
               {hasImages && (
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   {firstSub.images.map((img, idx) => (
-                    <div key={idx} className="rounded-xl overflow-hidden border border-[#E2E8E4] aspect-video">
+                    <div key={idx} className="rounded-xl overflow-hidden border border-[#D8CCBA] aspect-video">
                       <img src={img} alt="Capture" className="w-full h-full object-cover" />
                     </div>
                   ))}
@@ -381,7 +381,7 @@ export const TeamDetailsModal = ({
                 <button
                   type="button"
                   onClick={() => setRejecting(false)}
-                  className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50"
+                  className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-white border border-[#D8CCBA] rounded-xl hover:bg-slate-50"
                 >
                   Cancel
                 </button>
@@ -400,7 +400,7 @@ export const TeamDetailsModal = ({
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="bg-[#F8FAF9] px-6 py-4 border-t border-[#E2E8E4] flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="bg-[#F8F5EE] px-6 py-4 border-t border-[#D8CCBA] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2">
             {onOpenNotify && (
               <button
@@ -418,7 +418,7 @@ export const TeamDetailsModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-700 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition cursor-pointer"
+              className="px-4 py-2 text-xs font-bold text-[#111111] bg-white border border-[#D8CCBA] rounded-xl hover:bg-[#EDE7DB] transition cursor-pointer"
             >
               Close
             </button>
@@ -427,8 +427,8 @@ export const TeamDetailsModal = ({
           {/* Guide Decision Options */}
           <div className="flex items-center gap-2.5">
             {isApproved ? (
-              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-mint-100 border border-mint-200 text-mint-900 font-extrabold text-xs">
-                <Lock size={14} className="text-mint-700" />
+              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#EDE7DB] border border-[#D8CCBA] text-[#111111] font-bold text-xs">
+                <Lock size={14} className="text-[#111111]" />
                 <span>Scope Endorsed &amp; Approved</span>
               </div>
             ) : (
@@ -447,7 +447,7 @@ export const TeamDetailsModal = ({
                 <button
                   type="button"
                   onClick={handleConfirmApprove}
-                  className="px-5 py-2 text-xs font-bold text-white bg-mint-500 hover:bg-mint-600 rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                  className="px-5 py-2 text-xs font-bold text-[#F8F5EE] bg-[#111111] hover:bg-[#292725] rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
                 >
                   <CheckCircle2 size={15} />
                   <span>Approve Submissions</span>

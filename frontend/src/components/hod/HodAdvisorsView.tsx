@@ -24,14 +24,14 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
   return (
     <div className="space-y-4">
       
-      {/* Filter Option Row (No extra contents) */}
-      <div className="bg-white rounded-2xl p-4 shadow-card border border-[#E2E8E4] flex flex-wrap items-center gap-3">
+      {/* Filter Option Row */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#D8CCBA] flex flex-wrap items-center gap-3">
         
         {/* Batch Filter */}
         <select
           value={batchFilter}
           onChange={(e) => setBatchFilter(e.target.value)}
-          className="px-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+          className="px-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111]"
         >
           <option value="ALL">All Batches</option>
           <option value="2023-2027 (III Year)">2023-2027 (III Year)</option>
@@ -43,7 +43,7 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
         <select
           value={classFilter}
           onChange={(e) => setClassFilter(e.target.value)}
-          className="px-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+          className="px-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111]"
         >
           <option value="ALL">All Classes</option>
           <option value="CSE-A">Class CSE-A</option>
@@ -51,9 +51,9 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
           <option value="CSE-C">Class CSE-C</option>
         </select>
 
-        {/* Search Bar - Clicking refreshes batch & class to ALL automatically */}
+        {/* Search Bar */}
         <div className="relative flex-1 min-w-[200px] sm:max-w-xs">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#75695A]" />
           <input
             type="text"
             value={searchTerm}
@@ -61,7 +61,7 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
             onFocus={() => { setBatchFilter('ALL'); setClassFilter('ALL'); }}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search advisor or section..."
-            className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800 placeholder-slate-400"
+            className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]"
           />
         </div>
 
@@ -70,7 +70,7 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
           type="button"
           onClick={() => window.location.reload()}
           title="Refresh page"
-          className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
+          className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
           aria-label="Refresh page"
         >
           <RefreshCw size={14} />
@@ -78,11 +78,11 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
 
       </div>
 
-      {/* Advisors Table (Status column removed, Total Students displayed) */}
-      <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
+      {/* Advisors Table */}
+      <div className="bg-white rounded-3xl shadow-sm border border-[#D8CCBA] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8FAF9] text-slate-500 uppercase tracking-wider font-bold border-b border-[#E2E8E4]">
+            <thead className="bg-[#EDE7DB] text-[#75695A] uppercase tracking-wider font-semibold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4">Advisor Name</th>
                 <th className="p-4">Designation</th>
@@ -91,10 +91,10 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
                 <th className="p-4">Total Students</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8E4] font-medium">
+            <tbody className="divide-y divide-[#D8CCBA] font-medium">
               {filteredAdvisors.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-400">
+                  <td colSpan={5} className="p-8 text-center text-[#75695A]">
                     No advisors match the selected filters.
                   </td>
                 </tr>
@@ -103,25 +103,25 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
                   <tr
                     key={a.id}
                     onClick={() => onSelectAdvisor(a.batch, a.assignedClass)}
-                    className="hover:bg-mint-50/50 cursor-pointer transition group"
+                    className="hover:bg-[#F8F5EE]/60 cursor-pointer transition group"
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <div className="font-extrabold text-slate-900 group-hover:text-mint-700 transition">
+                        <div className="font-serif font-bold text-[#111111] group-hover:text-[#75695A] transition">
                           {a.name}
                         </div>
-                        <ArrowUpRight size={13} className="text-slate-300 group-hover:text-mint-600 transition opacity-0 group-hover:opacity-100" />
+                        <ArrowUpRight size={13} className="text-[#75695A] group-hover:text-[#111111] transition opacity-0 group-hover:opacity-100" />
                       </div>
-                      <span className="text-[11px] text-slate-400 font-mono">{a.email}</span>
+                      <span className="text-[11px] text-[#75695A] font-mono">{a.email}</span>
                     </td>
-                    <td className="p-4 text-slate-700">{a.designation}</td>
+                    <td className="p-4 text-[#292725]">{a.designation}</td>
                     <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-md bg-amber-50 text-amber-900 font-bold border border-amber-200">
+                      <span className="px-2.5 py-1 rounded-md bg-[#EDE7DB] text-[#111111] font-semibold border border-[#D8CCBA]">
                         Class {a.assignedClass}
                       </span>
                     </td>
-                    <td className="p-4 text-slate-600 font-bold">{a.batch}</td>
-                    <td className="p-4 font-bold text-slate-800">{a.studentsCount} Students</td>
+                    <td className="p-4 text-[#75695A] font-semibold">{a.batch}</td>
+                    <td className="p-4 font-semibold text-[#111111]">{a.studentsCount} Students</td>
                   </tr>
                 ))
               )}

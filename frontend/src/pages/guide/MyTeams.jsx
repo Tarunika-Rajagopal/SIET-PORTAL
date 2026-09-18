@@ -233,42 +233,42 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
       {/* 1. Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#111111] tracking-tight">
             Assigned Capstone Teams
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[#75695A] mt-0.5">
             View assigned teams, inspect student rosters, advisor marks, and weekly milestone submissions.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-3.5 py-1.5 rounded-full bg-mint-100 text-mint-900 border border-mint-200 text-xs font-extrabold shadow-2xs">
+          <span className="px-3.5 py-1.5 rounded-full bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-bold shadow-2xs">
             {teams.length} Assigned Teams
           </span>
         </div>
       </div>
 
       {/* 2. Controls Toolbar: Filter option based on CLASSES (not based on status) */}
-      <div className="bg-white p-4 rounded-2xl border border-[#E2E8E4] shadow-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-4 rounded-2xl border border-[#D8CCBA] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#75695A]" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by team number, student, project title..."
-            className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs text-slate-800 focus:outline-none focus:border-mint-500 focus:bg-white transition"
+            className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111] focus:bg-white transition"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Batch-based Filter Dropdown */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-extrabold text-slate-500 hidden sm:inline">Batch:</span>
+            <span className="text-xs font-bold text-[#75695A] hidden sm:inline">Batch:</span>
             <select
               value={batchFilter}
               onChange={(e) => setBatchFilter(e.target.value)}
-              className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500 cursor-pointer"
+              className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer"
             >
               <option value="ALL">All Batches</option>
               {availableBatches.map(b => (
@@ -279,11 +279,11 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
 
           {/* Class-based Filter Dropdown */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-extrabold text-slate-500 hidden sm:inline">Class:</span>
+            <span className="text-xs font-bold text-[#75695A] hidden sm:inline">Class:</span>
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500 cursor-pointer"
+              className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer"
             >
               <option value="ALL">All Classes ({teams.length})</option>
               {availableClasses.map(cls => (
@@ -297,7 +297,7 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
             type="button"
             onClick={() => window.location.reload()}
             title="Refresh page"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
+            className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-slate-700 hover:text-black border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
             aria-label="Refresh page"
           >
             <RefreshCw size={14} />
@@ -318,16 +318,16 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
               <Users size={16} className="text-mint-600" />
               <span>Assigned Teams &amp; Members ({filteredTeams.length} Teams)</span>
             </span>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-[#75695A]">
               Click any team to view advisor marks &amp; weekly submissions
             </span>
           </div>
 
           {filteredTeams.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-[#E2E8E4] p-12 text-center text-slate-500 space-y-2 shadow-card">
-              <Search size={24} className="mx-auto text-slate-400" />
-              <p className="font-bold text-slate-700 text-sm">No teams found matching your batch, class or search filters.</p>
-              <p className="text-xs text-slate-400">Try selecting "All Batches" and "All Classes" or clearing the search query.</p>
+            <div className="bg-white rounded-3xl border border-[#D8CCBA] p-12 text-center text-[#75695A] space-y-2 shadow-xs">
+              <Search size={24} className="mx-auto text-[#75695A]" />
+              <p className="font-bold text-[#111111] text-sm">No teams found matching your batch, class or search filters.</p>
+              <p className="text-xs text-[#75695A]">Try selecting "All Batches" and "All Classes" or clearing the search query.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -338,18 +338,18 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                   <div
                     key={team.teamId}
                     onClick={() => setSelectedTeamId(team.teamId)}
-                    className="bg-white rounded-3xl border border-[#E2E8E4] shadow-card hover:shadow-hover hover:border-mint-400 transition cursor-pointer overflow-hidden group"
+                    className="bg-white rounded-3xl border border-[#D8CCBA] shadow-xs hover:border-[#111111] transition cursor-pointer overflow-hidden group"
                   >
                     {/* Team Header */}
-                    <div className="p-5 border-b border-[#E2E8E4] bg-[#F8FAF9] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="p-5 border-b border-[#D8CCBA] bg-[#F8F5EE] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <span className="px-3 py-1 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-xs shadow-2xs">
+                        <span className="px-3 py-1 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-extrabold text-xs shadow-2xs">
                           Team #{team.teamNumber}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E2E8E4] text-slate-700 text-xs font-bold">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#D8CCBA] text-[#111111] text-xs font-bold">
                           Class {teamClass}
                         </span>
-                        <span className="text-slate-400 text-xs font-medium">
+                        <span className="text-[#75695A] text-xs font-medium">
                           &bull; Batch {team.batch}
                         </span>
                       </div>
@@ -363,19 +363,19 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                           return (
                             <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-flex items-center gap-1 ${
                               isApp
-                                ? 'bg-mint-100 text-mint-900 border-mint-200'
+                                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
                                 : isPending
                                 ? 'bg-amber-50 text-amber-900 border-amber-200'
-                                : 'bg-slate-100 text-slate-600 border-slate-200'
+                                : 'bg-[#F8F5EE] text-[#75695A] border-[#D8CCBA]'
                             }`}>
-                              {isApp && <CheckCircle2 size={11} className="text-mint-700" />}
+                              {isApp && <CheckCircle2 size={11} className="text-emerald-700" />}
                               {isPending && <Clock size={11} className="text-amber-600" />}
-                              {isNoSub && <XCircle size={11} className="text-slate-400" />}
+                              {isNoSub && <XCircle size={11} className="text-[#75695A]" />}
                               <span>{isApp ? 'Approved' : isPending ? 'Pending' : 'No Submission'}</span>
                             </span>
                           );
                         })()}
-                        <span className="text-xs font-bold text-mint-700 group-hover:underline flex items-center gap-1">
+                        <span className="text-xs font-bold text-[#111111] group-hover:underline flex items-center gap-1">
                           <span>View Marks &amp; Submissions</span>
                           <ArrowRight size={14} />
                         </span>
@@ -383,35 +383,35 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                     </div>
 
                     {/* Team Title */}
-                    <div className="px-6 py-4 bg-white border-b border-[#E2E8E4]">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                    <div className="px-6 py-4 bg-white border-b border-[#D8CCBA]">
+                      <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
                         Project Title
                       </span>
-                      <h3 className="text-sm sm:text-base font-extrabold text-slate-900 leading-snug">
+                      <h3 className="text-sm sm:text-base font-serif font-bold text-[#111111] leading-snug">
                         {team.projectTitle ? (
                           team.projectTitle
                         ) : (
                           <span className="text-slate-400 italic font-normal">Awaiting Student Title Proposal Submission</span>
                         )}
                       </h3>
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Class Advisor: <strong className="text-slate-700">{team.advisor}</strong>
+                      <p className="text-[11px] text-[#75695A] mt-1">
+                        Class Advisor: <strong className="text-[#111111]">{team.advisor}</strong>
                       </p>
                     </div>
 
                     {/* Team Members List (Only Team & Members shown) */}
                     <div className="p-6 bg-white space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                          <Users size={14} className="text-mint-600" />
+                        <h4 className="text-xs font-bold text-[#111111] uppercase tracking-wider flex items-center gap-1.5">
+                          <Users size={14} className="text-[#111111]" />
                           <span>Enrolled Students ({team.members?.length || 4} Members)</span>
                         </h4>
-                        <span className="text-[11px] text-slate-400">Click card to drill down</span>
+                        <span className="text-[11px] text-[#75695A]">Click card to drill down</span>
                       </div>
 
-                      <div className="border border-[#E2E8E4] rounded-2xl overflow-hidden shadow-2xs">
+                      <div className="border border-[#D8CCBA] rounded-2xl overflow-hidden shadow-2xs">
                         <table className="w-full text-left text-xs">
-                          <thead className="bg-[#F8FAF9] text-slate-500 uppercase font-bold text-[10px] border-b border-[#E2E8E4]">
+                          <thead className="bg-[#EDE7DB] text-[#111111] uppercase font-bold text-[10px] border-b border-[#D8CCBA]">
                             <tr>
                               <th className="p-3">Roll No</th>
                               <th className="p-3">Student Name</th>
@@ -419,23 +419,23 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                               <th className="p-3">Institutional Email</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-[#E2E8E4] font-medium">
+                          <tbody className="divide-y divide-[#D8CCBA] font-medium">
                             {(team.members || []).map((m, idx) => {
                               const isLead = m.name === team.teamLeader || m.role?.toLowerCase().includes('lead');
                               return (
-                                <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}>
-                                  <td className="p-3 font-mono font-bold text-slate-900">{m.rollNo}</td>
-                                  <td className="p-3 font-extrabold text-slate-900">{m.name}</td>
+                                <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#F8F5EE]/60'}>
+                                  <td className="p-3 font-mono font-bold text-[#111111]">{m.rollNo}</td>
+                                  <td className="p-3 font-bold text-[#111111]">{m.name}</td>
                                   <td className="p-3">
                                     {isLead ? (
-                                      <span className="px-2 py-0.5 rounded text-[9px] bg-mint-100 text-mint-900 border border-mint-200 font-black uppercase">
+                                      <span className="px-2 py-0.5 rounded text-[9px] bg-[#111111] text-[#F8F5EE] font-black uppercase">
                                         Team Lead
                                       </span>
                                     ) : (
-                                      <span className="text-slate-500 text-[11px]">Member</span>
+                                      <span className="text-[#75695A] text-[11px]">Member</span>
                                     )}
                                   </td>
-                                  <td className="p-3 text-slate-500 font-mono text-[11px]">{m.email}</td>
+                                  <td className="p-3 text-[#75695A] font-mono text-[11px]">{m.email}</td>
                                 </tr>
                               );
                             })}
@@ -455,26 +455,26 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
         <div className="space-y-6 animate-fadeIn">
           
           {/* Top Bar: Back to All Teams Navigation & Active Team Switcher */}
-          <div className="bg-white p-4 rounded-2xl border border-[#E2E8E4] shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white p-4 rounded-2xl border border-[#D8CCBA] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setSelectedTeamId(null)}
-              className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-700 bg-[#EFF3F1] hover:bg-[#E2E8E4] border border-[#E2E8E4] transition flex items-center gap-2 cursor-pointer self-start"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-[#111111] bg-[#F8F5EE] hover:bg-[#EDE7DB] border border-[#D8CCBA] transition flex items-center gap-2 cursor-pointer self-start"
             >
               <ArrowLeft size={16} />
               <span>Back to All Teams</span>
             </button>
 
             <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-              <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Switch Team:</span>
+              <span className="text-xs font-bold text-[#75695A] whitespace-nowrap">Switch Team:</span>
               {filteredTeams.map((t) => (
                 <button
                   key={t.teamId}
                   onClick={() => setSelectedTeamId(t.teamId)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                     t.teamId === activeTeam.teamId
-                      ? 'bg-mint-500 text-white shadow-xs'
-                      : 'bg-slate-50 text-slate-700 hover:bg-mint-50 border border-[#E2E8E4]'
+                      ? 'bg-[#111111] text-[#F8F5EE] shadow-xs'
+                      : 'bg-[#F8F5EE] text-[#111111] hover:bg-[#EDE7DB] border border-[#D8CCBA]'
                   }`}
                 >
                   Team #{t.teamNumber} ({t.classSection || `${t.class}-${t.section}`})
@@ -484,17 +484,17 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
           </div>
 
           {/* Active Team Summary Banner */}
-          <div className="bg-white p-6 rounded-3xl border border-[#E2E8E4] shadow-card space-y-3">
+          <div className="bg-white p-6 rounded-3xl border border-[#D8CCBA] shadow-xs space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2.5">
               <div className="flex flex-wrap items-center gap-2.5">
-                <span className="px-3 py-1 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-xs">
+                <span className="px-3 py-1 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-extrabold text-xs">
                   Team #{activeTeam.teamNumber}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">
+                <span className="px-2.5 py-0.5 rounded-lg bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-xs font-bold">
                   Class {activeTeam.classSection || `${activeTeam.class}-${activeTeam.section}`} &bull; {activeTeam.batch}
                 </span>
-                <span className="text-xs text-slate-500">
-                  Lead: <strong>{activeTeam.teamLeader}</strong> ({activeTeam.leaderRollNo})
+                <span className="text-xs text-[#75695A]">
+                  Lead: <strong className="text-[#111111]">{activeTeam.teamLeader}</strong> ({activeTeam.leaderRollNo})
                 </span>
               </div>
 
@@ -539,36 +539,36 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
           </div>
 
           {/* 1. Marks Assigned by Advisor (Week-wise) */}
-          <div className="bg-white rounded-3xl p-6 shadow-card border border-[#E2E8E4] space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
+          <div className="bg-white rounded-3xl p-6 shadow-xs border border-[#D8CCBA] space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D8CCBA] pb-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-mint-500 to-emerald-600 text-white flex items-center justify-center font-bold shadow-2xs shrink-0 mt-0.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#111111] text-[#F8F5EE] flex items-center justify-center font-bold shadow-2xs shrink-0 mt-0.5">
                   <Award size={20} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-base font-extrabold text-slate-900">
+                    <h3 className="text-base font-serif font-bold text-[#111111]">
                       Marks Assigned by Class Advisor
                     </h3>
-                    <span className="px-2 py-0.5 rounded-md bg-mint-100 text-mint-900 border border-mint-200 text-[10px] font-black uppercase">
+                    <span className="px-2 py-0.5 rounded-md bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-[10px] font-bold uppercase">
                       Team #{activeTeam.teamNumber}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-[#75695A] mt-0.5">
                     Official milestone evaluations recorded by Class Advisor <strong>{activeTeam.advisor || 'Dr. R. Karthikeyan'}</strong>
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-xs font-extrabold shadow-2xs shrink-0 self-start sm:self-center">
-                <Lock size={13} className="text-slate-500" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F8F5EE] border border-[#D8CCBA] text-[#75695A] text-xs font-bold shadow-2xs shrink-0 self-start sm:self-center">
+                <Lock size={13} className="text-[#75695A]" />
                 <span>Read-Only</span>
               </div>
             </div>
 
             {/* Week Selector Tabs */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block">
                 Select Milestone Week to Inspect Advisor Marks:
               </span>
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -583,14 +583,14 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                       onClick={() => setMarksViewWeek(w)}
                       className={`px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer shadow-2xs ${
                         isSelected
-                          ? 'bg-mint-500 text-white shadow-sm font-extrabold ring-2 ring-mint-400/30'
-                          : 'bg-slate-50 hover:bg-mint-50 text-slate-700 border border-[#E2E8E4]'
+                          ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold'
+                          : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]'
                       }`}
                     >
                       <span>Week {w}</span>
                       {wMarks ? (
-                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                          isSelected ? 'bg-white text-mint-950' : 'bg-mint-100 text-mint-900'
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                          isSelected ? 'bg-white text-[#111111]' : 'bg-[#EDE7DB] text-[#111111]'
                         }`}>
                           Avg: {wMarks.teamAverage}
                         </span>
@@ -611,74 +611,63 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
 
               if (!marks) {
                 return (
-                  <div className="p-8 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 text-center space-y-1">
-                    <p className="text-xs font-bold text-slate-700">
-                      Advisor has not entered marks for Week {marksViewWeek} yet.
+                  <div className="p-8 text-center bg-[#F8F5EE] rounded-2xl border border-dashed border-[#D8CCBA] space-y-2">
+                    <AlertCircle size={24} className="mx-auto text-[#75695A]" />
+                    <p className="font-bold text-[#111111] text-xs">
+                      No Marks Assigned Yet for Week {marksViewWeek}
                     </p>
-                    <p className="text-[11px] text-slate-400">
-                      Marks will be visible here once evaluated by Class Advisor ({activeTeam.advisor || 'Dr. R. Karthikeyan'}).
+                    <p className="text-[11px] text-[#75695A] max-w-sm mx-auto">
+                      Class Advisor has not yet finalized evaluation rubrics and scores for this sprint week.
                     </p>
                   </div>
                 );
               }
 
               return (
-                <div className="space-y-4 animate-fadeIn">
-                  {/* Team Average Score Banner */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-mint-50 via-emerald-50 to-teal-50 border border-mint-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                    <div>
-                      <span className="text-[10px] text-mint-800 font-extrabold uppercase tracking-wider block">
-                        Team Milestone Assessment &bull; Week {marksViewWeek}
-                      </span>
-                      <span className="text-base sm:text-lg font-black text-slate-900 mt-0.5 block">
-                        Calculated Team Score: <span className="text-mint-800">{marks.teamAverage}</span> / 100
-                      </span>
-                      <span className="text-[11px] text-slate-500 block mt-0.5">
-                        Evaluated by <strong>{marks.gradedBy || activeTeam.advisor || 'Class Advisor'}</strong>
-                        {marks.gradedAt && ` on ${new Date(marks.gradedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+                <div className="space-y-4">
+                  {/* Mark summary cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA]">
+                      <span className="text-[10px] font-bold text-[#75695A] uppercase block">Team Average</span>
+                      <span className="text-xl font-bold text-[#111111]">{marks.teamAverage} / 100</span>
+                    </div>
+                    <div className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA]">
+                      <span className="text-[10px] font-bold text-[#75695A] uppercase block">Evaluated By</span>
+                      <span className="text-xs font-bold text-[#111111] truncate block">{marks.evaluatedBy || activeTeam.advisor}</span>
+                    </div>
+                    <div className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA]">
+                      <span className="text-[10px] font-bold text-[#75695A] uppercase block">Status</span>
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                        <CheckCircle2 size={12} className="text-emerald-700" />
+                        <span>Finalized</span>
                       </span>
                     </div>
-
-                    <div className="px-3 py-1.5 rounded-xl bg-white border border-mint-200 shadow-2xs self-start sm:self-center text-center">
-                      <span className="text-[10px] uppercase font-extrabold text-slate-400 block">Team Average</span>
-                      <span className="text-sm font-black text-mint-700">{marks.teamAverage}%</span>
+                    <div className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA]">
+                      <span className="text-[10px] font-bold text-[#75695A] uppercase block">Evaluation Date</span>
+                      <span className="text-xs font-bold text-[#111111]">{marks.date || 'Recorded'}</span>
                     </div>
                   </div>
 
-                  {/* Individual Student Marks Grid */}
+                  {/* Individual Student Scores */}
                   <div className="space-y-2">
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                      Individual Student Marks &bull; Week {marksViewWeek} ({activeTeam.members?.length || 4} Students):
+                    <span className="text-xs font-bold text-[#111111] uppercase tracking-wider block">
+                      Individual Student Marks (Week {marksViewWeek}):
                     </span>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                      {activeTeam.members?.map((m) => {
-                        const score = marks.memberMarks?.[m.rollNo];
-                        const isLead = m.name === activeTeam.teamLeader || m.role?.toLowerCase().includes('lead');
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {(activeTeam.members || []).map((m, idx) => {
+                        const score = marks.studentScores?.[m.rollNo] ?? marks.teamAverage;
                         return (
-                          <div
-                            key={m.rollNo}
-                            className="p-3.5 bg-slate-50 rounded-2xl border border-[#E2E8E4] flex flex-col justify-between gap-2 shadow-2xs"
+                          <div 
+                            key={idx}
+                            className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA] flex flex-col justify-between gap-2 shadow-2xs"
                           >
                             <div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="font-extrabold text-slate-900 text-xs truncate">
-                                  {m.name}
-                                </span>
-                                {isLead && (
-                                  <span className="px-1.5 py-0.2 rounded text-[8px] bg-mint-100 text-mint-900 border border-mint-200 font-black uppercase shrink-0">
-                                    Lead
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                                {m.rollNo}
-                              </span>
+                              <span className="font-bold text-[#111111] text-xs block truncate">{m.name}</span>
+                              <span className="text-[10px] text-[#75695A] font-mono">{m.rollNo}</span>
                             </div>
-
-                            <div className="pt-2 border-t border-[#E2E8E4] flex items-center justify-between">
-                              <span className="text-[10px] text-slate-500 font-bold">Week {marksViewWeek} Mark:</span>
-                              <span className="px-2 py-0.5 rounded-lg bg-mint-100 text-mint-950 font-black text-xs border border-mint-200">
+                            <div className="pt-2 border-t border-[#D8CCBA] flex items-center justify-between">
+                              <span className="text-[10px] text-[#75695A] font-bold">Week {marksViewWeek} Mark:</span>
+                              <span className="px-2 py-0.5 rounded-lg bg-[#EDE7DB] text-[#111111] font-bold text-xs border border-[#D8CCBA]">
                                 {typeof score === 'number' ? `${score} / 100` : '-- / 100'}
                               </span>
                             </div>
@@ -690,11 +679,11 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
 
                   {/* Advisor Feedback & Critique */}
                   {marks.remarks && (
-                    <div className="p-4 bg-[#EFF3F1]/80 rounded-2xl border border-[#E2E8E4] text-xs space-y-1">
-                      <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                    <div className="p-4 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA] text-xs space-y-1">
+                      <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block">
                         Class Advisor Evaluation Critique &amp; Remarks:
                       </span>
-                      <p className="text-slate-800 font-medium italic leading-relaxed">
+                      <p className="text-[#111111] font-medium italic leading-relaxed">
                         &ldquo;{marks.remarks}&rdquo;
                       </p>
                     </div>
@@ -705,13 +694,13 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
           </div>
 
           {/* 2. Their Weekly Submissions */}
-          <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
-            <div className="p-5 border-b border-[#E2E8E4] flex items-center justify-between bg-slate-50/60">
+          <div className="bg-white rounded-3xl shadow-xs border border-[#D8CCBA] overflow-hidden">
+            <div className="p-5 border-b border-[#D8CCBA] flex items-center justify-between bg-[#F8F5EE]">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">
+                <span className="font-bold text-xs text-[#111111] uppercase tracking-wider">
                   Weekly Sprint Submissions
                 </span>
-                <span className="text-[11px] font-bold text-mint-800 bg-mint-100 px-2.5 py-0.5 rounded-full border border-mint-200">
+                <span className="text-[11px] font-bold text-[#111111] bg-[#EDE7DB] px-2.5 py-0.5 rounded-full border border-[#D8CCBA]">
                   {(activeTeam.submissions || []).length} Weeks Logged
                 </span>
               </div>
@@ -720,7 +709,7 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
               </span>
             </div>
 
-            <div className="divide-y divide-[#E2E8E4]">
+            <div className="divide-y divide-[#D8CCBA]">
               {weeksToRender.map((sub) => {
                 const isUploaded = sub.isUploaded;
                 const isApproved = sub.evaluationStatus === 'Approved' || activeTeam?.titleStatus === 'Approved';
@@ -832,20 +821,20 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
 
       {/* Week Submission Inspection Modal (View-Only, Red 'Not Submitted' badges, Notify option) */}
       {detailModalOpen && activeWeekSub && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl border border-[#E2E8E4] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl border border-[#D8CCBA] overflow-hidden flex flex-col">
             
             {/* Modal Header */}
-            <div className="p-6 border-b border-[#E2E8E4] flex items-center justify-between bg-slate-50/70 shrink-0">
+            <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-[#F8F5EE] shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm text-white bg-mint-500 shadow-2xs">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm text-[#F8F5EE] bg-[#111111] shadow-2xs">
                   W{activeWeekSub.weekNumber}
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900 leading-snug">
+                  <h3 className="text-base font-serif font-bold text-[#111111] leading-snug">
                     Week {activeWeekSub.weekNumber}: {activeWeekSub.title}
                   </h3>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                  <div className="flex items-center gap-2 mt-0.5 text-xs text-[#75695A]">
                     <span>Team #{activeTeam?.teamNumber} &bull; {activeTeam?.projectTitle}</span>
                   </div>
                 </div>
@@ -854,27 +843,27 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
               <button
                 type="button"
                 onClick={() => setDetailModalOpen(false)}
-                className="w-9 h-9 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer"
+                className="w-9 h-9 rounded-xl hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] flex items-center justify-center transition cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Modal Scrollable Body: View what they have submitted, Red Not Submitted badges */}
-            <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-700 flex-1">
+            <div className="p-6 overflow-y-auto space-y-5 text-xs text-[#111111] flex-1">
               
               {/* Sprint Abstract */}
-              <div className="p-4 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+              <div className="p-4 bg-[#F8F5EE] border border-[#D8CCBA] rounded-2xl space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-slate-700 text-xs">Sprint Abstract &amp; Milestone Summary:</span>
+                  <span className="font-bold text-[#111111] text-xs">Sprint Abstract &amp; Milestone Summary:</span>
                   {activeWeekSub.abstractSummary ? (
-                    <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
+                    <span className="text-emerald-800 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
                   ) : (
-                    <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[10px]">Not Submitted</span>
+                    <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[10px]">Not Submitted</span>
                   )}
                 </div>
                 {activeWeekSub.abstractSummary && (
-                  <p className="text-slate-800 leading-relaxed text-xs">
+                  <p className="text-[#111111] leading-relaxed text-xs">
                     {activeWeekSub.abstractSummary}
                   </p>
                 )}
@@ -883,27 +872,27 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
               {/* Technical Report & Presentation Slides */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* PPT */}
-                <div className="p-4 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-2">
+                <div className="p-4 bg-[#F8F5EE] border border-[#D8CCBA] rounded-2xl space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                      <Presentation size={14} className="text-amber-600" />
+                    <span className="font-bold text-[#111111] text-xs flex items-center gap-1.5">
+                      <Presentation size={14} className="text-amber-700" />
                       <span>Sprint Presentation (PPT)</span>
                     </span>
                     {activeWeekSub.pptUrl ? (
-                      <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
+                      <span className="text-emerald-800 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
                     ) : (
-                      <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[10px]">Not Submitted</span>
+                      <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[10px]">Not Submitted</span>
                     )}
                   </div>
                   {activeWeekSub.pptUrl && (
                     <div className="flex items-center justify-between pt-1">
-                      <span className="font-mono text-slate-800 text-[11px] truncate">
+                      <span className="font-mono text-[#111111] text-[11px] truncate">
                         {activeWeekSub.presentationFileName || `SIET_Milestone_W${activeWeekSub.weekNumber}.pptx`}
                       </span>
                       <button
                         type="button"
                         onClick={(e) => handleDownloadFile(activeWeekSub.presentationFileName || `Milestone_W${activeWeekSub.weekNumber}.pptx`, 'ppt', activeWeekSub, e)}
-                        className="px-2.5 py-1 bg-white border border-[#E2E8E4] hover:bg-slate-50 rounded-lg text-slate-700 font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+                        className="px-2.5 py-1 bg-white border border-[#D8CCBA] hover:bg-[#EDE7DB] rounded-lg text-[#111111] font-bold text-[10px] flex items-center gap-1 cursor-pointer"
                       >
                         <Download size={11} /> Download
                       </button>
@@ -912,27 +901,27 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                 </div>
 
                 {/* Report PDF */}
-                <div className="p-4 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-2">
+                <div className="p-4 bg-[#F8F5EE] border border-[#D8CCBA] rounded-2xl space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                      <FileText size={14} className="text-rose-600" />
+                    <span className="font-bold text-[#111111] text-xs flex items-center gap-1.5">
+                      <FileText size={14} className="text-rose-700" />
                       <span>Technical Report (PDF)</span>
                     </span>
                     {activeWeekSub.reportUrl ? (
-                      <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
+                      <span className="text-emerald-800 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
                     ) : (
-                      <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[10px]">Not Submitted</span>
+                      <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[10px]">Not Submitted</span>
                     )}
                   </div>
                   {activeWeekSub.reportUrl && (
                     <div className="flex items-center justify-between pt-1">
-                      <span className="font-mono text-slate-800 text-[11px] truncate">
+                      <span className="font-mono text-[#111111] text-[11px] truncate">
                         Technical_Dossier_W{activeWeekSub.weekNumber}.pdf
                       </span>
                       <button
                         type="button"
                         onClick={(e) => handleDownloadFile(`Technical_Dossier_W${activeWeekSub.weekNumber}.pdf`, 'pdf', activeWeekSub, e)}
-                        className="px-2.5 py-1 bg-white border border-[#E2E8E4] hover:bg-slate-50 rounded-lg text-slate-700 font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+                        className="px-2.5 py-1 bg-white border border-[#D8CCBA] hover:bg-[#EDE7DB] rounded-lg text-[#111111] font-bold text-[10px] flex items-center gap-1 cursor-pointer"
                       >
                         <Download size={11} /> Download
                       </button>
@@ -942,22 +931,22 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
               </div>
 
               {/* Hardware / Prototype Captures */}
-              <div className="p-4 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-2">
+              <div className="p-4 bg-[#F8F5EE] border border-[#D8CCBA] rounded-2xl space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                    <ImageIcon size={14} className="text-mint-600" />
+                  <span className="font-bold text-[#111111] text-xs flex items-center gap-1.5">
+                    <ImageIcon size={14} className="text-[#111111]" />
                     <span>Prototype Captures &amp; Bench Visuals</span>
                   </span>
                   {activeWeekSub.images && activeWeekSub.images.length > 0 ? (
-                    <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
+                    <span className="text-emerald-800 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
                   ) : (
-                    <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[10px]">Not Submitted</span>
+                    <span className="text-rose-700 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded text-[10px]">Not Submitted</span>
                   )}
                 </div>
                 {activeWeekSub.images && activeWeekSub.images.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 pt-1">
                     {activeWeekSub.images.map((img, i) => (
-                      <div key={i} className="rounded-xl overflow-hidden border border-[#E2E8E4] aspect-video">
+                      <div key={i} className="rounded-xl overflow-hidden border border-[#D8CCBA] aspect-video">
                         <img src={img} alt="Capture" className="w-full h-full object-cover" />
                       </div>
                     ))}
@@ -967,33 +956,33 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
 
               {/* Obstacles & Next Week Plan */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+                <div className="p-3.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-2xl space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-700 text-xs">Obstacles Faced:</span>
+                    <span className="font-bold text-[#111111] text-xs">Obstacles Faced:</span>
                     {activeWeekSub.obstaclesFaced || activeWeekSub.problemsFaced ? (
-                      <span className="text-emerald-700 font-extrabold text-[10px]">Submitted</span>
+                      <span className="text-emerald-800 font-bold text-[10px]">Submitted</span>
                     ) : (
-                      <span className="text-rose-600 font-bold text-[10px]">Not Submitted</span>
+                      <span className="text-rose-700 font-bold text-[10px]">Not Submitted</span>
                     )}
                   </div>
                   {(activeWeekSub.obstaclesFaced || activeWeekSub.problemsFaced) && (
-                    <p className="text-slate-800 text-xs leading-relaxed">
+                    <p className="text-[#111111] text-xs leading-relaxed">
                       {activeWeekSub.obstaclesFaced || activeWeekSub.problemsFaced}
                     </p>
                   )}
                 </div>
 
-                <div className="p-3.5 bg-slate-50/70 border border-[#E2E8E4] rounded-2xl space-y-1">
+                <div className="p-3.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-2xl space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-700 text-xs">Next Week Sprint Plan:</span>
+                    <span className="font-bold text-[#111111] text-xs">Next Week Sprint Plan:</span>
                     {activeWeekSub.nextWeekPlan ? (
-                      <span className="text-emerald-700 font-extrabold text-[10px]">Submitted</span>
+                      <span className="text-emerald-800 font-bold text-[10px]">Submitted</span>
                     ) : (
-                      <span className="text-rose-600 font-bold text-[10px]">Not Submitted</span>
+                      <span className="text-rose-700 font-bold text-[10px]">Not Submitted</span>
                     )}
                   </div>
                   {activeWeekSub.nextWeekPlan && (
-                    <p className="text-slate-800 text-xs leading-relaxed">
+                    <p className="text-[#111111] text-xs leading-relaxed">
                       {activeWeekSub.nextWeekPlan}
                     </p>
                   )}
@@ -1003,7 +992,7 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
             </div>
 
             {/* Modal Footer: NO approval or reject option, just View & Notify option */}
-            <div className="bg-[#F8FAF9] px-6 py-4 border-t border-[#E2E8E4] flex items-center justify-between shrink-0">
+            <div className="bg-[#F8F5EE] px-6 py-4 border-t border-[#D8CCBA] flex items-center justify-between shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -1020,7 +1009,7 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
               <button
                 type="button"
                 onClick={() => setDetailModalOpen(false)}
-                className="px-5 py-2 text-xs font-bold text-slate-700 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition cursor-pointer"
+                className="px-5 py-2 text-xs font-bold text-[#111111] bg-white border border-[#D8CCBA] rounded-xl hover:bg-[#EDE7DB] transition cursor-pointer"
               >
                 Close View
               </button>

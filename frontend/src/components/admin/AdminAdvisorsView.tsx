@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserCheck, Search, RotateCw, Trash2, CheckCircle2, ArrowUpRight, UserMinus, RefreshCw } from 'lucide-react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
-import AdminReasonModal from './AdminReasonModal';
+import RemoveAdvisorShiftModal from './RemoveAdvisorShiftModal';
 
 interface AdminAdvisorsViewProps {
   onSelectAdvisor: (batch: string, className: string) => void;
@@ -18,8 +18,8 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
   const [classFilter, setClassFilter] = useState('ALL');
   const [isManageMode, setIsManageMode] = useState(false);
 
-  // Reason modal for revoking advisor role
-  const [reasonModalOpen, setReasonModalOpen] = useState(false);
+  // Shift & Reassignment modal for removing advisor role
+  const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [facultyToRevoke, setFacultyToRevoke] = useState<AdminFaculty | null>(null);
 
   useEffect(() => {
@@ -54,45 +54,35 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
 
   const handleOpenRevoke = (faculty: AdminFaculty) => {
     setFacultyToRevoke(faculty);
-    setReasonModalOpen(true);
-  };
-
-  const handleConfirmRevoke = (reason: string) => {
-    if (!facultyToRevoke) return;
-
-    AdminService.removeAdvisor(facultyToRevoke.email, reason);
-    setFaculties(AdminService.getFaculties());
-    onShowToast(`Revoked advisor designation for ${facultyToRevoke.name}.`);
-    setReasonModalOpen(false);
-    setFacultyToRevoke(null);
+    setShiftModalOpen(true);
   };
 
   return (
-    <div className="space-y-6">
-      
+    <div className="space-y-6 font-sans">
+
       {/* Top Filter and Action Bar */}
-      <div className="bg-white rounded-3xl p-6 shadow-card border border-[#E2E8E4] flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#D8CCBA] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-extrabold text-slate-900">
+            <h2 className="text-lg font-serif font-bold text-[#111111]">
               Department Class Advisors ({filtered.length})
             </h2>
-            <span className="text-xs text-mint-700 bg-mint-50 border border-mint-200 px-2.5 py-0.5 rounded-full font-bold">
+            <span className="text-xs text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] px-2.5 py-0.5 rounded-full font-medium">
               Student Supervision
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[#75695A] mt-0.5">
             Click anywhere on an advisor row to inspect their student roster in the Students view
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          
+
           {/* Batch Filter */}
           <select
             value={batchFilter}
             onChange={(e) => setBatchFilter(e.target.value)}
-            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+            className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
           >
             <option value="ALL">All Batches</option>
             <option value="2023-2027 (III Year)">2023-2027 (III Year)</option>
@@ -104,7 +94,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
           <select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
-            className="px-3 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-mint-500"
+            className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
           >
             <option value="ALL">All Classes</option>
             <option value="CSE-A">Class CSE-A</option>
@@ -114,24 +104,23 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
 
           {/* Single Search Bar */}
           <div className="relative w-full sm:w-56">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#75695A]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search advisor or section..."
-              className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800 placeholder-slate-400"
+              className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]/60"
             />
           </div>
 
-          {/* Manage Toggle */}
+          {/* Manage / Refresh Button */}
           <button
             onClick={() => setIsManageMode(!isManageMode)}
-            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs ${
-              isManageMode
+            className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs ${isManageMode
                 ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
                 : 'bg-[#EFF3F1] hover:bg-mint-100 text-slate-700 border border-[#E2E8E4]'
-            }`}
+              }`}
           >
             <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
             <span>{isManageMode ? 'Done Managing' : 'Manage'}</span>
@@ -152,21 +141,20 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
       </div>
 
       {/* Advisors Table */}
-      <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-sm border border-[#D8CCBA] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#F8FAF9] text-slate-500 uppercase tracking-wider font-bold border-b border-[#E2E8E4]">
+            <thead className="bg-[#EDE7DB] text-[#75695A] uppercase tracking-wider font-semibold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4">Advisor Name</th>
                 <th className="p-4">Designation</th>
                 <th className="p-4">Assigned Section</th>
                 <th className="p-4">Academic Batch</th>
                 <th className="p-4">Total Students</th>
-                <th className="p-4">Status</th>
                 {isManageMode && <th className="p-4 text-center">Manage Role</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8E4] font-medium">
+            <tbody className="divide-y divide-[#D8CCBA] font-normal">
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={isManageMode ? 7 : 6} className="p-8 text-center text-slate-400">
@@ -178,20 +166,20 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
                   <tr
                     key={a.id}
                     onClick={(e) => handleRowClick(a, e)}
-                    className="hover:bg-mint-50/50 cursor-pointer transition group"
+                    className="hover:bg-[#F8F5EE]/60 cursor-pointer transition group"
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <div className="font-extrabold text-slate-900 group-hover:text-mint-700 transition">
+                        <div className="font-bold text-[#111111] group-hover:text-black transition">
                           {a.name}
                         </div>
-                        <ArrowUpRight size={13} className="text-slate-300 group-hover:text-mint-600 transition opacity-0 group-hover:opacity-100" />
+                        <ArrowUpRight size={13} className="text-[#75695A] group-hover:text-[#111111] transition opacity-0 group-hover:opacity-100" />
                       </div>
-                      <span className="text-[11px] text-slate-400 font-mono">{a.email}</span>
+                      <span className="text-[11px] text-[#75695A] font-mono">{a.email}</span>
                     </td>
-                    <td className="p-4 text-slate-700">{a.designation}</td>
+                    <td className="p-4 text-[#292725]">{a.designation}</td>
                     <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-md bg-amber-50 text-amber-900 font-bold border border-amber-200">
+                      <span className="px-2.5 py-1 rounded-md bg-[#F8F5EE] text-[#111111] font-medium border border-[#D8CCBA]">
                         Class {a.advisorClass || 'Unassigned'}
                       </span>
                     </td>
@@ -208,7 +196,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
                       <td className="p-4 text-center">
                         <button
                           onClick={() => handleOpenRevoke(a)}
-                          className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl font-bold transition flex items-center gap-1 text-xs mx-auto"
+                          className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-xl font-medium transition flex items-center gap-1 text-xs mx-auto"
                         >
                           <UserMinus size={13} />
                           <span>Remove Advisor</span>
@@ -223,16 +211,18 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
         </div>
       </div>
 
-      {/* Mandatory Reason Modal for Revocation */}
-      <AdminReasonModal
-        isOpen={reasonModalOpen}
-        title="Revoke Class Advisor Status"
-        subtitle="Mandatory reason required for audit trail recording"
-        targetDescription={facultyToRevoke ? `${facultyToRevoke.name} • Class ${facultyToRevoke.advisorClass} (${facultyToRevoke.advisorBatch})` : ''}
-        confirmLabel="Confirm Revocation"
-        isDanger={true}
-        onClose={() => setReasonModalOpen(false)}
-        onConfirm={handleConfirmRevoke}
+      {/* Workload Shift Modal when removing advisor */}
+      <RemoveAdvisorShiftModal
+        isOpen={shiftModalOpen}
+        onClose={() => {
+          setShiftModalOpen(false);
+          setFacultyToRevoke(null);
+        }}
+        faculty={facultyToRevoke}
+        onSuccess={(msg) => {
+          setFaculties(AdminService.getFaculties());
+          onShowToast(msg);
+        }}
       />
 
     </div>

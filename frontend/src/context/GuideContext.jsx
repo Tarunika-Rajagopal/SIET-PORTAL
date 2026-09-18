@@ -32,6 +32,8 @@ export const GuideProvider = ({ children }) => {
   });
 
   const normalizeName = (n) => (n || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
+  const isTargetTeam = (team, teamId) => team?.teamId === teamId;
+  const isStudentPortalTeam = (team) => team?.teamId === 'TEAM-CSE-Y3-B04' || team?.teamNumber === 4;
 
   // Filter so guide only sees teams assigned to them (or single student team)
   const assignedTeams = useMemo(() => {
@@ -80,6 +82,7 @@ export const GuideProvider = ({ children }) => {
     }
   }, [activities]);
 
+
   // Real-time synchronization listener
   const reloadFromStorage = useCallback(() => {
     try {
@@ -123,16 +126,44 @@ export const GuideProvider = ({ children }) => {
     const today = new Date().toISOString().split('T')[0];
     let updatedTeam = null;
 
-    setAllTeams(prevTeams =>
-      prevTeams.map(team => {
-        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
-          const updatedSubmissions = (team.submissions || []).map(s => ({
+    setAllTeams(prevTeams => {
+      const nextTeams = prevTeams.map(team => {
+        if (isTargetTeam(team, teamId)) {
+          let updatedSubmissions = (team.submissions || []).map(s => ({
             ...s,
             evaluationStatus: 'Approved',
             submissionStatus: 'Approved',
             status: 'Approved',
             isLocked: true
           }));
+
+          // Ensure Week 0 submission exists if proposal has details
+          const hasWeek0 = updatedSubmissions.some(s => s.weekNumber === 0 || s.week === 0);
+          if (!hasWeek0 && (team.projectTitle || team.problemStatement || team.proposedSolution || team.abstract)) {
+            updatedSubmissions.unshift({
+              weekNumber: 0,
+              week: 0,
+              title: 'Project Initiation & Title Proposal',
+              dueDate: 'Week 0',
+              status: 'Approved',
+              evaluationStatus: 'Approved',
+              submissionStatus: 'Approved',
+              submissionDate: today,
+              score: team.guideScore || 90,
+              maxScore: 100,
+              guideRemarks: team.guideFeedback || 'Approved project proposal.',
+              guideName: team.guide || guideName,
+              presentationFileName: team.presentationFileName || '',
+              reportUrl: team.reportUrl || '',
+              problemStatement: team.problemStatement || '',
+              proposedSolution: team.proposedSolution || '',
+              abstractSummary: team.abstract || team.projectDescription || '',
+              technologiesUsed: Array.isArray(team.technologiesUsed) ? team.technologiesUsed : [],
+              githubUrl: team.githubUrl || '',
+              liveDemoUrl: team.liveDemoUrl || '',
+              isLocked: true
+            });
+          }
 
           updatedTeam = {
             ...team,
@@ -146,45 +177,83 @@ export const GuideProvider = ({ children }) => {
           return updatedTeam;
         }
         return team;
-      })
-    );
+      });
+
+      try {
+        localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(nextTeams));
+      } catch (e) {}
+
+      return nextTeams;
+    });
 
     if (updatedTeam) {
-      // Synchronize to StudentService
+      // Synchronize to AdvisorService storage
       try {
-        const studentTeam = StudentService.getTeam();
-        studentTeam.isTitleApproved = true;
-        studentTeam.guideApprovalStatus = 'Approved';
-        studentTeam.rejectionReason = '';
-        if (updatedTeam.projectTitle) {
-          studentTeam.projectTitle = updatedTeam.projectTitle;
-          studentTeam.submittedTitle = updatedTeam.projectTitle;
-        }
-        StudentService.saveTeam(studentTeam);
-
-        // Update student weekly submissions to Approved
-        const studentSubs = StudentService.getSubmissions();
-        const updatedSubs = studentSubs.map(s => ({
-          ...s,
-          status: 'Approved'
-        }));
-        StudentService.saveSubmissions(updatedSubs);
-
-        // Update Week 0 deliverable
-        const d0 = StudentService.getDeliverables('Week 0');
-        d0.isTitleApproved = true;
-        if (updatedTeam.projectTitle) d0.projectTitle = updatedTeam.projectTitle;
-        localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
-
-        // Call backend API if possible
-        ApiClient.getGuideTeams().then(bTeams => {
-          const t = bTeams.find(x => x.teamNo === 'Team 04');
-          if (t && t.id) {
-            ApiClient.approveProjectTitle(t.id, updatedTeam.projectTitle).catch(() => {});
+        const section = updatedTeam.section || 'CSE-B';
+        const advisorKey = `siet_advisor_teams_${section}`;
+        const advStored = localStorage.getItem(advisorKey);
+        if (advStored) {
+          const advTeams = JSON.parse(advStored);
+          if (Array.isArray(advTeams)) {
+            const tNum = updatedTeam.teamNumber;
+            const targetAdvTeam = advTeams.find(t => 
+              t.teamId === updatedTeam.teamId || 
+              t.teamNo === updatedTeam.teamNo || 
+              (tNum && parseInt(String(t.teamNo || t.teamId).replace(/\D/g, ''), 10) === tNum)
+            );
+            if (targetAdvTeam) {
+              if (updatedTeam.projectTitle) {
+                targetAdvTeam.title = updatedTeam.projectTitle;
+              }
+              targetAdvTeam.status = 'Approved';
+              if (updatedTeam.guide) {
+                targetAdvTeam.guide = updatedTeam.guide;
+              }
+              localStorage.setItem(advisorKey, JSON.stringify(advTeams));
+            }
           }
-        }).catch(() => {});
+        }
       } catch (e) {
-        console.error('Error synchronizing title approval:', e);
+        console.error('Error syncing approved team to advisor storage:', e);
+      }
+
+      // Synchronize to StudentService
+      if (isStudentPortalTeam(updatedTeam)) {
+        try {
+          const studentTeam = StudentService.getTeam();
+          studentTeam.isTitleApproved = true;
+          studentTeam.guideApprovalStatus = 'Approved';
+          studentTeam.rejectionReason = '';
+          if (updatedTeam.projectTitle) {
+            studentTeam.projectTitle = updatedTeam.projectTitle;
+            studentTeam.submittedTitle = updatedTeam.projectTitle;
+          }
+          StudentService.saveTeam(studentTeam);
+
+          // Update student weekly submissions to Approved
+          const studentSubs = StudentService.getSubmissions();
+          const updatedSubs = studentSubs.map(s => ({
+            ...s,
+            status: 'Approved'
+          }));
+          StudentService.saveSubmissions(updatedSubs);
+
+          // Update Week 0 deliverable
+          const d0 = StudentService.getDeliverables('Week 0');
+          d0.isTitleApproved = true;
+          if (updatedTeam.projectTitle) d0.projectTitle = updatedTeam.projectTitle;
+          localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
+
+          // Call backend API if possible
+          ApiClient.getGuideTeams().then(bTeams => {
+            const t = bTeams.find(x => x.teamNo === 'Team 04');
+            if (t && t.id) {
+              ApiClient.approveProjectTitle(t.id, updatedTeam.projectTitle).catch(() => {});
+            }
+          }).catch(() => {});
+        } catch (e) {
+          console.error('Error synchronizing title approval:', e);
+        }
       }
 
       const newActivity = {
@@ -221,7 +290,7 @@ export const GuideProvider = ({ children }) => {
     let updatedTeam = null;
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
+        if (isTargetTeam(team, teamId)) {
           updatedTeam = {
             ...team,
             titleStatus: 'Rejected',
@@ -238,27 +307,29 @@ export const GuideProvider = ({ children }) => {
 
     if (updatedTeam) {
       // Synchronize to StudentService
-      try {
-        const studentTeam = StudentService.getTeam();
-        studentTeam.isTitleApproved = false;
-        studentTeam.guideApprovalStatus = 'Rejected';
-        studentTeam.rejectionReason = reason.trim();
-        StudentService.saveTeam(studentTeam);
+      if (isStudentPortalTeam(updatedTeam)) {
+        try {
+          const studentTeam = StudentService.getTeam();
+          studentTeam.isTitleApproved = false;
+          studentTeam.guideApprovalStatus = 'Rejected';
+          studentTeam.rejectionReason = reason.trim();
+          StudentService.saveTeam(studentTeam);
 
-        const d0 = StudentService.getDeliverables('Week 0');
-        d0.isTitleApproved = false;
-        d0.submittedFields.title = false;
-        localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
+          const d0 = StudentService.getDeliverables('Week 0');
+          d0.isTitleApproved = false;
+          d0.submittedFields.title = false;
+          localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
 
-        // Call backend API
-        ApiClient.getGuideTeams().then(bTeams => {
-          const t = bTeams.find(x => x.teamNo === 'Team 04');
-          if (t && t.id) {
-            ApiClient.rejectProjectTitle(t.id, reason.trim()).catch(() => {});
-          }
-        }).catch(() => {});
-      } catch (e) {
-        console.error('Error synchronizing title rejection:', e);
+          // Call backend API
+          ApiClient.getGuideTeams().then(bTeams => {
+            const t = bTeams.find(x => x.teamNo === 'Team 04');
+            if (t && t.id) {
+              ApiClient.rejectProjectTitle(t.id, reason.trim()).catch(() => {});
+            }
+          }).catch(() => {});
+        } catch (e) {
+          console.error('Error synchronizing title rejection:', e);
+        }
       }
 
       const newActivity = {
@@ -294,7 +365,7 @@ export const GuideProvider = ({ children }) => {
 
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
+        if (isTargetTeam(team, teamId)) {
           const updatedSubmissions = (team.submissions || []).map(sub => {
             if (sub.weekNumber === Number(weekNumber)) {
               return {
@@ -322,25 +393,27 @@ export const GuideProvider = ({ children }) => {
 
     if (updatedTeam) {
       // Synchronize to StudentService
-      try {
-        const studentSubs = StudentService.getSubmissions();
-        const item = studentSubs.find(s => s.week === Number(weekNumber));
-        if (item) {
-          item.status = 'Approved';
-          item.comments = remarks || 'Endorsed. Satisfactory technical milestone deliverables.';
-          item.guideReviewDate = today;
-          StudentService.saveSubmissions(studentSubs);
-        }
-
-        // Call backend review endpoint
-        ApiClient.getGuidePendingSubmissions().then(pSubs => {
-          const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
-          if (match && match.submissionId) {
-            ApiClient.reviewWeeklySubmission(match.submissionId, 'APPROVED', remarks).catch(() => {});
+      if (isStudentPortalTeam(updatedTeam)) {
+        try {
+          const studentSubs = StudentService.getSubmissions();
+          const item = studentSubs.find(s => s.week === Number(weekNumber));
+          if (item) {
+            item.status = 'Approved';
+            item.comments = remarks || 'Endorsed. Satisfactory technical milestone deliverables.';
+            item.guideReviewDate = today;
+            StudentService.saveSubmissions(studentSubs);
           }
-        }).catch(() => {});
-      } catch (e) {
-        console.error('Error synchronizing evaluation:', e);
+
+          // Call backend review endpoint
+          ApiClient.getGuidePendingSubmissions().then(pSubs => {
+            const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
+            if (match && match.submissionId) {
+              ApiClient.reviewWeeklySubmission(match.submissionId, 'APPROVED', remarks).catch(() => {});
+            }
+          }).catch(() => {});
+        } catch (e) {
+          console.error('Error synchronizing evaluation:', e);
+        }
       }
 
       const newActivity = {
@@ -377,7 +450,7 @@ export const GuideProvider = ({ children }) => {
     let updatedTeam = null;
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
+        if (isTargetTeam(team, teamId)) {
           const updatedSubmissions = (team.submissions || []).map(sub => {
             if (sub.weekNumber === Number(weekNumber)) {
               return {
@@ -403,24 +476,26 @@ export const GuideProvider = ({ children }) => {
 
     if (updatedTeam) {
       // Synchronize to StudentService
-      try {
-        const studentSubs = StudentService.getSubmissions();
-        const item = studentSubs.find(s => s.week === Number(weekNumber));
-        if (item) {
-          item.status = 'Changes Requested';
-          item.comments = reason.trim();
-          StudentService.saveSubmissions(studentSubs);
-        }
-
-        // Call backend review endpoint
-        ApiClient.getGuidePendingSubmissions().then(pSubs => {
-          const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
-          if (match && match.submissionId) {
-            ApiClient.reviewWeeklySubmission(match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
+      if (isStudentPortalTeam(updatedTeam)) {
+        try {
+          const studentSubs = StudentService.getSubmissions();
+          const item = studentSubs.find(s => s.week === Number(weekNumber));
+          if (item) {
+            item.status = 'Changes Requested';
+            item.comments = reason.trim();
+            StudentService.saveSubmissions(studentSubs);
           }
-        }).catch(() => {});
-      } catch (e) {
-        console.error('Error synchronizing revision request:', e);
+
+          // Call backend review endpoint
+          ApiClient.getGuidePendingSubmissions().then(pSubs => {
+            const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
+            if (match && match.submissionId) {
+              ApiClient.reviewWeeklySubmission(match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
+            }
+          }).catch(() => {});
+        } catch (e) {
+          console.error('Error synchronizing revision request:', e);
+        }
       }
 
       const newActivity = {
@@ -464,7 +539,7 @@ export const GuideProvider = ({ children }) => {
     let updatedTeam = null;
     setAllTeams(prevTeams =>
       prevTeams.map(team => {
-        if (team.teamId === teamId || team.teamNumber === 4 || team.teamId === 'TEAM-CSE-Y3-B04') {
+        if (isTargetTeam(team, teamId)) {
           const notificationEntry = {
             timing: timing || 'Today at 3:00 PM',
             location: location || 'Faculty Cabin 204',
@@ -509,16 +584,18 @@ export const GuideProvider = ({ children }) => {
 
     if (updatedTeam) {
       // Synchronize directly into StudentService for that respective week!
-      try {
-        StudentService.attachGuideNotice(targetWeek, {
-          timing: timing || 'Today at 3:00 PM',
-          location: location || 'Faculty Cabin 204',
-          comment: comment || 'Report for project review consultation.',
-          date: formattedDate,
-          weekNumber: targetWeek
-        });
-      } catch (e) {
-        console.error('Error synchronizing notice to student service:', e);
+      if (isStudentPortalTeam(updatedTeam)) {
+        try {
+          StudentService.attachGuideNotice(targetWeek, {
+            timing: timing || 'Today at 3:00 PM',
+            location: location || 'Faculty Cabin 204',
+            comment: comment || 'Report for project review consultation.',
+            date: formattedDate,
+            weekNumber: targetWeek
+          });
+        } catch (e) {
+          console.error('Error synchronizing notice to student service:', e);
+        }
       }
 
       const newActivity = {
