@@ -5,6 +5,7 @@ import {
   Bell
 } from 'lucide-react';
 import { useGuide } from '../../context/GuideContext';
+import { StudentService } from '../../services/studentService';
 import WeeklyReviewDrawer from '../../components/guide/WeeklyReviewDrawer';
 import DocumentPreviewModal from '../../components/guide/DocumentPreviewModal';
 import ImageViewerModal from '../../components/guide/ImageViewerModal';
@@ -12,6 +13,7 @@ import NotifyTeamModal from '../../components/guide/NotifyTeamModal';
 
 export const WeeklySubmissions = () => {
   const { teams, stats, notifyTeam } = useGuide();
+  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [weekFilter, setWeekFilter] = useState('ALL');
@@ -28,15 +30,16 @@ export const WeeklySubmissions = () => {
   const [imgModalOpen, setImgModalOpen] = useState(false);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
 
-  // Notify Modal state
+  // Notify team modal state
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
   const [notifyTargetTeam, setNotifyTargetTeam] = useState(null);
-  const [notifyWeekNumber, setNotifyWeekNumber] = useState(null);
+  const [notifyWeekNumber, setNotifyWeekNumber] = useState(currentAcademicWeek);
 
-  // Flatten all submissions with parent team info - strictly real student submissions only
+  // Flatten all submissions with parent team info - strictly real student submissions only up to current week
   const allSubmissions = [];
   teams.forEach(team => {
     (team.submissions || []).forEach(sub => {
+      if (sub.weekNumber > currentAcademicWeek) return;
       const hasRealContent = Boolean(
         sub.submissionDate &&
         (sub.abstractSummary || sub.problemStatement || sub.proposedSolution || sub.pptUrl || sub.reportUrl || sub.presentationFileName || sub.pdfFile || sub.githubUrl || sub.liveDemoUrl || (sub.images && sub.images.length > 0)) &&
@@ -172,11 +175,12 @@ export const WeeklySubmissions = () => {
             onChange={(e) => setWeekFilter(e.target.value)}
             className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer"
           >
-            <option value="ALL">All Sprint Weeks</option>
-            <option value="0">Week 0 Only</option>
-            <option value="1">Week 1 Only</option>
-            <option value="2">Week 2 Only</option>
-            <option value="3">Week 3 Only</option>
+            <option value="ALL">All Sprint Weeks (Up to Week {currentAcademicWeek})</option>
+            {Array.from({ length: currentAcademicWeek + 1 }, (_, i) => (
+              <option key={i} value={String(i)}>
+                Week {i}{i === currentAcademicWeek ? ' (Current Week)' : ''}
+              </option>
+            ))}
           </select>
 
           {/* Refresh button */}

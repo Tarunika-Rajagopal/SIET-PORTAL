@@ -11,6 +11,7 @@ import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 import WeeklyReviewDrawer from '../../components/guide/WeeklyReviewDrawer';
 import DocumentPreviewModal from '../../components/guide/DocumentPreviewModal';
 import ImageViewerModal from '../../components/guide/ImageViewerModal';
+import GuideHistoryPdfModal from '../../components/guide/GuideHistoryPdfModal';
 
 export const SubmissionHistory = () => {
   const { teams, facultyProfile, evaluateWeeklySubmission, requestWeeklyRevision } = useGuide();
@@ -30,6 +31,7 @@ export const SubmissionHistory = () => {
 
   const [imgModalOpen, setImgModalOpen] = useState(false);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   // Guide Audit Logs State
   const [guideLogs, setGuideLogs] = useState(() => 
@@ -274,16 +276,16 @@ export const SubmissionHistory = () => {
               </div>
             </div>
 
-            {/* Action Buttons: Download CSV & Print PDF */}
+            {/* Action Buttons: Download PDF & Download CSV */}
             <div className="flex items-center gap-2 self-end md:self-auto">
               <button
                 type="button"
-                onClick={handlePrint}
+                onClick={() => setIsPdfModalOpen(true)}
                 className="px-3.5 py-2 rounded-xl bg-white border border-[#D8CCBA] hover:bg-[#F8F5EE] text-[#111111] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="Print or Save PDF"
+                title="Format Preview & Download PDF"
               >
-                <Printer size={14} className="text-[#75695A]" />
-                <span>Print Report</span>
+                <Download size={14} className="text-[#75695A]" />
+                <span>Download PDF</span>
               </button>
 
               <button
@@ -619,6 +621,14 @@ export const SubmissionHistory = () => {
         images={selectedSubmission?.images || []}
         initialIndex={activeImgIndex}
         title={activeTeam?.projectTitle}
+      />
+
+      {/* Guide PDF Format Preview & Download Modal */}
+      <GuideHistoryPdfModal
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
+        logs={filteredLogs}
+        guideName={facultyProfile?.name || 'Dr. P. Manimegalai'}
       />
 
     </div>

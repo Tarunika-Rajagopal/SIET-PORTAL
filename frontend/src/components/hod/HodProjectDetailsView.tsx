@@ -118,38 +118,18 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
   const gradedWeeks = Object.keys(activeTeamMarks).map(Number);
   const submissionWeeks = (activeTeam?.submissions || []).map(s => s.week);
 
-  // Highest evaluated or active week (ensures evaluated weeks like Week 1 are selectable in dropdown)
-  const maxEvaluatedOrActiveWeek = Math.max(
-    currentAcademicWeek,
-    ...gradedWeeks,
-    ...submissionWeeks
-  );
-
-  // Available weeks from 0 up to max evaluated/active week (no next/future unstarted weeks)
-  const availableWeeks = Array.from({ length: Math.max(1, maxEvaluatedOrActiveWeek + 1) }, (_, i) => i);
+  // Available weeks strictly up to current academic week (no future weeks)
+  const availableWeeks = Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i);
 
   // Active submission strictly for the selected week (no fallback to other weeks)
   const availableSubmissions: WeeklySubmission[] = activeTeam?.submissions || [];
   const activeSubmission: WeeklySubmission | undefined = availableSubmissions.find(s => s.week === selectedWeek);
 
-  // Automatically align selectedWeek with the latest evaluated week when activeTeam changes
+  // Automatically align selectedWeek with current academic week when activeTeam changes
   useEffect(() => {
     if (!activeTeam) return;
-    const mRolls = activeTeam.members?.map(m => m.rollNo) || [];
-    const tMarks = MarksService.getAllTeamMarks(activeTeam.id, mRolls);
-    const weeksWithPositiveMarks = Object.keys(tMarks)
-      .map(Number)
-      .filter(w => tMarks[w]?.teamAverage > 0);
-
-    if (weeksWithPositiveMarks.length > 0) {
-      const highestEvaluated = Math.max(...weeksWithPositiveMarks);
-      setSelectedWeek(highestEvaluated);
-    } else if (activeTeam.submissions && activeTeam.submissions.length > 0) {
-      setSelectedWeek(Math.max(...activeTeam.submissions.map(s => s.week)));
-    } else {
-      setSelectedWeek(currentAcademicWeek);
-    }
-  }, [activeTeam?.id]);
+    setSelectedWeek(currentAcademicWeek);
+  }, [activeTeam?.id, currentAcademicWeek]);
 
   // Reset batch and class to ALL when search is initiated and clear search text
   const handleSearchClick = () => {

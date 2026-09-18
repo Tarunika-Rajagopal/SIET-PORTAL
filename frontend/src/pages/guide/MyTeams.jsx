@@ -33,9 +33,15 @@ export const MyTeams = () => {
   // Selected team state (defaults to null so initially only teams and members are shown)
   const [selectedTeamId, setSelectedTeamId] = useState(null);
 
-  // Week selector for inspecting Advisor Marks (Week-wise)
-  const [marksViewWeek, setMarksViewWeek] = useState(1);
+  // Week selector for inspecting Advisor Marks (Week-wise, defaults to current academic week)
+  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
+  const [marksViewWeek, setMarksViewWeek] = useState(() => currentAcademicWeek);
   const [, setMarksTick] = useState(0);
+
+  // Available weeks strictly until current week
+  const availableWeeks = useMemo(() => {
+    return Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i);
+  }, [currentAcademicWeek]);
 
   useEffect(() => {
     const unsubMarks = MarksService.subscribe(() => {
@@ -103,19 +109,16 @@ export const MyTeams = () => {
   // Selected team object (only exists when a team has been clicked)
   const activeTeam = teams.find(t => t.teamId === selectedTeamId) || null;
 
-  // Auto-align selected milestone marks week with evaluated weeks
+  // Auto-align selected milestone marks week with current week
   useEffect(() => {
     if (activeTeam) {
-      const existingMarks = MarksService.getAllTeamMarks(activeTeam.teamId);
-      const weeksWithMarks = Object.keys(existingMarks).map(Number).sort((a, b) => a - b);
-      if (weeksWithMarks.length > 0 && !existingMarks[marksViewWeek]) {
-        setMarksViewWeek(weeksWithMarks[0]);
+      if (marksViewWeek > currentAcademicWeek) {
+        setMarksViewWeek(currentAcademicWeek);
       }
     }
-  }, [selectedTeamId, activeTeam?.teamId]);
+  }, [selectedTeamId, activeTeam?.teamId, currentAcademicWeek]);
 
   // Map weeks up to current week for active team
-  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
   const weeksToRender = ALL_WEEKS.filter(w => w.weekNumber <= currentAcademicWeek).map(w => {
     const existing = (activeTeam?.submissions || []).find(s => s.weekNumber === w.weekNumber);
     if (existing) {
@@ -572,7 +575,7 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                 Select Milestone Week to Inspect Advisor Marks:
               </span>
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((w) => {
+                {availableWeeks.map((w) => {
                   const isSelected = w === marksViewWeek;
                   const wMarks = MarksService.getWeeklyMarks(activeTeam.teamId, w);
 
@@ -633,7 +636,7 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                     </div>
                     <div className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA]">
                       <span className="text-[10px] font-bold text-[#75695A] uppercase block">Evaluated By</span>
-                      <span className="text-xs font-bold text-[#111111] truncate block">{marks.evaluatedBy || activeTeam.advisor}</span>
+                      <span className="text-xs font-bold text-[#111111] truncate block">{marks.gradedBy || marks.evaluatedBy || activeTeam.advisor}</span>
                     </div>
                     <div className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA]">
                       <span className="text-[10px] font-bold text-[#75695A] uppercase block">Status</span>
@@ -644,7 +647,9 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                     </div>
                     <div className="p-3.5 bg-[#F8F5EE] rounded-2xl border border-[#D8CCBA]">
                       <span className="text-[10px] font-bold text-[#75695A] uppercase block">Evaluation Date</span>
-                      <span className="text-xs font-bold text-[#111111]">{marks.date || 'Recorded'}</span>
+                      <span className="text-xs font-bold text-[#111111]">
+                        {marks.gradedAt ? new Date(marks.gradedAt).toLocaleDateString('en-GB') : (marks.date || 'Recorded')}
+                      </span>
                     </div>
                   </div>
 
@@ -655,7 +660,7 @@ Guide Feedback: ${sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {(activeTeam.members || []).map((m, idx) => {
-                        const score = marks.studentScores?.[m.rollNo] ?? marks.teamAverage;
+                        const score = marks.memberMarks?.[m.rollNo] ?? marks.studentScores?.[m.rollNo] ?? marks.teamAverage;
                         return (
                           <div 
                             key={idx}

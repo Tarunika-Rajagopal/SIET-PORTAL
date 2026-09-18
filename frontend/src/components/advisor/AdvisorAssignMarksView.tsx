@@ -7,6 +7,7 @@ import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { MarksService } from '../../services/marksService';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsService';
+import { StudentService } from '../../services/studentService';
 import { WeeklySubmission } from '../../types';
 
 interface AdvisorAssignMarksViewProps {
@@ -22,6 +23,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
   selectedTeamId,
   onShowToast
 }) => {
+  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
   const [teams, setTeams] = useState<ClassTeam[]>(() => 
     AdvisorService.getTeamsForClass(className)
   );
@@ -31,7 +33,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
     selectedTeamId || teams[0]?.teamId || ''
   );
 
-  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [selectedWeek, setSelectedWeek] = useState<number>(currentAcademicWeek);
   const [marksInput, setMarksInput] = useState<Record<string, string>>({});
   const [advisorRemarks, setAdvisorRemarks] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -201,7 +203,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                 </div>
 
                 <div className="font-semibold text-[#111111] text-xs truncate">
-                  {t.title}
+                  {t.title || <span className="text-[#75695A] italic font-normal">Pending Title</span>}
                 </div>
 
                 <div className="text-[10px] text-[#75695A] truncate">
@@ -229,7 +231,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                 </span>
               </div>
               <h3 className="text-base sm:text-lg font-serif font-semibold text-[#111111]">
-                {activeTeam.title}
+                {activeTeam.title || <span className="text-[#75695A] italic font-normal">Pending Student Project Title Submission</span>}
               </h3>
               <p className="text-xs text-[#75695A]">
                 Class {activeTeam.class} &bull; Guide: <strong className="text-[#292725]">{activeTeam.guide}</strong>
@@ -248,9 +250,9 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                   onChange={(e) => setSelectedWeek(Number(e.target.value))}
                   className="appearance-none pl-3.5 pr-8 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs cursor-pointer"
                 >
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((w) => (
+                  {Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i).map((w) => (
                     <option key={w} value={w}>
-                      {w === 0 ? 'Week 0: Project Initiation & Title Proposal' : `Week ${w} Milestone`}
+                      {w === 0 ? 'Week 0: Project Initiation & Title Proposal' : `Week ${w} Milestone${w === currentAcademicWeek ? ' (Current)' : ''}`}
                     </option>
                   ))}
                 </select>
@@ -382,9 +384,9 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
             )}
           </div>
 
-          {/* Quick Week Pill Buttons */}
+          {/* Quick Week Pill Buttons (Only up to current academic week) */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((w) => {
+            {Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i).map((w) => {
               const isCurrent = w === selectedWeek;
               const wMarks = MarksService.getWeeklyMarks(activeTeam.teamId, w);
 

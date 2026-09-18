@@ -170,13 +170,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
           {currentSub && (currentSub.status === 'Submitted' || Object.values(deliverables.submittedFields).some(Boolean)) && (
             <button
               type="button"
-              disabled={isMarksAssigned}
               onClick={() => {
-                if (isMarksAssigned) {
-                  alert(`Cannot delete submission: Marks have already been evaluated and assigned by the Class Advisor for Week ${currentWeekNumber} (Average Score: ${marksRecord?.teamAverage}/100).`);
-                  return;
-                }
-                if (confirm(`Delete the current submission for Week ${currentWeekNumber}? This will unsubmit and reset all fields.`)) {
+                if (confirm(`Delete the current submission for Week ${currentWeekNumber}? This will unsubmit, reset all fields, and reset any assigned marks across all portals.`)) {
                   StudentService.deleteSubmission(currentWeekNumber);
                   const reset = StudentService.getDeliverables(weekText);
                   setDeliverables({ ...reset });

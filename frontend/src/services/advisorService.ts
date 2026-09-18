@@ -1,4 +1,5 @@
 import { AdminService, AdminStudent } from './adminService';
+import { StudentService } from './studentService';
 
 export interface TeamMemberRecord {
   rollNo: string;
@@ -59,16 +60,19 @@ export const AdvisorService = {
   },
 
   getTeamsForClass(className: string = "CSE-B"): ClassTeam[] {
+    const isMockTitle = (str?: string) => 
+      /autonomous crop disease|decentralized smart grid|edge-ai wearable|llm-powered/i.test(str || '');
+
     const defaultTeams: ClassTeam[] = [
       {
         teamId: "TEAM-CSE-Y3-B04",
         teamNo: "Team 04",
         class: className,
         batch: "2023-2027 (III Year)",
-        title: "Autonomous Crop Disease Segmentation & Yield Advisory Drone System",
+        title: "",
         guide: "Dr. P. Manimegalai",
         guideEmail: "dr.manimegalai@siet.ac.in",
-        status: "Active & Approved",
+        status: "Pending",
         capacity: 4,
         membersCount: 4,
         leadStudent: "Tarunika Rajgopal (714023104112)",
@@ -84,10 +88,10 @@ export const AdvisorService = {
         teamNo: "Team 05",
         class: className,
         batch: "2023-2027 (III Year)",
-        title: "Decentralized Smart Grid Energy Trading Protocol",
+        title: "",
         guide: "Dr. A. Devipriya",
         guideEmail: "dr.devipriya@siet.ac.in",
-        status: "Approved",
+        status: "Pending",
         capacity: 4,
         membersCount: 4,
         leadStudent: "Harish Kumar K (714023104035)",
@@ -103,10 +107,10 @@ export const AdvisorService = {
         teamNo: "Team 06",
         class: className,
         batch: "2023-2027 (III Year)",
-        title: "Edge-AI Wearable for Real-Time Cardiac Arrhythmia Detection",
+        title: "",
         guide: "Dr. K. Vignesh",
         guideEmail: "dr.vignesh@siet.ac.in",
-        status: "Approved",
+        status: "Pending",
         capacity: 4,
         membersCount: 4,
         leadStudent: "Naveen Raj (714023104088)",
@@ -122,10 +126,10 @@ export const AdvisorService = {
         teamNo: "Team 07",
         class: className,
         batch: "2023-2027 (III Year)",
-        title: "LLM-Powered Multi-Lingual Legal Advisory System for Rural Citizens",
+        title: "",
         guide: "Dr. P. Manimegalai",
         guideEmail: "dr.manimegalai@siet.ac.in",
-        status: "Approved",
+        status: "Pending",
         capacity: 4,
         membersCount: 4,
         leadStudent: "Sneha M (714023104142)",
@@ -138,24 +142,55 @@ export const AdvisorService = {
       }
     ];
 
-    const syncWithGuideApprovals = (teamList: ClassTeam[]): ClassTeam[] => {
+    const syncWithRealStudentAndGuide = (teamList: ClassTeam[]): ClassTeam[] => {
       try {
+        // 1. Scrub any lingering mock titles from all teams
+        teamList.forEach(t => {
+          if (isMockTitle(t.title)) {
+            t.title = '';
+            t.status = 'Pending';
+          }
+        });
+
+        // 2. Real-time synchronization for Team 04 with Student Portal data
+        const studentTeam = StudentService.getTeam();
+        const d0 = StudentService.getDeliverables('Week 0');
+        const rawRealTitle = (d0?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
+        const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
+
+        const team04 = teamList.find(t => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNo === 'Team 04');
+        if (team04) {
+          team04.title = cleanRealTitle;
+          if (cleanRealTitle) {
+            team04.status = (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved')
+              ? 'Active & Approved'
+              : 'Under Review';
+          } else {
+            team04.status = 'Pending';
+          }
+        }
+
+        // 3. Sync other teams with Guide Portal if real titles were submitted & approved
         const guideRaw = localStorage.getItem('siet_guide_portal_teams_v6');
         if (guideRaw) {
           const guideTeams = JSON.parse(guideRaw);
           if (Array.isArray(guideTeams)) {
             teamList.forEach(t => {
+              if (t.teamId === 'TEAM-CSE-Y3-B04') return; // Team 04 already synchronized with student
               const tNum = parseInt(String(t.teamNo || t.teamId).replace(/\D/g, ''), 10);
               const gt = guideTeams.find((g: any) => 
                 (g.teamId && g.teamId.toLowerCase() === t.teamId.toLowerCase()) || 
                 (g.teamNo && g.teamNo.toLowerCase() === t.teamNo.toLowerCase()) || 
                 (Number(g.teamNumber) === tNum && !Number.isNaN(tNum))
               );
-              if (gt && (gt.titleStatus === 'Approved' || gt.titleLocked)) {
-                if (gt.projectTitle && gt.projectTitle.trim()) {
+              if (gt) {
+                if (gt.projectTitle && gt.projectTitle.trim() && !isMockTitle(gt.projectTitle)) {
                   t.title = gt.projectTitle.trim();
+                  t.status = (gt.titleStatus === 'Approved' || gt.titleLocked) ? 'Approved' : 'Pending';
+                } else {
+                  t.title = '';
+                  t.status = 'Pending';
                 }
-                t.status = 'Approved';
                 if (gt.guide) {
                   t.guide = gt.guide;
                 }
@@ -163,23 +198,26 @@ export const AdvisorService = {
             });
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to sync advisor teams with real student data', e);
+      }
       return teamList;
     };
 
     try {
       const stored = localStorage.getItem(`siet_advisor_teams_${className}`);
+      let teamsToUse = defaultTeams;
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return syncWithGuideApprovals(parsed);
+          teamsToUse = parsed;
         }
       }
-      const syncedDefaults = syncWithGuideApprovals(defaultTeams);
-      localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(syncedDefaults));
-      return syncedDefaults;
+      const synced = syncWithRealStudentAndGuide(teamsToUse);
+      localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(synced));
+      return synced;
     } catch (e) {
-      return syncWithGuideApprovals(defaultTeams);
+      return syncWithRealStudentAndGuide(defaultTeams);
     }
   },
 

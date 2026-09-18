@@ -77,13 +77,13 @@ export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
               <Calendar size={13} className="text-amber-700" />
               <span>Target Milestone Week in Student Submissions:</span>
             </label>
-            <div className="flex items-center gap-2">
-              {[0, 1, 2, 3, 4, 5].map((wk) => (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {Array.from({ length: currentWeek + 1 }, (_, i) => i).map((wk) => (
                 <button
                   key={wk}
                   type="button"
                   onClick={() => setWeekNumber(wk)}
-                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                     weekNumber === wk
                       ? 'bg-[#111111] border-[#111111] text-[#F8F5EE] shadow-xs'
                       : 'bg-[#F8F5EE] border-[#D8CCBA] text-[#111111] hover:bg-[#EDE7DB]'

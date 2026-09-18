@@ -225,7 +225,6 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                 <th className="p-4">Candidate Name</th>
                 <th className="p-4">Class</th>
                 <th className="p-4">Team No</th>
-                <th className="p-4">Project Title</th>
                 <th className="p-4">Assigned Guide</th>
                 {isManageMode && <th className="p-4 text-center">Action</th>}
               </tr>
@@ -233,7 +232,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
             <tbody className="divide-y divide-[#E2E8E4] font-medium">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={isManageMode ? 7 : 6} className="p-8 text-center text-slate-400">
+                  <td colSpan={isManageMode ? 6 : 5} className="p-8 text-center text-slate-400">
                     No candidates found for the selected filters.
                   </td>
                 </tr>
@@ -251,9 +250,6 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                       </span>
                     </td>
                     <td className="p-4 font-bold text-mint-700 whitespace-nowrap">{s.teamNo}</td>
-                    <td className="p-4 max-w-xs truncate text-slate-700 font-semibold" title={s.projectTitle}>
-                      {s.projectTitle}
-                    </td>
                     <td className="p-4 text-slate-800 font-bold whitespace-nowrap">{s.guide}</td>
 
                     {isManageMode && (

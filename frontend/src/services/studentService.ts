@@ -500,11 +500,30 @@ export const StudentService = {
         }
       } catch (e) {}
 
-      // 5. Asynchronous call to backend to delete submission
+      // 5. Reset Advisor Portal storage and marks across all portals so marks become unassigned
+      try {
+        const memberRollNos = team?.members?.map(m => m.rollNo) || [];
+        MarksService.deleteWeeklyMarks(team.id || 'TEAM-CSE-Y3-B04', weekNumber, memberRollNos);
+        const advRaw = localStorage.getItem('siet_advisor_teams_CSE-B');
+        if (advRaw) {
+          const advTeams = JSON.parse(advRaw);
+          if (Array.isArray(advTeams)) {
+            const advTeam = advTeams.find((t: any) => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNo === 'Team 04');
+            if (advTeam) {
+              advTeam.title = '';
+              advTeam.status = 'Pending';
+              localStorage.setItem('siet_advisor_teams_CSE-B', JSON.stringify(advTeams));
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 6. Asynchronous call to backend to delete submission
       ApiClient.deleteStudentSubmission(weekNumber).catch(() => {});
 
-      // 6. Global event dispatch
+      // 7. Global event dispatch
       window.dispatchEvent(new Event('siet_data_updated'));
+      window.dispatchEvent(new Event('siet_marks_updated'));
       window.dispatchEvent(new Event('storage'));
       return true;
     } catch (e) {

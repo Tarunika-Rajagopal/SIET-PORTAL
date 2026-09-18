@@ -8,6 +8,7 @@ import { ClassTeam, AdvisorService } from '../../services/advisorService';
 import { MarksService, WeeklyMarksRecord } from '../../services/marksService';
 import { AdminService, AdminFaculty } from '../../services/adminService';
 import { StudentService } from '../../services/studentService';
+import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsService';
 import { WeeklySubmission } from '../../types';
 
 interface AdvisorStudentInspectionViewProps {
@@ -19,12 +20,17 @@ interface AdvisorStudentInspectionViewProps {
 
 export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionViewProps> = ({
   team: initialTeam,
-  initialWeek = 1,
+  initialWeek = 0,
   onBack,
   onShowToast
 }) => {
+  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
+  const availableWeeks = React.useMemo(() => {
+    return Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i);
+  }, [currentAcademicWeek]);
+
   const [team, setTeam] = useState<ClassTeam>(initialTeam);
-  const [selectedWeek, setSelectedWeek] = useState<number>(initialWeek);
+  const [selectedWeek, setSelectedWeek] = useState<number>(() => Math.min(initialWeek, currentAcademicWeek));
 
   // Marks modal state
   const [isMarksModalOpen, setIsMarksModalOpen] = useState<boolean>(false);
@@ -42,9 +48,9 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
     MarksService.getWeeklyMarks(team.teamId, selectedWeek)
   );
 
-  // Submissions (fetched from StudentService or simulated)
-  const studentSubmissions: WeeklySubmission[] = StudentService.getSubmissions();
-  const activeSubmission = studentSubmissions.find(s => s.week === selectedWeek) || studentSubmissions[0];
+  // Submissions (fetched canonically for the selected team)
+  const teamSubmissions: WeeklySubmission[] = AdvisorSubmissionsService.getTeamSubmissions(team);
+  const activeSubmission = teamSubmissions.find(s => s.week === selectedWeek) || teamSubmissions[0];
 
   // Reload on change
   useEffect(() => {
@@ -385,9 +391,9 @@ startxref
                 onChange={(e) => setSelectedWeek(Number(e.target.value))}
                 className="appearance-none pl-3.5 pr-8 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs cursor-pointer"
               >
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((w) => (
+                {availableWeeks.map((w) => (
                   <option key={w} value={w}>
-                    Milestone Sprint: Week {w}
+                    {w === 0 ? 'Project Initiation & Title: Week 0' : `Milestone Sprint: Week ${w}`}{w === currentAcademicWeek ? ' (Current)' : ''}
                   </option>
                 ))}
               </select>
@@ -408,7 +414,7 @@ startxref
 
         {/* Quick Week Pill Buttons */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((w) => {
+          {availableWeeks.map((w) => {
             const isCurrentWeek = w === selectedWeek;
             const wMarks = MarksService.getWeeklyMarks(team.teamId, w);
 

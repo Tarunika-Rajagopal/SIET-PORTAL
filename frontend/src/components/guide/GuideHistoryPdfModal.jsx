@@ -1,44 +1,26 @@
 import React, { useState } from 'react';
-import { X, Printer, Download, FileText, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Download, FileText, Loader2, CheckCircle2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { AdvisorHistoryLog } from '../../services/advisorHistoryService';
 
-interface AdvisorHistoryPdfModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  logs: AdvisorHistoryLog[];
-  advisorName: string;
-  className: string;
-  dateRange: { from: string; to: string };
-  selectedRole?: string;
-  selectedAction?: string;
-}
-
-export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
+export const GuideHistoryPdfModal = ({
   isOpen,
   onClose,
-  logs,
-  advisorName,
-  className,
-  dateRange,
-  selectedRole,
-  selectedAction
+  logs = [],
+  guideName = 'Dr. P. Manimegalai'
 }) => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   if (!isOpen) return null;
 
-  // Generate and download actual PDF file
   const handleDownloadPdf = async () => {
-    const reportElement = document.getElementById('printableAdvisorReport');
+    const reportElement = document.getElementById('printableGuideReport');
     if (!reportElement) return;
 
     try {
       setIsGeneratingPdf(true);
 
-      // Render the DOM element to high-res canvas
       const canvas = await html2canvas(reportElement, {
         scale: 2,
         useCORS: true,
@@ -65,7 +47,7 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
 
-      // Additional pages if report exceeds one page
+      // Additional pages if needed
       while (heightLeft > 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
@@ -73,14 +55,13 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
         heightLeft -= pdfHeight;
       }
 
-      // Download file directly as .pdf
-      const fileName = `SIET_Audit_History_${className}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `SIET_Guide_History_Audit_${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
 
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);
     } catch (err) {
-      console.error('PDF generation error:', err);
+      console.error('Guide PDF generation error:', err);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -134,8 +115,8 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
           </div>
         </div>
 
-        {/* Printable Document Container: Displays Document Format Alone */}
-        <div className="p-6 sm:p-10 space-y-6 text-[#111111] bg-white" id="printableAdvisorReport">
+        {/* Printable Document Container */}
+        <div className="p-8 space-y-6 text-[#111111] bg-white" id="printableGuideReport">
           
           {/* Institutional Letterhead */}
           <div className="border-b-2 border-[#111111] pb-5 text-center space-y-1">
@@ -151,35 +132,20 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
               </div>
             </div>
             <h2 className="text-sm font-serif font-bold text-[#111111] tracking-wider uppercase pt-1">
-              Multi-Role Activity History &amp; Evaluation Audit Dossier
+              Faculty Guide Activity Governance &amp; Milestone Audit Dossier
             </h2>
             <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-[#75695A] font-normal pt-1">
-              <span><strong>Designated Class Advisor:</strong> {advisorName}</span>
+              <span><strong>Faculty Guide:</strong> {guideName}</span>
               <span>&bull;</span>
-              <span><strong>Class &amp; Section:</strong> Class {className}</span>
+              <span><strong>Jurisdiction:</strong> Mentored Capstone Project Batches</span>
               <span>&bull;</span>
               <span><strong>Generated On:</strong> {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
             </div>
 
             {/* Filter Summary Tags */}
             <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-[10px] font-medium">
-              {(dateRange.from || dateRange.to) && (
-                <span className="text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] py-0.5 px-2.5 rounded-md">
-                  Date Range: {dateRange.from || 'Start'} to {dateRange.to || 'Present'}
-                </span>
-              )}
-              {selectedRole && selectedRole !== 'All Roles' && (
-                <span className="text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] py-0.5 px-2.5 rounded-md">
-                  Filtered Role: {selectedRole}
-                </span>
-              )}
-              {selectedAction && selectedAction !== 'All Actions' && (
-                <span className="text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] py-0.5 px-2.5 rounded-md">
-                  Action: {selectedAction}
-                </span>
-              )}
               <span className="text-[#75695A] bg-[#EDE7DB] border border-[#D8CCBA] py-0.5 px-2.5 rounded-md">
-                Total Records: {logs.length}
+                Total Audit Records: {logs.length}
               </span>
             </div>
           </div>
@@ -190,9 +156,8 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
               <thead className="bg-[#EDE7DB] text-[#75695A] font-semibold border-b border-[#D8CCBA] uppercase text-[10px]">
                 <tr>
                   <th className="p-3">Timestamp</th>
-                  <th className="p-3">Role</th>
                   <th className="p-3">Action Type</th>
-                  <th className="p-3">Target Entity</th>
+                  <th className="p-3">Target Team</th>
                   <th className="p-3">Operational Details</th>
                   <th className="p-3">Performed By</th>
                 </tr>
@@ -200,19 +165,18 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
               <tbody className="divide-y divide-[#D8CCBA] text-[11px]">
                 {logs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-[#75695A]">
-                      No evaluation or management records found matching the active filter criteria.
+                    <td colSpan={5} className="p-8 text-center text-[#75695A]">
+                      No guide evaluation or review records logged yet.
                     </td>
                   </tr>
                 ) : (
                   logs.map((log) => (
                     <tr key={log.id} className="hover:bg-[#F8F5EE]/50">
-                      <td className="p-3 whitespace-nowrap font-mono text-[#75695A]">{log.dateFormatted}</td>
-                      <td className="p-3 whitespace-nowrap font-medium text-[#111111]">{log.role || 'Class Advisor'}</td>
-                      <td className="p-3 whitespace-nowrap font-medium text-[#111111]">{log.actionType}</td>
-                      <td className="p-3 whitespace-nowrap font-bold text-[#111111]">{log.target}</td>
-                      <td className="p-3 text-[#292725] leading-relaxed">{log.details}</td>
-                      <td className="p-3 whitespace-nowrap text-[#75695A] font-medium">{log.actorName || log.advisorName}</td>
+                      <td className="p-3 whitespace-nowrap font-mono text-[#75695A]">{log.dateFormatted || log.time || 'Today'}</td>
+                      <td className="p-3 whitespace-nowrap font-medium text-[#111111]">{log.actionType || log.type}</td>
+                      <td className="p-3 whitespace-nowrap font-bold text-[#111111]">{log.target || log.teamNo || 'Team'}</td>
+                      <td className="p-3 text-[#292725] leading-relaxed">{log.details || log.comment || log.remarks}</td>
+                      <td className="p-3 whitespace-nowrap text-[#75695A] font-medium">{log.guideName || guideName}</td>
                     </tr>
                   ))
                 )}
@@ -224,8 +188,8 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
           <div className="pt-8 border-t border-[#D8CCBA] flex items-center justify-between text-xs text-[#75695A]">
             <div className="text-center">
               <div className="w-44 border-b border-[#75695A] mb-1"></div>
-              <span className="font-bold text-[#111111] block">{advisorName}</span>
-              <span className="text-[10px] text-[#75695A]">Class Advisor Signature</span>
+              <span className="font-bold text-[#111111] block">{guideName}</span>
+              <span className="text-[10px] text-[#75695A]">Faculty Guide Signature</span>
             </div>
             <div className="text-center">
               <div className="w-44 border-b border-[#75695A] mb-1"></div>
@@ -241,4 +205,4 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
   );
 };
 
-export default AdvisorHistoryPdfModal;
+export default GuideHistoryPdfModal;

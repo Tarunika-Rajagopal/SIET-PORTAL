@@ -246,13 +246,18 @@ function getGuideApprovedSubmissionsForTeam(team: ClassTeam): WeeklySubmission[]
 
     if (!guideTeam) return [];
 
-    const isApproved = 
-      guideTeam.titleStatus === 'Approved' || 
-      guideTeam.titleLocked === true || 
-      team.status === 'Approved';
-
-    if (!isApproved) return [];
     if (isMockValue(guideTeam.projectTitle)) return [];
+
+    const hasAnySubmissionOrDetails = Boolean(
+      (Array.isArray(guideTeam.submissions) && guideTeam.submissions.length > 0) ||
+      guideTeam.projectTitle ||
+      guideTeam.problemStatement ||
+      guideTeam.proposedSolution ||
+      guideTeam.presentationFile ||
+      guideTeam.pdfFile
+    );
+
+    if (!hasAnySubmissionOrDetails) return [];
 
     const mapped = Array.isArray(guideTeam.submissions) && guideTeam.submissions.length > 0
       ? guideTeam.submissions

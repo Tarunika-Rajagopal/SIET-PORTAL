@@ -72,26 +72,7 @@ export const ApproveProject = () => {
   return (
     <div className="space-y-6 pb-12 animate-fadeIn font-sans">
       
-      {/* 1. Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#111111] tracking-tight">
-            Approve Submissions
-          </h1>
-          <p className="text-xs text-[#75695A] mt-0.5">
-            Review student project deliverables and proposal details. Approve or reject submissions directly or inspect all materials.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="px-3.5 py-1.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-xs font-semibold shadow-2xs flex items-center gap-1.5">
-            <Clock size={13} className="text-amber-700" />
-            <span>{pendingTeams.length} Submissions Awaiting Review</span>
-          </span>
-        </div>
-      </div>
-
-      {/* 2. Control Bar: Filter Pill & Live Search */}
+      {/* Control Bar: Filter Pill & Live Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-[#D8CCBA] shadow-xs">
         {/* Active Pending Count Pill */}
         <div className="flex items-center gap-2 text-xs font-bold">
@@ -99,9 +80,6 @@ export const ApproveProject = () => {
             <CheckSquare size={15} />
             <span>Pending Submissions ({pendingTeams.length})</span>
           </div>
-          <span className="text-[11px] text-[#75695A] hidden sm:inline">
-            Showing teams with submitted details awaiting guide review
-          </span>
         </div>
 
         {/* Live Search Bar & Refresh */}

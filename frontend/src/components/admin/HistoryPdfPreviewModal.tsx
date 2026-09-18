@@ -1,5 +1,7 @@
-import React from 'react';
-import { X, Printer, Download, FileText, Shield, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Download, FileText, Shield, Calendar, Loader2, CheckCircle2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { AuditLog } from '../../types';
 
 interface HistoryPdfPreviewModalProps {
@@ -13,30 +15,98 @@ export const HistoryPdfPreviewModal: React.FC<HistoryPdfPreviewModalProps> = ({
   onClose,
   logs
 }) => {
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+
   if (!isOpen) return null;
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPdf = async () => {
+    const reportElement = document.getElementById('printableAuditReport');
+    if (!reportElement) return;
+
+    try {
+      setIsGeneratingPdf(true);
+
+      const canvas = await html2canvas(reportElement, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      // Additional pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      const fileName = `SIET_Admin_Audit_Governance_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+
+      setDownloadSuccess(true);
+      setTimeout(() => setDownloadSuccess(false), 3000);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto font-sans">
       <div className="bg-white rounded-3xl w-full max-w-4xl shadow-xl border border-[#D8CCBA] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Modal Controls Bar (Hidden during print) */}
+        {/* Modal Controls Bar */}
         <div className="p-4 border-b border-[#D8CCBA] flex items-center justify-between bg-[#F8F5EE] print:hidden">
           <div className="flex items-center gap-2 text-[#111111] font-medium text-xs">
             <FileText size={16} className="text-[#111111]" />
-            <span>PDF Print / Export Preview Format</span>
+            <span>PDF Format Preview</span>
           </div>
 
           <div className="flex items-center gap-2">
+            {downloadSuccess && (
+              <span className="text-xs text-[#111111] font-medium flex items-center gap-1 bg-[#EDE7DB] px-2.5 py-1 rounded-lg border border-[#D8CCBA] animate-fadeIn">
+                <CheckCircle2 size={13} className="text-emerald-700" />
+                <span>Downloaded Automatically!</span>
+              </span>
+            )}
             <button
-              onClick={handlePrint}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2 text-xs cursor-pointer"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2 text-xs cursor-pointer disabled:opacity-50"
             >
-              <Printer size={15} />
-              <span>Download / Print PDF</span>
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download size={14} />
+                  <span>Download as PDF</span>
+                </>
+              )}
             </button>
             <button
               onClick={onClose}

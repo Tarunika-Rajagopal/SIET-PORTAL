@@ -50,8 +50,9 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
     selectedTeamId || teams[0]?.teamId || ''
   );
 
-  // Selected week for week-wise milestone details (1-8)
-  const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
+  // Selected week for week-wise milestone details (defaults to current academic week)
+  const [selectedWeek, setSelectedWeek] = useState<number>(() => currentAcademicWeek);
 
   // Manual Team creation modal
   const [isManualTeamModalOpen, setIsManualTeamModalOpen] = useState<boolean>(false);
@@ -124,19 +125,24 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
     f => f.role === 'Guide' || f.role === 'Advisor & Guide'
   );
 
-  // Submissions for currently selected active team (Strictly authentic student submissions)
-  const teamSubmissions: WeeklySubmission[] = activeTeam 
+  // Submissions for currently selected active team (Strictly authentic student submissions up to current week)
+  const allTeamSubmissions: WeeklySubmission[] = activeTeam 
     ? AdvisorSubmissionsService.getTeamSubmissions(activeTeam)
     : [];
+  const teamSubmissions: WeeklySubmission[] = allTeamSubmissions.filter(s => s.week <= currentAcademicWeek);
 
-  // Keep selectedWeek aligned with actual submissions when team changes
+  // Keep selectedWeek aligned with actual submissions or current academic week when team changes
   useEffect(() => {
     if (teamSubmissions.length > 0) {
-      if (!teamSubmissions.some(s => s.week === selectedWeek)) {
+      if (teamSubmissions.some(s => s.week === currentAcademicWeek)) {
+        setSelectedWeek(currentAcademicWeek);
+      } else if (!teamSubmissions.some(s => s.week === selectedWeek)) {
         setSelectedWeek(teamSubmissions[0].week);
       }
+    } else {
+      setSelectedWeek(currentAcademicWeek);
     }
-  }, [activeTeamId, teamSubmissions, selectedWeek]);
+  }, [activeTeamId, teamSubmissions.length, currentAcademicWeek]);
 
   const activeSubmission: WeeklySubmission | undefined = 
     teamSubmissions.length > 0
@@ -337,7 +343,11 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
                 <div>
                   <h4 className="font-extrabold text-slate-900 text-xs line-clamp-2 leading-snug">
-                    {t.title}
+                    {t.title ? (
+                      t.title
+                    ) : (
+                      <span className="text-slate-400 italic font-medium">Pending Student Title Submission</span>
+                    )}
                   </h4>
                   <p className="text-[11px] text-slate-500 mt-1 truncate">
                     Lead: <strong className="text-slate-700">{t.members.find(m => m.isLead)?.name || t.leadStudent}</strong>
@@ -376,12 +386,18 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                   <span className="text-xs text-slate-500 font-mono font-bold bg-slate-100 px-2.5 py-0.5 rounded-md">
                     {activeTeam.teamId}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black uppercase">
-                    {activeTeam.status}
+                  <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                    activeTeam.title 
+                      ? (activeTeam.status === 'Active & Approved' || activeTeam.status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200')
+                      : 'bg-slate-100 text-slate-600 border border-slate-300'
+                  }`}>
+                    {activeTeam.title ? activeTeam.status : 'Pending Title'}
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
-                  {activeTeam.title}
+                  {activeTeam.title || (
+                    <span className="text-slate-400 italic font-medium">Pending Student Project Title Submission</span>
+                  )}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Class {activeTeam.class} &bull; Batch {activeTeam.batch} &bull; Project Technical Guide: <strong>{activeTeam.guide}</strong>
@@ -649,174 +665,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
               </div>
             ) : activeSubmission ? (
               <div className="space-y-6 pt-1 text-xs">
-                
-                {/* 1. Milestone Overview Card */}
-                <div className="bg-gradient-to-r from-slate-50 via-mint-50/40 to-slate-50 rounded-2xl p-5 border border-[#E2E8E4] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="px-2.5 py-0.5 rounded-lg bg-mint-500 text-white font-black text-xs uppercase tracking-wider">
-                        Week {activeSubmission.week} Milestone
-                      </span>
-                      <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black uppercase border ${
-                        activeSubmission.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                        activeSubmission.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                        (activeSubmission.status === 'Submitted' || activeSubmission.status === 'Pending') ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                        'bg-slate-100 text-slate-700 border-slate-300'
-                      }`}>
-                        {activeSubmission.status === 'Submitted' ? 'Pending' : activeSubmission.status}
-                      </span>
-                      {activeSubmission.submissionDate && (
-                        <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-                          <Clock size={12} className="text-slate-400" />
-                          <span>Submitted: {activeSubmission.submissionDate}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="text-base font-extrabold text-slate-900">
-                      {activeSubmission.title}
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Due Milestone: <strong>{activeSubmission.dueDate}</strong> &bull; Team: <strong>{activeTeam.teamNo}</strong> ({activeTeam.title})
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 self-start sm:self-center">
-                    <button
-                      type="button"
-                      onClick={() => onNavigateToAssignMarks(activeTeam.teamId)}
-                      className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Award size={14} />
-                      <span>Assign / Update Marks</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Guide Evaluation & Remarks Card */}
-                <div className="bg-[#EFF3F1]/90 rounded-2xl p-5 border border-mint-200 space-y-3 shadow-2xs">
-                  <div className="flex items-center justify-between border-b border-mint-200/70 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-mint-500 text-white flex items-center justify-center font-bold">
-                        <User size={16} />
-                      </div>
-                      <div>
-                        <span className="font-extrabold text-slate-900 block text-xs">
-                          Technical Evaluation by {activeSubmission.guideName || activeTeam.guide}
-                        </span>
-                        <span className="text-[10px] text-mint-700 font-bold">
-                          Faculty Project Guide &bull; {activeSubmission.guideReviewDate || 'Reviewed'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {activeSubmission.score !== undefined && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-mint-100 text-mint-950 border border-mint-200">
-                          Guide Score: {activeSubmission.score} / {activeSubmission.maxScore || 100}
-                        </span>
-                      )}
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${
-                        activeSubmission.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                        activeSubmission.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                        'bg-amber-100 text-amber-800 border-amber-300'
-                      }`}>
-                        Guide: {activeSubmission.status === 'Submitted' ? 'Pending' : activeSubmission.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Faculty Guide Critique &amp; Technical Remarks:
-                    </span>
-                    <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#E2E8E4]">
-                      {activeSubmission.comments || 'Submission is under active evaluation by the technical project guide.'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 3. Class Advisor Milestone Marks & Evaluation */}
-                <div className="bg-white rounded-2xl p-5 border border-[#E2E8E4] space-y-4 shadow-2xs">
-                  <div className="flex items-center justify-between border-b border-[#E2E8E4] pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
-                        <Award size={16} />
-                      </div>
-                      <div>
-                        <span className="font-extrabold text-slate-900 block text-xs">
-                          Advisor Milestone Marks &bull; Week {selectedWeek}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          Assigned by Advisor: <strong>{advisorName}</strong>
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {activeWeekMarks && (
-                        <span className="px-3 py-1 rounded-xl bg-mint-100 text-mint-950 font-black text-xs border border-mint-200">
-                          Team Score: {activeWeekMarks.teamAverage} / 100
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onNavigateToAssignMarks(activeTeam.teamId)}
-                        className="px-3 py-1 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 font-extrabold text-[11px] border border-mint-200 transition cursor-pointer"
-                      >
-                        {activeWeekMarks ? 'Edit / Assign Marks' : `+ Enter Week ${selectedWeek} Marks`}
-                      </button>
-                    </div>
-                  </div>
-
-                  {activeWeekMarks ? (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                        {activeTeam.members.map((m) => {
-                          const score = activeWeekMarks.memberMarks?.[m.rollNo];
-                          return (
-                            <div 
-                              key={m.rollNo}
-                              className="p-3 bg-slate-50 rounded-xl border border-[#E2E8E4] flex items-center justify-between gap-2"
-                            >
-                              <div className="min-w-0">
-                                <span className="font-bold text-slate-900 block truncate text-xs">
-                                  {m.name}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-mono block">
-                                  {m.rollNo} {m.isLead ? '• Lead' : ''}
-                                </span>
-                              </div>
-                              <span className="px-2.5 py-1 rounded-lg bg-white border border-mint-200 text-mint-950 font-black text-xs shrink-0 shadow-2xs">
-                                {typeof score === 'number' ? `${score} / 100` : '-- / 100'}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {activeWeekMarks.remarks && (
-                        <div className="p-3 bg-slate-50 rounded-xl border border-[#E2E8E4] text-slate-700 text-xs">
-                          <span className="font-extrabold text-slate-500 uppercase tracking-wider block text-[10px] mb-0.5">
-                            Advisor Critique / Remarks:
-                          </span>
-                          <p className="italic leading-relaxed">&ldquo;{activeWeekMarks.remarks}&rdquo;</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-xl bg-slate-50/70 border border-dashed border-slate-300 text-center space-y-1.5">
-                      <p className="text-xs font-bold text-slate-700">
-                        Advisor has not yet submitted marks for Week {selectedWeek}.
-                      </p>
-                      <p className="text-[11px] text-slate-400">
-                        Click &ldquo;+ Enter Week {selectedWeek} Marks&rdquo; to input individual scores and evaluation critique.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* 4. Complete Student Submission Details */}
+                {/* Complete Student Technical Submission Details */}
                 <div className="space-y-4">
                   <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#E2E8E4] pb-2">
                     Complete Student Technical Submission Details

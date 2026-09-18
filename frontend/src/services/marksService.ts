@@ -185,6 +185,47 @@ export const MarksService = {
     return record;
   },
 
+  deleteWeeklyMarks(teamId: string, weekNumber?: number, memberRollNos?: string[]): void {
+    const all = loadAllMarks();
+    const aliases = getAliasesForTeam(teamId).map(a => a.toLowerCase());
+    const targetTeamIdLower = teamId.toLowerCase();
+
+    for (const [key, weekMap] of Object.entries(all)) {
+      if (!weekMap) continue;
+      const keyLower = key.toLowerCase();
+      const isTeamMatch = keyLower === targetTeamIdLower || aliases.includes(keyLower);
+
+      if (weekNumber !== undefined) {
+        if (isTeamMatch && weekMap[weekNumber]) {
+          delete weekMap[weekNumber];
+        } else if (memberRollNos && memberRollNos.length > 0 && weekMap[weekNumber]) {
+          const rec = weekMap[weekNumber];
+          if (rec && rec.memberMarks && memberRollNos.some(r => r in rec.memberMarks)) {
+            delete weekMap[weekNumber];
+          }
+        }
+        if (Object.keys(weekMap).length === 0) {
+          delete all[key];
+        }
+      } else {
+        if (isTeamMatch) {
+          delete all[key];
+        }
+      }
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    } catch (e) {
+      console.error('Failed to delete marks from localStorage', e);
+    }
+
+    notifyListeners();
+    window.dispatchEvent(new Event('siet_marks_updated'));
+    window.dispatchEvent(new Event('siet_data_updated'));
+    window.dispatchEvent(new Event('storage'));
+  },
+
   getTeamAverage(teamId: string, weekNumber: number, memberRollNos?: string[]): number | null {
     const record = this.getWeeklyMarks(teamId, weekNumber, memberRollNos);
     return record ? record.teamAverage : null;
