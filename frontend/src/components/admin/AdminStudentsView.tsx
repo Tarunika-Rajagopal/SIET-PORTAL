@@ -229,7 +229,6 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                     <td className="p-4 font-mono font-bold text-mint-900 whitespace-nowrap">{s.rollNo}</td>
                     <td className="p-4">
                       <div className="font-extrabold text-slate-900">{s.name}</div>
-                      <span className="text-[11px] text-slate-400 font-mono">{s.email}</span>
                     </td>
                     <td className="p-4">
                       <span className="px-2.5 py-0.5 rounded-md bg-mint-50 text-mint-900 border border-mint-200 font-bold">

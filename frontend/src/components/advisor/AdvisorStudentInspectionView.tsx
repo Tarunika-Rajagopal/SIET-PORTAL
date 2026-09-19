@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Users, ShieldCheck, Compass, BookOpen, Download, 
   Github, ExternalLink, User, Award, CheckCircle2, AlertCircle, 
-  ChevronDown, X, RefreshCw, FileText, Check, Clock
+  ChevronDown, X, RefreshCw, FileText, Check, Clock, Lock
 } from 'lucide-react';
 import { ClassTeam, AdvisorService } from '../../services/advisorService';
 import { MarksService, WeeklyMarksRecord } from '../../services/marksService';
@@ -10,6 +10,7 @@ import { AdminService, AdminFaculty } from '../../services/adminService';
 import { StudentService } from '../../services/studentService';
 import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsService';
 import { WeeklySubmission } from '../../types';
+import { getSubmissionTitle } from '../../utils/titleUtils';
 
 interface AdvisorStudentInspectionViewProps {
   team: ClassTeam;
@@ -64,8 +65,20 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
     setCurrentMarks(MarksService.getWeeklyMarks(team.teamId, selectedWeek));
   }, [team.teamId, selectedWeek]);
 
+  const isMarksEnteredByGuide = Boolean(
+    currentMarks && (
+      currentMarks.teamAverage !== undefined ||
+      (currentMarks.memberMarks && Object.keys(currentMarks.memberMarks).length > 0)
+    ) && (
+      currentMarks.gradedBy?.includes('Guide') ||
+      currentMarks.gradedBy === 'Dr. P. Manimegalai' ||
+      !currentMarks.gradedBy?.includes('Advisor')
+    )
+  );
+
   // Open Marks Modal
   const handleOpenMarksModal = () => {
+    if (isMarksEnteredByGuide) return;
     const existing = MarksService.getWeeklyMarks(team.teamId, selectedWeek);
     const initialInputs: Record<string, string> = {};
     team.members.forEach(m => {
@@ -178,7 +191,7 @@ BT
 0 -25 Td
 (Milestone Deliverable Dossier: Week ${selectedWeek}) Tj
 0 -20 Td
-(Project Title: ${team.title}) Tj
+(Project Title: ${getSubmissionTitle(activeSubmission?.projectTitle || team.title)}) Tj
 0 -20 Td
 (Team: ${team.teamNo} | Class: ${team.class}) Tj
 0 -20 Td
@@ -463,13 +476,20 @@ startxref
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenMarksModal}
-            className="px-3.5 py-1.5 bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] rounded-xl font-semibold text-xs transition shrink-0 cursor-pointer self-start sm:self-center"
-          >
-            {currentMarks ? 'Edit Marks' : 'Assign Marks Now'}
-          </button>
+          {isMarksEnteredByGuide ? (
+            <div className="px-3.5 py-1.5 bg-[#EDE7DB] text-[#75695A] border border-[#D8CCBA] rounded-xl font-semibold text-xs flex items-center gap-1.5 select-none shrink-0 self-start sm:self-center">
+              <Lock size={12} />
+              <span>Assigned by Guide (Read Only)</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleOpenMarksModal}
+              className="px-3.5 py-1.5 bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] rounded-xl font-semibold text-xs transition shrink-0 cursor-pointer self-start sm:self-center"
+            >
+              {currentMarks ? 'Edit Marks' : 'Assign Marks Now'}
+            </button>
+          )}
         </div>
 
         {/* Part 1: Guide Critique & Remarks */}
@@ -518,7 +538,7 @@ startxref
               Project Title
             </span>
             <div className="p-3 bg-[#F8F5EE]/60 border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111]">
-              {team.title}
+              {getSubmissionTitle(activeSubmission?.projectTitle || team.title)}
             </div>
           </div>
 

@@ -3,7 +3,7 @@ import {
   X, FileText, Presentation, Image as ImageIcon, 
   ExternalLink, Github, Bell, CheckCircle2, Clock, Calendar
 } from 'lucide-react';
-import { formatProjectTitle } from '../../utils/titleUtils';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
 export const WeeklyReviewDrawer = ({
   isOpen,
@@ -44,7 +44,7 @@ export const WeeklyReviewDrawer = ({
                 Milestone Deliverables Inspection
               </h3>
               <p className="text-[11px] text-[#75695A] font-semibold">
-                Team #{team.teamNumber} &bull; {formatProjectTitle(team.projectTitle, team.titleStatus)}
+                Team #{team.teamNumber} &bull; {getSubmissionTitle(team.projectTitle)}
               </p>
             </div>
           </div>

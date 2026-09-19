@@ -3,17 +3,16 @@ import Header from '../components/common/Header';
 import ProfileModal from '../components/common/ProfileModal';
 import HodAdvisorsView from '../components/hod/HodAdvisorsView';
 import HodStudentsView from '../components/hod/HodStudentsView';
-import HodProjectDetailsView from '../components/hod/HodProjectDetailsView';
-import { UserCheck, GraduationCap, FolderGit2, CheckCircle2 } from 'lucide-react';
+import { UserCheck, GraduationCap, CheckCircle2 } from 'lucide-react';
 
-type HodTab = 'advisors' | 'students' | 'project-details';
+type HodTab = 'advisors' | 'students';
 
 export const HodPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<HodTab>('advisors');
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [bottomToast, setBottomToast] = useState<string | null>(null);
 
-  // State passed through the 3-step navigation flow
+  // State passed through navigation flow
   const [selectedBatch, setSelectedBatch] = useState('2023-2027 (III Year)');
   const [selectedClass, setSelectedClass] = useState('CSE-B');
   const [selectedStudentRollNo, setSelectedStudentRollNo] = useState<string | undefined>(undefined);
@@ -33,19 +32,15 @@ export const HodPortalPage: React.FC = () => {
     showToast(`Switched to Class ${className} (${batch}) students.`);
   };
 
-  // 2. Student row clicked -> moves to Project Details navigation
+  // 2. Student row clicked -> stays in Students view where inspection modal is open
   const handleSelectStudent = (studentRollNo: string, batch: string, className: string) => {
     setSelectedStudentRollNo(studentRollNo);
     setSelectedBatch(batch);
     setSelectedClass(className);
-    setActiveTab('project-details');
-    showToast(`Loaded Project dossier & week-by-week submissions for candidate.`);
+    setActiveTab('students');
   };
 
   const handleTabClick = (tab: HodTab) => {
-    if (tab === 'project-details' && activeTab !== 'project-details') {
-      setSelectedStudentRollNo(undefined);
-    }
     setActiveTab(tab);
   };
 
@@ -55,7 +50,7 @@ export const HodPortalPage: React.FC = () => {
       {/* Top Institutional Header */}
       <Header
         title="Head of Department Workspace"
-        subtitle="Academic Project Governance, Student Mentorship &amp; Project Auditing"
+        subtitle="Academic Project Governance, Student Mentorship & Project Auditing"
         onOpenProfile={() => setProfileModalOpen(true)}
       />
 
@@ -92,20 +87,6 @@ export const HodPortalPage: React.FC = () => {
               <span>Students</span>
             </button>
 
-            {/* 3. Project Details Tab */}
-            <button
-              id="tabHodProjectDetails"
-              onClick={() => handleTabClick('project-details')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'project-details'
-                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-              }`}
-            >
-              <FolderGit2 size={16} />
-              <span>Project Details</span>
-            </button>
-
           </nav>
         </div>
       </div>
@@ -122,13 +103,6 @@ export const HodPortalPage: React.FC = () => {
             selectedBatch={selectedBatch}
             selectedClass={selectedClass}
             onSelectStudent={handleSelectStudent}
-          />
-        )}
-        {activeTab === 'project-details' && (
-          <HodProjectDetailsView
-            initialBatch={selectedBatch}
-            initialClass={selectedClass}
-            initialStudentRollNo={selectedStudentRollNo}
           />
         )}
       </main>

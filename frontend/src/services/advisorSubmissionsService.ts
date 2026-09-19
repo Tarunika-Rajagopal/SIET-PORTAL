@@ -29,25 +29,19 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
   });
 
   const hasD0 = Boolean(
-    d0.projectTitle ||
-    d0.problemStatement ||
-    d0.solution ||
-    d0.technologyUsed ||
-    d0.abstract ||
-    d0.presentationFile ||
-    d0.reportFile ||
-    d0.repoUrl ||
-    d0.demoUrl ||
-    d0.screenshotFile ||
-    studentTeam.submittedTitle
+    d0.submittedFields?.title ||
+    d0.submittedFields?.presentation ||
+    d0.submittedFields?.report ||
+    studentTeam.submittedTitle ||
+    d0.projectTitle
   );
 
   // If Week 0 is not yet in validSubs but student submitted Week 0 deliverables, include it
   if (!validSubs.some(s => s.week === 0) && hasD0) {
     validSubs.unshift({
       week: 0,
-      title: 'Project Initiation & Title Proposal',
-      dueDate: 'Week 0',
+      title: 'Submission 1 Deliverables & Proposal',
+      dueDate: 'Submission 1',
       status: isGuideApproved ? 'Approved' : (studentTeam.guideApprovalStatus === 'Rejected' ? 'Changes Requested' : 'Submitted'),
       submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       projectTitle: d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
@@ -66,29 +60,27 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
     });
   }
 
-  // Check other weeks (1..16) for any deliverables saved by the student
-  for (let w = 1; w <= 16; w++) {
+  // Check Submissions 2, 3, 4 (weeks 1, 2, 3) for real submitted deliverables
+  for (let w = 1; w < 4; w++) {
+    const subNum = w + 1;
     if (!validSubs.some(s => s.week === w)) {
-      const dW = StudentService.getDeliverables(`Week ${w}`);
-      const hasDW = Boolean(
-        dW.problemStatement ||
-        dW.solution ||
-        dW.technologyUsed ||
-        dW.obstaclesFaced ||
-        dW.abstract ||
-        dW.presentationFile ||
-        dW.reportFile ||
-        dW.repoUrl ||
-        dW.demoUrl ||
-        dW.screenshotFile ||
-        dW.projectTitle
+      const dW = StudentService.getDeliverables(`Submission ${subNum}`);
+      const hasActualSubmission = Boolean(
+        dW.submittedFields?.technologyUsed ||
+        dW.submittedFields?.obstaclesFaced ||
+        dW.submittedFields?.abstract ||
+        dW.submittedFields?.presentation ||
+        dW.submittedFields?.report ||
+        dW.submittedFields?.repoUrl ||
+        dW.submittedFields?.demoUrl ||
+        dW.submittedFields?.screenshot
       );
-      if (hasDW) {
+      if (hasActualSubmission) {
         validSubs.push({
           week: w,
-          title: `Milestone Week ${w}`,
-          dueDate: `Week ${w}`,
-          status: isGuideApproved ? 'Approved' : 'Submitted',
+          title: `Submission ${subNum} Deliverable Submission`,
+          dueDate: `Submission ${subNum}`,
+          status: 'Submitted',
           submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           projectTitle: dW.projectTitle || d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
           problemStatement: dW.problemStatement || '',
@@ -108,12 +100,12 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
     }
   }
 
-  // Merge full deliverable fields into each submission
-  return validSubs.sort((a, b) => a.week - b.week).map(sub => {
-    const dWeek = StudentService.getDeliverables(`Week ${sub.week}`);
+  // Merge full deliverable fields into each submission (capped to max 4 submissions)
+  return validSubs.sort((a, b) => a.week - b.week).slice(0, 4).map(sub => {
+    const dWeek = StudentService.getDeliverables(sub.week === 0 ? 'Submission 1' : `Submission ${sub.week + 1}`);
     const isWeek0 = sub.week === 0;
     const isSubRejected = sub.status === 'Changes Requested' || sub.status === 'Rejected' || (isWeek0 && studentTeam.guideApprovalStatus === 'Rejected');
-    const isSubApproved = !isSubRejected && (sub.status === 'Approved' || (isWeek0 && isGuideApproved));
+    const isSubApproved = !isSubRejected && (sub.status === 'Approved' || (isWeek0 && isGuideApproved) || StudentService.isSubmissionApproved(sub.week + 1, studentTeam.id));
 
     const pFile = sub.presentationFile || dWeek.presentationFile || (sub.week === 0 ? d0.presentationFile : '') || '';
     const rFile = sub.pdfFile || dWeek.reportFile || (sub.week === 0 ? d0.reportFile : '') || '';
@@ -312,18 +304,19 @@ export const AdvisorSubmissionsService = {
   getTeamSubmissions(team: ClassTeam): WeeklySubmission[] {
     if (!team) return [];
 
-    // 1. First priority: guide-approved project/submission records for the exact selected team
-    const guideApprovedSubmissions = getGuideApprovedSubmissionsForTeam(team);
-    if (guideApprovedSubmissions.length > 0) {
-      return guideApprovedSubmissions;
-    }
-
-    // 2. If Team 04 specifically (TEAM-CSE-Y3-B04), check live student deliverables from StudentService
-    if (team.teamId === 'TEAM-CSE-Y3-B04' || team.teamNo === 'Team 04') {
+    // 1. If Team 04 specifically (TEAM-CSE-Y3-B04), check live student deliverables from StudentService first
+    const isTeam04 = team.teamId === 'TEAM-CSE-Y3-B04' || team.teamNo === 'Team 04' || team.teamId === 'team-4' || team.teamId === 'team-1';
+    if (isTeam04) {
       const studentSubs = getCanonicalStudentSubmissions(team.title);
       if (studentSubs.length > 0) {
         return studentSubs;
       }
+    }
+
+    // 2. Guide-approved project/submission records for the exact selected team
+    const guideApprovedSubmissions = getGuideApprovedSubmissionsForTeam(team);
+    if (guideApprovedSubmissions.length > 0) {
+      return guideApprovedSubmissions;
     }
 
     // 3. Check local storage for custom submissions explicitly saved for this specific teamId

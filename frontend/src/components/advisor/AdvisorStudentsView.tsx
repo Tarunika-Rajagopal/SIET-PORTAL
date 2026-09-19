@@ -2,17 +2,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Search, RefreshCw, Plus, MoveRight, UserPlus, Sparkles, 
   CheckCircle2, AlertCircle, X, Check, ChevronRight, ChevronDown, Settings,
-  School, FileText, FileCode, Github, ExternalLink, Download, XCircle, Award, Eye
+  School, FileText, FileCode, Github, ExternalLink, Download, XCircle, Award, Eye, Clock
 } from 'lucide-react';
 import { AdminService, AdminStudent } from '../../services/adminService';
 import { AdvisorService, ClassTeam, TeamMemberRecord } from '../../services/advisorService';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsService';
 import { MarksService, WeeklyMarksRecord } from '../../services/marksService';
+import { StudentService } from '../../services/studentService';
 import { WeeklySubmission } from '../../types';
 import AdvisorCreateTeamModal from './AdvisorCreateTeamModal';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
-import { formatProjectTitle } from '../../utils/titleUtils';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
 interface AdvisorStudentsViewProps {
   className: string;
@@ -385,16 +386,6 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-center">
-          {/* Refresh button updates all changes */}
-          <button
-            type="button"
-            onClick={refreshData}
-            title="Refresh All Class Data"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0 shadow-2xs"
-          >
-            <RefreshCw size={14} />
-          </button>
-
           {/* Manage Button (Shows Manage when not managing) */}
           {!isManageMode && (
             <button
@@ -637,9 +628,31 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                     <span className="px-2.5 py-0.5 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 font-black text-xs">
                                       {assignedTeam?.teamNo || s.teamNo || 'Unassigned'}
                                     </span>
-                                    <span className="font-extrabold text-slate-900 text-xs">
-                                      {formatProjectTitle(assignedTeam?.title || s.projectTitle, assignedTeam?.status)}
-                                    </span>
+                                    {(() => {
+                                      const isApproved = assignedTeam?.status === 'Approved' || (assignedTeam as any)?.isTitleApproved || StudentService.isSubmission1Approved(assignedTeam?.teamId);
+                                      const formatted = formatProjectTitle(assignedTeam?.title || s.projectTitle, isApproved ? 'Approved' : assignedTeam?.status, isApproved);
+                                      const isTitleApproved = formatted !== 'No Title Submitted' && formatted !== 'Title Approval Pending';
+                                      const isPending = formatted === 'Title Approval Pending';
+                                      if (isApproved) {
+                                        return (
+                                          <span className="font-extrabold text-slate-900 text-xs">
+                                            {formatted}
+                                          </span>
+                                        );
+                                      } else if (isPending) {
+                                        return (
+                                          <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-flex items-center gap-1">
+                                            <Clock size={11} /> Title Approval Pending
+                                          </span>
+                                        );
+                                      } else {
+                                        return (
+                                          <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md text-[11px]">
+                                            No Title Submitted
+                                          </span>
+                                        );
+                                      }
+                                    })()}
                                   </div>
                                   <div className="text-[11px] text-slate-500 font-bold">
                                     Technical Guide: <strong className="text-slate-800">{assignedTeam?.guide || s.guide || 'Unassigned'}</strong>
@@ -736,7 +749,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                       item.week === weekNum || 
                                       item.title?.toLowerCase().includes(`submission ${submissionNumber}`)
                                     );
-                                    const weekMarks = teamMarksRecords[weekNum] || null;
+                                    const weekMarks = teamMarksRecords[submissionNumber] || (submissionNumber === 1 ? teamMarksRecords[0] : null);
                                     const markScore = typeof sub?.score === 'number' 
                                       ? sub.score 
                                       : (weekMarks?.teamAverage !== undefined && weekMarks.teamAverage > 0 ? weekMarks.teamAverage : null);
@@ -751,7 +764,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                         teamNo: s.teamNo || 'Team',
                                         class: className,
                                         batch,
-                                        title: formatProjectTitle(sub.projectTitle || assignedTeam?.title, sub.status),
+                                        title: getSubmissionTitle(sub.projectTitle || assignedTeam?.title),
                                         guide: s.guide || 'Faculty Guide',
                                         status: 'Formed',
                                         capacity: 4,
@@ -942,24 +955,103 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 </div>
 
                 {/* View-Only Marks Display */}
-                <div className="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-[#E2E8E4]">
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Guide Assigned Marks (View-Only)
-                  </div>
-                  {typeof inspectionSubmission.sub.score === 'number' || (inspectionSubmission.marks?.teamAverage !== undefined && inspectionSubmission.marks.teamAverage > 0) ? (
-                    <div className="text-base font-black text-slate-900 mt-0.5 flex items-center sm:justify-end gap-1.5">
-                      <span className="text-emerald-700">
-                        {typeof inspectionSubmission.sub.score === 'number' ? inspectionSubmission.sub.score : inspectionSubmission.marks?.teamAverage}
-                      </span>
-                      <span className="text-xs text-slate-400">/ 100</span>
+                {(() => {
+                  const subNum = (inspectionSubmission.sub as any).weekNumber !== undefined 
+                    ? ((inspectionSubmission.sub as any).weekNumber + 1) 
+                    : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week + 1 : 1);
+                  const weekIdx = (inspectionSubmission.sub as any).weekNumber !== undefined 
+                    ? (inspectionSubmission.sub as any).weekNumber 
+                    : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week : 0);
+                  const memberRolls = inspectionSubmission.team.members?.map(m => m.rollNo);
+                  const marksRec = MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum, memberRolls) ||
+                                   (subNum === 1 ? MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, 0, memberRolls) : null);
+                  const hasMarks = Boolean(marksRec && (
+                    (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
+                    (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
+                  ));
+
+                  return (
+                    <div className="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-[#E2E8E4]">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Guide Assigned Marks (View-Only)
+                      </div>
+                      {hasMarks ? (
+                        <div className="text-base font-black text-slate-900 mt-0.5 flex items-center sm:justify-end gap-1.5">
+                          <span className="text-emerald-700">
+                            {marksRec?.teamAverage ?? inspectionSubmission.sub.score}
+                          </span>
+                          <span className="text-xs text-slate-400">/ 100</span>
+                        </div>
+                      ) : (
+                        <div className="text-xs font-bold text-slate-500 italic mt-0.5">
+                          Marks pending guide assessment
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="text-xs font-bold text-slate-500 italic mt-0.5">
-                      Marks pending guide assessment
-                    </div>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
+
+              {/* Individual Student Marks Breakdown Card */}
+              {(() => {
+                const subNum = (inspectionSubmission.sub as any).weekNumber !== undefined 
+                  ? ((inspectionSubmission.sub as any).weekNumber + 1) 
+                  : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week + 1 : 1);
+                const weekIdx = (inspectionSubmission.sub as any).weekNumber !== undefined 
+                  ? (inspectionSubmission.sub as any).weekNumber 
+                  : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week : 0);
+                const memberRolls = inspectionSubmission.team.members?.map(m => m.rollNo);
+                const marksRec = MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum, memberRolls) ||
+                                 (subNum === 1 ? MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, 0, memberRolls) : null);
+                if (!marksRec) return null;
+
+                return (
+                  <div className="p-4 rounded-2xl bg-mint-50/70 border border-mint-200 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Award size={16} className="text-mint-800" />
+                        <h4 className="text-xs font-bold text-mint-950 uppercase tracking-wider">
+                          Assigned Milestone Marks Breakdown
+                        </h4>
+                      </div>
+                      <span className="px-3 py-1 rounded-xl bg-white border border-mint-200 font-extrabold text-xs text-mint-900">
+                        Team Average: {marksRec.teamAverage} / 100
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(inspectionSubmission.team.members || []).map((member) => {
+                        const mScore = marksRec.memberMarks?.[member.rollNo] ?? marksRec.teamAverage;
+                        return (
+                          <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-mint-200 flex items-center justify-between gap-2 shadow-2xs">
+                            <div className="truncate">
+                              <span className="font-bold text-slate-900 text-xs block truncate">{member.name}</span>
+                              <span className="font-mono text-[10px] text-slate-500">{member.rollNo} {member.isLead && '• Lead'}</span>
+                            </div>
+                            <div>
+                              {mScore !== undefined ? (
+                                <span className="px-2.5 py-1 rounded-lg bg-mint-100 text-mint-950 font-black text-xs border border-mint-200">
+                                  {mScore} / 100
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-[11px] italic font-semibold">
+                                  Unassigned
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {marksRec.remarks && (
+                      <p className="text-xs text-mint-900 font-medium pt-1 border-t border-mint-200/60 italic">
+                        &ldquo;{marksRec.remarks}&rdquo; &bull; Evaluated by {marksRec.gradedBy}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Guide Remarks / Comments if Available */}
               {(inspectionSubmission.sub.comments || inspectionSubmission.marks?.remarks) && (

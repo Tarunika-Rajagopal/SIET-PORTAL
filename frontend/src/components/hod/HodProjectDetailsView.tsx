@@ -4,7 +4,7 @@ import { WeeklySubmission } from '../../types';
 import { getUserInitials } from '../../services/authService';
 import { MarksService } from '../../services/marksService';
 import { StudentService } from '../../services/studentService';
-import { formatProjectTitle } from '../../utils/titleUtils';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
   Users, 
   BookOpen, 
@@ -173,7 +173,7 @@ BT
 0 -25 Td
 (HOD Milestone Audit Dossier: Week ${weekNum} - ${weekTitle}) Tj
 0 -20 Td
-(Project Title: ${formatProjectTitle(sub?.projectTitle || activeTeam?.projectTitle, sub?.status || activeTeam?.status)}) Tj
+(Project Title: ${getSubmissionTitle(sub?.projectTitle || activeTeam?.projectTitle)}) Tj
 0 -20 Td
 (Team: ${activeTeam?.teamNo || 'Team'} | Class: ${activeTeam?.classSection || 'CSE'}) Tj
 0 -20 Td
@@ -195,7 +195,7 @@ startxref
       mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
       content = `SIET PowerPoint Milestone Presentation
 Milestone: Week ${weekNum} - ${weekTitle}
-Project: ${formatProjectTitle(sub?.projectTitle || activeTeam?.projectTitle, sub?.status || activeTeam?.status)}
+Project: ${getSubmissionTitle(sub?.projectTitle || activeTeam?.projectTitle)}
 Team: ${activeTeam?.teamNo || 'Team'}
 Faculty Guide: ${activeTeam?.guide?.name || 'Faculty Guide'}
 Submission Date: ${sub?.submissionDate || 'N/A'}
@@ -733,9 +733,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                         Project Title
                       </span>
                       <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900">
-                        {activeSubmission.projectTitle || activeTeam.projectTitle || (
-                          <span className="text-slate-400 italic font-normal">No Project Title Specified</span>
-                        )}
+                        {getSubmissionTitle(activeSubmission.projectTitle || activeTeam.projectTitle, 'No Project Title Specified')}
                       </div>
                     </div>
 

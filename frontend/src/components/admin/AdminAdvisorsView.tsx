@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCheck, Search, RotateCw, Trash2, CheckCircle2, ArrowUpRight, UserMinus, RefreshCw } from 'lucide-react';
+import { UserCheck, Search, Settings, Trash2, CheckCircle2, ArrowUpRight, UserMinus } from 'lucide-react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
 import RemoveAdvisorShiftModal from './RemoveAdvisorShiftModal';
 
@@ -101,7 +101,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Manage / Refresh Button */}
+          {/* Manage Button */}
           <button
             onClick={() => setIsManageMode(!isManageMode)}
             className={`px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs ${isManageMode
@@ -109,19 +109,8 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
                 : 'bg-[#EFF3F1] hover:bg-mint-100 text-slate-700 border border-[#E2E8E4]'
               }`}
           >
-            <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
-            {!isManageMode && <span>Manage</span>}
-          </button>
-
-          {/* Refresh button */}
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            title="Refresh page"
-            className="p-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-600 hover:text-slate-900 border border-[#E2E8E4] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
-            aria-label="Refresh page"
-          >
-            <RefreshCw size={14} />
+            <Settings size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
+            <span>{isManageMode ? 'Finish Managing' : 'Manage'}</span>
           </button>
         </div>
       </div>

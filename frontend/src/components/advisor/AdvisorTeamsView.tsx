@@ -12,6 +12,7 @@ import { MarksService } from '../../services/marksService';
 import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsService';
 import { WeeklySubmission } from '../../types';
 import { StudentService } from '../../services/studentService';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
 import AdvisorEditTeamModal from './AdvisorEditTeamModal';
 
@@ -343,11 +344,21 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
                 <div>
                   <h4 className="font-extrabold text-slate-900 text-xs line-clamp-2 leading-snug">
-                    {t.title ? (
-                      t.title
-                    ) : (
-                      <span className="text-slate-400 italic font-medium">Pending Student Title Submission</span>
-                    )}
+                    {(() => {
+                      const isApproved = t.status === 'Approved' || (t as any).isTitleApproved || StudentService.isSubmission1Approved(t.teamId);
+                      const formatted = formatProjectTitle(t.title, isApproved ? 'Approved' : t.status, isApproved);
+                      if (formatted !== 'No Title Submitted' && formatted !== 'Title Approval Pending') {
+                        return formatted;
+                      } else if (formatted === 'Title Approval Pending') {
+                        return (
+                          <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] inline-flex items-center gap-1">
+                            <Clock size={11} /> Title Approval Pending
+                          </span>
+                        );
+                      } else {
+                        return <span className="text-slate-400 italic font-medium">No Title Submitted</span>;
+                      }
+                    })()}
                   </h4>
                   <p className="text-[11px] text-slate-500 mt-1 truncate">
                     Lead: <strong className="text-slate-700">{t.members.find(m => m.isLead)?.name || t.leadStudent}</strong>
@@ -395,9 +406,21 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
-                  {activeTeam.title || (
-                    <span className="text-slate-400 italic font-medium">Pending Student Project Title Submission</span>
-                  )}
+                  {(() => {
+                    const isApproved = activeTeam.status === 'Approved' || (activeTeam as any).isTitleApproved || StudentService.isSubmission1Approved(activeTeam.teamId);
+                    const formatted = formatProjectTitle(activeTeam.title, isApproved ? 'Approved' : activeTeam.status, isApproved);
+                    if (formatted !== 'No Title Submitted' && formatted !== 'Title Approval Pending') {
+                      return formatted;
+                    } else if (formatted === 'Title Approval Pending') {
+                      return (
+                        <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md text-xs inline-flex items-center gap-1">
+                          <Clock size={12} /> Title Approval Pending
+                        </span>
+                      );
+                    } else {
+                      return <span className="text-slate-400 italic font-medium">No Title Submitted</span>;
+                    }
+                  })()}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Class {activeTeam.class} &bull; Batch {activeTeam.batch} &bull; Project Technical Guide: <strong>{activeTeam.guide}</strong>
@@ -506,18 +529,8 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                           </div>
                         </div>
 
-                        {/* Email & Details */}
+                        {/* Details */}
                         <div className="mt-3 space-y-1 text-[11px]">
-                          <div className="flex items-center gap-1.5 text-slate-600 truncate">
-                            <Mail size={12} className="text-slate-400 shrink-0" />
-                            <a 
-                              href={`mailto:${m.email}`} 
-                              className="hover:text-mint-700 hover:underline truncate"
-                              title={m.email}
-                            >
-                              {m.email}
-                            </a>
-                          </div>
                           <div className="flex items-center gap-1.5 text-slate-500">
                             <GraduationCap size={12} className="text-slate-400 shrink-0" />
                             <span className="truncate">{activeTeam.batch || batch} &bull; Class {activeTeam.class}</span>
@@ -677,7 +690,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                       Project Title
                     </span>
                     <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900">
-                      {activeSubmission.projectTitle || activeTeam.title}
+                      {getSubmissionTitle(activeSubmission.projectTitle || activeTeam.title)}
                     </div>
                   </div>
 
@@ -961,6 +974,55 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
                     </div>
                   </div>
+
+                  {/* 6. Evaluation Scores & Individual Student Marks */}
+                  {(() => {
+                    const subNum = (activeSubmission as any).submissionNumber || 
+                                   ((activeSubmission as any).weekNumber !== undefined ? ((activeSubmission as any).weekNumber + 1) : 
+                                   (activeSubmission.week !== undefined ? activeSubmission.week + 1 : 1));
+                    const marksRec = MarksService.getWeeklyMarks(activeTeam.teamId, subNum, activeTeam.members?.map(m => m.rollNo)) ||
+                                     (subNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0, activeTeam.members?.map(m => m.rollNo)) : null);
+                    if (!marksRec) return null;
+
+                    return (
+                      <div className="space-y-3 p-4 rounded-2xl bg-mint-50/70 border border-mint-200 shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Award size={16} className="text-mint-800" />
+                            <h4 className="text-xs font-bold text-mint-950 uppercase tracking-wider">
+                              Assigned Milestone Marks Breakdown
+                            </h4>
+                          </div>
+                          <span className="px-3 py-1 rounded-xl bg-white border border-mint-200 font-extrabold text-xs text-mint-900">
+                            Team Average: {marksRec.teamAverage} / 100
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {(activeTeam.members || []).map((member) => {
+                            const mScore = marksRec.memberMarks?.[member.rollNo] ?? marksRec.teamAverage;
+                            return (
+                              <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-mint-200 flex items-center justify-between gap-2">
+                                <div className="truncate">
+                                  <span className="font-bold text-slate-900 text-xs block truncate">{member.name}</span>
+                                  <span className="font-mono text-[10px] text-slate-500">{member.rollNo}</span>
+                                </div>
+                                <span className="px-2.5 py-1 rounded-lg bg-mint-50 border border-mint-200 font-extrabold text-xs text-mint-900 shrink-0">
+                                  {mScore} / 100
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {marksRec.remarks && (
+                          <p className="text-xs text-mint-900 font-medium pt-1 border-t border-mint-200/60 italic">
+                            &ldquo;{marksRec.remarks}&rdquo; &bull; Evaluated by {marksRec.gradedBy}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                 </div>
 

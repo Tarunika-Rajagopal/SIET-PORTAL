@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { HodService, HodTeamDetails } from '../../services/hodService';
 import { MarksService } from '../../services/marksService';
-import { formatProjectTitle } from '../../utils/titleUtils';
+import { HodHistoryService } from '../../services/hodHistoryService';
+import { StudentService } from '../../services/studentService';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
   Search, UserCheck, CheckCircle2, RefreshCw, ChevronDown, ChevronUp, 
   Users, FolderGit2, FileText, Download, ExternalLink, Github, Award,
@@ -89,7 +91,9 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     setSaveSuccessMsg('');
 
     // Pre-populate marks draft
-    const wMarks = MarksService.getWeeklyMarks(team.id, sub.week, team.members.map(m => m.rollNo));
+    const subNum = (sub as any).submissionNumber || (sub.week !== undefined ? sub.week + 1 : 1);
+    const wMarks = MarksService.getWeeklyMarks(team.id, subNum, team.members.map(m => m.rollNo)) ||
+                   (subNum === 1 ? MarksService.getWeeklyMarks(team.id, 0, team.members.map(m => m.rollNo)) : null);
     const initialMarks: Record<string, number> = {};
     team.members.forEach(m => {
       initialMarks[m.rollNo] = wMarks?.memberMarks?.[m.rollNo] ?? (wMarks?.teamAverage || 0);
@@ -108,14 +112,39 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   const handleSaveMarks = () => {
     if (!activeModalTeam || !activeModalSub) return;
 
-    // 1. Save to MarksService
+    const subNum = (activeModalSub as any).submissionNumber || (activeModalSub.week !== undefined ? activeModalSub.week + 1 : 1);
+
+    // 0. Log action to HodHistoryService for audit tracking
+    try {
+      HodHistoryService.logAction({
+        actionType: 'Marks Overridden',
+        target: `${activeModalTeam.teamNo} (Submission ${subNum})`,
+        classSection: activeModalTeam.classSection,
+        batch: activeModalTeam.batch,
+        details: `HOD overridden marks for ${activeModalTeam.teamNo} (Submission ${subNum}) with average score ${draftAverage}/100. ${draftRemarks ? `Remarks: "${draftRemarks}"` : ''}`,
+        performedBy: 'Dr. S. K. Aruna (HOD / CSE)'
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    // 1. Save to MarksService under subNum (and 0 if submission 1)
     MarksService.saveWeeklyMarks(
       activeModalTeam.id,
-      activeModalSub.week,
+      subNum,
       draftMemberMarks,
       draftRemarks,
       'HOD Evaluation'
     );
+    if (subNum === 1) {
+      MarksService.saveWeeklyMarks(
+        activeModalTeam.id,
+        0,
+        draftMemberMarks,
+        draftRemarks,
+        'HOD Evaluation'
+      );
+    }
 
     // 2. Sync to guide portal storage
     try {
@@ -181,7 +210,8 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   const handleDownloadFile = (fileName: string, fileType: 'pdf' | 'ppt', team: HodTeamDetails, sub: WeeklySubmission) => {
     let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     let content = '';
-    const formattedTitle = formatProjectTitle(team.projectTitle, team.status);
+    const isSub1Approved = team.status === 'Approved' || team.guideApprovalStatus === 'Approved' || StudentService.isSubmission1Approved(team.id);
+    const formattedTitle = formatProjectTitle(team.projectTitle, isSub1Approved ? 'Approved' : team.status, isSub1Approved);
 
     if (fileType === 'pdf') {
       mimeType = 'application/pdf';
@@ -257,7 +287,7 @@ Generated for Academic Verification.`;
     <div className="space-y-4">
       
       {/* Filter Option Row */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#D8CCBA] flex flex-wrap items-center gap-3">
+      <div className="bg-[#FAF7F2] rounded-2xl p-4 shadow-sm border border-[#D8CCBA] flex flex-wrap items-center gap-3">
         
         {/* Batch Filter */}
         <select
@@ -343,13 +373,12 @@ Generated for Academic Verification.`;
                 <th className="p-4 whitespace-nowrap">Class</th>
                 <th className="p-4">Title</th>
                 <th className="p-4 whitespace-nowrap">Submissions Made Until Now</th>
-                <th className="p-4 text-center whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D8CCBA] font-medium">
               {teams.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-[#75695A]">
+                  <td colSpan={4} className="p-8 text-center text-[#75695A]">
                     No project teams match the selected filters.
                   </td>
                 </tr>
@@ -357,10 +386,11 @@ Generated for Academic Verification.`;
                 teams.map((team) => {
                   const isExpanded = expandedTeamId === team.id;
                   const isInspecting = inspectingTeamId === team.id;
-                  const formattedTitle = formatProjectTitle(team.projectTitle, team.status, team.guideApprovalStatus === 'Approved');
+                  const isSub1Approved = team.status === 'Approved' || team.guideApprovalStatus === 'Approved' || StudentService.isSubmission1Approved(team.id);
+                  const formattedTitle = formatProjectTitle(team.projectTitle, isSub1Approved ? 'Approved' : team.status, isSub1Approved);
                   const isTitleApproved = formattedTitle !== 'No Title Submitted' && formattedTitle !== 'Title Approval Pending';
                   const isTitlePending = formattedTitle === 'Title Approval Pending';
-                  const submissionsCount = team.submissions?.length || 0;
+                  const submissionsCount = Math.min(4, team.submissions?.length || 0);
 
                   return (
                     <React.Fragment key={team.id}>
@@ -376,6 +406,9 @@ Generated for Academic Verification.`;
                           <div className="flex items-center gap-2">
                             <span className="px-2.5 py-1 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-serif font-bold text-xs">
                               {team.teamNo}
+                            </span>
+                            <span className="p-1 rounded-lg text-[#75695A] hover:bg-[#EDE7DB] transition">
+                              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </span>
                           </div>
                           <span className="text-[11px] text-[#75695A] block mt-1 font-medium">
@@ -426,23 +459,12 @@ Generated for Academic Verification.`;
                             </span>
                           )}
                         </td>
-
-                        {/* Action Chevron */}
-                        <td className="p-4 text-center whitespace-nowrap">
-                          <button
-                            type="button"
-                            className="p-1.5 rounded-xl bg-[#EDE7DB] text-[#111111] hover:bg-[#D8CCBA] transition"
-                            aria-label="Toggle team view"
-                          >
-                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                          </button>
-                        </td>
                       </tr>
 
                       {/* Expanded Accordion: Team Members & Inspect Submissions */}
                       {isExpanded && (
                         <tr className="bg-[#FAF8F4] border-t border-[#D8CCBA]">
-                          <td colSpan={5} className="p-5">
+                          <td colSpan={4} className="p-5">
                             <div className="space-y-4">
                               
                               {/* Team Members Header & Inspect Submissions Action Button */}
@@ -450,87 +472,56 @@ Generated for Academic Verification.`;
                                 <div className="flex items-center gap-2">
                                   <Users size={16} className="text-[#75695A]" />
                                   <span className="font-serif font-bold text-[#111111] text-xs uppercase tracking-wider">
-                                    Team Members Roster ({team.members.length} Candidates)
+                                    Team Members ({team.members.length} Candidates)
                                   </span>
                                 </div>
-
-                                {/* Inspect Submissions Button */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setInspectingTeamId(isInspecting ? null : team.id);
-                                  }}
-                                  className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-2 cursor-pointer shadow-2xs ${
-                                    isInspecting
-                                      ? 'bg-[#111111] text-[#F8F5EE] border border-[#292725]'
-                                      : 'bg-white text-[#111111] border border-[#D8CCBA] hover:bg-[#EDE7DB]'
-                                  }`}
-                                >
-                                  <FolderGit2 size={14} />
-                                  <span>{isInspecting ? 'Hide Submissions' : 'Inspect Submissions'}</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  {/* Inspect Submissions Button */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setInspectingTeamId(isInspecting ? null : team.id);
+                                    }}
+                                    className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                                      isInspecting
+                                        ? 'bg-[#111111] text-[#F8F5EE] border-[#111111]'
+                                        : 'bg-[#EDE7DB] text-[#111111] border-[#D8CCBA] hover:bg-[#E2D9C8]'
+                                    }`}
+                                  >
+                                    <FileText size={13} />
+                                    <span>{isInspecting ? 'Hide Submissions' : 'Inspect Submissions'}</span>
+                                  </button>
+                                </div>
                               </div>
 
-                              {/* Members Table: STUDENT NAME is Left-Aligned */}
-                              <div className="bg-white rounded-2xl border border-[#D8CCBA] overflow-hidden shadow-2xs">
-                                <table className="w-full text-xs">
-                                  <thead className="bg-[#EDE7DB]/80 text-[#75695A] uppercase tracking-wider font-mono font-bold text-[10px] border-b border-[#D8CCBA]">
-                                    <tr>
-                                      <th className="p-3 text-center w-36 whitespace-nowrap">REGISTER NUMBER</th>
-                                      <th className="p-3 text-left">STUDENT NAME</th>
-                                      <th className="p-3 text-left">INSTITUTIONAL EMAIL</th>
-                                      <th className="p-3 text-center w-28">ROLE</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-[#EAE2D5] font-medium">
-                                    {team.members.map((m) => (
-                                      <tr key={m.rollNo} className="hover:bg-[#FAF8F4] transition-colors">
-                                        {/* Register Number */}
-                                        <td className="p-3 text-center whitespace-nowrap">
-                                          <span className="font-mono font-bold text-[#111111]">
-                                            {m.rollNo}
-                                          </span>
-                                        </td>
-
-                                        {/* Student Name: Strictly Left Aligned */}
-                                        <td className="p-3 text-left whitespace-nowrap">
-                                          <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-lg bg-[#111111] text-[#F8F5EE] font-bold text-[9px] flex items-center justify-center shrink-0">
-                                              {getUserInitials(m.name)}
-                                            </div>
-                                            <span className="font-bold text-[#111111] text-xs">
-                                              {m.name}
-                                            </span>
-                                          </div>
-                                        </td>
-
-                                        {/* Institutional Email */}
-                                        <td className="p-3 text-left font-mono text-[11px] text-[#75695A] whitespace-nowrap">
-                                          {m.email}
-                                        </td>
-
-                                        {/* Role */}
-                                        <td className="p-3 text-center whitespace-nowrap">
-                                          {m.isLead ? (
-                                            <span className="px-2 py-0.5 rounded-full bg-[#111111] text-amber-400 font-extrabold text-[9px] uppercase tracking-wider">
-                                              Lead
-                                            </span>
-                                          ) : (
-                                            <span className="px-2 py-0.5 rounded-full bg-[#EDE7DB] text-[#75695A] font-semibold text-[9px]">
-                                              Member
-                                            </span>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                              {/* Members Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                {team.members.map((member) => (
+                                  <div
+                                    key={member.rollNo}
+                                    className="p-3 bg-white rounded-xl border border-[#D8CCBA] space-y-1 shadow-2xs"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-[#111111] text-xs truncate">
+                                        {member.name}
+                                      </span>
+                                      {member.isLead && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]">
+                                          Lead
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-[#75695A] font-mono block">
+                                      {member.rollNo}
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
 
                               {/* Inspect Submissions Grid (shown when Inspect Submissions is clicked) */}
                               {isInspecting && (
-                                <div className="mt-4 p-4 rounded-2xl bg-white border border-[#D8CCBA] shadow-xs space-y-3 animate-in fade-in duration-200">
+                                <div className="mt-4 p-4 rounded-2xl bg-white border border-[#D8CCBA] space-y-3 shadow-sm animate-fadeIn">
                                   <div className="flex items-center justify-between pb-2 border-b border-[#D8CCBA]">
                                     <span className="font-serif font-bold text-[#111111] text-xs uppercase tracking-wider flex items-center gap-1.5">
                                       <FileText size={14} className="text-[#75695A]" />
@@ -544,9 +535,11 @@ Generated for Academic Verification.`;
                                   {/* Submissions List */}
                                   {team.submissions && team.submissions.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {team.submissions.map((sub) => {
+                                      {team.submissions.slice(0, 4).map((sub) => {
                                         const weekNum = sub.week;
-                                        const wMarks = MarksService.getWeeklyMarks(team.id, weekNum, team.members.map(m => m.rollNo));
+                                        const subNumber = (sub as any).submissionNumber || (sub.week !== undefined ? sub.week + 1 : 1);
+                                        const wMarks = MarksService.getWeeklyMarks(team.id, subNumber, team.members.map(m => m.rollNo)) ||
+                                                       (subNumber === 1 ? MarksService.getWeeklyMarks(team.id, 0, team.members.map(m => m.rollNo)) : null);
                                         const isApproved = sub.status === 'Approved';
                                         const isRejected = sub.status === 'Rejected' || sub.status === 'Changes Requested';
 
@@ -559,14 +552,14 @@ Generated for Academic Verification.`;
                                               <div>
                                                 <div className="flex items-center gap-2">
                                                   <span className="px-2 py-0.5 rounded-md bg-[#EDE7DB] text-[#111111] font-bold text-[10px] uppercase border border-[#D8CCBA]">
-                                                    Submission {weekNum}
+                                                    Submission {subNumber}
                                                   </span>
                                                   <span className="text-[11px] font-mono text-[#75695A]">
                                                     {sub.submissionDate || 'Submitted'}
                                                   </span>
                                                 </div>
                                                 <h5 className="font-bold text-[#111111] text-xs mt-1.5 line-clamp-1">
-                                                  {sub.title || `Milestone Submission ${weekNum}`}
+                                                  {sub.title || `Milestone Submission ${subNumber}`}
                                                 </h5>
                                               </div>
 
@@ -712,7 +705,7 @@ Generated for Academic Verification.`;
                   </div>
                   {activeModalTeam.projectTitle && (
                     <p className="text-slate-900 font-bold text-xs">
-                      {formatProjectTitle(activeModalTeam.projectTitle, activeModalTeam.status)}
+                      {getSubmissionTitle(activeModalTeam.projectTitle)}
                     </p>
                   )}
                 </div>
@@ -948,53 +941,64 @@ Generated for Academic Verification.`;
                 {!isEditingMarks ? (
                   <div className="space-y-3">
                     <div className="bg-[#FAF8F4] rounded-2xl p-4 border border-[#D8CCBA] space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {activeModalTeam.members.map((m) => {
-                          const wMarks = MarksService.getWeeklyMarks(activeModalTeam.id, activeModalSub.week, activeModalTeam.members.map(x => x.rollNo));
-                          const score = wMarks?.memberMarks?.[m.rollNo];
+                      {(() => {
+                        const subNum = (activeModalSub as any).submissionNumber || (activeModalSub.week !== undefined ? activeModalSub.week + 1 : 1);
+                        const wMarks = MarksService.getWeeklyMarks(activeModalTeam.id, subNum, activeModalTeam.members.map(x => x.rollNo)) ||
+                                       (subNum === 1 ? MarksService.getWeeklyMarks(activeModalTeam.id, 0, activeModalTeam.members.map(x => x.rollNo)) : null);
 
-                          return (
-                            <div
-                              key={m.rollNo}
-                              className="p-3 bg-white rounded-xl border border-[#D8CCBA] flex items-center justify-between shadow-2xs"
-                            >
-                              <div>
-                                <span className="font-bold text-[#111111] text-xs block">
-                                  {m.name}
-                                </span>
-                                <span className="font-mono text-[10px] text-[#75695A]">
-                                  {m.rollNo} {m.isLead && '• Lead'}
-                                </span>
-                              </div>
+                        return (
+                          <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {activeModalTeam.members.map((m) => {
+                                const score = wMarks?.memberMarks?.[m.rollNo];
 
+                                return (
+                                  <div
+                                    key={m.rollNo}
+                                    className="p-3 bg-white rounded-xl border border-[#D8CCBA] flex items-center justify-between shadow-2xs"
+                                  >
+                                    <div>
+                                      <span className="font-bold text-[#111111] text-xs block">
+                                        {m.name}
+                                      </span>
+                                      <span className="font-mono text-[10px] text-[#75695A]">
+                                        {m.rollNo} {m.isLead && '• Lead'}
+                                      </span>
+                                    </div>
+
+                                    <div>
+                                      {score !== undefined ? (
+                                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-200">
+                                          {score} / 100
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 text-[11px] italic font-semibold">
+                                          Unassigned
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Average Score Banner */}
+                            <div className="pt-2 border-t border-[#D8CCBA] flex items-center justify-between text-xs">
                               <div>
-                                {score !== undefined ? (
-                                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-200">
-                                    {score} / 100
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-400 text-[11px] italic font-semibold">
-                                    Unassigned
+                                <span className="text-[#75695A] font-bold uppercase tracking-wider text-[11px] block">
+                                  Team Calculated Average Score:
+                                </span>
+                                {wMarks?.gradedBy && (
+                                  <span className="text-[10px] text-[#75695A] font-medium">
+                                    Evaluated by: <strong className="text-[#111111]">{wMarks.gradedBy}</strong>
                                   </span>
                                 )}
                               </div>
+                              <span className="text-sm font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-xl border border-emerald-300 shadow-2xs">
+                                {wMarks && wMarks.teamAverage > 0 ? `${wMarks.teamAverage} / 100` : 'Unassigned'}
+                              </span>
                             </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Average Score Banner */}
-                      {(() => {
-                        const wMarks = MarksService.getWeeklyMarks(activeModalTeam.id, activeModalSub.week, activeModalTeam.members.map(x => x.rollNo));
-                        return (
-                          <div className="pt-2 border-t border-[#D8CCBA] flex items-center justify-between text-xs">
-                            <span className="text-[#75695A] font-bold uppercase tracking-wider text-[11px]">
-                              Team Calculated Average Score:
-                            </span>
-                            <span className="text-sm font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-xl border border-emerald-300 shadow-2xs">
-                              {wMarks && wMarks.teamAverage > 0 ? `${wMarks.teamAverage} / 100` : 'Unassigned'}
-                            </span>
-                          </div>
+                          </>
                         );
                       })()}
                     </div>
@@ -1003,7 +1007,7 @@ Generated for Academic Verification.`;
                   /* Edit Marks Mode */
                   <div className="bg-[#FAF8F4] rounded-2xl p-4 border border-[#D8CCBA] space-y-4">
                     <p className="text-[11px] text-[#75695A] font-medium">
-                      Enter marks individually for each student candidate (0-100). The average score is auto-calculated and synchronized immediately to Student, Advisor, and Guide portals.
+                      HOD Override: Modify marks assigned by Advisor or Guide individually for each student candidate (0-100). The updated score is auto-calculated and synchronized immediately across all portals.
                     </p>
 
                     <div className="space-y-2.5">

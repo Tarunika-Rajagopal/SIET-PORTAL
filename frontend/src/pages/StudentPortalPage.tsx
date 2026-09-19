@@ -23,6 +23,9 @@ export const StudentPortalPage: React.FC = () => {
       if (e?.detail?.edit) {
         localStorage.setItem('siet_student_start_edit_mode', 'true');
       }
+      if (e?.detail?.week !== undefined) {
+        localStorage.setItem('siet_student_target_week', String(e.detail.week));
+      }
       setActiveTab('submission');
     };
     handleSync();

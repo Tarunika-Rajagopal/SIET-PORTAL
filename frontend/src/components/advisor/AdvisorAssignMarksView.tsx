@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Award, Check, RefreshCw, AlertCircle, ChevronDown, CheckCircle2,
-  FileCode, FileText, Github, ExternalLink, Clock, Layers
+  FileCode, FileText, Github, ExternalLink, Clock, Layers, Lock
 } from 'lucide-react';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { MarksService } from '../../services/marksService';
@@ -9,6 +9,7 @@ import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsService';
 import { StudentService } from '../../services/studentService';
 import { WeeklySubmission } from '../../types';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
 interface AdvisorAssignMarksViewProps {
   className: string;
@@ -38,10 +39,24 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
   const [advisorRemarks, setAdvisorRemarks] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
+  const [, setTick] = useState(0);
   useEffect(() => {
-    return AdvisorService.subscribe(() => {
+    const unsub = AdvisorService.subscribe(() => {
       setTeams(AdvisorService.getTeamsForClass(className));
     });
+    const handleSync = () => {
+      setTeams(AdvisorService.getTeamsForClass(className));
+      setTick(t => t + 1);
+    };
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('siet_data_updated', handleSync);
+    window.addEventListener('siet_marks_updated', handleSync);
+    return () => {
+      unsub();
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('siet_data_updated', handleSync);
+      window.removeEventListener('siet_marks_updated', handleSync);
+    };
   }, [className]);
 
   useEffect(() => {
@@ -69,10 +84,26 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
     : undefined;
   const activeMemberRollsKey = activeTeam?.members.map(m => m.rollNo).join('|') || '';
 
-  // Load existing marks for active team and week
+  // Load existing marks for active team and week (1-indexed for milestones)
+  const activeSubNum = selectedWeek !== undefined ? selectedWeek + 1 : 1;
+  const existingMarks = activeTeam 
+    ? (MarksService.getWeeklyMarks(activeTeam.teamId, activeSubNum) || (activeSubNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0) : null))
+    : null;
+  const isMarksEnteredByGuide = Boolean(
+    existingMarks && (
+      existingMarks.teamAverage !== undefined ||
+      (existingMarks.memberMarks && Object.keys(existingMarks.memberMarks).length > 0)
+    ) && (
+      existingMarks.gradedBy?.includes('Guide') ||
+      existingMarks.gradedBy === 'Dr. P. Manimegalai' ||
+      !existingMarks.gradedBy?.includes('Advisor')
+    )
+  );
+
   useEffect(() => {
     if (!activeTeam) return;
-    const existing = MarksService.getWeeklyMarks(activeTeam.teamId, selectedWeek);
+    const subNum = selectedWeek !== undefined ? selectedWeek + 1 : 1;
+    const existing = MarksService.getWeeklyMarks(activeTeam.teamId, subNum) || (subNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0) : null);
     const initialInputs: Record<string, string> = {};
     activeTeam.members.forEach(m => {
       if (existing && existing.memberMarks[m.rollNo] !== undefined) {
@@ -98,6 +129,10 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
 
   const handleSaveMarks = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isMarksEnteredByGuide) {
+      setErrorMessage('Marks entered by Faculty Guide cannot be edited by Class Advisor.');
+      return;
+    }
     setErrorMessage('');
 
     if (!activeTeam) return;
@@ -174,7 +209,8 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {teams.map((t) => {
             const isSelected = activeTeam?.teamId === t.teamId;
-            const wMarks = MarksService.getWeeklyMarks(t.teamId, selectedWeek);
+            const subNum = selectedWeek !== undefined ? selectedWeek + 1 : 1;
+            const wMarks = MarksService.getWeeklyMarks(t.teamId, subNum) || (subNum === 1 ? MarksService.getWeeklyMarks(t.teamId, 0) : null);
 
             return (
               <button
@@ -231,7 +267,20 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                 </span>
               </div>
               <h3 className="text-base sm:text-lg font-serif font-semibold text-[#111111]">
-                {activeTeam.title || <span className="text-[#75695A] italic font-normal">Pending Student Project Title Submission</span>}
+                {(() => {
+                  const formatted = formatProjectTitle(activeTeam.title, activeTeam.status);
+                  if (formatted !== 'No Title Submitted' && formatted !== 'Title Approval Pending') {
+                    return formatted;
+                  } else if (formatted === 'Title Approval Pending') {
+                    return (
+                      <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md text-xs inline-flex items-center gap-1">
+                        <Clock size={12} /> Title Approval Pending
+                      </span>
+                    );
+                  } else {
+                    return <span className="text-[#75695A] italic font-normal">No Title Submitted</span>;
+                  }
+                })()}
               </h3>
               <p className="text-xs text-[#75695A]">
                 Class {activeTeam.class} &bull; Guide: <strong className="text-[#292725]">{activeTeam.guide}</strong>
@@ -287,7 +336,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                   Project Title
                 </span>
                 <p className="font-semibold text-[#111111] leading-relaxed">
-                  {activeSubmission?.projectTitle || activeTeam.title}
+                  {getSubmissionTitle(activeSubmission?.projectTitle || activeTeam.title)}
                 </p>
               </div>
               <div className="p-3.5 rounded-xl bg-white border border-[#D8CCBA]">
@@ -388,7 +437,8 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i).map((w) => {
               const isCurrent = w === selectedWeek;
-              const wMarks = MarksService.getWeeklyMarks(activeTeam.teamId, w);
+              const subNum = w + 1;
+              const wMarks = MarksService.getWeeklyMarks(activeTeam.teamId, subNum) || (subNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0) : null);
 
               return (
                 <button
@@ -422,7 +472,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
               </div>
               <div>
                 <span className="text-[10px] text-[#75695A] font-bold uppercase tracking-wider block">
-                  Official Advisor Milestone Score &bull; Week {selectedWeek}
+                  Official Milestone Score &bull; Week {selectedWeek} {isMarksEnteredByGuide ? `(Assigned by ${existingMarks?.gradedBy || 'Faculty Guide'})` : ''}
                 </span>
                 <span className="font-serif font-semibold text-[#111111] text-sm">
                   {currentAverage !== null ? `Calculated Team Average: ${currentAverage} / 100` : 'Enter Individual Marks Below'}
@@ -431,7 +481,9 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
             </div>
 
             <div className="text-[11px] text-[#75695A] italic">
-              Marks visible to Guide, Advisor, and HOD (strictly hidden from students).
+              {isMarksEnteredByGuide 
+                ? "Marks entered by Guide are visible to Advisor (read-only; advisor cannot edit)."
+                : "Marks visible to Guide, Advisor, and HOD."}
             </div>
           </div>
 
@@ -444,9 +496,16 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
 
           {/* 2. Team Members Individual Marks Input Cards */}
           <div className="space-y-3">
-            <label className="block text-xs font-bold text-[#75695A] uppercase tracking-wider">
-              2. Enter Individual Student Marks (1 - 100)
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-[#75695A] uppercase tracking-wider">
+                2. Individual Student Marks (1 - 100)
+              </label>
+              {isMarksEnteredByGuide && (
+                <span className="px-2.5 py-0.5 rounded-full bg-[#EDE7DB] text-[#75695A] border border-[#D8CCBA] text-[10px] font-bold flex items-center gap-1">
+                  <Lock size={11} /> Read Only
+                </span>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {activeTeam.members.map((m) => (
@@ -471,6 +530,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                       type="number"
                       min="1"
                       max="100"
+                      disabled={isMarksEnteredByGuide}
                       value={marksInput[m.rollNo] || ''}
                       onChange={(e) => {
                         const nextValue = e.target.value;
@@ -483,7 +543,11 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                           setMarksInput({ ...marksInput, [m.rollNo]: nextValue });
                         }
                       }}
-                      className="w-20 px-3 py-2 bg-white border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] text-center focus:outline-none focus:border-[#111111] shadow-xs"
+                      className={`w-20 px-3 py-2 border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] text-center shadow-xs ${
+                        isMarksEnteredByGuide
+                          ? 'bg-[#EDE7DB] text-slate-700 cursor-not-allowed'
+                          : 'bg-white focus:outline-none focus:border-[#111111]'
+                      }`}
                     />
                     <span className="text-[#75695A] font-medium text-xs">/ 100</span>
                   </div>
@@ -499,21 +563,38 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
             </label>
             <textarea
               rows={3}
+              disabled={isMarksEnteredByGuide}
               value={advisorRemarks}
               onChange={(e) => setAdvisorRemarks(e.target.value)}
-              className="w-full p-3.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]/60 shadow-xs"
+              className={`w-full p-3.5 border border-[#D8CCBA] rounded-xl text-xs text-[#111111] placeholder-[#75695A]/60 shadow-xs ${
+                isMarksEnteredByGuide
+                  ? 'bg-[#EDE7DB] text-slate-700 cursor-not-allowed'
+                  : 'bg-[#F8F5EE] focus:outline-none focus:border-[#111111]'
+              }`}
             />
           </div>
 
           {/* Submit Action */}
           <div className="pt-3 border-t border-[#D8CCBA] flex items-center justify-end">
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-medium text-xs rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer active:scale-95"
-            >
-              <Check size={16} />
-              <span>Save &amp; Update Week {selectedWeek} Marks</span>
-            </button>
+            {isMarksEnteredByGuide ? (
+              <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#EDE7DB] p-3.5 rounded-xl border border-[#D8CCBA]">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#75695A]">
+                  <Lock size={15} />
+                  <span>Marks evaluated and assigned by Faculty Guide ({existingMarks?.gradedBy || 'Guide'}). Class Advisor cannot edit.</span>
+                </div>
+                <span className="px-3 py-1 rounded-lg bg-white border border-[#D8CCBA] text-xs font-bold text-[#111111] shrink-0">
+                  Read Only
+                </span>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-medium text-xs rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer active:scale-95"
+              >
+                <Check size={16} />
+                <span>Save &amp; Update Week {selectedWeek} Marks</span>
+              </button>
+            )}
           </div>
 
         </form>

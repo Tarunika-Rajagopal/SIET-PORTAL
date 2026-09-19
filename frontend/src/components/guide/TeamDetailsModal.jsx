@@ -4,7 +4,7 @@ import {
   Clock, AlertCircle, XCircle, Send, CheckSquare, Presentation, 
   Image as ImageIcon, Lock, Bell
 } from 'lucide-react';
-import { formatProjectTitle } from '../../utils/titleUtils';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
 export const TeamDetailsModal = ({ 
   isOpen, 
@@ -156,7 +156,7 @@ export const TeamDetailsModal = ({
               </div>
               {hasTitle && (
                 <p className="text-slate-900 font-bold text-xs">
-                  {formatProjectTitle(team.projectTitle, team.titleStatus)}
+                  {getSubmissionTitle(team.projectTitle)}
                 </p>
               )}
             </div>

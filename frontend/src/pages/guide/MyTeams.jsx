@@ -7,7 +7,7 @@ import {
 import { useGuide } from '../../context/GuideContext';
 import { MarksService } from '../../services/marksService';
 import { StudentService } from '../../services/studentService';
-import { formatProjectTitle } from '../../utils/titleUtils';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
 export const ALL_SUBMISSIONS = [
   { submissionNumber: 1, weekNumber: 1, defaultTitle: 'Project Initiation & Title Proposal' },
@@ -188,7 +188,7 @@ export const MyTeams = () => {
     let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     let content = '';
 
-    const formattedTitle = formatProjectTitle(activeTeamForModal?.projectTitle, sub.status);
+    const formattedTitle = getSubmissionTitle(activeTeamForModal?.projectTitle);
 
     if (fileType === 'pdf') {
       mimeType = 'application/pdf';
@@ -273,7 +273,7 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
       )}
 
       {/* 1. FILTERING TOOLBAR ONLY (Starts directly from filtering: batch, class, name) */}
-      <div className="bg-white p-4 rounded-2xl border border-[#D8CCBA] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+      <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#D8CCBA] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
         
         {/* Search by Name / Team / Title */}
         <div className="relative flex-1 max-w-md">
@@ -390,10 +390,32 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
 
                         {/* 3. Title */}
                         <td className="p-4">
-                          <div className="font-serif font-bold text-[#111111] text-xs leading-snug line-clamp-2">
-                            {formatProjectTitle(team.projectTitle, team.titleStatus)}
-                          </div>
-                          <span className="text-[10px] text-[#75695A] block mt-0.5">
+                          {(() => {
+                            const isSub1Approved = team.titleStatus === 'Approved' || team.isTitleApproved || StudentService.isSubmission1Approved(team.teamId || team.id);
+                            const formatted = formatProjectTitle(team.projectTitle, isSub1Approved ? 'Approved' : team.titleStatus, isSub1Approved);
+                            const isApproved = formatted !== 'No Title Submitted' && formatted !== 'Title Approval Pending';
+                            const isPending = formatted === 'Title Approval Pending';
+                            if (isApproved) {
+                              return (
+                                <div className="font-serif font-bold text-[#111111] text-xs leading-snug line-clamp-2">
+                                  {formatted}
+                                </div>
+                              );
+                            } else if (isPending) {
+                              return (
+                                <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md text-[11px] inline-flex items-center gap-1">
+                                  <Clock size={11} /> Title Approval Pending
+                                </span>
+                              );
+                            } else {
+                              return (
+                                <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-md text-[11px]">
+                                  No Title Submitted
+                                </span>
+                              );
+                            }
+                          })()}
+                          <span className="text-[10px] text-[#75695A] block mt-1">
                             Batch: <strong>{team.batch}</strong> &bull; Advisor: <strong>{team.advisor}</strong>
                           </span>
                         </td>
@@ -448,7 +470,6 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
                                     <tr>
                                       <th className="p-3">Roll No</th>
                                       <th className="p-3">Student Candidate</th>
-                                      <th className="p-3">Institutional Email</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[#D8CCBA]">
@@ -456,7 +477,6 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
                                       <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#F8F5EE]/50'}>
                                         <td className="p-3 font-mono font-bold text-[#111111]">{m.rollNo}</td>
                                         <td className="p-3 font-bold text-[#111111]">{m.name}</td>
-                                        <td className="p-3 font-mono text-[11px] text-[#75695A]">{m.email}</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -594,7 +614,7 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
                 </span>
                 <div>
                   <h3 className="text-sm font-serif font-bold text-[#111111] truncate max-w-md sm:max-w-lg">
-                    {formatProjectTitle(activeTeamForModal.projectTitle, activeSubModal.status || activeTeamForModal.titleStatus)}
+                    {getSubmissionTitle(activeTeamForModal.projectTitle)}
                   </h3>
                   <p className="text-[11px] text-[#75695A] font-semibold">
                     Class {activeTeamForModal.classSection || `${activeTeamForModal.class}-${activeTeamForModal.section}`} &bull; Submission {activeSubModal.submissionNumber}
@@ -652,7 +672,7 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
                 </h4>
                 {activeTeamForModal.projectTitle && activeTeamForModal.projectTitle.trim() ? (
                   <p className="text-xs font-bold text-[#111111] leading-relaxed">
-                    {formatProjectTitle(activeTeamForModal.projectTitle, activeSubModal.status || activeTeamForModal.titleStatus)}
+                    {getSubmissionTitle(activeTeamForModal.projectTitle)}
                   </p>
                 ) : (
                   <span className="text-rose-600 font-bold text-xs">Not Submitted</span>
@@ -822,6 +842,54 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
 
                 </div>
               </div>
+
+              {/* 7. Assigned Milestone Evaluation & Individual Student Marks Breakdown */}
+              {(() => {
+                const subNum = activeSubModal.submissionNumber || (activeSubModal.weekNumber !== undefined ? activeSubModal.weekNumber + 1 : 1);
+                const marksRec = MarksService.getWeeklyMarks(activeTeamForModal.teamId, subNum, activeTeamForModal.members?.map(m => m.rollNo)) ||
+                                 (subNum === 1 ? MarksService.getWeeklyMarks(activeTeamForModal.teamId, 0, activeTeamForModal.members?.map(m => m.rollNo)) : null);
+                if (!marksRec) return null;
+
+                return (
+                  <div className="space-y-3 p-4 rounded-2xl bg-[#EBF0E9] border border-[#BFCEB9]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Award size={16} className="text-[#4A5844]" />
+                        <h4 className="text-xs font-serif font-bold text-[#111111] uppercase tracking-wider">
+                          Evaluation Scores &amp; Individual Student Marks
+                        </h4>
+                      </div>
+                      <span className="px-3 py-1 rounded-xl bg-white border border-[#BFCEB9] font-extrabold text-xs text-[#4A5844]">
+                        Team Average: {marksRec.teamAverage} / 100
+                      </span>
+                    </div>
+
+                    {/* Individual Marks Roster */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(activeTeamForModal.members || []).map((member) => {
+                        const mScore = marksRec.memberMarks?.[member.rollNo] ?? marksRec.teamAverage;
+                        return (
+                          <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-[#BFCEB9] flex items-center justify-between gap-2">
+                            <div className="truncate">
+                              <span className="font-bold text-[#111111] text-xs block truncate">{member.name}</span>
+                              <span className="font-mono text-[10px] text-[#75695A]">{member.rollNo}</span>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-[#EBF0E9] border border-[#BFCEB9] font-extrabold text-xs text-[#4A5844] shrink-0">
+                              {mScore} / 100
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {marksRec.remarks && (
+                      <p className="text-xs text-[#4A5844] font-medium pt-1 border-t border-[#BFCEB9]/60 italic">
+                        &ldquo;{marksRec.remarks}&rdquo; &bull; Evaluated by {marksRec.gradedBy}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
             </div>
 

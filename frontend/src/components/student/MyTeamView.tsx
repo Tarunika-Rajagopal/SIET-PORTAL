@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StudentTeamExtended } from '../../services/studentService';
+import { StudentService, StudentTeamExtended } from '../../services/studentService';
 import { MarksService, WeeklyMarksRecord } from '../../services/marksService';
 import { getUserInitials } from '../../services/authService';
 import { formatProjectTitle } from '../../utils/titleUtils';
@@ -41,9 +41,13 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
   };
 
   // Retrieve assigned mark for a member and review milestone
+  // Review 1 = Submission 1, Review 2 = Submission 2, Review 3 = Submission 3, Review 4 = Submission 4
   const getMemberReviewMark = (rollNo: string, reviewIndex: number) => {
-    // candidate weeks for reviewIndex: review 1 -> week 0, 1; review 2 -> week 1, 2; etc.
-    const candidateWeeks = [reviewIndex - 1, reviewIndex];
+    // Review 1 checks week 1 then fallback week 0.
+    // Review 2 strictly checks week 2.
+    // Review 3 strictly checks week 3.
+    // Review 4 strictly checks week 4.
+    const candidateWeeks = reviewIndex === 1 ? [1, 0] : [reviewIndex];
     for (const w of candidateWeeks) {
       const rec = marksRecords[w];
       if (rec && rec.memberMarks && rec.memberMarks[rollNo] !== undefined && typeof rec.memberMarks[rollNo] === 'number') {
@@ -92,7 +96,12 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
               Project Title
             </span>
             <h2 className="text-lg sm:text-xl font-serif font-bold text-[#111111] leading-snug">
-              {formatProjectTitle(team.projectTitle, team.guideApprovalStatus, team.isTitleApproved)}
+              {(() => {
+                const isSub1Approved = StudentService.isSubmission1Approved(team.id);
+                const sub1Deliverables = isSub1Approved ? StudentService.getDeliverables('Submission 1') : null;
+                const displayTitle = (isSub1Approved && sub1Deliverables?.projectTitle) ? sub1Deliverables.projectTitle : team.projectTitle;
+                return formatProjectTitle(displayTitle, isSub1Approved ? 'Approved' : team.guideApprovalStatus, isSub1Approved || team.isTitleApproved);
+              })()}
             </h2>
           </div>
 

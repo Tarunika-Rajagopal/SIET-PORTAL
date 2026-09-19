@@ -7,6 +7,8 @@ import {
 import { ClassTeam, TeamMemberRecord, AdvisorService } from '../../services/advisorService';
 import { AdminFaculty, AdminStudent } from '../../services/adminService';
 import { MarksService } from '../../services/marksService';
+import { StudentService } from '../../services/studentService';
+import { formatProjectTitle } from '../../utils/titleUtils';
 
 export interface AdvisorAllTeamsTableViewProps {
   teams: ClassTeam[];
@@ -518,16 +520,39 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
                           </div>
                         </td>
 
-                        {/* 5. Project Title: Primary truncated project title with tooltip support, with project domain beneath */}
+                        {/* 5. Project Title: Primary truncated project title if approved, or status badge if not approved */}
                         <td className="py-4 px-3">
                           <div className="max-w-[240px]">
-                            <p 
-                              className="font-bold text-[#111111] truncate"
-                              title={team.title || 'Project proposal pending submission'}
-                            >
-                              {team.title || <span className="text-[#75695A]/60 italic font-normal">Pending Proposal Submission</span>}
-                            </p>
-                            <span className="inline-block mt-0.5 text-[10px] font-bold uppercase tracking-wider text-[#75695A] bg-[#EDE7DB] border border-[#D8CCBA] px-1.5 py-0.5 rounded">
+                            {(() => {
+                              const isSub1Approved = team.status === 'Approved' || (team as any).isTitleApproved || StudentService.isSubmission1Approved(team.teamId);
+                              const formatted = formatProjectTitle(team.title, isSub1Approved ? 'Approved' : team.status, isSub1Approved);
+                              const isApproved = formatted !== 'No Title Submitted' && formatted !== 'Title Approval Pending';
+                              const isPending = formatted === 'Title Approval Pending';
+
+                              if (isApproved) {
+                                return (
+                                  <p 
+                                    className="font-bold text-[#111111] truncate text-xs"
+                                    title={formatted}
+                                  >
+                                    {formatted}
+                                  </p>
+                                );
+                              } else if (isPending) {
+                                return (
+                                  <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md text-[11px] inline-flex items-center gap-1">
+                                    <Clock size={11} /> Title Approval Pending
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md text-[11px]">
+                                    No Title Submitted
+                                  </span>
+                                );
+                              }
+                            })()}
+                            <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider text-[#75695A] bg-[#EDE7DB] border border-[#D8CCBA] px-1.5 py-0.5 rounded">
                               {team.domain || 'General'}
                             </span>
                           </div>

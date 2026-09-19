@@ -8,7 +8,7 @@ import {
 import { useGuide } from '../../context/GuideContext';
 import { MarksService } from '../../services/marksService';
 import { StudentService } from '../../services/studentService';
-import { formatProjectTitle } from '../../utils/titleUtils';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { hasAnyDetailSubmitted } from '../../utils/submissionUtils';
 
 export const ApproveProject = () => {
@@ -73,20 +73,24 @@ export const ApproveProject = () => {
     
     // Look for any pending/unapproved submission first
     const pending = subs.find(s => 
+      s.evaluationStatus === 'Pending' || 
+      s.evaluationStatus === 'Submitted' || 
+      s.evaluationStatus === 'Revision Required' || 
       s.status === 'Pending' || 
       s.status === 'Submitted' || 
-      s.evaluationStatus === 'Pending' || 
-      s.evaluationStatus === 'Submitted' ||
+      s.submissionStatus === 'Submitted On Time' ||
+      s.submissionStatus === 'Submitted' ||
       s.status === 'Changes Requested' ||
-      s.evaluationStatus === 'Revision Required' ||
+      s.status === 'Revision Required' ||
       s.status === 'Rejected'
     );
     if (pending) {
-      const weekNum = pending.weekNumber !== undefined ? pending.weekNumber : (pending.week !== undefined ? pending.week : 1);
+      const subNum = pending.submissionNumber || (pending.weekNumber !== undefined ? pending.weekNumber + 1 : (pending.week !== undefined ? pending.week + 1 : 1));
+      const weekNum = pending.weekNumber !== undefined ? pending.weekNumber : (pending.week !== undefined ? pending.week : (subNum - 1));
       return {
         ...pending,
         weekNumber: weekNum,
-        submissionNumber: Math.max(1, Number(weekNum || 1)),
+        submissionNumber: subNum,
         isCurrentWait: true
       };
     }
@@ -123,7 +127,7 @@ export const ApproveProject = () => {
       // If there is no active unapproved submission, or if it is already approved, DO NOT SHOW!
       if (!sub) return false;
       
-      const isApproved = sub.status === 'Approved' || sub.evaluationStatus === 'Approved' || (team.titleStatus === 'Approved' && !sub.isCurrentWait);
+      const isApproved = sub.status === 'Approved' || sub.evaluationStatus === 'Approved';
       if (isApproved) return false;
 
       const teamClass = team.classSection || (team.class && team.section ? `${team.class}-${team.section}` : team.class) || '';
@@ -132,11 +136,11 @@ export const ApproveProject = () => {
       const subStatus = sub?.status || sub?.evaluationStatus || team.titleStatus || 'Pending';
       let matchesStatus = true;
       if (statusFilter === 'PENDING') {
-        matchesStatus = subStatus === 'Pending' || subStatus === 'Submitted';
+        matchesStatus = subStatus === 'Pending' || subStatus === 'Submitted' || sub?.evaluationStatus === 'Pending' || sub?.submissionStatus === 'Submitted On Time' || sub?.submissionStatus === 'Submitted';
       } else if (statusFilter === 'REVISION') {
-        matchesStatus = subStatus === 'Revision Required' || subStatus === 'Changes Requested';
+        matchesStatus = subStatus === 'Revision Required' || subStatus === 'Changes Requested' || sub?.evaluationStatus === 'Revision Required';
       } else if (statusFilter === 'REJECTED') {
-        matchesStatus = subStatus === 'Rejected';
+        matchesStatus = subStatus === 'Rejected' || sub?.evaluationStatus === 'Rejected';
       }
 
       const q = searchTerm.toLowerCase();
@@ -200,8 +204,12 @@ export const ApproveProject = () => {
       }
     }
 
-    const subNumber = inspectedSub.submissionNumber || inspectedSub.weekNumber || 1;
-    const weekNum = inspectedSub.weekNumber !== undefined ? inspectedSub.weekNumber : subNumber;
+    const subNumber = inspectedSub.submissionNumber || 
+                      (inspectedSub.weekNumber !== undefined ? inspectedSub.weekNumber + 1 : 
+                      (inspectedSub.week !== undefined ? inspectedSub.week + 1 : 1));
+    const weekNum = inspectedSub.weekNumber !== undefined 
+                      ? inspectedSub.weekNumber 
+                      : (inspectedSub.week !== undefined ? inspectedSub.week : (subNumber - 1));
 
     // Convert to numerical dictionary
     const finalMemberMarks = {};
@@ -217,13 +225,52 @@ export const ApproveProject = () => {
       guideRemarks.trim() || 'Satisfactory deliverables. Approved by Faculty Guide.',
       facultyProfile?.name || 'Faculty Guide'
     );
+    if (subNumber === 1) {
+      MarksService.saveWeeklyMarks(
+        inspectedTeam.teamId,
+        0,
+        finalMemberMarks,
+        guideRemarks.trim() || 'Satisfactory deliverables. Approved by Faculty Guide.',
+        facultyProfile?.name || 'Faculty Guide'
+      );
+    }
 
     // 2. Mark submission as evaluated & approved in GuideContext
     if (evaluateWeeklySubmission) {
       evaluateWeeklySubmission(inspectedTeam.teamId, weekNum, guideRemarks.trim() || 'Approved by Faculty Guide.');
     }
-    if (approveTitle) {
+    if (approveTitle && subNumber === 1) {
       approveTitle(inspectedTeam.teamId);
+    }
+
+    // 3. Immediately synchronize approval status to Student submissions list
+    try {
+      const studentSubs = StudentService.getSubmissions();
+      const targetWeek = subNumber - 1;
+      let sItem = studentSubs.find(s => s.week === targetWeek || s.week === weekNum);
+      if (sItem) {
+        sItem.status = 'Approved';
+        sItem.comments = guideRemarks.trim() || 'Approved by Faculty Guide.';
+        StudentService.saveSubmissions(studentSubs);
+      }
+    } catch (e) {}
+
+    // 4. Immediately synchronize approved title to Student and Advisor stores if Submission 1
+    const approvedTitle = inspectedSub.projectTitle || inspectedTeam.projectTitle || inspectedTeam.title;
+    if (approvedTitle && subNumber === 1) {
+      try {
+        const sTeam = StudentService.getTeam();
+        sTeam.isTitleApproved = true;
+        sTeam.guideApprovalStatus = 'Approved';
+        sTeam.projectTitle = approvedTitle;
+        sTeam.submittedTitle = approvedTitle;
+        StudentService.saveTeam(sTeam);
+
+        const d1 = StudentService.getDeliverables('Submission 1');
+        d1.isTitleApproved = true;
+        d1.projectTitle = approvedTitle;
+        localStorage.setItem('siet_deliverable_v6_submission_1', JSON.stringify(d1));
+      } catch (e) {}
     }
 
     showToast(`Submission ${subNumber} for Team #${inspectedTeam.teamNumber} approved with average score (${calculatedTeamAverage}/100).`, 'success');
@@ -275,7 +322,7 @@ export const ApproveProject = () => {
     let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     let content = '';
 
-    const formattedTitle = formatProjectTitle(inspectedTeam?.projectTitle, sub.status || inspectedTeam?.titleStatus);
+    const formattedTitle = getSubmissionTitle(inspectedTeam?.projectTitle);
 
     if (fileType === 'pdf') {
       mimeType = 'application/pdf';
@@ -359,7 +406,7 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
       )}
 
       {/* 1. FILTERING TOOLBAR ONLY (Starts directly from filtering) */}
-      <div className="bg-white p-4 rounded-2xl border border-[#D8CCBA] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+      <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#D8CCBA] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
         
         {/* Live Search */}
         <div className="relative flex-1 max-w-md">
@@ -479,7 +526,7 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
                         {/* 3. Title */}
                         <td className="p-4">
                           <div className="font-serif font-bold text-[#111111] text-xs leading-snug line-clamp-2">
-                            {formatProjectTitle(team.projectTitle, activeSub?.status || team.titleStatus)}
+                            {getSubmissionTitle(team.projectTitle, 'No Title Submitted')}
                           </div>
                           <span className="text-[10px] text-[#75695A] block mt-0.5">
                             Lead: <strong>{team.teamLeader}</strong> ({team.leaderRollNo})
@@ -552,7 +599,6 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
                                     <tr>
                                       <th className="p-3">Roll No</th>
                                       <th className="p-3">Student Candidate</th>
-                                      <th className="p-3">Institutional Email</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-[#D8CCBA]">
@@ -560,7 +606,6 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
                                       <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#F8F5EE]/50'}>
                                         <td className="p-3 font-mono font-bold text-[#111111]">{m.rollNo}</td>
                                         <td className="p-3 font-bold text-[#111111]">{m.name}</td>
-                                        <td className="p-3 font-mono text-[11px] text-[#75695A]">{m.email}</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -596,7 +641,7 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
                 </span>
                 <div>
                   <h3 className="text-sm font-serif font-bold text-[#111111] truncate max-w-md sm:max-w-lg">
-                    {formatProjectTitle(inspectedTeam.projectTitle, inspectedSub.status || inspectedTeam.titleStatus)}
+                    {getSubmissionTitle(inspectedTeam.projectTitle)}
                   </h3>
                   <p className="text-[11px] text-[#75695A] font-semibold">
                     Class {inspectedTeam.classSection || `${inspectedTeam.class}-${inspectedTeam.section}`} &bull; Submission {inspectedSub.submissionNumber || 1}
@@ -638,7 +683,7 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
                 </h4>
                 {inspectedTeam.projectTitle && inspectedTeam.projectTitle.trim() ? (
                   <p className="text-xs font-bold text-[#111111] leading-relaxed">
-                    {formatProjectTitle(inspectedTeam.projectTitle, inspectedSub.status || inspectedTeam.titleStatus)}
+                    {getSubmissionTitle(inspectedTeam.projectTitle)}
                   </p>
                 ) : (
                   <span className="text-rose-600 font-bold text-xs">Not Submitted</span>
@@ -811,7 +856,7 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
 
               {/* 4. GUIDE DECISION FORMS: INDIVIDUAL MARKS PER MEMBER */}
               {activeDecision === 'approve' && (
-                <div className="p-4 bg-emerald-50/60 border border-emerald-300 rounded-2xl space-y-4 animate-fadeIn">
+                <div id="marksAssignmentSection" className="p-4 bg-emerald-50/60 border border-emerald-300 rounded-2xl space-y-4 animate-fadeIn">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
                       <Award size={16} className="text-emerald-700" />
@@ -1044,6 +1089,9 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
                   onClick={() => {
                     setActiveDecision('approve');
                     setDecisionError('');
+                    setTimeout(() => {
+                      document.getElementById('marksAssignmentSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
                   }}
                   className="px-4 py-2 text-xs font-extrabold text-white bg-mint-500 hover:bg-mint-600 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
                 >

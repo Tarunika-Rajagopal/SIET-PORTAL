@@ -57,6 +57,46 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
         return true;
       });
 
+      // Check Submissions 2, 3, 4 (weeks 1, 2, 3) for real submitted deliverables
+      for (let w = 1; w < 4; w++) {
+        const subNum = w + 1;
+        if (!validSubs.some(s => s.week === w)) {
+          const dW = StudentService.getDeliverables(`Submission ${subNum}`);
+          const hasActualSubmission = Boolean(
+            dW.submittedFields?.technologyUsed ||
+            dW.submittedFields?.obstaclesFaced ||
+            dW.submittedFields?.abstract ||
+            dW.submittedFields?.presentation ||
+            dW.submittedFields?.report ||
+            dW.submittedFields?.repoUrl ||
+            dW.submittedFields?.demoUrl ||
+            dW.submittedFields?.screenshot
+          );
+          if (hasActualSubmission) {
+            validSubs.push({
+              week: w,
+              title: `Submission ${subNum} Deliverable Submission`,
+              dueDate: `Submission ${subNum}`,
+              status: 'Submitted',
+              submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+              projectTitle: dW.projectTitle || d0.projectTitle || sTeam.submittedTitle || sTeam.projectTitle || '',
+              problemStatement: dW.problemStatement || '',
+              solution: dW.solution || '',
+              technologyUsed: dW.technologyUsed || '',
+              obstaclesFaced: dW.obstaclesFaced || '',
+              abstract: dW.abstract || '',
+              presentationFile: dW.presentationFile || '',
+              pdfFile: dW.reportFile || '',
+              fileName: dW.presentationFile || dW.reportFile || '',
+              repoUrl: dW.repoUrl || '',
+              demoUrl: dW.demoUrl || '',
+              screenshotFile: dW.screenshotFile || '',
+              guideName: 'Dr. P. Manimegalai'
+            });
+          }
+        }
+      }
+
       const hasStudentDetails = Boolean(
         sTeam.submittedTitle || 
         d0.projectTitle || 
@@ -93,33 +133,47 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
       }
 
       const mappedSubmissions = validSubs.map(sub => {
-        const isPdf = Boolean(sub.pdfFile || (sub.presentationFile && sub.presentationFile.toLowerCase().endsWith('.pdf')));
-        const isPpt = Boolean(sub.presentationFile && (sub.presentationFile.toLowerCase().endsWith('.ppt') || sub.presentationFile.toLowerCase().endsWith('.pptx')));
-        const isSubApproved = currentTitleStatus === 'Approved' || sub.status === 'Approved';
+        const subNum = sub.week + 1;
+        const dWeek = StudentService.getDeliverables(`Submission ${subNum}`);
+        const isPdf = Boolean(sub.pdfFile || (sub.presentationFile && sub.presentationFile.toLowerCase().endsWith('.pdf')) || (dWeek.reportFile && dWeek.reportFile.toLowerCase().endsWith('.pdf')));
+        const isPpt = Boolean(sub.presentationFile && (sub.presentationFile.toLowerCase().endsWith('.ppt') || sub.presentationFile.toLowerCase().endsWith('.pptx')) || (dWeek.presentationFile && (dWeek.presentationFile.toLowerCase().endsWith('.ppt') || dWeek.presentationFile.toLowerCase().endsWith('.pptx'))));
+        const isWeek0 = sub.week === 0;
+        const isSubApproved = isWeek0
+          ? (currentTitleStatus === 'Approved' || sub.status === 'Approved')
+          : (sub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, sTeam.id));
+
+        const pFile = sub.presentationFile || dWeek.presentationFile || (isWeek0 ? d0.presentationFile : '') || '';
+        const rFile = sub.pdfFile || dWeek.reportFile || (isWeek0 ? d0.reportFile : '') || '';
+        const evalStatus = isSubApproved ? 'Approved' : (sub.status === 'Changes Requested' || sub.status === 'Rejected') ? 'Revision Required' : 'Pending';
 
         return {
           weekNumber: sub.week,
-          title: sub.title || `Week ${sub.week}`,
+          submissionNumber: subNum,
+          title: sub.title || `Submission ${subNum}`,
           submissionDate: sub.submissionDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           submissionStatus: isSubApproved ? 'Approved' : 'Submitted On Time',
-          evaluationStatus: isSubApproved ? 'Approved' : (sub.status === 'Changes Requested' || sub.status === 'Rejected') ? 'Revision Required' : 'Pending',
+          evaluationStatus: evalStatus,
+          status: evalStatus === 'Approved' ? 'Approved' : evalStatus === 'Revision Required' ? 'Revision Required' : 'Submitted',
           isLocked: isSubApproved,
           guideRemarks: sub.comments || '',
-          abstractSummary: sub.abstract || d0.abstract || '',
-          problemStatement: sub.problemStatement || d0.problemStatement || '',
-          proposedSolution: sub.solution || d0.solution || '',
-          technologiesUsed: sub.technologyUsed ? sub.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (d0.technologyUsed ? d0.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : []),
-          githubUrl: sub.repoUrl || d0.repoUrl || '',
-          liveDemoUrl: sub.demoUrl || d0.demoUrl || '',
-          presentationFileName: sub.presentationFile || '',
-          reportUrl: sub.pdfFile || (isPdf ? sub.presentationFile : ''),
-          pptUrl: isPpt ? sub.presentationFile : '',
-          images: sub.screenshotFile ? [sub.screenshotFile] : [],
-          obstaclesFaced: sub.obstaclesFaced || d0.obstaclesFaced || '',
-          problemsFaced: sub.obstaclesFaced || d0.obstaclesFaced || '',
+          abstractSummary: sub.abstract || dWeek.abstract || (isWeek0 ? d0.abstract : '') || '',
+          problemStatement: sub.problemStatement || dWeek.problemStatement || d0.problemStatement || '',
+          proposedSolution: sub.solution || dWeek.solution || d0.solution || '',
+          technologiesUsed: sub.technologyUsed ? sub.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (dWeek.technologyUsed ? dWeek.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (d0.technologyUsed ? d0.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : [])),
+          githubUrl: sub.repoUrl || dWeek.repoUrl || (isWeek0 ? d0.repoUrl : '') || '',
+          liveDemoUrl: sub.demoUrl || dWeek.demoUrl || (isWeek0 ? d0.demoUrl : '') || '',
+          presentationFileName: pFile,
+          reportUrl: rFile || (isPdf ? pFile : ''),
+          pptUrl: isPpt ? pFile : '',
+          images: (sub.screenshotFile || dWeek.screenshotFile || (isWeek0 ? d0.screenshotFile : '')) ? [sub.screenshotFile || dWeek.screenshotFile || (isWeek0 ? d0.screenshotFile : '')] : [],
+          obstaclesFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (isWeek0 ? d0.obstaclesFaced : '') || '',
+          problemsFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (isWeek0 ? d0.obstaclesFaced : '') || '',
           nextWeekPlan: ''
         };
       });
+
+      const pendingSub = mappedSubmissions.find(s => s.evaluationStatus === 'Pending' || s.evaluationStatus === 'Revision Required');
+
 
       return {
         ...team,
@@ -134,7 +188,9 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
         titleStatus: currentTitleStatus,
         titleLocked: currentTitleStatus === 'Approved',
         rejectionReason: currentRejectionReason,
-        latestSubmissionStatus: currentTitleStatus === 'Approved'
+        latestSubmissionStatus: pendingSub
+          ? `Submission ${pendingSub.submissionNumber} Deliverables Submitted for Review`
+          : currentTitleStatus === 'Approved'
           ? 'Title Approved – Ready for Weekly Sprints'
           : currentTitleStatus === 'Rejected'
           ? 'Proposal Rejected – Revision Mandated'

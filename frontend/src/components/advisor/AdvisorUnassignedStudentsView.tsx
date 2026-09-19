@@ -57,7 +57,6 @@ export const AdvisorUnassignedStudentsView: React.FC<AdvisorUnassignedStudentsVi
               <tr className="border-b border-gray-200 bg-gray-50 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
                 <th scope="col" className="py-3.5 pl-5 pr-3">Roll Number</th>
                 <th scope="col" className="py-3.5 px-3">Student Name</th>
-                <th scope="col" className="py-3.5 px-3">Official Email</th>
                 <th scope="col" className="py-3.5 px-3">Batch & Class</th>
                 <th scope="col" className="py-3.5 px-3">Allocation Status</th>
                 <th scope="col" className="py-3.5 pl-3 pr-5 text-right">Quick Action</th>
@@ -66,7 +65,7 @@ export const AdvisorUnassignedStudentsView: React.FC<AdvisorUnassignedStudentsVi
             <tbody className="divide-y divide-gray-100 text-xs">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-500">
+                  <td colSpan={5} className="py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Users size={24} className="text-gray-400" />
                       <p className="font-bold text-gray-700">
@@ -88,12 +87,6 @@ export const AdvisorUnassignedStudentsView: React.FC<AdvisorUnassignedStudentsVi
                     </td>
                     <td className="py-3.5 px-3 font-semibold text-gray-900">
                       {student.name}
-                    </td>
-                    <td className="py-3.5 px-3 text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <Mail size={12} className="text-gray-400" />
-                        <span>{student.email}</span>
-                      </div>
                     </td>
                     <td className="py-3.5 px-3 text-gray-600">
                       {student.batch || '2023-2027'} &bull; {student.classSection || 'CSE-B'}

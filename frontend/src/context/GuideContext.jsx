@@ -129,13 +129,18 @@ export const GuideProvider = ({ children }) => {
     setAllTeams(prevTeams => {
       const nextTeams = prevTeams.map(team => {
         if (isTargetTeam(team, teamId)) {
-          let updatedSubmissions = (team.submissions || []).map(s => ({
-            ...s,
-            evaluationStatus: 'Approved',
-            submissionStatus: 'Approved',
-            status: 'Approved',
-            isLocked: true
-          }));
+          let updatedSubmissions = (team.submissions || []).map(s => {
+            if (s.weekNumber === 0 || s.week === 0 || s.submissionNumber === 1) {
+              return {
+                ...s,
+                evaluationStatus: 'Approved',
+                submissionStatus: 'Approved',
+                status: 'Approved',
+                isLocked: true
+              };
+            }
+            return s;
+          });
 
           // Ensure Week 0 submission exists if proposal has details
           const hasWeek0 = updatedSubmissions.some(s => s.weekNumber === 0 || s.week === 0);
@@ -230,12 +235,12 @@ export const GuideProvider = ({ children }) => {
           }
           StudentService.saveTeam(studentTeam);
 
-          // Update student weekly submissions to Approved
+          // Update student weekly submission 1 (week 0) to Approved
           const studentSubs = StudentService.getSubmissions();
-          const updatedSubs = studentSubs.map(s => ({
+          const updatedSubs = studentSubs.map(s => (s.week === 0 ? {
             ...s,
             status: 'Approved'
-          }));
+          } : s));
           StudentService.saveSubmissions(updatedSubs);
 
           // Update Week 0 deliverable
@@ -367,7 +372,11 @@ export const GuideProvider = ({ children }) => {
       prevTeams.map(team => {
         if (isTargetTeam(team, teamId)) {
           const updatedSubmissions = (team.submissions || []).map(sub => {
-            if (sub.weekNumber === Number(weekNumber)) {
+            const isMatch = sub.weekNumber === Number(weekNumber) || 
+                            sub.week === Number(weekNumber) || 
+                            sub.submissionNumber === Number(weekNumber) ||
+                            (Number(weekNumber) > 0 && sub.submissionNumber === Number(weekNumber) + 1);
+            if (isMatch) {
               return {
                 ...sub,
                 evaluationStatus: 'Approved',
@@ -396,7 +405,10 @@ export const GuideProvider = ({ children }) => {
       if (isStudentPortalTeam(updatedTeam)) {
         try {
           const studentSubs = StudentService.getSubmissions();
-          const item = studentSubs.find(s => s.week === Number(weekNumber));
+          const targetWeek = Number(weekNumber) >= 1 && !studentSubs.some(s => s.week === Number(weekNumber)) 
+            ? Number(weekNumber) - 1 
+            : Number(weekNumber);
+          const item = studentSubs.find(s => s.week === targetWeek || s.week === Number(weekNumber));
           if (item) {
             item.status = 'Approved';
             item.comments = remarks || 'Endorsed. Satisfactory technical milestone deliverables.';

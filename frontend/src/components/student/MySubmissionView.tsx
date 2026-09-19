@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { WeeklySubmission } from '../../types';
 import { StudentService } from '../../services/studentService';
 import { MarksService } from '../../services/marksService';
-import { formatProjectTitle } from '../../utils/titleUtils';
+import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
   Calendar, CheckCircle2, Clock, FileText, Upload, AlertTriangle, 
   MessageSquare, RefreshCw, X, FileCode, ExternalLink, Image as ImageIcon,
@@ -43,23 +43,10 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
 
   // Determine active submission:
-  // "Only until the marks are assigned , it should move to the submissions page if edit submission clicked , else edit submission should not show , instead it should move to the next submission and enable every submit button"
+  // Automatically shifts to next submission sequentially as guide approves
   const getActiveSubmissionIndex = () => {
-    let weekIndex = 0;
-    while (weekIndex <= 16) {
-      const rec = MarksService.getWeeklyMarks(teamId, weekIndex, memberRollNos);
-      const hasMarks = Boolean(
-        rec && (
-          rec.teamAverage !== undefined ||
-          (rec.memberMarks && Object.keys(rec.memberMarks).length > 0)
-        )
-      );
-      if (!hasMarks) {
-        break;
-      }
-      weekIndex++;
-    }
-    return weekIndex;
+    const activeSubNum = StudentService.getTeamActiveSubmissionNumber(teamId);
+    return Math.max(0, activeSubNum - 1);
   };
 
   const activeSubmissionIndex = getActiveSubmissionIndex();
@@ -76,6 +63,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   const handleEditSubmission = (subWeek: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     localStorage.setItem('siet_student_start_edit_mode', 'true');
+    localStorage.setItem('siet_student_target_week', String(subWeek));
     window.dispatchEvent(new CustomEvent('student_navigate_submission', { detail: { edit: true, week: subWeek } }));
     if (onNavigateToSubmission) {
       onNavigateToSubmission();
@@ -134,7 +122,7 @@ BT
 0 -25 Td
 (Milestone Deliverable Dossier: Week ${sub.week} - ${sub.title}) Tj
 0 -20 Td
-(Project Title: ${formatProjectTitle(sub.projectTitle, sub.status)}) Tj
+(Project Title: ${getSubmissionTitle(sub.projectTitle)}) Tj
 0 -20 Td
 (Student: Tarunika Rajgopal | Roll No: 714023104112) Tj
 0 -20 Td
@@ -156,7 +144,7 @@ startxref
       mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
       content = `SIET PowerPoint Milestone Presentation
 Milestone: Week ${sub.week} - ${sub.title}
-Project: ${formatProjectTitle(sub.projectTitle, sub.status)}
+Project: ${getSubmissionTitle(sub.projectTitle)}
 Student: Tarunika Rajgopal (714023104112)
 Project Guide: ${sub.guideName || 'Dr. P. Manimegalai'}
 Submission Date: ${sub.submissionDate || 'N/A'}
@@ -216,12 +204,16 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
         ) : (
           <div className="divide-y divide-[#D8CCBA]">
             {displaySubmissions.map((sub) => {
-              const isApproved = sub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved';
+              const subNum = sub.week + 1;
+              const isApproved = sub.week === 0
+                ? (sub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved')
+                : (sub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, teamId));
               const isRevisionRequired = !isApproved && (sub.status === 'Changes Requested' || sub.status === 'Rejected');
-              const marksRec = MarksService.getWeeklyMarks(teamId, sub.week, memberRollNos);
+              const marksRec = MarksService.getWeeklyMarks(teamId, subNum, memberRollNos) ||
+                               (sub.week === 0 ? MarksService.getWeeklyMarks(teamId, 0, memberRollNos) : null);
               const isMarksAssigned = Boolean(
                 marksRec && (
-                  marksRec.teamAverage !== undefined ||
+                  (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
                   (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
                 )
               );
@@ -264,7 +256,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                       </div>
 
                       <p className="text-xs font-bold text-slate-800">
-                        {formatProjectTitle(sub.projectTitle, sub.status)}
+                        {getSubmissionTitle(sub.projectTitle)}
                       </p>
 
                       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
@@ -344,7 +336,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     {isRevisionRequired ? (
                       <button
                         type="button"
-                        onClick={(e) => handleOpenResubmit(sub, e)}
+                        onClick={(e) => handleEditSubmission(sub.week, e)}
                         className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-extrabold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <RefreshCw size={13} />
@@ -391,12 +383,16 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
       {/* Comprehensive Submission Detail Modal (Screenshot sections removed as requested) */}
       {detailModalOpen && activeWeekSub && (() => {
-        const isModalApproved = activeWeekSub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved';
+        const subNum = activeWeekSub.week + 1;
+        const isModalApproved = activeWeekSub.week === 0
+          ? (activeWeekSub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved')
+          : (activeWeekSub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, teamId));
         const isModalRevision = !isModalApproved && (activeWeekSub.status === 'Changes Requested' || activeWeekSub.status === 'Rejected');
-        const modalMarks = MarksService.getWeeklyMarks(teamId, activeWeekSub.week, memberRollNos);
+        const modalMarks = MarksService.getWeeklyMarks(teamId, subNum, memberRollNos) ||
+                           (activeWeekSub.week === 0 ? MarksService.getWeeklyMarks(teamId, 0, memberRollNos) : null);
         const isModalMarksAssigned = Boolean(
           modalMarks && (
-            modalMarks.teamAverage !== undefined ||
+            (modalMarks.teamAverage !== undefined && modalMarks.teamAverage > 0) ||
             (modalMarks.memberMarks && Object.keys(modalMarks.memberMarks).length > 0)
           )
         );
@@ -457,7 +453,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     Project Title
                   </span>
                   <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs font-bold text-slate-900">
-                    {formatProjectTitle(activeWeekSub.projectTitle, activeWeekSub.status)}
+                    {getSubmissionTitle(activeWeekSub.projectTitle)}
                   </div>
                 </div>
 
