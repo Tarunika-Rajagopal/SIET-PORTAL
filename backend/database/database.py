@@ -18,6 +18,8 @@ else:
 
 SQLITE_FALLBACK = "sqlite+aiosqlite:///./siet_portal.db"
 
+db_status = {"connected": False, "error": None}
+
 try:
     engine = create_async_engine(_db_url, echo=False, pool_pre_ping=True)
 except Exception:
@@ -41,9 +43,11 @@ async def init_db():
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        db_status["connected"] = True
     except Exception as exc:
         print(f"[DB] Remote failed ({exc}), falling back to SQLite")
         engine = create_async_engine(SQLITE_FALLBACK, echo=False)
         async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        db_status["connected"] = True

@@ -4,7 +4,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from database import init_db, async_session, db_status
-from models import User, Faculty, Student, Team, TeamMember, WeeklySubmission, Checklist
+from models import (
+    User, Faculty, Student, Team, TeamMember, WeeklySubmission,
+    Checklist, WeeklyMark, WeeklyMemberMark, TitleApproval,
+)
 from sqlalchemy import select
 import uuid
 from datetime import datetime
@@ -14,6 +17,10 @@ from routers.auth_router import router as auth_router
 from routers.student_router import router as student_router
 from routers.guide_router import router as guide_router
 from routers.project_router import router as project_router
+from routers.admin_router import router as admin_router
+from routers.hod_router import router as hod_router
+from routers.advisor_router import router as advisor_router
+from routers.marks_router import router as marks_router
 
 
 async def seed_initial_data():
@@ -223,6 +230,43 @@ async def seed_initial_data():
         await session.commit()
         print("[Seed] Seed data committed successfully.")
 
+        # 5. Seed Faculty records
+        existing_fac = (await session.execute(select(Faculty).limit(1))).scalar_one_or_none()
+        if not existing_fac:
+            faculties = [
+                Faculty(id=uuid.uuid4(), name="Dr. R. Karthikeyan", email="dr.karthik@siet.ac.in",
+                        designation="Professor", role="Advisor & Guide",
+                        advisor_batch="2023-2027 (III Year)", advisor_class="CSE-B",
+                        specialization="Cloud Distributed Systems & Cybersecurity",
+                        teams_count=4, max_quota=5, status="Active"),
+                Faculty(id=uuid.uuid4(), name="Dr. A. Ramesh", email="ramesh.a@siet.ac.in",
+                        designation="Associate Professor", role="Advisor",
+                        advisor_batch="2023-2027 (III Year)", advisor_class="CSE-A",
+                        specialization="VLSI & Embedded Systems", max_quota=5, status="Active"),
+                Faculty(id=uuid.uuid4(), name="Dr. S. Kavitha", email="kavitha.s@siet.ac.in",
+                        designation="Assistant Professor", role="Advisor",
+                        advisor_batch="2023-2027 (III Year)", advisor_class="CSE-C",
+                        specialization="Data Mining & Machine Learning", max_quota=5, status="Active"),
+                Faculty(id=uuid.uuid4(), name="Dr. P. Manimegalai", email="manimegalai.p@siet.ac.in",
+                        designation="Associate Professor", role="Guide",
+                        specialization="AI, Deep Learning & UAV Vision",
+                        teams_count=4, max_quota=5, status="Active"),
+                Faculty(id=uuid.uuid4(), name="Dr. A. Devipriya", email="devipriya.a@siet.ac.in",
+                        designation="Associate Professor", role="Guide",
+                        specialization="Smart Grids, Blockchain & IoT",
+                        teams_count=3, max_quota=5, status="Active"),
+                Faculty(id=uuid.uuid4(), name="Dr. K. Vignesh", email="vignesh.k@siet.ac.in",
+                        designation="Assistant Professor", role="Guide",
+                        specialization="Edge Computing, Wearables & NLP",
+                        teams_count=5, max_quota=5, status="Active"),
+                Faculty(id=uuid.uuid4(), name="Dr. G. Sivakumar", email="sivakumar.g@siet.ac.in",
+                        designation="Assistant Professor", role="None",
+                        specialization="Cybersecurity & Networks", max_quota=5, status="Available"),
+            ]
+            session.add_all(faculties)
+            await session.commit()
+            print("[Seed] Faculty records seeded.")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -260,6 +304,10 @@ app.include_router(auth_router)
 app.include_router(student_router)
 app.include_router(guide_router)
 app.include_router(project_router)
+app.include_router(admin_router)
+app.include_router(hod_router)
+app.include_router(advisor_router)
+app.include_router(marks_router)
 
 
 @app.exception_handler(Exception)
