@@ -17,6 +17,7 @@ interface MySubmissionViewProps {
 export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, onNavigateToSubmission }) => {
   const [submissions, setSubmissions] = useState<WeeklySubmission[]>(() => StudentService.getSubmissions());
   const [team, setTeam] = useState(() => StudentService.getTeam());
+  const isTeamLead = StudentService.isCurrentUserTeamLead(team);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [activeWeekSub, setActiveWeekSub] = useState<WeeklySubmission | null>(null);
   const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
@@ -62,6 +63,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
 
   const handleEditSubmission = (subWeek: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (!isTeamLead) return;
     localStorage.setItem('siet_student_start_edit_mode', 'true');
     localStorage.setItem('siet_student_target_week', String(subWeek));
     window.dispatchEvent(new CustomEvent('student_navigate_submission', { detail: { edit: true, week: subWeek } }));
@@ -72,6 +74,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
 
   const handleOpenResubmit = (sub: WeeklySubmission, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (!isTeamLead) return;
     setActiveWeekSub(sub);
     setResubmitNotes('');
     setResubmitModalOpen(true);
@@ -79,6 +82,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
 
   const handleResubmitConfirm = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isTeamLead) return;
     if (!activeWeekSub || !resubmitNotes.trim()) return;
 
     StudentService.updateSubmission(activeWeekSub.week, resubmitNotes);
@@ -333,7 +337,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
-                    {isRevisionRequired ? (
+                    {isRevisionRequired && isTeamLead ? (
                       <button
                         type="button"
                         onClick={(e) => handleEditSubmission(sub.week, e)}
@@ -348,8 +352,8 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                         <Award size={13} className="text-emerald-700" />
                         <span>Score: {marksRec?.teamAverage ?? sub.score}/100</span>
                       </span>
-                    ) : (
-                      /* Only until marks are assigned, show Edit Submission which navigates to submission page */
+                    ) : isTeamLead ? (
+                      /* Only until marks are assigned, show Edit Submission for the designated Team Lead */
                       <button
                         type="button"
                         onClick={(e) => handleEditSubmission(sub.week, e)}
@@ -359,7 +363,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                         <Edit3 size={13} />
                         <span>Edit Submission</span>
                       </button>
-                    )}
+                    ) : null}
 
                     <button
                       type="button"
@@ -758,9 +762,8 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
             </div>
 
             {/* Modal Footer */}
-            {/* Modal Footer */}
             <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-between bg-slate-50 shrink-0">
-              {!isModalMarksAssigned ? (
+              {!isModalMarksAssigned && isTeamLead ? (
                 <button
                   type="button"
                   onClick={() => {

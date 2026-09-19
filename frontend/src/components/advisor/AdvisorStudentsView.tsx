@@ -535,10 +535,33 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   const isExpanded = expandedStudentRoll === s.rollNo;
 
                   // Find assigned team for student
-                  const assignedTeam = teams.find(t => 
+                  let assignedTeam = teams.find(t => 
                     (hasTeam && t.teamNo.toLowerCase() === s.teamNo.toLowerCase()) ||
                     t.members.some(m => m.rollNo === s.rollNo)
                   );
+                  if (!assignedTeam) {
+                    const studentTeam = StudentService.getTeam();
+                    if (studentTeam && studentTeam.members?.some((m: any) => m.rollNo === s.rollNo)) {
+                      assignedTeam = {
+                        teamId: studentTeam.id || 'TEAM-CSE-Y3-B04',
+                        teamNo: studentTeam.teamNo || 'Team 04',
+                        class: studentTeam.section || className,
+                        batch: studentTeam.batch || batch,
+                        title: studentTeam.projectTitle || studentTeam.submittedTitle || '',
+                        guide: studentTeam.guideName || s.guide || 'Dr. P. Manimegalai',
+                        status: (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved') ? 'Approved' : 'Pending',
+                        capacity: 4,
+                        membersCount: studentTeam.members.length,
+                        leadStudent: studentTeam.members.find((m: any) => m.role?.toLowerCase().includes('lead') || (m as any).isLead)?.name || s.name,
+                        members: studentTeam.members.map((m: any) => ({
+                          rollNo: m.rollNo,
+                          name: m.name,
+                          email: m.email,
+                          isLead: Boolean(m.role?.toLowerCase().includes('lead') || (m as any).isLead)
+                        }))
+                      };
+                    }
+                  }
 
                   // Retrieve submissions and recorded marks for this team
                   const teamSubmissions: WeeklySubmission[] = assignedTeam 
@@ -711,35 +734,18 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                     </div>
                                   )}
                                 </div>
-
-                                {/* View Submissions Action Toggle */}
-                                {assignedTeam && (
-                                  <div className="pt-2.5 flex items-center justify-between border-t border-[#E2E8E4]/60">
-                                    <span className="text-[11px] text-slate-500 font-medium">
-                                      {viewSubmissionsRoll === s.rollNo ? 'Milestone submissions visible' : 'Inspect team milestone deliverables & marks'}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setViewSubmissionsRoll(prev => prev === s.rollNo ? null : s.rollNo);
-                                      }}
-                                      className="px-3.5 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                                    >
-                                      <Eye size={13} />
-                                      <span>{viewSubmissionsRoll === s.rollNo ? 'Hide Submissions' : 'View Submissions'}</span>
-                                    </button>
-                                  </div>
-                                )}
                               </div>
 
-                              {/* 2. Submissions Milestone List (Shown ONLY if View Submissions is clicked) */}
-                              {viewSubmissionsRoll === s.rollNo && (
+                              {/* 2. Submissions Milestone List (Directly visible when student is selected) */}
+                              {assignedTeam && (
                               <div className="bg-white rounded-2xl p-4 border border-[#E2E8E4] shadow-xs space-y-3 animate-fadeIn">
                                 <div className="flex items-center justify-between border-b border-[#E2E8E4] pb-2.5">
                                   <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                                     Project Milestone Deliverables &amp; Progress
                                   </div>
+                                  <span className="text-[11px] text-slate-500 font-medium">
+                                    {teamSubmissions.length > 0 ? `${teamSubmissions.length} milestone submission(s) on record` : 'Submissions on record'}
+                                  </span>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -749,10 +755,12 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                       item.week === weekNum || 
                                       item.title?.toLowerCase().includes(`submission ${submissionNumber}`)
                                     );
-                                    const weekMarks = teamMarksRecords[submissionNumber] || (submissionNumber === 1 ? teamMarksRecords[0] : null);
-                                    const markScore = typeof sub?.score === 'number' 
-                                      ? sub.score 
-                                      : (weekMarks?.teamAverage !== undefined && weekMarks.teamAverage > 0 ? weekMarks.teamAverage : null);
+                                    const weekMarks = teamMarksRecords[submissionNumber] || 
+                                                      (submissionNumber === 1 ? teamMarksRecords[0] : null) ||
+                                                      teamMarksRecords[submissionNumber - 1];
+                                    const markScore = (weekMarks?.teamAverage !== undefined && weekMarks.teamAverage > 0)
+                                      ? weekMarks.teamAverage
+                                      : (typeof sub?.score === 'number' && sub.score > 0 ? sub.score : null);
 
                                     // If submitted
                                     if (sub) {
@@ -832,10 +840,21 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                               )}
                                             </div>
 
-                                            <div className="text-mint-800 font-extrabold text-[11px] flex items-center gap-1 group-hover/sub:translate-x-0.5 transition">
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setInspectionSubmission({
+                                                  sub,
+                                                  team: effectiveTeam,
+                                                  marks: weekMarks
+                                                });
+                                              }}
+                                              className="px-3 py-1 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 font-extrabold text-[11px] flex items-center gap-1 transition cursor-pointer shadow-2xs group-hover/sub:bg-mint-100"
+                                            >
                                               <Eye size={12} />
                                               <span>View Details</span>
-                                            </div>
+                                            </button>
                                           </div>
                                         </div>
                                       );
@@ -959,12 +978,11 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   const subNum = (inspectionSubmission.sub as any).weekNumber !== undefined 
                     ? ((inspectionSubmission.sub as any).weekNumber + 1) 
                     : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week + 1 : 1);
-                  const weekIdx = (inspectionSubmission.sub as any).weekNumber !== undefined 
-                    ? (inspectionSubmission.sub as any).weekNumber 
-                    : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week : 0);
                   const memberRolls = inspectionSubmission.team.members?.map(m => m.rollNo);
                   const marksRec = MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum, memberRolls) ||
-                                   (subNum === 1 ? MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, 0, memberRolls) : null);
+                                   (subNum === 1 ? MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, 0, memberRolls) : null) ||
+                                   MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum - 1, memberRolls) ||
+                                   inspectionSubmission.marks;
                   const hasMarks = Boolean(marksRec && (
                     (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
                     (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
@@ -997,13 +1015,16 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 const subNum = (inspectionSubmission.sub as any).weekNumber !== undefined 
                   ? ((inspectionSubmission.sub as any).weekNumber + 1) 
                   : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week + 1 : 1);
-                const weekIdx = (inspectionSubmission.sub as any).weekNumber !== undefined 
-                  ? (inspectionSubmission.sub as any).weekNumber 
-                  : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week : 0);
                 const memberRolls = inspectionSubmission.team.members?.map(m => m.rollNo);
                 const marksRec = MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum, memberRolls) ||
-                                 (subNum === 1 ? MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, 0, memberRolls) : null);
-                if (!marksRec) return null;
+                                 (subNum === 1 ? MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, 0, memberRolls) : null) ||
+                                 MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum - 1, memberRolls) ||
+                                 inspectionSubmission.marks;
+                const hasMarks = Boolean(marksRec && (
+                  (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
+                  (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
+                ));
+                if (!hasMarks || !marksRec) return null;
 
                 return (
                   <div className="p-4 rounded-2xl bg-mint-50/70 border border-mint-200 space-y-3 shadow-2xs">

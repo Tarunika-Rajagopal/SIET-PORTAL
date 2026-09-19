@@ -9,6 +9,9 @@ interface SubmissionViewProps {
 
 export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => {
   const [team, setTeam] = useState(() => StudentService.getTeam());
+  const isTeamLead = StudentService.isCurrentUserTeamLead(team);
+  const teamLeadMember = StudentService.getTeamLead(team);
+  const teamLeadName = teamLeadMember ? `${teamLeadMember.name}${teamLeadMember.rollNo ? ` (${teamLeadMember.rollNo})` : ''}` : 'the designated Team Lead';
   const teamId = team?.id || 'TEAM-CSE-Y3-B04';
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
 
@@ -94,6 +97,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   });
 
   const handleDateChange = (val: string) => {
+    if (!isTeamLead) return;
     if (!val) {
       setSubmissionDate(todayDateStr);
       return;
@@ -113,7 +117,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     try {
       if (localStorage.getItem('siet_student_start_edit_mode') === 'true') {
         localStorage.removeItem('siet_student_start_edit_mode');
-        return true;
+        return StudentService.isCurrentUserTeamLead();
       }
     } catch (e) {}
     return false;
@@ -122,7 +126,9 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   useEffect(() => {
     const checkEditMode = () => {
       if (localStorage.getItem('siet_student_start_edit_mode') === 'true') {
-        setIsEditing(true);
+        if (StudentService.isCurrentUserTeamLead(team)) {
+          setIsEditing(true);
+        }
         localStorage.removeItem('siet_student_start_edit_mode');
       }
     };
@@ -132,7 +138,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       if (e?.detail?.week !== undefined) {
         setCurrentWeekNumber(e.detail.week);
       }
-      if (e?.detail?.edit) {
+      if (e?.detail?.edit && StudentService.isCurrentUserTeamLead(team)) {
         setIsEditing(true);
       }
     };
@@ -140,7 +146,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     return () => {
       window.removeEventListener('student_navigate_submission', handleNavSubmission);
     };
-  }, []);
+  }, [team]);
 
   useEffect(() => {
     const handleSync = () => {
@@ -248,6 +254,10 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   };
 
   const handleSaveAllChanges = () => {
+    if (!isTeamLead) {
+      alert('Only the designated Team Lead is permitted to perform milestone submissions.');
+      return;
+    }
     const updated = StudentService.saveAllDeliverables(weekText, {
       projectTitle: title,
       problemStatement,
@@ -316,6 +326,10 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
   // Input disabling logic
   const isInputDisabled = (field: keyof StudentDeliverableState['submittedFields']): boolean => {
+    // 0. Only the designated Team Lead can edit or upload deliverables
+    if (!isTeamLead) {
+      return true;
+    }
     // 1. Title, Problem Statement, Solution are carried over & locked in Submissions 2, 3, 4
     if ((field === 'title' || field === 'problemStatement' || field === 'solution') && isCarriedOverLocked(field)) {
       return true;
@@ -359,7 +373,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
               id="submissionDateInput"
               value={submissionDate}
               max={todayDateStr}
-              disabled={(hasSubmission && !isEditing && !isRevisionRequired) || (isEvaluated && !isEditing)}
+              disabled={!isTeamLead || (hasSubmission && !isEditing && !isRevisionRequired) || (isEvaluated && !isEditing)}
               onChange={(e) => handleDateChange(e.target.value)}
               className="px-3 py-1.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#111111] disabled:bg-slate-100 disabled:text-slate-500 cursor-pointer disabled:cursor-default"
             />
@@ -386,8 +400,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             </div>
           )}
 
-          {/* Edit Submission Button (Available whenever submitted and not locked by evaluation, OR during edit) */}
-          {hasSubmission && (!isEvaluated || isEditing) && (
+          {/* Edit Submission Button (Only available to designated Team Lead) */}
+          {isTeamLead && hasSubmission && (!isEvaluated || isEditing) && (
             <button
               type="button"
               onClick={() => setIsEditing(!isEditing)}
@@ -411,6 +425,19 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
           )}
         </div>
       </div>
+
+      {/* Team Lead Submission Access Notice for Non-Lead Members */}
+      {!isTeamLead && (
+        <div className="p-4 rounded-2xl bg-[#F7F2E7] border border-[#DBCFA8] text-[#75695A] flex items-center gap-3 shadow-xs">
+          <div className="p-2 rounded-xl bg-white border border-[#DBCFA8] text-[#8A6A32] shrink-0">
+            <Lock size={16} />
+          </div>
+          <div className="text-xs leading-relaxed">
+            <span className="font-bold text-[#111111] block">Milestone Submission Restricted to Team Lead</span>
+            You are viewing this milestone in read-only mode. Only your designated Team Lead (<strong className="text-[#111111]">{teamLeadName}</strong>) is authorized to submit or modify project deliverables.
+          </div>
+        </div>
+      )}
 
       {/* Guide Rejection Notice Banner */}
       {isTitleRejected && (
@@ -690,7 +717,12 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         {(!isEvaluated || isEditing || isRevisionRequired) && (
           <div className="pt-5 border-t border-[#D8CCBA] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF7F2] p-4 rounded-2xl">
             <div className="text-xs text-[#75695A] font-medium">
-              {!hasSubmission ? (
+              {!isTeamLead ? (
+                <span className="text-[#75695A] font-semibold flex items-center gap-1.5">
+                  <Lock size={14} className="text-[#8A6A32]" />
+                  <span>Submission is restricted to the designated Team Lead ({teamLeadName}). View-only mode.</span>
+                </span>
+              ) : !hasSubmission ? (
                 <span>Ready to submit? Verify your deliverables above and click Submit to send to Guide.</span>
               ) : (isEditing || isRevisionRequired) ? (
                 <span className="text-amber-800 font-bold">Revision / Edit mode active. Update your deliverables above and click Update Submission.</span>
@@ -703,27 +735,29 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             </div>
 
             <div>
-              {!hasSubmission ? (
-                <button
-                  type="button"
-                  id="btnSubmitMilestone"
-                  onClick={handleSaveAllChanges}
-                  className="px-6 py-2.5 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
-                >
-                  <Send size={14} />
-                  <span>Submit {weekText}</span>
-                </button>
-              ) : (isEditing || isRevisionRequired) ? (
-                <button
-                  type="button"
-                  id="btnUpdateMilestone"
-                  onClick={handleSaveAllChanges}
-                  className="px-6 py-2.5 bg-[#111111] hover:bg-black text-[#F8F5EE] font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
-                >
-                  <Check size={14} />
-                  <span>Update {weekText}</span>
-                </button>
-              ) : null}
+              {isTeamLead && (
+                !hasSubmission ? (
+                  <button
+                    type="button"
+                    id="btnSubmitMilestone"
+                    onClick={handleSaveAllChanges}
+                    className="px-6 py-2.5 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                  >
+                    <Send size={14} />
+                    <span>Submit {weekText}</span>
+                  </button>
+                ) : (isEditing || isRevisionRequired) ? (
+                  <button
+                    type="button"
+                    id="btnUpdateMilestone"
+                    onClick={handleSaveAllChanges}
+                    className="px-6 py-2.5 bg-[#111111] hover:bg-black text-[#F8F5EE] font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                  >
+                    <Check size={14} />
+                    <span>Update {weekText}</span>
+                  </button>
+                ) : null
+              )}
             </div>
           </div>
         )}

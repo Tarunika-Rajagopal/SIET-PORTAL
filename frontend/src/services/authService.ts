@@ -13,13 +13,79 @@ export function getUserInitials(name?: string): string {
 }
 
 export const DEFAULT_USERS: User[] = [
-  // 1. Primary Student Account
+  // 1. Primary Student Account (Team Lead)
   {
     email: "student@srishakthi.ac.in",
     password: "student@123",
     name: "Tarunika Rajgopal",
     initials: "TR",
     rollNo: "714023104112",
+    department: "Computer Science and Engineering",
+    year: "III Year",
+    batch: "2023-2027 (III Year)",
+    class: "CSE-B",
+    section: "B",
+    yearSemester: "III Year / VI Semester",
+    role: "student",
+    teamId: "TEAM-CSE-Y3-B04",
+    teamNo: "Team 04",
+    projectTitle: "",
+    guideName: "Dr. P. Manimegalai",
+    advisorName: "Dr. R. Karthikeyan",
+    overallProgress: 0,
+    currentWeek: 0
+  },
+  // 1b. Team Member Account (Non-Lead)
+  {
+    email: "vigneshwaran.m@srishakthi.ac.in",
+    password: "student@123",
+    name: "Vigneshwaran M",
+    initials: "VM",
+    rollNo: "714023104178",
+    department: "Computer Science and Engineering",
+    year: "III Year",
+    batch: "2023-2027 (III Year)",
+    class: "CSE-B",
+    section: "B",
+    yearSemester: "III Year / VI Semester",
+    role: "student",
+    teamId: "TEAM-CSE-Y3-B04",
+    teamNo: "Team 04",
+    projectTitle: "",
+    guideName: "Dr. P. Manimegalai",
+    advisorName: "Dr. R. Karthikeyan",
+    overallProgress: 0,
+    currentWeek: 0
+  },
+  // 1c. Team Member Account (Non-Lead)
+  {
+    email: "vishnupriya.s@srishakthi.ac.in",
+    password: "student@123",
+    name: "Vishnu Priya S",
+    initials: "VP",
+    rollNo: "714023104189",
+    department: "Computer Science and Engineering",
+    year: "III Year",
+    batch: "2023-2027 (III Year)",
+    class: "CSE-B",
+    section: "B",
+    yearSemester: "III Year / VI Semester",
+    role: "student",
+    teamId: "TEAM-CSE-Y3-B04",
+    teamNo: "Team 04",
+    projectTitle: "",
+    guideName: "Dr. P. Manimegalai",
+    advisorName: "Dr. R. Karthikeyan",
+    overallProgress: 0,
+    currentWeek: 0
+  },
+  // 1d. Team Member Account (Non-Lead)
+  {
+    email: "kavitha.r@srishakthi.ac.in",
+    password: "student@123",
+    name: "Kavitha R",
+    initials: "KR",
+    rollNo: "714023104066",
     department: "Computer Science and Engineering",
     year: "III Year",
     batch: "2023-2027 (III Year)",
@@ -106,8 +172,19 @@ export const AuthService = {
     try {
       const stored = localStorage.getItem(USERS_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed.map((u: User) => {
+        const parsed: User[] = JSON.parse(stored);
+        // Ensure newly added default student users are merged into the registered cache if missing
+        const existingEmails = new Set(parsed.map(u => (u.email || '').toLowerCase()));
+        const existingRolls = new Set(parsed.map(u => (u.rollNo || '').toLowerCase()));
+        const missingDefaults = DEFAULT_USERS.filter(d => 
+          !existingEmails.has((d.email || '').toLowerCase()) && 
+          (!d.rollNo || !existingRolls.has(d.rollNo.toLowerCase()))
+        );
+        const merged = [...parsed, ...missingDefaults];
+        if (missingDefaults.length > 0) {
+          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(merged));
+        }
+        return merged.map((u: User) => {
           if (u.email === "dr.karthik@siet.ac.in") {
             return { ...u, role: "advisor", roles: ["advisor"] };
           }
@@ -153,10 +230,17 @@ export const AuthService = {
     const term = (emailOrRoll || '').trim().toLowerCase();
     const allUsers = this.getRegisteredUsers();
 
-    const matchedUser = allUsers.find(u =>
+    let matchedUser = allUsers.find(u =>
       (u.email && u.email.toLowerCase() === term) ||
       (u.rollNo && u.rollNo.toLowerCase() === term)
     );
+
+    if (!matchedUser) {
+      matchedUser = DEFAULT_USERS.find(u =>
+        (u.email && u.email.toLowerCase() === term) ||
+        (u.rollNo && u.rollNo.toLowerCase() === term)
+      );
+    }
 
     if (!matchedUser) {
       return { success: false, message: "Institutional ID or Register Number not found." };

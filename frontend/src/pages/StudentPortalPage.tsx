@@ -20,7 +20,7 @@ export const StudentPortalPage: React.FC = () => {
       setTeam(StudentService.getTeam());
     };
     const handleNavSubmission = (e: any) => {
-      if (e?.detail?.edit) {
+      if (e?.detail?.edit && StudentService.isCurrentUserTeamLead()) {
         localStorage.setItem('siet_student_start_edit_mode', 'true');
       }
       if (e?.detail?.week !== undefined) {
@@ -115,7 +115,9 @@ export const StudentPortalPage: React.FC = () => {
           <MySubmissionView 
             onSuccess={showToast} 
             onNavigateToSubmission={() => {
-              localStorage.setItem('siet_student_start_edit_mode', 'true');
+              if (StudentService.isCurrentUserTeamLead(team)) {
+                localStorage.setItem('siet_student_start_edit_mode', 'true');
+              }
               setActiveTab('submission');
             }} 
           />

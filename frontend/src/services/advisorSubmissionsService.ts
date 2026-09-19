@@ -12,7 +12,7 @@ const GUIDE_TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
  */
 export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmission[] {
   const studentTeam = StudentService.getTeam();
-  const d0 = StudentService.getDeliverables('Week 0');
+  const d0 = StudentService.getDeliverables('Submission 1');
   const rawSubs = StudentService.getSubmissions() || [];
 
   const isGuideApproved = Boolean(
@@ -23,8 +23,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
   // Filter out any legacy mock submissions
   const validSubs: WeeklySubmission[] = rawSubs.filter(s => {
     if (!s || typeof s !== 'object') return false;
-    if (s.presentationFile === 'mock_ppt_w0' || s.presentationFile === 'Week0_Topic_Feasibility_Tarunika.pptx') return false;
-    if (s.title === 'Topic Finalization & Feasibility Defense') return false;
+    if (s.presentationFile === 'mock_ppt_w0') return false;
     return true;
   });
 
@@ -32,11 +31,15 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
     d0.submittedFields?.title ||
     d0.submittedFields?.presentation ||
     d0.submittedFields?.report ||
+    d0.problemStatement ||
+    d0.solution ||
+    d0.abstract ||
     studentTeam.submittedTitle ||
+    studentTeam.projectTitle ||
     d0.projectTitle
   );
 
-  // If Week 0 is not yet in validSubs but student submitted Week 0 deliverables, include it
+  // If Week 0 is not yet in validSubs but student submitted Week 0 / Submission 1 deliverables, include it
   if (!validSubs.some(s => s.week === 0) && hasD0) {
     validSubs.unshift({
       week: 0,
@@ -56,7 +59,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
       repoUrl: d0.repoUrl || '',
       demoUrl: d0.demoUrl || '',
       screenshotFile: d0.screenshotFile || '',
-      guideName: 'Dr. P. Manimegalai'
+      guideName: studentTeam.guideName || 'Dr. P. Manimegalai'
     });
   }
 
@@ -73,14 +76,18 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
         dW.submittedFields?.report ||
         dW.submittedFields?.repoUrl ||
         dW.submittedFields?.demoUrl ||
-        dW.submittedFields?.screenshot
+        dW.submittedFields?.screenshot ||
+        dW.problemStatement ||
+        dW.solution ||
+        dW.abstract ||
+        dW.projectTitle
       );
       if (hasActualSubmission) {
         validSubs.push({
           week: w,
           title: `Submission ${subNum} Deliverable Submission`,
           dueDate: `Submission ${subNum}`,
-          status: 'Submitted',
+          status: StudentService.isSubmissionApproved(subNum, studentTeam.id) ? 'Approved' : 'Submitted',
           submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           projectTitle: dW.projectTitle || d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
           problemStatement: dW.problemStatement || '',
@@ -94,40 +101,60 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
           repoUrl: dW.repoUrl || '',
           demoUrl: dW.demoUrl || '',
           screenshotFile: dW.screenshotFile || '',
-          guideName: 'Dr. P. Manimegalai'
+          guideName: studentTeam.guideName || 'Dr. P. Manimegalai'
         });
       }
     }
   }
 
+  // Also sync guide evaluations / comments from guide storage if available
+  let guideTeamSubs: any[] = [];
+  try {
+    const rawG = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
+    if (rawG) {
+      const gTeams = JSON.parse(rawG);
+      const gt = gTeams.find((t: any) => t.teamId === studentTeam.id || t.id === studentTeam.id || t.teamNumber === 4);
+      if (gt && Array.isArray(gt.submissions)) {
+        guideTeamSubs = gt.submissions;
+      }
+    }
+  } catch (e) {}
+
   // Merge full deliverable fields into each submission (capped to max 4 submissions)
   return validSubs.sort((a, b) => a.week - b.week).slice(0, 4).map(sub => {
     const dWeek = StudentService.getDeliverables(sub.week === 0 ? 'Submission 1' : `Submission ${sub.week + 1}`);
     const isWeek0 = sub.week === 0;
-    const isSubRejected = sub.status === 'Changes Requested' || sub.status === 'Rejected' || (isWeek0 && studentTeam.guideApprovalStatus === 'Rejected');
-    const isSubApproved = !isSubRejected && (sub.status === 'Approved' || (isWeek0 && isGuideApproved) || StudentService.isSubmissionApproved(sub.week + 1, studentTeam.id));
+    const gSub = guideTeamSubs.find((gs: any) => (gs.weekNumber ?? gs.week) === sub.week);
+    const isSubRejected = sub.status === 'Changes Requested' || sub.status === 'Rejected' || (isWeek0 && studentTeam.guideApprovalStatus === 'Rejected') || gSub?.evaluationStatus === 'Revision Required';
+    const isSubApproved = !isSubRejected && (
+      sub.status === 'Approved' || 
+      (isWeek0 && isGuideApproved) || 
+      StudentService.isSubmissionApproved(sub.week + 1, studentTeam.id) ||
+      gSub?.evaluationStatus === 'Approved' ||
+      gSub?.status === 'Approved'
+    );
 
-    const pFile = sub.presentationFile || dWeek.presentationFile || (sub.week === 0 ? d0.presentationFile : '') || '';
-    const rFile = sub.pdfFile || dWeek.reportFile || (sub.week === 0 ? d0.reportFile : '') || '';
+    const pFile = sub.presentationFile || dWeek.presentationFile || (sub.week === 0 ? d0.presentationFile : '') || gSub?.presentationFileName || '';
+    const rFile = sub.pdfFile || dWeek.reportFile || (sub.week === 0 ? d0.reportFile : '') || gSub?.reportUrl || gSub?.pdfFile || '';
     const fName = sub.fileName || pFile || rFile || '';
-    const guideComments = sub.comments || (isWeek0 && studentTeam.rejectionReason ? studentTeam.rejectionReason : '') || '';
+    const guideComments = sub.comments || gSub?.guideRemarks || (isWeek0 && studentTeam.rejectionReason ? studentTeam.rejectionReason : '') || '';
 
     return {
       ...sub,
       status: isSubRejected ? ('Changes Requested' as const) : isSubApproved ? ('Approved' as const) : ('Submitted' as const),
       projectTitle: sub.projectTitle || dWeek.projectTitle || d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
-      problemStatement: sub.problemStatement || dWeek.problemStatement || (sub.week === 0 ? d0.problemStatement : '') || '',
-      solution: sub.solution || dWeek.solution || (sub.week === 0 ? d0.solution : '') || '',
-      technologyUsed: sub.technologyUsed || dWeek.technologyUsed || (sub.week === 0 ? d0.technologyUsed : '') || '',
-      obstaclesFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (sub.week === 0 ? d0.obstaclesFaced : '') || '',
-      abstract: sub.abstract || dWeek.abstract || (sub.week === 0 ? d0.abstract : '') || '',
+      problemStatement: sub.problemStatement || dWeek.problemStatement || (sub.week === 0 ? d0.problemStatement : '') || gSub?.problemStatement || '',
+      solution: sub.solution || dWeek.solution || (sub.week === 0 ? d0.solution : '') || gSub?.proposedSolution || '',
+      technologyUsed: sub.technologyUsed || dWeek.technologyUsed || (sub.week === 0 ? d0.technologyUsed : '') || (Array.isArray(gSub?.technologiesUsed) ? gSub.technologiesUsed.join(', ') : (gSub?.technologiesUsed || '')),
+      obstaclesFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (sub.week === 0 ? d0.obstaclesFaced : '') || gSub?.obstaclesFaced || gSub?.problemsFaced || '',
+      abstract: sub.abstract || dWeek.abstract || (sub.week === 0 ? d0.abstract : '') || gSub?.abstractSummary || gSub?.abstract || '',
       presentationFile: pFile,
       pdfFile: rFile,
       fileName: fName,
-      repoUrl: sub.repoUrl || dWeek.repoUrl || (sub.week === 0 ? d0.repoUrl : '') || '',
-      demoUrl: sub.demoUrl || dWeek.demoUrl || (sub.week === 0 ? d0.demoUrl : '') || '',
-      screenshotFile: sub.screenshotFile || dWeek.screenshotFile || (sub.week === 0 ? d0.screenshotFile : '') || '',
-      guideName: sub.guideName || 'Dr. P. Manimegalai',
+      repoUrl: sub.repoUrl || dWeek.repoUrl || (sub.week === 0 ? d0.repoUrl : '') || gSub?.githubUrl || '',
+      demoUrl: sub.demoUrl || dWeek.demoUrl || (sub.week === 0 ? d0.demoUrl : '') || gSub?.liveDemoUrl || '',
+      screenshotFile: sub.screenshotFile || dWeek.screenshotFile || (sub.week === 0 ? d0.screenshotFile : '') || (Array.isArray(gSub?.images) ? gSub.images[0] : gSub?.screenshotFile || ''),
+      guideName: sub.guideName || studentTeam.guideName || 'Dr. P. Manimegalai',
       comments: guideComments
     };
   });
@@ -304,9 +331,16 @@ export const AdvisorSubmissionsService = {
   getTeamSubmissions(team: ClassTeam): WeeklySubmission[] {
     if (!team) return [];
 
-    // 1. If Team 04 specifically (TEAM-CSE-Y3-B04), check live student deliverables from StudentService first
-    const isTeam04 = team.teamId === 'TEAM-CSE-Y3-B04' || team.teamNo === 'Team 04' || team.teamId === 'team-4' || team.teamId === 'team-1';
-    if (isTeam04) {
+    // 1. Check live student deliverables from StudentService if this is the student team
+    const studentTeam = StudentService.getTeam();
+    const isStudentTeam = Boolean(
+      (team.teamId && studentTeam.id && team.teamId.toLowerCase() === studentTeam.id.toLowerCase()) ||
+      (team.teamNo && studentTeam.teamNo && team.teamNo.toLowerCase() === studentTeam.teamNo.toLowerCase()) ||
+      (Array.isArray(team.members) && Array.isArray(studentTeam.members) && team.members.some(tm => studentTeam.members.some(sm => sm.rollNo === tm.rollNo))) ||
+      team.teamId === 'TEAM-CSE-Y3-B04' || team.teamNo === 'Team 04' || team.teamId === 'team-4' || team.teamId === 'team-1'
+    );
+
+    if (isStudentTeam) {
       const studentSubs = getCanonicalStudentSubmissions(team.title);
       if (studentSubs.length > 0) {
         return studentSubs;

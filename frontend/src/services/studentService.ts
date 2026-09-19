@@ -2,6 +2,7 @@ import { Team, WeeklySubmission, ReviewScore, ChecklistState, Announcement, Guid
 import { ApiClient } from './apiClient';
 import { INITIAL_TEAMS } from '../data/guidePortalData';
 import { MarksService } from './marksService';
+import { AuthService } from './authService';
 
 // Purge any stale legacy cache from previous revisions
 try {
@@ -139,6 +140,49 @@ export const StudentService = {
       if (stored) team = JSON.parse(stored);
     } catch (e) {}
 
+    // Check if the current user belongs to another class team in advisor records
+    try {
+      const currentUser = AuthService.getCurrentUser();
+      if (currentUser && team?.members && !team.members.some((m: any) =>
+        (currentUser.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === currentUser.rollNo.trim().toLowerCase()) ||
+        (currentUser.email && m.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
+      )) {
+        const className = currentUser.class || 'CSE-B';
+        const advRaw = localStorage.getItem(`siet_advisor_teams_${className}`);
+        if (advRaw) {
+          const advTeams = JSON.parse(advRaw);
+          if (Array.isArray(advTeams)) {
+            const matched = advTeams.find((t: any) => Array.isArray(t.members) && t.members.some((m: any) =>
+              (currentUser.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === currentUser.rollNo.trim().toLowerCase()) ||
+              (currentUser.email && m.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
+            ));
+            if (matched) {
+              team = {
+                id: matched.teamId,
+                teamNo: matched.teamNo,
+                projectTitle: matched.title || '',
+                submittedTitle: matched.title || '',
+                isTitleApproved: matched.status === 'Approved' || matched.status === 'Active & Approved',
+                guideApprovalStatus: (matched.status === 'Approved' || matched.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
+                guideName: matched.guide || 'Dr. P. Manimegalai',
+                advisorName: currentUser.advisorName || 'Dr. R. Karthikeyan',
+                batch: matched.batch || '2023-2027 (III Year)',
+                section: matched.class || className,
+                status: 'In Progress',
+                progress: 0,
+                members: matched.members.map((m: any) => ({
+                  rollNo: m.rollNo,
+                  name: m.name,
+                  email: m.email,
+                  role: m.isLead ? 'Team Lead' : 'Team Member'
+                }))
+              };
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
     // Check if Guide has approved title or submission 1 without calling this.isSubmission1Approved()
     if (team.isTitleApproved || team.guideApprovalStatus === 'Approved') {
       return team;
@@ -180,6 +224,45 @@ export const StudentService = {
     }
 
     return team;
+  },
+
+  isCurrentUserTeamLead(teamToCheck?: Team | StudentTeamExtended): boolean {
+    const user = AuthService.getCurrentUser();
+    if (!user) return false;
+
+    const team = teamToCheck || this.getTeam();
+    if (!team || !Array.isArray(team.members) || team.members.length === 0) {
+      return false;
+    }
+
+    const userRoll = (user.rollNo || '').trim().toLowerCase();
+    const userEmail = (user.email || '').trim().toLowerCase();
+
+    const member = team.members.find((m: any) => {
+      const mRoll = (m.rollNo || '').trim().toLowerCase();
+      const mEmail = (m.email || '').trim().toLowerCase();
+      if (userRoll && mRoll && userRoll === mRoll) return true;
+      if (userEmail && mEmail && userEmail === mEmail) return true;
+      return false;
+    });
+
+    if (!member) return false;
+
+    return Boolean(
+      (member as any).isLead ||
+      (member as any).isLeader ||
+      (member.role && member.role.toLowerCase().includes('lead'))
+    );
+  },
+
+  getTeamLead(teamToCheck?: Team | StudentTeamExtended): any {
+    const team = teamToCheck || this.getTeam();
+    if (!team || !Array.isArray(team.members)) return undefined;
+    return team.members.find((m: any) =>
+      (m as any).isLead ||
+      (m as any).isLeader ||
+      (m.role && m.role.toLowerCase().includes('lead'))
+    );
   },
 
   saveTeam(team: StudentTeamExtended): void {
@@ -316,13 +399,23 @@ export const StudentService = {
     let loadedState: StudentDeliverableState | null = null;
     try {
       const stored = localStorage.getItem(key);
-      if (stored) loadedState = JSON.parse(stored);
-      else if (weekText.toLowerCase().includes('submission 1')) {
-        const fallback = localStorage.getItem('siet_deliverable_v6_week_0');
-        if (fallback) loadedState = JSON.parse(fallback);
-      } else if (weekText.toLowerCase().includes('submission 2')) {
-        const fallback = localStorage.getItem('siet_deliverable_v6_week_1');
-        if (fallback) loadedState = JSON.parse(fallback);
+      if (stored) {
+        loadedState = JSON.parse(stored);
+      } else {
+        const wLower = weekText.toLowerCase();
+        if (wLower.includes('submission 1') || wLower === 'week 0' || wLower === 'week_0') {
+          const fallback = localStorage.getItem('siet_deliverable_v6_submission_1') || localStorage.getItem('siet_deliverable_v6_week_0');
+          if (fallback) loadedState = JSON.parse(fallback);
+        } else if (wLower.includes('submission 2') || wLower === 'week 1' || wLower === 'week_1') {
+          const fallback = localStorage.getItem('siet_deliverable_v6_submission_2') || localStorage.getItem('siet_deliverable_v6_week_1');
+          if (fallback) loadedState = JSON.parse(fallback);
+        } else if (wLower.includes('submission 3') || wLower === 'week 2' || wLower === 'week_2') {
+          const fallback = localStorage.getItem('siet_deliverable_v6_submission_3') || localStorage.getItem('siet_deliverable_v6_week_2');
+          if (fallback) loadedState = JSON.parse(fallback);
+        } else if (wLower.includes('submission 4') || wLower === 'week 3' || wLower === 'week_3') {
+          const fallback = localStorage.getItem('siet_deliverable_v6_submission_4') || localStorage.getItem('siet_deliverable_v6_week_3');
+          if (fallback) loadedState = JSON.parse(fallback);
+        }
       }
     } catch (e) {}
 
