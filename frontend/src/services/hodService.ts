@@ -23,6 +23,7 @@ export interface HodStudent {
   teamNo: string;
   teamId: string;
   projectTitle: string;
+  status: string;
   guide: string;
   advisor: string;
 }
@@ -459,6 +460,7 @@ export const HodService = {
           teamNo: team.teamNo,
           teamId: team.id,
           projectTitle: team.projectTitle,
+          status: team.status,
           guide: team.guide.name,
           advisor: team.advisor.name
         });

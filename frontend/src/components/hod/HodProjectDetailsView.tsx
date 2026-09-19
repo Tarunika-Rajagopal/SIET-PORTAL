@@ -4,6 +4,7 @@ import { WeeklySubmission } from '../../types';
 import { getUserInitials } from '../../services/authService';
 import { MarksService } from '../../services/marksService';
 import { StudentService } from '../../services/studentService';
+import { formatProjectTitle } from '../../utils/titleUtils';
 import { 
   Users, 
   BookOpen, 
@@ -172,7 +173,7 @@ BT
 0 -25 Td
 (HOD Milestone Audit Dossier: Week ${weekNum} - ${weekTitle}) Tj
 0 -20 Td
-(Project Title: ${sub?.projectTitle || activeTeam?.projectTitle || 'Capstone Project'}) Tj
+(Project Title: ${formatProjectTitle(sub?.projectTitle || activeTeam?.projectTitle, sub?.status || activeTeam?.status)}) Tj
 0 -20 Td
 (Team: ${activeTeam?.teamNo || 'Team'} | Class: ${activeTeam?.classSection || 'CSE'}) Tj
 0 -20 Td
@@ -194,7 +195,7 @@ startxref
       mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
       content = `SIET PowerPoint Milestone Presentation
 Milestone: Week ${weekNum} - ${weekTitle}
-Project: ${sub?.projectTitle || activeTeam?.projectTitle || 'Capstone Project'}
+Project: ${formatProjectTitle(sub?.projectTitle || activeTeam?.projectTitle, sub?.status || activeTeam?.status)}
 Team: ${activeTeam?.teamNo || 'Team'}
 Faculty Guide: ${activeTeam?.guide?.name || 'Faculty Guide'}
 Submission Date: ${sub?.submissionDate || 'N/A'}
@@ -376,9 +377,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
 
                   <div>
                     <h4 className="font-extrabold text-slate-900 text-xs line-clamp-1">
-                      {team.projectTitle || (
-                        <span className="text-slate-400 italic font-normal">No Title Submitted</span>
-                      )}
+                      {formatProjectTitle(team.projectTitle, team.status)}
                     </h4>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       Lead: {leadMember?.name || 'Student'} ({leadMember?.rollNo})
@@ -405,9 +404,7 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                   </span>
                 </div>
                 <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
-                  {activeTeam.projectTitle || (
-                    <span className="text-slate-400 italic font-normal">No Project Title Submitted</span>
-                  )}
+                  {formatProjectTitle(activeTeam.projectTitle, activeTeam.status)}
                 </h2>
                 <span className="text-xs text-slate-500 block">
                   Batch: {activeTeam.batch}

@@ -183,6 +183,14 @@ export const StudentService = {
     try {
       const stored = localStorage.getItem(key);
       if (stored) return JSON.parse(stored);
+      // Backwards compatibility for Submission X <-> Week X-1
+      if (weekText.toLowerCase().includes('submission 1')) {
+        const fallback = localStorage.getItem('siet_deliverable_v6_week_0');
+        if (fallback) return JSON.parse(fallback);
+      } else if (weekText.toLowerCase().includes('submission 2')) {
+        const fallback = localStorage.getItem('siet_deliverable_v6_week_1');
+        if (fallback) return JSON.parse(fallback);
+      }
     } catch (e) {}
 
     const defaultState: StudentDeliverableState = {
@@ -265,9 +273,16 @@ export const StudentService = {
     current.submittedFields[field] = true;
     localStorage.setItem(key, JSON.stringify(current));
 
-    // Extract week number (supports "Week 0", "Week 1", etc.)
-    const match = weekText.match(/\d+/);
-    const weekNum = match ? parseInt(match[0], 10) : 0;
+    // Extract week index: Submission 1 -> 0, Submission 2 -> 1, Week 0 -> 0, Week 1 -> 1
+    let weekNum = 0;
+    if (weekText.toLowerCase().includes('submission')) {
+      const match = weekText.match(/\d+/);
+      const subNum = match ? parseInt(match[0], 10) : 1;
+      weekNum = Math.max(0, subNum - 1);
+    } else {
+      const match = weekText.match(/\d+/);
+      weekNum = match ? parseInt(match[0], 10) : 0;
+    }
 
     // 1. Synchronize to student's submissions ledger
     try {
@@ -276,8 +291,8 @@ export const StudentService = {
       if (!item) {
         item = {
           week: weekNum,
-          title: `Week ${weekNum} Deliverable Submission`,
-          dueDate: `Week ${weekNum}`,
+          title: `Submission ${weekNum + 1} Deliverable Submission`,
+          dueDate: `Submission ${weekNum + 1}`,
           status: 'Submitted',
           submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           projectTitle: current.projectTitle || this.getTeam().projectTitle || '',

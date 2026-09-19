@@ -524,7 +524,83 @@ export const GuideProvider = ({ children }) => {
     return false;
   };
 
-  // 5. Notify Team
+  // 5. Reject Weekly Submission
+  const rejectWeeklySubmission = (teamId, weekNumber, reason) => {
+    if (!reason || !reason.trim()) {
+      showToast('Rejection reason is mandatory.', 'error');
+      return false;
+    }
+
+    let updatedTeam = null;
+    setAllTeams(prevTeams =>
+      prevTeams.map(team => {
+        if (isTargetTeam(team, teamId)) {
+          const updatedSubmissions = (team.submissions || []).map(sub => {
+            if (sub.weekNumber === Number(weekNumber)) {
+              return {
+                ...sub,
+                evaluationStatus: 'Rejected',
+                status: 'Rejected',
+                isLocked: false,
+                guideRemarks: reason.trim()
+              };
+            }
+            return sub;
+          });
+
+          updatedTeam = {
+            ...team,
+            submissions: updatedSubmissions,
+            latestSubmissionStatus: `Week ${weekNumber} Rejected`
+          };
+          return updatedTeam;
+        }
+        return team;
+      })
+    );
+
+    if (updatedTeam) {
+      if (isStudentPortalTeam(updatedTeam)) {
+        try {
+          const studentSubs = StudentService.getSubmissions();
+          const item = studentSubs.find(s => s.week === Number(weekNumber));
+          if (item) {
+            item.status = 'Rejected';
+            item.comments = reason.trim();
+            StudentService.saveSubmissions(studentSubs);
+          }
+        } catch (e) {
+          console.error('Error synchronizing rejection:', e);
+        }
+      }
+
+      const newActivity = {
+        id: 'act-' + Date.now(),
+        title: `Week ${weekNumber} Rejected: Team #${updatedTeam.teamNumber}`,
+        details: `Status: Rejected - Reason: ${reason.trim()}`,
+        time: 'Just now',
+        type: 'reject'
+      };
+      setActivities(prev => [newActivity, ...prev]);
+
+      try {
+        AdvisorHistoryService.addGuideLog(
+          'Milestone Review',
+          `Team #${updatedTeam.teamNumber} - Milestone Week ${weekNumber}`,
+          `Rejected Week ${weekNumber} submission. Reason: "${reason.trim()}".`,
+          guideName,
+          updatedTeam.section || 'CSE-B'
+        );
+      } catch (e) {}
+
+      window.dispatchEvent(new Event('siet_data_updated'));
+      showToast(`Submission rejected for Week ${weekNumber} (Team #${updatedTeam.teamNumber}).`, 'error');
+      return true;
+    }
+    return false;
+  };
+
+  // 6. Notify Team
   const notifyTeam = (teamId, { comment, timing, location, weekNumber }) => {
     const formattedDate = new Date().toLocaleString('en-US', {
       month: 'short',
@@ -681,6 +757,7 @@ export const GuideProvider = ({ children }) => {
         rejectTitle,
         evaluateWeeklySubmission,
         requestWeeklyRevision,
+        rejectWeeklySubmission,
         notifyTeam,
         resetData
       }}

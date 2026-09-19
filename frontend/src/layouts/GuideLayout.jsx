@@ -54,13 +54,6 @@ export const GuideLayout = () => {
       badgeColor: 'bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]'
     },
     {
-      to: '/guide/weekly-submissions',
-      label: 'Weekly Submissions',
-      icon: Clock,
-      badge: stats.pendingWeeklySubmissionsCount > 0 ? `${stats.pendingWeeklySubmissionsCount} Due` : null,
-      badgeColor: 'bg-[#EDE7DB] text-[#8A6A32] border border-[#D4C39F]'
-    },
-    {
       to: '/guide/submission-history',
       label: 'History',
       icon: History,

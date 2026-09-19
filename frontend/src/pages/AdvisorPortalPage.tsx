@@ -4,12 +4,10 @@ import Header from '../components/common/Header';
 import ProfileModal from '../components/common/ProfileModal';
 import NotificationToast from '../components/common/NotificationToast';
 import AdvisorStudentsView from '../components/advisor/AdvisorStudentsView';
-import AdvisorTeamsView from '../components/advisor/AdvisorTeamsView';
-import AdvisorAssignMarksView from '../components/advisor/AdvisorAssignMarksView';
 import AdvisorHistoryView from '../components/advisor/AdvisorHistoryView';
 import { AdvisorService, ClassTeam } from '../services/advisorService';
 import { AdminStudent, AdminService } from '../services/adminService';
-import { Users, BookOpen, History } from 'lucide-react';
+import { Users, History } from 'lucide-react';
 
 export const AdvisorPortalPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -22,13 +20,8 @@ export const AdvisorPortalPage: React.FC = () => {
   const batch = currentFaculty?.advisorBatch || currentUser?.advisorBatch || "2023-2027 (III Year)";
   const advisorName = currentFaculty?.name || currentUser?.name || "Dr. R. Karthikeyan";
 
-  // Navigation tab: 'students' | 'teams' | 'assignMarks' | 'history'
-  const [activeTab, setActiveTab] = useState<'students' | 'teams' | 'assignMarks' | 'history'>('students');
-
-  // Pre-selected team id & student for navigation flows
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-  const [selectedStudent, setSelectedStudent] = useState<AdminStudent | null>(null);
-  const [onlyShowStudentTeam, setOnlyShowStudentTeam] = useState<boolean>(false);
+  // Navigation tab: 'students' | 'history'
+  const [activeTab, setActiveTab] = useState<'students' | 'history'>('students');
 
   const [teams, setTeams] = useState<ClassTeam[]>(() => AdvisorService.getTeamsForClass(className));
   const [students, setStudents] = useState<AdminStudent[]>(() => AdvisorService.getClassStudents(className, 'ALL'));
@@ -51,34 +44,6 @@ export const AdvisorPortalPage: React.FC = () => {
       window.removeEventListener('storage', handleSync);
     };
   }, [className]);
-
-  // Flow: When a student is clicked in Students view -> navigate to View Teams
-  // - If assigned -> show ONLY that student's team
-  // - If unassigned -> show "No Teams Assigned" with manual "Assign Team" wizard
-  const handleSelectStudentToViewTeam = (
-    teamIdOrNo: string | null, 
-    onlyShowTeam: boolean = true, 
-    student?: AdminStudent
-  ) => {
-    if (teamIdOrNo) {
-      const foundTeam = teams.find(t => 
-        t.teamId.toLowerCase() === teamIdOrNo.toLowerCase() ||
-        t.teamNo.toLowerCase() === teamIdOrNo.toLowerCase()
-      );
-      setSelectedTeamId(foundTeam ? foundTeam.teamId : teamIdOrNo);
-    } else {
-      setSelectedTeamId(null);
-    }
-    setSelectedStudent(student || null);
-    setOnlyShowStudentTeam(onlyShowTeam);
-    setActiveTab('teams');
-  };
-
-  // Flow: From View Teams or Students -> open team in View Teams
-  const handleNavigateToAssignMarks = (teamId: string) => {
-    setSelectedTeamId(teamId);
-    setActiveTab('assignMarks');
-  };
 
   return (
     <div className="min-h-screen bg-[#EFF3F1] flex flex-col font-sans relative">
@@ -114,30 +79,6 @@ export const AdvisorPortalPage: React.FC = () => {
               </span>
             </button>
 
-            {/* View Teams Tab */}
-            <button
-              type="button"
-              onClick={() => {
-                setOnlyShowStudentTeam(false);
-                setSelectedTeamId(null);
-                setSelectedStudent(null);
-                setActiveTab('teams');
-              }}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'teams'
-                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
-              }`}
-            >
-              <BookOpen size={16} />
-              <span>View Teams</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                activeTab === 'teams' ? 'bg-white text-mint-900' : 'bg-mint-100 text-mint-900'
-              }`}>
-                {teams.length}
-              </span>
-            </button>
-
             {/* History Tab */}
             <button
               type="button"
@@ -165,41 +106,11 @@ export const AdvisorPortalPage: React.FC = () => {
             className={className}
             batch={batch}
             advisorName={advisorName}
-            onSelectStudentToViewTeam={handleSelectStudentToViewTeam}
             onShowToast={(msg) => setToastMessage(msg)}
           />
         )}
 
-        {/* View 2: View Teams */}
-        {activeTab === 'teams' && (
-          <AdvisorTeamsView
-            className={className}
-            batch={batch}
-            advisorName={advisorName}
-            selectedTeamId={selectedTeamId}
-            selectedStudent={selectedStudent}
-            onlyShowStudentTeam={onlyShowStudentTeam}
-            onResetFilter={() => {
-              setOnlyShowStudentTeam(false);
-              setSelectedStudent(null);
-            }}
-            onSelectTeam={(teamId) => setSelectedTeamId(teamId)}
-            onNavigateToAssignMarks={handleNavigateToAssignMarks}
-            onShowToast={(msg) => setToastMessage(msg)}
-          />
-        )}
-
-        {/* View 3: Assign Marks for Selected Team */}
-        {activeTab === 'assignMarks' && (
-          <AdvisorAssignMarksView
-            className={className}
-            advisorName={advisorName}
-            selectedTeamId={selectedTeamId}
-            onShowToast={(msg) => setToastMessage(msg)}
-          />
-        )}
-
-        {/* View 4: History */}
+        {/* View 2: History */}
         {activeTab === 'history' && (
           <AdvisorHistoryView
             className={className}

@@ -97,7 +97,6 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Tarunika Rajgopal"
                 className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-medium text-[#111111]"
               />
             </div>
@@ -111,7 +110,6 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
                 required
                 value={rollNo}
                 onChange={(e) => setRollNo(e.target.value)}
-                placeholder="e.g. 714023104112"
                 className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-mono font-bold text-[#111111]"
               />
             </div>
@@ -126,7 +124,6 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. candidate@srishakthi.ac.in"
               className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-mono text-[#111111]"
             />
           </div>
@@ -141,7 +138,6 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter login password..."
                 className="w-full pl-3 pr-10 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-mono text-[#111111]"
               />
               <button
@@ -192,7 +188,6 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Lateral entry candidate or direct admission"
               className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-medium text-[#111111]"
             />
           </div>

@@ -721,7 +721,6 @@ startxref
                         type="number"
                         min="0"
                         max="100"
-                        placeholder="0-100"
                         value={marksInput[m.rollNo] || ''}
                         onChange={(e) => setMarksInput({ ...marksInput, [m.rollNo]: e.target.value })}
                         className="w-20 px-3 py-1.5 bg-white border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] text-center focus:outline-none focus:border-[#111111] shadow-xs"
@@ -741,7 +740,6 @@ startxref
                   rows={3}
                   value={advisorRemarks}
                   onChange={(e) => setAdvisorRemarks(e.target.value)}
-                  placeholder="e.g. Verified edge latency benchmarks and approved circuit schematics..."
                   className="w-full p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] shadow-xs text-[#111111] placeholder-[#75695A]/60"
                 />
               </div>

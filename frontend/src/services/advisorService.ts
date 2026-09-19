@@ -16,6 +16,10 @@ export interface ClassTeam {
   title: string;
   guide: string;
   guideEmail?: string;
+  guideDesignation?: string;
+  guideDepartment?: string;
+  domain?: string;
+  lastModified?: string;
   status: string;
   membersCount: number;
   leadStudent: string;
@@ -47,14 +51,18 @@ export const AdvisorService = {
   getTeamCapacity(className: string = "CSE-B"): number {
     try {
       const stored = localStorage.getItem(`siet_team_capacity_${className}`);
-      if (stored) return parseInt(stored, 10) || 4;
+      if (stored) {
+        const parsed = parseInt(stored, 10) || 4;
+        return Math.min(parsed, 4);
+      }
     } catch (e) {}
     return 4;
   },
 
   setTeamCapacity(className: string = "CSE-B", capacity: number) {
     try {
-      localStorage.setItem(`siet_team_capacity_${className}`, String(capacity));
+      const cap = Math.min(capacity, 4);
+      localStorage.setItem(`siet_team_capacity_${className}`, String(cap));
       notifyListeners();
     } catch (e) {}
   },
@@ -307,16 +315,20 @@ export const AdvisorService = {
     batch: string = "2023-2027 (III Year)",
     name: string,
     rollNo: string,
-    targetTeamId?: string
+    targetTeamId?: string,
+    email?: string,
+    password?: string
   ): { success: boolean; message: string } {
     const cleanName = name.trim();
     const cleanRoll = rollNo.trim();
-    const generatedEmail = `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@srishakthi.ac.in`;
+    const cleanEmail = email && email.trim() ? email.trim() : `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@srishakthi.ac.in`;
+    const cleanPassword = password && password.trim() ? password.trim() : "student@123";
 
     const res = AdminService.addStudent({
       name: cleanName,
       rollNo: cleanRoll,
-      email: generatedEmail,
+      email: cleanEmail,
+      password: cleanPassword,
       batch,
       classSection: className
     }, `Added to Class ${className} by Class Advisor`);
@@ -359,7 +371,7 @@ export const AdvisorService = {
         teamNo: cleanNo,
         class: className,
         batch,
-        title: nt.title || `Capstone Project - ${cleanNo}`,
+        title: nt.title || "",
         guide: nt.guide,
         guideEmail: nt.guideEmail || `${nt.guide.toLowerCase().replace(/[^a-z0-9]/g, '.')}@siet.ac.in`,
         status: "Approved",
@@ -608,7 +620,7 @@ export const AdvisorService = {
       teamNo: cleanNo,
       class: className,
       batch,
-      title: teamData.title || `Capstone Project - ${cleanNo}`,
+      title: teamData.title || "",
       guide: teamData.guide,
       guideEmail: teamData.guideEmail || `${teamData.guide.toLowerCase().replace(/[^a-z0-9]/g, '.')}@siet.ac.in`,
       status: "Approved",
@@ -657,7 +669,7 @@ export const AdvisorService = {
     }
     return this.addManualTeam(className, options.batch || "2023-2027 (III Year)", {
       teamNo: options.newTeamNo,
-      title: options.projectTitle || `Capstone Project - ${options.newTeamNo || 'Team'}`,
+      title: options.projectTitle || "",
       guide: options.guideName || 'Dr. P. Manimegalai',
       guideEmail: options.guideEmail,
       leadRollNo: studentRollNo,

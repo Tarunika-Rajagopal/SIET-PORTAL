@@ -1,19 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StudentTeamExtended } from '../../services/studentService';
+import { MarksService, WeeklyMarksRecord } from '../../services/marksService';
 import { getUserInitials } from '../../services/authService';
-import { Users, BookOpen, Compass, AlertTriangle } from 'lucide-react';
+import { formatProjectTitle } from '../../utils/titleUtils';
+import { Users, BookOpen, Compass, AlertTriangle, Award } from 'lucide-react';
 
 interface MyTeamViewProps {
   team: StudentTeamExtended;
 }
 
 export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
+  const [marksRecords, setMarksRecords] = useState<Record<number, WeeklyMarksRecord>>({});
+
+  const teamId = team?.id || 'TEAM-CSE-Y3-B04';
+  const memberRollNos = team?.members?.map(m => m.rollNo) || [];
+
+  useEffect(() => {
+    const loadMarks = () => {
+      setMarksRecords(MarksService.getAllTeamMarks(teamId, memberRollNos));
+    };
+    loadMarks();
+
+    window.addEventListener('siet_marks_updated', loadMarks);
+    window.addEventListener('siet_data_updated', loadMarks);
+    window.addEventListener('storage', loadMarks);
+
+    return () => {
+      window.removeEventListener('siet_marks_updated', loadMarks);
+      window.removeEventListener('siet_data_updated', loadMarks);
+      window.removeEventListener('storage', loadMarks);
+    };
+  }, [teamId]);
+
   if (!team) return null;
 
   const isTeamLead = (member: { rollNo?: string; name?: string; role?: string; isLeader?: boolean }) => {
     if (member.isLeader) return true;
     if (member.role && member.role.toLowerCase().includes('lead')) return true;
     return false;
+  };
+
+  // Retrieve assigned mark for a member and review milestone
+  const getMemberReviewMark = (rollNo: string, reviewIndex: number) => {
+    // candidate weeks for reviewIndex: review 1 -> week 0, 1; review 2 -> week 1, 2; etc.
+    const candidateWeeks = [reviewIndex - 1, reviewIndex];
+    for (const w of candidateWeeks) {
+      const rec = marksRecords[w];
+      if (rec && rec.memberMarks && rec.memberMarks[rollNo] !== undefined && typeof rec.memberMarks[rollNo] === 'number') {
+        return rec.memberMarks[rollNo];
+      }
+    }
+    return null;
   };
 
   return (
@@ -50,17 +87,14 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
       {/* Team Header Hero Card */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-card border border-[#D8CCBA]">
         <div className="space-y-3">
-          {/* Project Title appears once approved by the guide */}
-          {team.isTitleApproved && team.projectTitle && (
-            <div>
-              <span className="text-[11px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-                Project Title
-              </span>
-              <h2 className="text-lg sm:text-xl font-serif font-bold text-[#111111] leading-snug">
-                {team.projectTitle}
-              </h2>
-            </div>
-          )}
+          <div>
+            <span className="text-[11px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
+              Project Title
+            </span>
+            <h2 className="text-lg sm:text-xl font-serif font-bold text-[#111111] leading-snug">
+              {formatProjectTitle(team.projectTitle, team.guideApprovalStatus, team.isTitleApproved)}
+            </h2>
+          </div>
 
           {/* Batch & Section Badge */}
           <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#F8F5EE] border border-[#D8CCBA] text-xs text-[#292725] font-medium shadow-subtle mt-1">
@@ -106,63 +140,126 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
 
       </div>
 
-      {/* Team Members Roster */}
+      {/* Team Members Roster: Center-Aligned, Compact Table with Review Marks */}
       <div className="bg-white rounded-2xl shadow-card border border-[#D8CCBA] overflow-hidden">
         
         {/* Table Header: count badge on the left next to title */}
-        <div className="p-5 border-b border-[#D8CCBA] bg-[#F8F5EE] flex items-center justify-start gap-3">
-          <div className="p-2 rounded-lg bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA]">
-            <Users size={18} />
+        <div className="p-4 sm:p-5 border-b border-[#D8CCBA] bg-[#F8F5EE] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center shadow-xs">
+              <Users size={16} />
+            </div>
+            <h3 className="text-sm font-serif font-bold text-[#111111] m-0">Project Team Members</h3>
           </div>
-          <h3 className="text-sm font-serif font-bold text-[#111111] m-0">Project Team Members</h3>
           <span 
             id="teamMemberCountBadge"
-            className="bg-[#EDE7DB] text-[#111111] font-bold text-xs px-3 py-1 rounded-full border border-[#D8CCBA]"
+            className="bg-[#EDE7DB] text-[#111111] font-bold text-xs px-3 py-1 rounded-full border border-[#D8CCBA] shadow-2xs"
           >
             {team.members.length} Members
           </span>
         </div>
 
-        {/* Clean 3-Column Table: Register Number, Student Name, Institutional Email */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[#EDE7DB] text-[#111111] uppercase tracking-wider font-serif font-bold border-b border-[#D8CCBA]">
+        {/* Center-Aligned, Compact Table with Review 1, Review 2, Review 3, Review 4 */}
+        <div className="overflow-x-auto p-3 sm:p-4">
+          <table className="w-full text-center text-xs border-collapse">
+            <thead className="bg-[#EDE7DB]/70 text-[#75695A] uppercase tracking-wider font-mono font-bold text-[10px] border-b border-[#D8CCBA]">
               <tr>
-                <th className="p-4 w-48">REGISTER NUMBER</th>
-                <th className="p-4">STUDENT NAME</th>
-                <th className="p-4">INSTITUTIONAL EMAIL</th>
+                <th className="py-2.5 px-3 text-center">REGISTER NUMBER</th>
+                <th className="py-2.5 px-3 text-left">STUDENT NAME</th>
+                <th className="py-2.5 px-3 text-center">REVIEW 1</th>
+                <th className="py-2.5 px-3 text-center">REVIEW 2</th>
+                <th className="py-2.5 px-3 text-center">REVIEW 3</th>
+                <th className="py-2.5 px-3 text-center">REVIEW 4</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D8CCBA] font-medium bg-white">
-              {team.members.map((member, idx) => (
-                <tr key={member.rollNo || idx} className="hover:bg-[#F8F5EE] transition">
-                  <td className="p-4 font-mono font-bold text-[#111111] whitespace-nowrap">
-                    {member.rollNo}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-[#111111] text-[#F8F5EE] font-bold text-xs flex items-center justify-center shadow-subtle border border-[#292725]">
-                        {getUserInitials(member.name)}
-                      </div>
+            <tbody className="divide-y divide-[#EAE2D5] font-medium bg-white">
+              {team.members.map((member, idx) => {
+                const markR1 = getMemberReviewMark(member.rollNo, 1);
+                const markR2 = getMemberReviewMark(member.rollNo, 2);
+                const markR3 = getMemberReviewMark(member.rollNo, 3);
+                const markR4 = getMemberReviewMark(member.rollNo, 4);
+
+                return (
+                  <tr key={member.rollNo || idx} className="hover:bg-[#FAF8F4] transition-colors">
+                    {/* Register Number */}
+                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
+                      <span className="font-mono font-bold text-[#111111] text-xs">
+                        {member.rollNo}
+                      </span>
+                    </td>
+
+                    {/* Student Name */}
+                    <td className="py-2.5 px-3 whitespace-nowrap text-left">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-[#111111]">{member.name}</span>
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1E1E1E] to-[#111111] text-[#F8F5EE] font-bold text-[10px] flex items-center justify-center shadow-xs border border-[#333333] shrink-0">
+                          {getUserInitials(member.name)}
+                        </div>
+                        <span className="font-bold text-[#111111] text-xs">{member.name}</span>
                         {isTeamLead(member) && (
-                          <span className="px-2 py-0.5 rounded-full bg-[#EDE7DB] text-[#111111] text-[10px] font-bold uppercase border border-[#D8CCBA]">
-                            Team Lead
+                          <span className="px-1.5 py-0.2 rounded-full bg-[#111111] text-amber-400 text-[9px] font-black uppercase tracking-wider">
+                            Lead
                           </span>
                         )}
                       </div>
-                    </div>
-                  </td>
-                  <td className="p-4 font-mono text-[#75695A]">
-                    {member.email}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+
+                    {/* Review 1 */}
+                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
+                      {markR1 !== null ? (
+                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
+                          {markR1}/100
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic font-semibold text-xs">
+                          Unassigned
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Review 2 */}
+                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
+                      {markR2 !== null ? (
+                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
+                          {markR2}/100
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic font-semibold text-xs">
+                          Unassigned
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Review 3 */}
+                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
+                      {markR3 !== null ? (
+                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
+                          {markR3}/100
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic font-semibold text-xs">
+                          Unassigned
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Review 4 */}
+                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
+                      {markR4 !== null ? (
+                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
+                          {markR4}/100
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic font-semibold text-xs">
+                          Unassigned
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-
       </div>
 
     </div>

@@ -63,8 +63,8 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
       return;
     }
 
-    if (capacity < 2 || capacity > 6) {
-      setValidationError('Team capacity must be between 2 and 6 members.');
+    if (capacity < 2 || capacity > 4) {
+      setValidationError('Team capacity must be between 2 and 4 members.');
       return;
     }
 
@@ -89,7 +89,7 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
 
       generated.push({
         teamNo: teamNumberStr,
-        title: `Capstone Research - ${teamNumberStr}`,
+        title: '',
         guide: '',
         guideEmail: '',
         leadRollNo: defaultLeader,
@@ -176,16 +176,13 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-serif font-bold text-[#111111]">
-                Capstone Team Generation Wizard
+                Automatic Team Generation
               </h3>
-              <p className="text-xs text-[#75695A]">
-                Class {className} &bull; Batch {batch} &bull; {students.length} Enrolled Students
-              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-[#75695A] hover:text-[#111111] p-2 rounded-xl hover:bg-[#EDE7DB] transition"
+            className="text-[#75695A] hover:text-[#111111] p-2 rounded-xl hover:bg-[#EDE7DB] transition cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -209,12 +206,12 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                   1. Team Member Capacity (Per Team)
                 </label>
                 <div className="flex items-center gap-3">
-                  {[3, 4, 5, 6].map(cap => (
+                  {[2, 3, 4].map(cap => (
                     <button
                       key={cap}
                       type="button"
                       onClick={() => setCapacity(cap)}
-                      className={`flex-1 py-3 rounded-2xl border font-bold text-sm transition flex flex-col items-center justify-center ${
+                      className={`flex-1 py-3 rounded-2xl border font-bold text-sm transition flex flex-col items-center justify-center cursor-pointer ${
                         capacity === cap
                           ? 'bg-[#111111] text-white border-[#111111] shadow-sm'
                           : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#111111] border-[#D8CCBA]'
@@ -225,9 +222,6 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                     </button>
                   ))}
                 </div>
-                <p className="text-[11px] text-[#75695A] mt-1">
-                  Total of ~{Math.ceil(students.length / capacity)} teams will be configured from {students.length} students.
-                </p>
               </div>
 
               {/* Step 2: Formation Logic */}
@@ -247,9 +241,6 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                     <ListOrdered size={20} className={mode === 'sequential' ? 'text-[#111111]' : 'text-[#75695A]'} />
                     <div>
                       <span className="font-bold text-[#111111] block">Sequential Roll Number</span>
-                      <p className="text-[11px] text-[#75695A] mt-0.5">
-                        Students grouped in strictly ascending order of register numbers.
-                      </p>
                     </div>
                   </div>
 
@@ -264,9 +255,6 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
                     <Shuffle size={20} className={mode === 'shuffle' ? 'text-[#111111]' : 'text-[#75695A]'} />
                     <div>
                       <span className="font-bold text-[#111111] block">Shuffle Members</span>
-                      <p className="text-[11px] text-[#75695A] mt-0.5">
-                        Randomly distributes candidates across teams to foster diverse collaboration.
-                      </p>
                     </div>
                   </div>
                 </div>

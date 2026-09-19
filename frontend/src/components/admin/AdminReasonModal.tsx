@@ -86,7 +86,6 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Why is this change being made? (Recorded in audit trail)..."
               className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-[#111111] focus:outline-none focus:border-[#111111] font-medium"
             />
           </div>

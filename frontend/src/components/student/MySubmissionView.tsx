@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { WeeklySubmission } from '../../types';
 import { StudentService } from '../../services/studentService';
+import { MarksService } from '../../services/marksService';
+import { formatProjectTitle } from '../../utils/titleUtils';
 import { 
   Calendar, CheckCircle2, Clock, FileText, Upload, AlertTriangle, 
   MessageSquare, RefreshCw, X, FileCode, ExternalLink, Image as ImageIcon,
-  Award, User, Download, Check, XCircle, Bell, MapPin, Trash2
+  Award, User, Download, Check, XCircle, Bell, MapPin, Edit3, ChevronRight
 } from 'lucide-react';
 
 interface MySubmissionViewProps {
   onSuccess?: (msg: string) => void;
+  onNavigateToSubmission?: () => void;
 }
 
-export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess }) => {
+export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, onNavigateToSubmission }) => {
   const [submissions, setSubmissions] = useState<WeeklySubmission[]>(() => StudentService.getSubmissions());
   const [team, setTeam] = useState(() => StudentService.getTeam());
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -26,24 +29,57 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess })
       setTeam(StudentService.getTeam());
     };
     handleSync();
+    window.addEventListener('siet_marks_updated', handleSync);
     window.addEventListener('siet_data_updated', handleSync);
     window.addEventListener('storage', handleSync);
     return () => {
+      window.removeEventListener('siet_marks_updated', handleSync);
       window.removeEventListener('siet_data_updated', handleSync);
       window.removeEventListener('storage', handleSync);
     };
   }, []);
 
-  const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
+  const teamId = team?.id || 'TEAM-CSE-Y3-B04';
+  const memberRollNos = team?.members?.map(m => m.rollNo) || [];
 
-  // Display only the current week number
-  const completedWeeks = submissions.filter(
-    s => s.week === currentAcademicWeek
-  );
+  // Determine active submission:
+  // "Only until the marks are assigned , it should move to the submissions page if edit submission clicked , else edit submission should not show , instead it should move to the next submission and enable every submit button"
+  const getActiveSubmissionIndex = () => {
+    let weekIndex = 0;
+    while (weekIndex <= 16) {
+      const rec = MarksService.getWeeklyMarks(teamId, weekIndex, memberRollNos);
+      const hasMarks = Boolean(
+        rec && (
+          rec.teamAverage !== undefined ||
+          (rec.memberMarks && Object.keys(rec.memberMarks).length > 0)
+        )
+      );
+      if (!hasMarks) {
+        break;
+      }
+      weekIndex++;
+    }
+    return weekIndex;
+  };
+
+  const activeSubmissionIndex = getActiveSubmissionIndex();
+  const activeSubmissionNumber = activeSubmissionIndex + 1;
+
+  // Display submissions list (show all student submissions, or fallback to active submission)
+  const displaySubmissions = [...submissions].sort((a, b) => a.week - b.week);
 
   const handleOpenDetail = (sub: WeeklySubmission) => {
     setActiveWeekSub(sub);
     setDetailModalOpen(true);
+  };
+
+  const handleEditSubmission = (subWeek: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    localStorage.setItem('siet_student_start_edit_mode', 'true');
+    window.dispatchEvent(new CustomEvent('student_navigate_submission', { detail: { edit: true, week: subWeek } }));
+    if (onNavigateToSubmission) {
+      onNavigateToSubmission();
+    }
   };
 
   const handleOpenResubmit = (sub: WeeklySubmission, e?: React.MouseEvent) => {
@@ -62,7 +98,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess })
     setResubmitModalOpen(false);
     if (detailModalOpen) setDetailModalOpen(false);
     if (onSuccess) {
-      onSuccess(`Week ${activeWeekSub.week} milestone updated and submitted for Guide re-review.`);
+      onSuccess(`Submission ${activeWeekSub.week + 1} milestone updated and submitted for Guide re-review.`);
     }
   };
 
@@ -98,7 +134,7 @@ BT
 0 -25 Td
 (Milestone Deliverable Dossier: Week ${sub.week} - ${sub.title}) Tj
 0 -20 Td
-(Project Title: ${sub.projectTitle || 'Autonomous Crop Disease Drone'}) Tj
+(Project Title: ${formatProjectTitle(sub.projectTitle, sub.status)}) Tj
 0 -20 Td
 (Student: Tarunika Rajgopal | Roll No: 714023104112) Tj
 0 -20 Td
@@ -120,7 +156,7 @@ startxref
       mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
       content = `SIET PowerPoint Milestone Presentation
 Milestone: Week ${sub.week} - ${sub.title}
-Project: ${sub.projectTitle || 'Autonomous Crop Disease Drone System'}
+Project: ${formatProjectTitle(sub.projectTitle, sub.status)}
 Student: Tarunika Rajgopal (714023104112)
 Project Guide: ${sub.guideName || 'Dr. P. Manimegalai'}
 Submission Date: ${sub.submissionDate || 'N/A'}
@@ -155,7 +191,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
         </div>
       )}
 
-      {/* All Weeks Completed - Visible First as Interactive Cards */}
+      {/* All Submissions - Visible First as Interactive Cards */}
       <div className="bg-white rounded-3xl shadow-card border border-[#D8CCBA] overflow-hidden">
         <div className="p-5 border-b border-[#D8CCBA] flex items-center justify-between bg-slate-50/60">
           <div className="flex items-center gap-2">
@@ -163,26 +199,32 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
               Current Academic Milestone
             </span>
             <span className="text-[11px] font-bold text-mint-800 bg-mint-100 px-2.5 py-0.5 rounded-full border border-mint-200">
-              Week {currentAcademicWeek}
+              Submission {activeSubmissionNumber}
             </span>
           </div>
         </div>
 
-        {completedWeeks.length === 0 ? (
+        {displaySubmissions.length === 0 ? (
           <div className="p-12 text-center text-slate-500 text-xs">
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-300 mb-3 select-none">
               <Clock size={12} className="text-slate-500" />
               <span>No Submission</span>
             </span>
-            <p className="font-bold text-slate-700 text-sm mb-1">No Milestone Submission for Week {currentAcademicWeek} Yet</p>
-            <p className="text-slate-400">Deliverables for Week {currentAcademicWeek} will appear here once submitted from the Submission Form.</p>
+            <p className="font-bold text-slate-700 text-sm mb-1">No Milestone Submission for Submission {activeSubmissionNumber} Yet</p>
+            <p className="text-slate-400">Deliverables for Submission {activeSubmissionNumber} will appear here once submitted from the Submission Form.</p>
           </div>
         ) : (
           <div className="divide-y divide-[#D8CCBA]">
-            {completedWeeks.map((sub) => {
+            {displaySubmissions.map((sub) => {
               const isApproved = sub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved';
               const isRevisionRequired = !isApproved && (sub.status === 'Changes Requested' || sub.status === 'Rejected');
-              const isPending = !isApproved && !isRevisionRequired;
+              const marksRec = MarksService.getWeeklyMarks(teamId, sub.week, memberRollNos);
+              const isMarksAssigned = Boolean(
+                marksRec && (
+                  marksRec.teamAverage !== undefined ||
+                  (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
+                )
+              );
 
               return (
                 <div
@@ -192,20 +234,20 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                 >
                   <div className="flex items-start gap-4">
                     
-                    {/* Week Badge */}
+                    {/* Submission Badge */}
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs transition group-hover:scale-105 ${
                       isApproved ? 'bg-mint-500 text-white' :
                       isRevisionRequired ? 'bg-rose-500 text-white' :
                       'bg-amber-500 text-white'
                     }`}>
-                      W{sub.week}
+                      S{sub.week + 1}
                     </div>
 
                     <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* Display week number */}
+                        {/* Display submission number */}
                         <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-mint-700 transition">
-                          Week {sub.week}
+                          Submission {sub.week + 1}
                         </h4>
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${
                           isApproved ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
@@ -221,19 +263,16 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                         </span>
                       </div>
 
-                      {/* Submitted project title if available */}
-                      {sub.projectTitle && (
-                        <p className="text-xs font-bold text-slate-800">
-                          {sub.projectTitle}
-                        </p>
-                      )}
+                      <p className="text-xs font-bold text-slate-800">
+                        {formatProjectTitle(sub.projectTitle, sub.status)}
+                      </p>
 
                       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
                         <span>Submitted: <strong className="text-slate-700 font-bold">{sub.submissionDate || "N/A"}</strong></span>
-                        {sub.score !== undefined && (
+                        {(marksRec?.teamAverage !== undefined || sub.score !== undefined) && (
                           <>
                             <span>&bull;</span>
-                            <span className="text-mint-700 font-extrabold">Score: {sub.score} / {sub.maxScore || 100}</span>
+                            <span className="text-mint-700 font-extrabold">Score: {marksRec?.teamAverage ?? sub.score} / {sub.maxScore || 100}</span>
                           </>
                         )}
                         {sub.fileName && (
@@ -273,7 +312,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                         </p>
                       )}
 
-                      {/* Guide Consultation Notice (Updated directly in weekly submission) */}
+                      {/* Guide Consultation Notice (Updated directly in submission) */}
                       {sub.guideNotice && (
                         <div className="mt-3 p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 space-y-1.5 shadow-xs">
                           <div className="flex items-center justify-between">
@@ -302,24 +341,6 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
-                    {/* Always show Delete button */}
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Delete the submission for Week ${sub.week}?`)) {
-                            StudentService.deleteSubmission(sub.week);
-                            setSubmissions(StudentService.getSubmissions());
-                            if (onSuccess) onSuccess(`Week ${sub.week} submission deleted.`);
-                          }
-                        }}
-                        className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
-                        title="Delete this submission"
-                      >
-                        <Trash2 size={13} />
-                        <span>Delete</span>
-                      </button>
-
                     {isRevisionRequired ? (
                       <button
                         type="button"
@@ -329,17 +350,36 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                         <RefreshCw size={13} />
                         <span>Update Milestone</span>
                       </button>
-                    ) : isApproved ? (
+                    ) : isMarksAssigned ? (
+                      /* If marks are assigned, edit submission does not show */
                       <span className="px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-black flex items-center gap-1.5 shadow-xs select-none">
-                        <Check size={13} className="text-emerald-700" />
-                        <span>Approved</span>
+                        <Award size={13} className="text-emerald-700" />
+                        <span>Score: {marksRec?.teamAverage ?? sub.score}/100</span>
                       </span>
                     ) : (
-                      <div className="px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-800 font-black text-xs inline-flex items-center justify-center shadow-xs select-none cursor-default shrink-0 gap-1.5">
-                        <Clock size={12} className="text-amber-600" />
-                        <span>Pending</span>
-                      </div>
+                      /* Only until marks are assigned, show Edit Submission which navigates to submission page */
+                      <button
+                        type="button"
+                        onClick={(e) => handleEditSubmission(sub.week, e)}
+                        className="px-3 py-1.5 rounded-xl border border-[#D8CCBA] bg-[#EDE7DB] hover:bg-[#E2D9C8] text-[#111111] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                        title="Edit your submitted details before marks are assigned"
+                      >
+                        <Edit3 size={13} />
+                        <span>Edit Submission</span>
+                      </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDetail(sub);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>View Details</span>
+                      <ChevronRight size={14} />
+                    </button>
                   </div>
 
                 </div>
@@ -349,10 +389,17 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
         )}
       </div>
 
-      {/* Comprehensive Week Submission & Guide Review Detail Modal */}
+      {/* Comprehensive Submission Detail Modal (Screenshot sections removed as requested) */}
       {detailModalOpen && activeWeekSub && (() => {
         const isModalApproved = activeWeekSub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved';
         const isModalRevision = !isModalApproved && (activeWeekSub.status === 'Changes Requested' || activeWeekSub.status === 'Rejected');
+        const modalMarks = MarksService.getWeeklyMarks(teamId, activeWeekSub.week, memberRollNos);
+        const isModalMarksAssigned = Boolean(
+          modalMarks && (
+            modalMarks.teamAverage !== undefined ||
+            (modalMarks.memberMarks && Object.keys(modalMarks.memberMarks).length > 0)
+          )
+        );
 
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
@@ -366,11 +413,11 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   isModalRevision ? 'bg-rose-500' :
                   'bg-amber-500'
                 }`}>
-                  W{activeWeekSub.week}
+                  S{activeWeekSub.week + 1}
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900 leading-snug">
-                    Week {activeWeekSub.week}
+                    Submission {activeWeekSub.week + 1} Details
                   </h3>
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
                     <span>Submitted on {activeWeekSub.submissionDate || 'N/A'}</span>
@@ -395,92 +442,10 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
               </button>
             </div>
 
-            {/* Modal Scrollable Body */}
+            {/* Modal Scrollable Body: Pure Student Submission Details (Consultation Notice & Guide Review Cards Removed) */}
             <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700 flex-1">
               
-              {/* Guide Consultation Notice in Modal */}
-              {activeWeekSub.guideNotice && (
-                <div className="bg-amber-50/90 rounded-2xl p-5 border border-amber-300 space-y-3">
-                  <div className="flex items-center justify-between border-b border-amber-200/80 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold">
-                        <Bell size={16} />
-                      </div>
-                      <div>
-                        <span className="font-extrabold text-amber-950 block text-xs">
-                          Consultation Notice from {activeWeekSub.guideName || 'Dr. P. Manimegalai'}
-                        </span>
-                        <span className="text-[10px] text-amber-700 font-bold">Dispatched on {activeWeekSub.guideNotice.date}</span>
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-300">
-                      Action Required
-                    </span>
-                  </div>
-                  <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-amber-200">
-                    {activeWeekSub.guideNotice.comment}
-                  </p>
-                  <div className="flex flex-wrap gap-3 pt-1 text-xs font-bold text-amber-900">
-                    <div className="flex items-center gap-1.5 bg-amber-100/80 px-3 py-1.5 rounded-xl">
-                      <Clock size={13} className="text-amber-700" />
-                      <span>Timing: {activeWeekSub.guideNotice.timing}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-amber-100/80 px-3 py-1.5 rounded-xl">
-                      <MapPin size={13} className="text-amber-700" />
-                      <span>Location: {activeWeekSub.guideNotice.location}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Part 1: Review Given by Guide (NO MARKS SHOWN) */}
-              <div className="bg-[#F8F5EE] rounded-2xl p-5 border border-[#D8CCBA] space-y-3">
-                <div className="flex items-center justify-between border-b border-[#D8CCBA] pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-mint-500 text-white flex items-center justify-center font-bold">
-                      <User size={16} />
-                    </div>
-                    <div>
-                      <span className="font-extrabold text-slate-900 block text-xs">
-                        Review by {activeWeekSub.guideName || 'Dr. P. Manimegalai'}
-                      </span>
-                      <span className="text-[10px] text-mint-700 font-bold">Faculty Project Guide</span>
-                    </div>
-                  </div>
-
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase border ${
-                    isModalApproved ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                    isModalRevision ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                    'bg-amber-100 text-amber-800 border-amber-300'
-                  }`}>
-                    {isModalApproved ? 'Approved' : isModalRevision ? activeWeekSub.status : 'Pending'}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                    Guide Evaluation Critique &amp; Remarks:
-                  </span>
-                  <p className="text-slate-800 font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#D8CCBA]">
-                    {activeWeekSub.comments || (isModalApproved ? 'Project milestone endorsed and approved by faculty guide.' : 'Submission is under active evaluation by the project guide.')}
-                  </p>
-                </div>
-
-                {activeWeekSub.status === 'Changes Requested' && (
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenResubmit(activeWeekSub)}
-                      className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl shadow-xs transition flex items-center gap-1.5"
-                    >
-                      <RefreshCw size={13} />
-                      <span>Resubmit Week {activeWeekSub.week} Deliverable</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Part 2: Complete Submission by Student */}
+              {/* Complete Submission by Student */}
               <div className="space-y-4">
                 <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#D8CCBA] pb-2">
                   Complete Student Submission Details
@@ -491,16 +456,9 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
                     Project Title
                   </span>
-                  {activeWeekSub.projectTitle ? (
-                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs font-bold text-slate-900">
-                      {activeWeekSub.projectTitle}
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
-                      <XCircle size={14} className="text-rose-600" />
-                      <span>Not Submitted</span>
-                    </div>
-                  )}
+                  <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs font-bold text-slate-900">
+                    {formatProjectTitle(activeWeekSub.projectTitle, activeWeekSub.status)}
+                  </div>
                 </div>
 
                 {/* Problem Statement */}
@@ -804,22 +762,24 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
             </div>
 
             {/* Modal Footer */}
+            {/* Modal Footer */}
             <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-between bg-slate-50 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm(`Delete the submission for Week ${activeWeekSub.week}? This will unsubmit and reset all deliverables for this week.`)) {
-                    StudentService.deleteSubmission(activeWeekSub.week);
-                    setSubmissions(StudentService.getSubmissions());
+              {!isModalMarksAssigned ? (
+                <button
+                  type="button"
+                  onClick={() => {
                     setDetailModalOpen(false);
-                    if (onSuccess) onSuccess(`Week ${activeWeekSub.week} submission deleted.`);
-                  }
-                }}
-                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 size={13} />
-                <span>Delete Submission</span>
-              </button>
+                    handleEditSubmission(activeWeekSub.week);
+                  }}
+                  className="px-4 py-2 bg-[#EDE7DB] hover:bg-[#E2D9C8] text-[#111111] border border-[#D8CCBA] text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                  title="Edit your submitted details before marks are assigned"
+                >
+                  <Edit3 size={13} />
+                  <span>Edit Submission</span>
+                </button>
+              ) : (
+                <div />
+              )}
 
               <button
                 type="button"
@@ -835,7 +795,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
         );
       })()}
 
-      {/* Resubmit Modal for Weeks Requiring Revision */}
+      {/* Resubmit Modal for Submissions Requiring Revision */}
       {resubmitModalOpen && activeWeekSub && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-[#D8CCBA] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -846,7 +806,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   <RefreshCw size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Update Week {activeWeekSub.week} Deliverable</h3>
+                  <h3 className="text-base font-extrabold text-slate-900">Update Submission {activeWeekSub.week + 1} Deliverable</h3>
                   <p className="text-xs text-slate-500">Address guide feedback and submit updated milestone documentation</p>
                 </div>
               </div>

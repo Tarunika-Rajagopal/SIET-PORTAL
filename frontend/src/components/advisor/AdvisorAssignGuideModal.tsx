@@ -44,7 +44,7 @@ export const AdvisorAssignGuideModal: React.FC<AdvisorAssignGuideModalProps> = (
       setError('');
       const defaultNo = `Team ${String(teams.length + 1).padStart(2, '0')}`;
       setNewTeamNo(defaultNo);
-      setProjectTitle(`Capstone Project - ${defaultNo}`);
+      setProjectTitle('');
       
       // Default to first guide with available quota
       const availableGuide = availableGuides.find(g => AdvisorService.getGuideTeamCount(className, g.name) < 5);
@@ -287,7 +287,6 @@ export const AdvisorAssignGuideModal: React.FC<AdvisorAssignGuideModalProps> = (
                   required
                   value={newTeamNo}
                   onChange={(e) => setNewTeamNo(e.target.value)}
-                  placeholder="e.g. Team 08"
                   className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl font-bold focus:outline-none focus:border-mint-500 text-xs"
                 />
               </div>
@@ -301,7 +300,6 @@ export const AdvisorAssignGuideModal: React.FC<AdvisorAssignGuideModalProps> = (
                   type="text"
                   value={projectTitle}
                   onChange={(e) => setProjectTitle(e.target.value)}
-                  placeholder="e.g. AI-Based Predictive Maintenance"
                   className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl focus:outline-none focus:border-mint-500 text-xs"
                 />
               </div>

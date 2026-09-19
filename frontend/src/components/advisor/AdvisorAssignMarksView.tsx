@@ -169,7 +169,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
       {/* Select Team Quick Bar */}
       <div className="space-y-2">
         <label className="block text-xs font-bold text-[#75695A] uppercase tracking-wider">
-          1. Select Capstone Team ({teams.length} Teams Available)
+          1. Select Team ({teams.length} Teams Available)
         </label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {teams.map((t) => {
@@ -471,7 +471,6 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                       type="number"
                       min="1"
                       max="100"
-                      placeholder="1-100"
                       value={marksInput[m.rollNo] || ''}
                       onChange={(e) => {
                         const nextValue = e.target.value;
@@ -502,7 +501,6 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
               rows={3}
               value={advisorRemarks}
               onChange={(e) => setAdvisorRemarks(e.target.value)}
-              placeholder="e.g. Robust telemetry verified with low latency response. Documented edge inference benchmarks thoroughly..."
               className="w-full p-3.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]/60 shadow-xs"
             />
           </div>

@@ -137,7 +137,7 @@ export const GuideHistoryPdfModal = ({
             <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-[#75695A] font-normal pt-1">
               <span><strong>Faculty Guide:</strong> {guideName}</span>
               <span>&bull;</span>
-              <span><strong>Jurisdiction:</strong> Mentored Capstone Project Batches</span>
+              <span><strong>Jurisdiction:</strong> Mentored Project Batches</span>
               <span>&bull;</span>
               <span><strong>Generated On:</strong> {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
             </div>

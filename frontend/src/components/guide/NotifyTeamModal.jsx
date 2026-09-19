@@ -134,7 +134,6 @@ export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
               type="text"
               value={timing}
               onChange={(e) => setTiming(e.target.value)}
-              placeholder="e.g. Wednesday at 2:30 PM"
               className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111] focus:bg-white"
             />
           </div>
@@ -149,7 +148,6 @@ export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Faculty Cabin 204"
               className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111] focus:bg-white"
             />
           </div>
@@ -167,7 +165,6 @@ export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
                 setComment(e.target.value);
                 if (error) setError("");
               }}
-              placeholder="e.g. Bring raw benchmark comparison of camera feeds or circuit board schematics..."
               className="w-full p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111] focus:bg-white transition"
             />
             {error && <p className="text-[11px] text-rose-600 font-semibold mt-1">{error}</p>}

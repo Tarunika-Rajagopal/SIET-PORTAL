@@ -70,35 +70,8 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
       {/* Top Filter and Action Bar */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-[#D8CCBA] flex flex-col gap-4">
         
-        {/* Header Title & Record Count */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#D8CCBA] pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-serif font-bold text-[#111111]">
-                My Activity History &amp; Evaluation Audit Log
-              </h2>
-              <span className="text-xs text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] px-2.5 py-0.5 rounded-full font-medium">
-                {filteredLogs.length} Records
-              </span>
-            </div>
-            <p className="text-xs text-[#75695A] mt-0.5">
-              Personal chronological audit trail of all changes and evaluations performed by <strong>{advisorName}</strong> for Class {className}
-            </p>
-          </div>
-
-          {/* Download as PDF Button */}
-          <button
-            type="button"
-            onClick={() => setIsPdfModalOpen(true)}
-            className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-1.5 text-xs shrink-0 cursor-pointer self-start sm:self-auto active:scale-95"
-          >
-            <Download size={14} />
-            <span>Download as PDF</span>
-          </button>
-        </div>
-
-        {/* Filter Controls Row */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
+        {/* Controls Row with Actions, Search, and Download */}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-medium">
           
           {/* 1. Filter by Action Type */}
           <div className="relative">
@@ -167,6 +140,16 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
             className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] rounded-xl border border-[#D8CCBA] transition cursor-pointer flex items-center justify-center shrink-0"
           >
             <RefreshCw size={14} />
+          </button>
+
+          {/* Download as PDF Button */}
+          <button
+            type="button"
+            onClick={() => setIsPdfModalOpen(true)}
+            className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-1.5 text-xs shrink-0 cursor-pointer ml-auto active:scale-95"
+          >
+            <Download size={14} />
+            <span>Download PDF</span>
           </button>
 
         </div>

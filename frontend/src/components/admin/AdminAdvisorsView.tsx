@@ -61,23 +61,8 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
     <div className="space-y-6 font-sans">
 
       {/* Top Filter and Action Bar */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#D8CCBA] flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-serif font-bold text-[#111111]">
-              Department Class Advisors ({filtered.length})
-            </h2>
-            <span className="text-xs text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] px-2.5 py-0.5 rounded-full font-medium">
-              Student Supervision
-            </span>
-          </div>
-          <p className="text-xs text-[#75695A] mt-0.5">
-            Click anywhere on an advisor row to inspect their student roster in the Students view
-          </p>
-        </div>
-
+      <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#D8CCBA] flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-
           {/* Batch Filter */}
           <select
             value={batchFilter}
@@ -113,7 +98,9 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
               className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]/60"
             />
           </div>
+        </div>
 
+        <div className="flex items-center gap-3">
           {/* Manage / Refresh Button */}
           <button
             onClick={() => setIsManageMode(!isManageMode)}
@@ -123,7 +110,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
               }`}
           >
             <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
-            <span>{isManageMode ? 'Done Managing' : 'Manage'}</span>
+            {!isManageMode && <span>Manage</span>}
           </button>
 
           {/* Refresh button */}
@@ -136,7 +123,6 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
           >
             <RefreshCw size={14} />
           </button>
-
         </div>
       </div>
 
@@ -157,7 +143,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
             <tbody className="divide-y divide-[#D8CCBA] font-normal">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isManageMode ? 7 : 6} className="p-8 text-center text-slate-400">
+                  <td colSpan={isManageMode ? 6 : 5} className="p-8 text-center text-slate-400">
                     No advisors match the current filters.
                   </td>
                 </tr>
@@ -185,12 +171,6 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
                     </td>
                     <td className="p-4 text-slate-600 font-bold">{a.advisorBatch || 'N/A'}</td>
                     <td className="p-4 font-bold text-slate-800">64 Students</td>
-                    <td className="p-4">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-mint-800 bg-mint-100 border border-mint-200 px-2.5 py-0.5 rounded-full">
-                        <CheckCircle2 size={12} />
-                        <span>Active</span>
-                      </span>
-                    </td>
 
                     {isManageMode && (
                       <td className="p-4 text-center">

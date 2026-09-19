@@ -25,7 +25,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
   onTeamCreated,
   onShowToast
 }) => {
-  const capacity = AdvisorService.getTeamCapacity(className);
+  const capacity = Math.min(AdvisorService.getTeamCapacity(className), 4);
   const existingTeams = AdvisorService.getTeamsForClass(className);
 
   // Suggested team number e.g. "Team 05"
@@ -180,9 +180,6 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
               <h3 className="text-base font-serif font-bold text-[#111111]">
                 Manual Team Creation &amp; Assignment
               </h3>
-              <p className="text-xs text-[#75695A]">
-                Class {className} &bull; Form a team with unassigned students and assign a technical guide
-              </p>
             </div>
           </div>
 
@@ -214,13 +211,9 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
               type="text"
               value={teamNo}
               onChange={(e) => setTeamNo(e.target.value)}
-              placeholder="e.g. Team 05"
               className="w-full px-3.5 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
               required
             />
-            <p className="text-[11px] text-[#75695A]/70 mt-1">
-              * Note: Project proposal title will be submitted by the student team, not entered by advisors.
-            </p>
           </div>
 
           {/* Dropdown to Select Unassigned Students */}

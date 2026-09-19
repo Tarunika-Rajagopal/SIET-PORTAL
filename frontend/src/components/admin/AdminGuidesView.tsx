@@ -41,21 +41,8 @@ export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast })
     <div className="space-y-6">
       
       {/* Top Filter and Actions Bar */}
-      <div className="bg-white rounded-3xl p-6 shadow-card border border-[#E2E8E4] flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-extrabold text-slate-900">
-              Approved Capstone Guides ({guides.length})
-            </h2>
-            <span className="text-xs text-mint-700 bg-mint-50 border border-mint-200 px-2.5 py-0.5 rounded-full font-bold">
-              Research Mentorship
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">Faculty research mentors supervising student capstone projects</p>
-        </div>
-
+      <div className="bg-white rounded-3xl p-5 shadow-card border border-[#E2E8E4] flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-
           {/* Single Search Bar */}
           <div className="relative w-full sm:w-64">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -67,7 +54,9 @@ export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast })
               className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800 placeholder-slate-400"
             />
           </div>
+        </div>
 
+        <div className="flex items-center gap-3">
           {/* Manage / Refresh Button */}
           <button
             onClick={() => {
@@ -89,7 +78,6 @@ export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast })
             <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
             {!isManageMode && <span>Manage</span>}
           </button>
-
         </div>
       </div>
 

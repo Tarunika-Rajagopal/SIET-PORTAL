@@ -109,7 +109,6 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Semester workload allocation"
               className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-medium text-[#111111]"
             />
           </div>

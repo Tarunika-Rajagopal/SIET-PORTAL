@@ -182,7 +182,6 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Dr. K. Rajesh"
                 className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl focus:outline-none focus:border-mint-500 font-medium"
               />
             </div>
@@ -194,7 +193,6 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. rajesh.k@siet.ac.in"
                 className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl focus:outline-none focus:border-mint-500 font-mono"
               />
             </div>
@@ -208,7 +206,6 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
               >
                 <option value="Professor">Professor</option>
                 <option value="Associate Professor">Associate Professor</option>
-                <option value="Assistant Professor (Sr. Gr)">Assistant Professor (Sr. Gr)</option>
                 <option value="Assistant Professor">Assistant Professor</option>
               </select>
             </div>

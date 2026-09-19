@@ -98,7 +98,6 @@ export const ProposalReviewCard: React.FC<ProposalReviewCardProps> = ({
             required
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
-            placeholder="e.g. Scope needs clearer hardware quantization bounds before Review 1..."
             className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs focus:outline-none focus:border-amber-600"
           />
           <div className="flex justify-end gap-2">

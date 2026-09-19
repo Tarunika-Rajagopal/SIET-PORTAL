@@ -1,27 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { StudentService, StudentDeliverableState } from '../../services/studentService';
 import { MarksService } from '../../services/marksService';
-import { FileText, Image, Upload, Bell, Clock, MapPin, Trash2, AlertTriangle, Lock, Check } from 'lucide-react';
+import { FileText, Image, Upload, Bell, Clock, MapPin, AlertTriangle, Lock, Check, Edit3, Send } from 'lucide-react';
 
 interface SubmissionViewProps {
   onSuccess?: (msg: string) => void;
 }
 
-// Clean Pill badge with Approved or Pending status
-const SubmittedBadge = ({ isApproved }: { isApproved?: boolean }) => (
-  <div className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center justify-center shadow-subtle select-none cursor-default shrink-0 gap-1.5 ${
-    isApproved
-      ? 'bg-[#EDF1EC] border border-[#C4D1C2] text-[#4A5844]'
-      : 'bg-[#F7F2E7] border border-[#DBCFA8] text-[#8A6A32]'
-  }`}>
-    {isApproved ? <Check size={12} className="text-[#4A5844]" /> : <Clock size={12} className="text-[#8A6A32]" />}
-    <span>{isApproved ? 'Approved' : 'Pending'}</span>
-  </div>
-);
 
 export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => {
-  const currentWeekNumber = StudentService.getCurrentAcademicWeek();
-  const weekText = `Week ${currentWeekNumber}`;
+  const [team, setTeam] = useState(() => StudentService.getTeam());
+  const teamId = team?.id || 'TEAM-CSE-Y3-B04';
+  const memberRollNos = team?.members?.map(m => m.rollNo) || [];
+
+  // Determine active submission:
+  // "Only until the marks are assigned , it should move to the submissions page if edit submission clicked , else edit submission should not show , instead it should move to the next submission and enable every submit button"
+  const getActiveSubmissionWeek = () => {
+    let weekIndex = 0;
+    while (weekIndex <= 16) {
+      const rec = MarksService.getWeeklyMarks(teamId, weekIndex, memberRollNos);
+      const hasMarks = Boolean(
+        rec && (
+          rec.teamAverage !== undefined ||
+          (rec.memberMarks && Object.keys(rec.memberMarks).length > 0)
+        )
+      );
+      if (!hasMarks) {
+        break;
+      }
+      weekIndex++;
+    }
+    return weekIndex;
+  };
+
+  const [currentWeekNumber, setCurrentWeekNumber] = useState(getActiveSubmissionWeek);
+  const currentSubmissionNumber = currentWeekNumber + 1;
+  const weekText = `Submission ${currentSubmissionNumber}`;
+
   const [deliverables, setDeliverables] = useState<StudentDeliverableState>(() =>
     StudentService.getDeliverables(weekText)
   );
@@ -30,7 +45,6 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   const currentSub = submissions.find(s => s.week === currentWeekNumber);
   const isRevisionRequired = currentSub?.status === 'Changes Requested' || currentSub?.status === 'Rejected';
 
-  const [team, setTeam] = useState(() => StudentService.getTeam());
   const isTitleRejected = team?.guideApprovalStatus === 'Rejected';
 
   const isApproved = Boolean(
@@ -42,28 +56,109 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   const hasAnySubmittedField = Object.values(deliverables.submittedFields).some(Boolean);
   const hasSubmission = Boolean(currentSub || hasAnySubmittedField);
 
+  // Status of submitted details
+  const currentStatus: 'Approved' | 'Requested Revision' | 'Pending' = 
+    isApproved ? 'Approved' : (isRevisionRequired || isTitleRejected) ? 'Requested Revision' : 'Pending';
+
+  // Date selection logic: up to today's date
+  const getTodayDateStr = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayDateStr = getTodayDateStr();
+
+  const [submissionDate, setSubmissionDate] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(`siet_submission_date_${weekText}`);
+      if (saved && saved <= todayDateStr) return saved;
+      if (currentSub?.submissionDate && currentSub.submissionDate <= todayDateStr) return currentSub.submissionDate;
+    } catch (e) {}
+    return todayDateStr;
+  });
+
+  const handleDateChange = (val: string) => {
+    if (!val) {
+      setSubmissionDate(todayDateStr);
+      return;
+    }
+    if (val > todayDateStr) {
+      alert(`Date cannot exceed today's date (${todayDateStr}). Only dates up to the current date are accepted.`);
+      return;
+    }
+    setSubmissionDate(val);
+    try {
+      localStorage.setItem(`siet_submission_date_${weekText}`, val);
+    } catch (err) {}
+  };
+
+  // Edit submission state before evaluation
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    const checkEditMode = () => {
+      if (localStorage.getItem('siet_student_start_edit_mode') === 'true') {
+        setIsEditing(true);
+        localStorage.removeItem('siet_student_start_edit_mode');
+      }
+    };
+    checkEditMode();
+
+    const handleNavSubmission = (e: any) => {
+      if (e?.detail?.week !== undefined) {
+        setCurrentWeekNumber(e.detail.week);
+      }
+      if (e?.detail?.edit) {
+        setIsEditing(true);
+      }
+    };
+    window.addEventListener('student_navigate_submission', handleNavSubmission);
+    return () => {
+      window.removeEventListener('student_navigate_submission', handleNavSubmission);
+    };
+  }, []);
+
   useEffect(() => {
     const handleSync = () => {
-      setDeliverables(StudentService.getDeliverables(weekText));
+      const activeW = getActiveSubmissionWeek();
+      setCurrentWeekNumber(activeW);
+      const curWeekText = `Submission ${activeW + 1}`;
+      setDeliverables(StudentService.getDeliverables(curWeekText));
       setSubmissions(StudentService.getSubmissions());
       setTeam(StudentService.getTeam());
+      if (localStorage.getItem('siet_student_start_edit_mode') === 'true') {
+        setIsEditing(true);
+        localStorage.removeItem('siet_student_start_edit_mode');
+      }
     };
+    window.addEventListener('siet_marks_updated', handleSync);
     window.addEventListener('siet_data_updated', handleSync);
     window.addEventListener('storage', handleSync);
     return () => {
+      window.removeEventListener('siet_marks_updated', handleSync);
       window.removeEventListener('siet_data_updated', handleSync);
       window.removeEventListener('storage', handleSync);
     };
+  }, [teamId]);
+
+  useEffect(() => {
+    setDeliverables(StudentService.getDeliverables(weekText));
   }, [weekText]);
 
-  // Check if Class Advisor has already awarded marks for this milestone week
-  const marksRecord = MarksService.getWeeklyMarks(team?.id || 'TEAM-CSE-Y3-B04', currentWeekNumber);
+  // Check if Class Advisor has already awarded marks for this milestone submission
+  const marksRecord = MarksService.getWeeklyMarks(teamId, currentWeekNumber, memberRollNos);
   const isMarksAssigned = Boolean(
     marksRecord && (
       marksRecord.teamAverage !== undefined ||
       (marksRecord.memberMarks && Object.keys(marksRecord.memberMarks).length > 0)
     )
   );
+
+  // Submissions are evaluated if marks are assigned
+  const isEvaluated = isMarksAssigned;
 
   // Field values state
   const [title, setTitle] = useState(deliverables.projectTitle || '');
@@ -78,14 +173,35 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   const [demoUrl, setDemoUrl] = useState(deliverables.demoUrl || '');
   const [screenshotName, setScreenshotName] = useState(deliverables.screenshotFile || '');
 
+  useEffect(() => {
+    setTitle(deliverables.projectTitle || '');
+    setProblemStatement(deliverables.problemStatement || '');
+    setSolution(deliverables.solution || '');
+    setTechnology(deliverables.technologyUsed || '');
+    setObstaclesFaced(deliverables.obstaclesFaced || '');
+    setAbstract(deliverables.abstract || '');
+    setPresentationFileName(deliverables.presentationFile || '');
+    setReportFileName(deliverables.reportFile || '');
+    setRepoUrl(deliverables.repoUrl || '');
+    setDemoUrl(deliverables.demoUrl || '');
+    setScreenshotName(deliverables.screenshotFile || '');
+  }, [deliverables]);
+
   const handleFieldSubmit = (field: keyof StudentDeliverableState['submittedFields'], value: string) => {
     if (!value.trim()) return;
     const updated = StudentService.saveDeliverableField(weekText, field, value);
     setDeliverables({ ...updated });
 
-    // If this week was in revision/rejected state, update submission status to 'Submitted'
-    if (isRevisionRequired) {
-      StudentService.updateSubmission(currentWeekNumber, `Revised ${field}: ${value.substring(0, 40)}...`);
+    // Ensure submission date is stored
+    try {
+      if (submissionDate) {
+        localStorage.setItem(`siet_submission_date_${weekText}`, submissionDate);
+      }
+    } catch (e) {}
+
+    // If this week was in revision/rejected state or in edit mode, update submission status
+    if (isRevisionRequired || isEditing) {
+      StudentService.updateSubmission(currentWeekNumber, `Updated ${field}: ${value.substring(0, 40)}...`);
       setSubmissions(StudentService.getSubmissions());
     }
 
@@ -114,8 +230,34 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     }
 
     if (onSuccess) {
-      onSuccess(`Submitted ${field.toUpperCase()} for ${weekText} successfully. Sent to Guide & Advisor.`);
+      onSuccess(`Saved ${field.toUpperCase()} for ${weekText} successfully. Sent to Guide & Advisor.`);
     }
+  };
+
+  const handleSaveAllChanges = () => {
+    if (title.trim()) StudentService.saveDeliverableField(weekText, 'title', title);
+    if (problemStatement.trim()) StudentService.saveDeliverableField(weekText, 'problemStatement', problemStatement);
+    if (solution.trim()) StudentService.saveDeliverableField(weekText, 'solution', solution);
+    if (technology.trim()) StudentService.saveDeliverableField(weekText, 'technologyUsed', technology);
+    if (obstaclesFaced.trim()) StudentService.saveDeliverableField(weekText, 'obstaclesFaced', obstaclesFaced);
+    if (abstract.trim()) StudentService.saveDeliverableField(weekText, 'abstract', abstract);
+    if (presentationFileName.trim()) StudentService.saveDeliverableField(weekText, 'presentation', presentationFileName);
+    if (reportFileName.trim()) StudentService.saveDeliverableField(weekText, 'report', reportFileName);
+    if (repoUrl.trim()) StudentService.saveDeliverableField(weekText, 'repoUrl', repoUrl);
+    if (demoUrl.trim()) StudentService.saveDeliverableField(weekText, 'demoUrl', demoUrl);
+    if (screenshotName.trim()) StudentService.saveDeliverableField(weekText, 'screenshot', screenshotName);
+
+    try {
+      if (submissionDate) {
+        localStorage.setItem(`siet_submission_date_${weekText}`, submissionDate);
+      }
+    } catch (e) {}
+
+    StudentService.updateSubmission(currentWeekNumber, `Updated milestone deliverables for ${weekText}`);
+    setDeliverables(StudentService.getDeliverables(weekText));
+    setSubmissions(StudentService.getSubmissions());
+    setIsEditing(false);
+    if (onSuccess) onSuccess(`All changes saved for ${weekText} successfully.`);
   };
 
   const handlePptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,96 +286,109 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     setScreenshotName(file.name);
   };
 
-  // Helper to check if field can be edited/submitted
-  const isFieldSubmitted = (field: keyof StudentDeliverableState['submittedFields']) => {
-    return Boolean(deliverables.submittedFields[field]) && !isRevisionRequired && !isTitleRejected;
+  // Helper to check if a field was previously submitted
+  const isFieldSubmitted = (field: keyof StudentDeliverableState['submittedFields']): boolean => {
+    return Boolean(deliverables.submittedFields[field]);
+  };
+
+  // When edit mode is active, or if field is not submitted yet, inputs are enabled
+  const isInputDisabled = (field: keyof StudentDeliverableState['submittedFields']): boolean => {
+    if (isEvaluated) return true;
+    const submitted = isFieldSubmitted(field);
+    if (!submitted) return false; // Not submitted yet -> ALWAYS enabled
+    // If submitted, enabled when student is editing or revision is required
+    return !isEditing && !isRevisionRequired && !isTitleRejected;
+  };
+
+  // Helper to check if field button should be visible
+  const shouldShowFieldButton = (field: keyof StudentDeliverableState['submittedFields']): boolean => {
+    if (isEvaluated) return false;
+    const submitted = isFieldSubmitted(field);
+    if (!submitted) return true; // Details that are not submitted yet ALWAYS have a Submit button enabled
+    // Submitted details have an Update button when in edit mode or revision required
+    return isEditing || isRevisionRequired || isTitleRejected;
+  };
+
+  // Button label: "Update" for already submitted details, "Submit" for details not submitted yet
+  const getFieldButtonLabel = (field: keyof StudentDeliverableState['submittedFields']): string => {
+    const submitted = isFieldSubmitted(field);
+    if (submitted) return 'Update';
+    return 'Submit';
   };
 
   return (
     <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-card border border-[#D8CCBA] space-y-6 font-sans">
       
-      {/* Header and Current Week Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#D8CCBA]">
-        <div>
-          <h2 className="text-base font-serif font-bold text-[#111111]">Milestone Submission Form</h2>
-          <p className="text-[11px] text-[#75695A] mt-0.5">
-            {isTitleRejected
-              ? "Guide has rejected the current proposal. Please review the reason below, update the required fields, and re-submit."
-              : isRevisionRequired
-              ? "Guide has requested revisions. Update necessary fields and submit again."
-              : "Submit project deliverables for active evaluation"}
-          </p>
+      {/* Top Header Bar: Date Input (replaces current week), Status Badge, Edit Submission */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-[#D8CCBA]">
+        
+        {/* Date Field with Calendar Picker (up to today's date) */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="submissionDateInput" className="text-xs font-bold text-[#75695A] whitespace-nowrap">
+            Submission Date:
+          </label>
+          <input
+            id="submissionDateInput"
+            type="date"
+            max={todayDateStr}
+            value={submissionDate}
+            onChange={(e) => handleDateChange(e.target.value)}
+            className="px-3 py-1.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer"
+          />
         </div>
 
-        {/* Current Week Badge & Delete Action */}
-        <div className="flex items-center gap-3">
-          {currentSub && (currentSub.status === 'Submitted' || Object.values(deliverables.submittedFields).some(Boolean)) && (
+        {/* Right side: Status of Submitted Details & Edit Submission */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Status Badge */}
+          {!hasSubmission ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F3EFE6] text-[#75695A] border border-[#D8CCBA] text-xs font-bold select-none">
+              <Clock size={12} className="text-[#75695A]" />
+              <span>No Submission</span>
+            </div>
+          ) : isApproved ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EDF1EC] text-[#4A5844] border border-[#C4D1C2] text-xs font-bold select-none">
+              <Check size={12} className="text-[#4A5844]" />
+              <span>Approved</span>
+            </div>
+          ) : (isRevisionRequired || isTitleRejected) ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F8EEEE] text-[#7C3838] border border-[#D9AEAE] text-xs font-bold select-none">
+              <AlertTriangle size={12} className="text-[#7C3838]" />
+              <span>Requested Revision</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F7F2E7] text-[#8A6A32] border border-[#DBCFA8] text-xs font-bold select-none">
+              <Clock size={12} className="text-[#8A6A32]" />
+              <span>Pending</span>
+            </div>
+          )}
+
+          {/* Edit Submission Button (Available before evaluation) */}
+          {hasSubmission && !isEvaluated && (
             <button
               type="button"
-              onClick={() => {
-                if (confirm(`Delete the current submission for Week ${currentWeekNumber}? This will unsubmit, reset all fields, and reset any assigned marks across all portals.`)) {
-                  StudentService.deleteSubmission(currentWeekNumber);
-                  const reset = StudentService.getDeliverables(weekText);
-                  setDeliverables({ ...reset });
-                  setTitle('');
-                  setProblemStatement('');
-                  setSolution('');
-                  setTechnology('');
-                  setObstaclesFaced('');
-                  setAbstract('');
-                  setPresentationFileName('');
-                  setReportFileName('');
-                  setRepoUrl('');
-                  setDemoUrl('');
-                  setScreenshotName('');
-                  setSubmissions(StudentService.getSubmissions());
-                  if (onSuccess) onSuccess(`Week ${currentWeekNumber} submission deleted successfully.`);
-                }
-              }}
-              className={`px-3.5 py-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
-                isMarksAssigned
-                  ? 'border-[#D8CCBA] bg-[#EDE7DB] text-[#75695A] cursor-not-allowed opacity-75'
-                  : 'border-[#D9AEAE] bg-[#F8EEEE] hover:bg-[#ECCED0] text-[#7C3838] cursor-pointer'
+              onClick={() => setIsEditing(!isEditing)}
+              className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                isEditing
+                  ? 'bg-[#111111] text-white border-[#111111] shadow-xs'
+                  : 'bg-[#EDE7DB] hover:bg-[#E2D9C8] text-[#111111] border-[#D8CCBA]'
               }`}
-              title={isMarksAssigned ? `Submission locked: Marks (${marksRecord?.teamAverage}/100) have been awarded by Class Advisor.` : "Delete current submission"}
+              title="Edit your submitted details before evaluation"
             >
-              {isMarksAssigned ? <Lock size={13} className="text-[#75695A]" /> : <Trash2 size={13} />}
-              <span>{isMarksAssigned ? 'Submission Locked (Marks Assigned)' : 'Delete Submission'}</span>
+              <Edit3 size={13} />
+              <span>{isEditing ? 'Finish Editing' : 'Edit Submission'}</span>
             </button>
           )}
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#75695A]">Current Week:</span>
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-bold shadow-subtle">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#111111]"></span>
-              <span>Week {currentWeekNumber}</span>
+          {isEvaluated && (
+            <div className="px-3 py-1.5 rounded-xl border border-[#D8CCBA] bg-[#EDE7DB] text-[#75695A] text-xs font-bold flex items-center gap-1.5 select-none" title="Evaluation completed. Submission is locked.">
+              <Lock size={13} />
+              <span>Evaluated (Locked)</span>
             </div>
-
-            {/* Overall Status Pill Badge */}
-            {!hasSubmission ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F3EFE6] text-[#75695A] border border-[#D8CCBA] text-xs font-bold select-none">
-                <Clock size={12} className="text-[#75695A]" />
-                <span>No Submission</span>
-              </div>
-            ) : isApproved ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EDF1EC] text-[#4A5844] border border-[#C4D1C2] text-xs font-bold select-none">
-                <Check size={12} className="text-[#4A5844]" />
-                <span>Approved</span>
-              </div>
-            ) : isRevisionRequired ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F8EEEE] text-[#7C3838] border border-[#D9AEAE] text-xs font-bold select-none">
-                <AlertTriangle size={12} className="text-[#7C3838]" />
-                <span>Changes Requested</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F7F2E7] text-[#8A6A32] border border-[#DBCFA8] text-xs font-bold select-none">
-                <Clock size={12} className="text-[#8A6A32]" />
-                <span>Pending</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
+
+
 
       {/* Guide Rejection Notice Banner */}
       {isTitleRejected && (
@@ -268,7 +423,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wider text-amber-900">
               <Bell size={14} className="text-amber-600 animate-bounce" />
-              <span>Guide Consultation Notice for Week {currentWeekNumber}</span>
+              <span>Guide Consultation Notice for Submission {currentSubmissionNumber}</span>
             </div>
             <span className="text-[11px] font-bold text-amber-700">{currentSub.guideNotice.date}</span>
           </div>
@@ -293,27 +448,24 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         
         {/* 1. Project Title */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Project Title</label>
-            {isFieldSubmitted('title') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Project Title</label>
           <div className="flex flex-col sm:flex-row gap-2 items-center">
             <input
               type="text"
               id="inputProjectTitle"
               value={title}
-              disabled={isFieldSubmitted('title')}
+              disabled={isInputDisabled('title')}
               onChange={(e) => setTitle(e.target.value)}
               className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
             />
-            {!isFieldSubmitted('title') && (
+            {shouldShowFieldButton('title') && (
               <button
                 type="button"
                 onClick={() => handleFieldSubmit('title', title)}
                 disabled={!title.trim()}
                 className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
-                <span>Submit</span>
+                <span>{getFieldButtonLabel('title')}</span>
               </button>
             )}
           </div>
@@ -321,18 +473,15 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 2. Problem Statement */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Problem Statement</label>
-            {isFieldSubmitted('problemStatement') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Problem Statement</label>
           <textarea
             rows={4}
             value={problemStatement}
-            disabled={isFieldSubmitted('problemStatement')}
+            disabled={isInputDisabled('problemStatement')}
             onChange={(e) => setProblemStatement(e.target.value)}
             className="w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
           />
-          {!isFieldSubmitted('problemStatement') && (
+          {shouldShowFieldButton('problemStatement') && (
             <div className="flex justify-end">
               <button
                 type="button"
@@ -340,7 +489,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                 disabled={!problemStatement.trim()}
                 className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Submit</span>
+                <span>{getFieldButtonLabel('problemStatement')}</span>
               </button>
             </div>
           )}
@@ -348,18 +497,15 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 3. Proposed Solution */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Proposed Solution &amp; Technical Approach</label>
-            {isFieldSubmitted('solution') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Proposed Solution &amp; Technical Approach</label>
           <textarea
             rows={4}
             value={solution}
-            disabled={isFieldSubmitted('solution')}
+            disabled={isInputDisabled('solution')}
             onChange={(e) => setSolution(e.target.value)}
             className="w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
           />
-          {!isFieldSubmitted('solution') && (
+          {shouldShowFieldButton('solution') && (
             <div className="flex justify-end">
               <button
                 type="button"
@@ -367,7 +513,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                 disabled={!solution.trim()}
                 className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Submit</span>
+                <span>{getFieldButtonLabel('solution')}</span>
               </button>
             </div>
           )}
@@ -375,26 +521,23 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 4. Technologies Used */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Technologies Used</label>
-            {isFieldSubmitted('technologyUsed') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Technologies Used</label>
           <div className="flex flex-col sm:flex-row gap-2 items-center">
             <input
               type="text"
               value={technology}
-              disabled={isFieldSubmitted('technologyUsed')}
+              disabled={isInputDisabled('technologyUsed')}
               onChange={(e) => setTechnology(e.target.value)}
               className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
             />
-            {!isFieldSubmitted('technologyUsed') && (
+            {shouldShowFieldButton('technologyUsed') && (
               <button
                 type="button"
                 onClick={() => handleFieldSubmit('technologyUsed', technology)}
                 disabled={!technology.trim()}
                 className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
-                <span>Submit</span>
+                <span>{getFieldButtonLabel('technologyUsed')}</span>
               </button>
             )}
           </div>
@@ -402,18 +545,15 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 5. Obstacles Faced */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Obstacles Faced</label>
-            {isFieldSubmitted('obstaclesFaced') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Obstacles Faced</label>
           <textarea
             rows={4}
             value={obstaclesFaced}
-            disabled={isFieldSubmitted('obstaclesFaced')}
+            disabled={isInputDisabled('obstaclesFaced')}
             onChange={(e) => setObstaclesFaced(e.target.value)}
             className="w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 leading-relaxed disabled:bg-slate-100 disabled:text-slate-500"
           />
-          {!isFieldSubmitted('obstaclesFaced') && (
+          {shouldShowFieldButton('obstaclesFaced') && (
             <div className="flex justify-end">
               <button
                 type="button"
@@ -421,7 +561,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                 disabled={!obstaclesFaced.trim()}
                 className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Submit</span>
+                <span>{getFieldButtonLabel('obstaclesFaced')}</span>
               </button>
             </div>
           )}
@@ -429,18 +569,15 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 6. Abstract */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Project Abstract</label>
-            {isFieldSubmitted('abstract') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Project Abstract</label>
           <textarea
             rows={3}
             value={abstract}
-            disabled={isFieldSubmitted('abstract')}
+            disabled={isInputDisabled('abstract')}
             onChange={(e) => setAbstract(e.target.value)}
             className="w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
           />
-          {!isFieldSubmitted('abstract') && (
+          {shouldShowFieldButton('abstract') && (
             <div className="flex justify-end">
               <button
                 type="button"
@@ -448,7 +585,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                 disabled={!abstract.trim()}
                 className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Submit</span>
+                <span>{getFieldButtonLabel('abstract')}</span>
               </button>
             </div>
           )}
@@ -456,16 +593,13 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 7. Presentation File: PPT / PPTX only */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="font-bold text-slate-800">Presentation Deck (PowerPoint Only)</label>
-              <span className="text-[11px] text-slate-400 block mt-0.5">Strictly .ppt or .pptx format required</span>
-            </div>
-            {isFieldSubmitted('presentation') && <SubmittedBadge isApproved={isApproved} />}
+          <div>
+            <label className="font-bold text-slate-800">Presentation Deck (PowerPoint Only)</label>
+            <span className="text-[11px] text-slate-400 block mt-0.5">Strictly .ppt or .pptx format required</span>
           </div>
 
           <div className="flex items-center gap-3">
-            {isFieldSubmitted('presentation') ? (
+            {isInputDisabled('presentation') ? (
               <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
                 <FileText size={14} className="text-slate-500" />
                 <span>{presentationFileName || "Presentation File Uploaded"}</span>
@@ -482,17 +616,19 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                     onChange={handlePptUpload}
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => handleFieldSubmit('presentation', presentationFileName)}
-                  disabled={!presentationFileName}
-                  className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-                >
-                  <span>Submit</span>
-                </button>
+                {shouldShowFieldButton('presentation') && (
+                  <button
+                    type="button"
+                    onClick={() => handleFieldSubmit('presentation', presentationFileName)}
+                    disabled={!presentationFileName}
+                    className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                  >
+                    <span>{getFieldButtonLabel('presentation')}</span>
+                  </button>
+                )}
               </div>
             )}
-            {presentationFileName && isFieldSubmitted('presentation') && (
+            {presentationFileName && isInputDisabled('presentation') && (
               <span className="text-[11px] font-mono text-slate-500 font-bold">{presentationFileName}</span>
             )}
           </div>
@@ -500,16 +636,13 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 8. Technical Project Report: PDF only */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="font-bold text-slate-800">Technical Report Document (PDF Only)</label>
-              <span className="text-[11px] text-slate-400 block mt-0.5">Strictly .pdf format required</span>
-            </div>
-            {isFieldSubmitted('report') && <SubmittedBadge isApproved={isApproved} />}
+          <div>
+            <label className="font-bold text-slate-800">Technical Report Document (PDF Only)</label>
+            <span className="text-[11px] text-slate-400 block mt-0.5">Strictly .pdf format required</span>
           </div>
 
           <div className="flex items-center gap-3">
-            {isFieldSubmitted('report') ? (
+            {isInputDisabled('report') ? (
               <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
                 <FileText size={14} className="text-slate-500" />
                 <span>{reportFileName || deliverables.reportFile || "Technical Report Uploaded"}</span>
@@ -526,17 +659,19 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                     onChange={handlePdfUpload}
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => handleFieldSubmit('report', reportFileName)}
-                  disabled={!reportFileName}
-                  className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-                >
-                  <span>Submit</span>
-                </button>
+                {shouldShowFieldButton('report') && (
+                  <button
+                    type="button"
+                    onClick={() => handleFieldSubmit('report', reportFileName)}
+                    disabled={!reportFileName}
+                    className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                  >
+                    <span>{getFieldButtonLabel('report')}</span>
+                  </button>
+                )}
               </div>
             )}
-            {reportFileName && isFieldSubmitted('report') && (
+            {reportFileName && isInputDisabled('report') && (
               <span className="text-[11px] font-mono text-slate-500 font-bold">{reportFileName}</span>
             )}
           </div>
@@ -544,26 +679,23 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 9. Repository Link (GitHub) */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Source Code Repository URL</label>
-            {isFieldSubmitted('repoUrl') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Source Code Repository URL</label>
           <div className="flex flex-col sm:flex-row gap-2 items-center">
             <input
               type="url"
               value={repoUrl}
-              disabled={isFieldSubmitted('repoUrl')}
+              disabled={isInputDisabled('repoUrl')}
               onChange={(e) => setRepoUrl(e.target.value)}
               className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
             />
-            {!isFieldSubmitted('repoUrl') && (
+            {shouldShowFieldButton('repoUrl') && (
               <button
                 type="button"
                 onClick={() => handleFieldSubmit('repoUrl', repoUrl)}
                 disabled={!repoUrl.trim()}
                 className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
-                <span>Submit</span>
+                <span>{getFieldButtonLabel('repoUrl')}</span>
               </button>
             )}
           </div>
@@ -571,26 +703,23 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 9. Live Demo Link */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Live Deployment / Demo URL</label>
-            {isFieldSubmitted('demoUrl') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Live Deployment / Demo URL</label>
           <div className="flex flex-col sm:flex-row gap-2 items-center">
             <input
               type="url"
               value={demoUrl}
-              disabled={isFieldSubmitted('demoUrl')}
+              disabled={isInputDisabled('demoUrl')}
               onChange={(e) => setDemoUrl(e.target.value)}
               className="flex-1 w-full px-3.5 py-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-mint-500 disabled:bg-slate-100 disabled:text-slate-500"
             />
-            {!isFieldSubmitted('demoUrl') && (
+            {shouldShowFieldButton('demoUrl') && (
               <button
                 type="button"
                 onClick={() => handleFieldSubmit('demoUrl', demoUrl)}
                 disabled={!demoUrl.trim()}
                 className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
-                <span>Submit</span>
+                <span>{getFieldButtonLabel('demoUrl')}</span>
               </button>
             )}
           </div>
@@ -598,12 +727,9 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
         {/* 10. Output Screenshot */}
         <div className="bg-slate-50/70 p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="font-bold text-slate-800">Output Screenshot Upload</label>
-            {isFieldSubmitted('screenshot') && <SubmittedBadge isApproved={isApproved} />}
-          </div>
+          <label className="font-bold text-slate-800 block">Output Screenshot Upload</label>
           <div className="flex items-center gap-3">
-            {isFieldSubmitted('screenshot') ? (
+            {isInputDisabled('screenshot') ? (
               <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
                 <Image size={14} className="text-slate-500" />
                 <span>{screenshotName || "Screenshot Uploaded"}</span>
@@ -620,21 +746,40 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                     onChange={handleScreenshotUpload}
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => handleFieldSubmit('screenshot', screenshotName)}
-                  disabled={!screenshotName}
-                  className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-                >
-                  <span>Submit</span>
-                </button>
+                {shouldShowFieldButton('screenshot') && (
+                  <button
+                    type="button"
+                    onClick={() => handleFieldSubmit('screenshot', screenshotName)}
+                    disabled={!screenshotName}
+                    className="px-4 py-2 bg-mint-500 hover:bg-mint-600 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                  >
+                    <span>{getFieldButtonLabel('screenshot')}</span>
+                  </button>
+                )}
               </div>
             )}
-            {screenshotName && isFieldSubmitted('screenshot') && (
+            {screenshotName && isInputDisabled('screenshot') && (
               <span className="text-[11px] font-mono text-slate-500 font-bold">{screenshotName}</span>
             )}
           </div>
         </div>
+
+        {/* 11. Final Milestone Submission Action */}
+        {!isEvaluated && (
+          <div className="pt-4 border-t border-[#D8CCBA] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span className="text-xs text-[#75695A] font-medium">
+              Submit all milestone deliverables for Guide review
+            </span>
+            <button
+              type="button"
+              onClick={handleSaveAllChanges}
+              className="px-6 py-2.5 bg-mint-600 hover:bg-mint-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer self-end sm:self-auto shrink-0"
+            >
+              <Send size={14} />
+              <span>Submit Milestone</span>
+            </button>
+          </div>
+        )}
 
       </div>
 

@@ -36,21 +36,7 @@ export const AdminHistoryView: React.FC = () => {
     <div className="space-y-6 font-sans">
       
       {/* Top Filter and Actions Bar */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#D8CCBA] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-serif font-bold text-[#111111]">
-              System Audit Trail &amp; History ({filteredLogs.length})
-            </h2>
-            <span className="text-xs text-[#111111] bg-[#F8F5EE] border border-[#D8CCBA] px-2.5 py-0.5 rounded-full font-medium">
-              Compliance Ledger
-            </span>
-          </div>
-          <p className="text-xs text-[#75695A] mt-0.5">
-            Immutable log of faculty assignments, student roster adjustments &amp; mandatory reasons
-          </p>
-        </div>
-
+      <div className="bg-white rounded-3xl p-5 shadow-sm border border-[#D8CCBA] flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           
           {/* Action Filter */}
@@ -89,7 +75,9 @@ export const AdminHistoryView: React.FC = () => {
               className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] text-[#111111] placeholder-[#75695A]/60"
             />
           </div>
+        </div>
 
+        <div className="flex items-center gap-3">
           {/* Download as PDF Button */}
           <button
             onClick={() => setPdfPreviewOpen(true)}
@@ -107,7 +95,6 @@ export const AdminHistoryView: React.FC = () => {
           >
             <RefreshCw size={14} />
           </button>
-
         </div>
       </div>
 

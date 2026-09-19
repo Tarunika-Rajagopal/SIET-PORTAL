@@ -194,18 +194,8 @@ export const SubmissionHistory = () => {
   return (
     <div className="space-y-6 pb-12 animate-fadeIn font-sans">
       
-      {/* 1. Page Header with Mode Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#111111] tracking-tight">
-            History &amp; Audit Governance
-          </h1>
-          <p className="text-xs text-[#75695A] mt-0.5">
-            Audit Faculty Guide actions, approvals, rejections, consultation notices, and chronological team progress.
-          </p>
-        </div>
-
-        {/* Segmented Mode Selector */}
+      {/* Mode Selector */}
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-[#D8CCBA] shadow-xs self-start sm:self-auto">
           <button
             type="button"
@@ -246,7 +236,6 @@ export const SubmissionHistory = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search guide history..."
                   className="w-full pl-9 pr-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111] focus:bg-white transition font-medium"
                 />
               </div>

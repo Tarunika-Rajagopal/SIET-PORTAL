@@ -177,7 +177,6 @@ export const RemoveGuideShiftModal: React.FC<RemoveGuideShiftModalProps> = ({
               rows={2}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Provide justification for relieving this guide and transferring teams..."
               className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl text-slate-800 focus:outline-none focus:border-mint-500 text-xs"
             />
           </div>

@@ -76,7 +76,7 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
                     Sri Shakthi Institute of Engineering and Technology
                   </h2>
                   <p className="text-[10px] text-[#75695A] font-semibold">
-                    Department of Computer Science and Engineering &bull; Capstone Project Framework
+                    Department of Computer Science and Engineering &bull; Project Framework
                   </p>
                 </div>
                 <div className="text-right">
@@ -211,7 +211,7 @@ export const DocumentPreviewModal = ({ isOpen, onClose, documentType = 'report',
 
             {/* Document Footer */}
             <div className="border-t border-[#D8CCBA] pt-3 flex items-center justify-between text-[10px] text-[#75695A] font-mono">
-              <span>CONFIDENTIAL &bull; SIET ACADEMIC CAPSTONE REPOSITORY</span>
+              <span>CONFIDENTIAL &bull; SIET ACADEMIC PROJECT REPOSITORY</span>
               <span>{documentType === 'report' ? `PAGE ${currentPage} OF ${totalPages}` : `SLIDE ${currentPage} OF ${totalPages}`}</span>
             </div>
           </div>

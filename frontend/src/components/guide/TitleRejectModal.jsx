@@ -102,7 +102,6 @@ export const TitleRejectModal = ({ isOpen, onClose, team, onReject }) => {
                 setReason(e.target.value);
                 if (error) setError('');
               }}
-              placeholder="Detail specifically what technical specifications, literature review, or architecture changes the team must address..."
               className="w-full p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111] focus:bg-white transition"
             />
             {error && <p className="text-[11px] text-rose-600 font-semibold mt-1">{error}</p>}

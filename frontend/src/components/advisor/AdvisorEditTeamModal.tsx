@@ -199,7 +199,6 @@ export const AdvisorEditTeamModal: React.FC<AdvisorEditTeamModalProps> = ({
               type="text"
               value={teamNo}
               onChange={(e) => setTeamNo(e.target.value)}
-              placeholder="e.g. Team 04"
               className="w-full px-3.5 py-2.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none focus:border-mint-500"
               required
             />

@@ -92,7 +92,7 @@ export const DEFAULT_FACULTIES: AdminFaculty[] = [
     id: "fac-6",
     name: "Dr. K. Vignesh",
     email: "vignesh.k@siet.ac.in",
-    designation: "Assistant Professor (Sr. Gr)",
+    designation: "Assistant Professor",
     role: "Guide",
     specialization: "Edge Computing, Wearables & NLP",
     teamsCount: 5,
@@ -886,7 +886,7 @@ export const AdminService = {
       batch: student.batch || "2023-2027 (III Year)",
       classSection: student.classSection || "CSE-B",
       teamNo: "Unassigned",
-      projectTitle: "Capstone Proposal Pending",
+      projectTitle: "",
       guide: "Unassigned"
     };
 
@@ -933,7 +933,7 @@ export const AdminService = {
         batch: s.batch || "2023-2027 (III Year)",
         classSection: s.classSection || "CSE-B",
         teamNo: "Unassigned",
-        projectTitle: "Capstone Proposal Pending",
+        projectTitle: "",
         guide: "Unassigned"
       });
       addedCount++;

@@ -4,6 +4,7 @@ import {
   Clock, AlertCircle, XCircle, Send, CheckSquare, Presentation, 
   Image as ImageIcon, Lock, Bell
 } from 'lucide-react';
+import { formatProjectTitle } from '../../utils/titleUtils';
 
 export const TeamDetailsModal = ({ 
   isOpen, 
@@ -83,7 +84,7 @@ export const TeamDetailsModal = ({
             </span>
             <div>
               <h3 id="team-details-title" className="text-sm font-serif font-bold text-[#111111] truncate max-w-lg">
-                {hasTitle ? team.projectTitle : <span className="text-rose-600 font-bold">Title Not Submitted</span>}
+                {formatProjectTitle(team.projectTitle, team.titleStatus)}
               </h3>
               <p className="text-[11px] text-[#75695A] font-semibold">
                 Class {team.class}-{team.section} &bull; Batch {team.batch} &bull; Advisor: {team.advisor}
@@ -142,7 +143,7 @@ export const TeamDetailsModal = ({
             {/* 1. Project Title */}
             <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-700 text-xs">1. Capstone Project Title</span>
+                <span className="font-extrabold text-slate-700 text-xs">1. Project Title</span>
                 {hasTitle ? (
                   <span className="text-emerald-700 font-extrabold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
                     <CheckCircle2 size={11} /> Submitted
@@ -155,7 +156,7 @@ export const TeamDetailsModal = ({
               </div>
               {hasTitle && (
                 <p className="text-slate-900 font-bold text-xs">
-                  {team.projectTitle}
+                  {formatProjectTitle(team.projectTitle, team.titleStatus)}
                 </p>
               )}
             </div>
@@ -371,7 +372,6 @@ export const TeamDetailsModal = ({
                     setRejectionReason(e.target.value);
                     if (rejectError) setRejectError('');
                   }}
-                  placeholder="e.g. Problem statement lacks clear comparative benchmarks with existing research; resubmit with dataset specifications..."
                   className="w-full p-3 bg-white border border-rose-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-400"
                 />
                 {rejectError && <p className="text-[11px] text-rose-600 font-bold mt-1">{rejectError}</p>}

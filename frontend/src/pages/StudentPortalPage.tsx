@@ -19,12 +19,20 @@ export const StudentPortalPage: React.FC = () => {
     const handleSync = () => {
       setTeam(StudentService.getTeam());
     };
+    const handleNavSubmission = (e: any) => {
+      if (e?.detail?.edit) {
+        localStorage.setItem('siet_student_start_edit_mode', 'true');
+      }
+      setActiveTab('submission');
+    };
     handleSync();
     window.addEventListener('siet_data_updated', handleSync);
     window.addEventListener('storage', handleSync);
+    window.addEventListener('student_navigate_submission', handleNavSubmission);
     return () => {
       window.removeEventListener('siet_data_updated', handleSync);
       window.removeEventListener('storage', handleSync);
+      window.removeEventListener('student_navigate_submission', handleNavSubmission);
     };
   }, []);
 
@@ -100,7 +108,15 @@ export const StudentPortalPage: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
         {activeTab === 'my-team' && <MyTeamView team={team} />}
         {activeTab === 'submission' && <SubmissionView onSuccess={showToast} />}
-        {activeTab === 'my-submission' && <MySubmissionView onSuccess={showToast} />}
+        {activeTab === 'my-submission' && (
+          <MySubmissionView 
+            onSuccess={showToast} 
+            onNavigateToSubmission={() => {
+              localStorage.setItem('siet_student_start_edit_mode', 'true');
+              setActiveTab('submission');
+            }} 
+          />
+        )}
       </main>
 
       {/* Non-intrusive bottom notification message banner */}

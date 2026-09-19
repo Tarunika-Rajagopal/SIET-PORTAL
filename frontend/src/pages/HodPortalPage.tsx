@@ -39,7 +39,7 @@ export const HodPortalPage: React.FC = () => {
     setSelectedBatch(batch);
     setSelectedClass(className);
     setActiveTab('project-details');
-    showToast(`Loaded Capstone Project dossier & week-by-week submissions for candidate.`);
+    showToast(`Loaded Project dossier & week-by-week submissions for candidate.`);
   };
 
   const handleTabClick = (tab: HodTab) => {
@@ -55,7 +55,7 @@ export const HodPortalPage: React.FC = () => {
       {/* Top Institutional Header */}
       <Header
         title="Head of Department Workspace"
-        subtitle="Academic Project Governance, Student Mentorship &amp; Capstone Auditing"
+        subtitle="Academic Project Governance, Student Mentorship &amp; Project Auditing"
         onOpenProfile={() => setProfileModalOpen(true)}
       />
 

@@ -80,19 +80,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
     <div className="space-y-6">
       
       {/* Top Filter & Actions Header */}
-      <div className="bg-white rounded-3xl p-6 shadow-card border border-[#E2E8E4] flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-extrabold text-slate-900">
-              Registered Students ({filteredStudents.length})
-            </h2>
-            <span className="text-xs text-mint-700 bg-mint-50 border border-mint-200 px-2.5 py-0.5 rounded-full font-bold">
-              Enrollment Database
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">Manage candidates, academic class mapping &amp; project teams</p>
-        </div>
-
+      <div className="bg-white rounded-3xl p-5 shadow-card border border-[#E2E8E4] flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           
           {/* Batch Filter */}
@@ -130,7 +118,9 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
               className="w-full pl-9 pr-3.5 py-2 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800 placeholder-slate-400"
             />
           </div>
+        </div>
 
+        <div className="flex items-center gap-3">
           {/* Add Student Button */}
           <button
             onClick={() => setAddModalOpen(true)}
@@ -170,7 +160,6 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
             <RotateCw size={13} className={isManageMode ? 'text-amber-700' : 'text-slate-500'} />
             {!isManageMode && <span>Manage</span>}
           </button>
-
         </div>
       </div>
 
@@ -224,15 +213,13 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                 <th className="p-4">Register Number</th>
                 <th className="p-4">Candidate Name</th>
                 <th className="p-4">Class</th>
-                <th className="p-4">Team No</th>
-                <th className="p-4">Assigned Guide</th>
                 {isManageMode && <th className="p-4 text-center">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8E4] font-medium">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={isManageMode ? 6 : 5} className="p-8 text-center text-slate-400">
+                  <td colSpan={isManageMode ? 4 : 3} className="p-8 text-center text-slate-400">
                     No candidates found for the selected filters.
                   </td>
                 </tr>
@@ -249,8 +236,6 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                         {s.classSection}
                       </span>
                     </td>
-                    <td className="p-4 font-bold text-mint-700 whitespace-nowrap">{s.teamNo}</td>
-                    <td className="p-4 text-slate-800 font-bold whitespace-nowrap">{s.guide}</td>
 
                     {isManageMode && (
                       <td className="p-4 text-center">
