@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle } from 'lucide-react';
+import { ApiClient } from '../services/apiClient';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
 import GlassSurface from './GlassSurface';
 
 export const LoginPage: React.FC = () => {
@@ -11,12 +12,23 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('student@123');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [serverStatus, setServerStatus] = useState<{ checked: boolean; online: boolean; message: string }>({
+    checked: false,
+    online: false,
+    message: '',
+  });
 
   useEffect(() => {
     if (currentUser) {
       navigate('/', { replace: true });
     }
   }, [currentUser, navigate]);
+
+  useEffect(() => {
+    ApiClient.checkServerHealth().then((result) => {
+      setServerStatus({ checked: true, online: result.online, message: result.message });
+    });
+  }, []);
 
   // Forgot password modal state
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
@@ -29,14 +41,38 @@ export const LoginPage: React.FC = () => {
     setErrorMessage('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
+    // Try backend login first
+    try {
+      const backendResult = await ApiClient.login(emailOrRoll, password);
+      if (backendResult.success && backendResult.token) {
+        localStorage.setItem('siet_auth_token', backendResult.token);
+        login(emailOrRoll, password);
+        return;
+      }
+    } catch (err: any) {
+      const msg = err.message || '';
+      if (msg.includes('Cannot connect') || msg.includes('not responding')) {
+        setErrorMessage('Backend server is not running. Start it with: cd backend && uvicorn main:app --reload');
+        return;
+      }
+      if (msg.includes('Database connection failed') || msg.includes('503')) {
+        setErrorMessage('Database connection failed. Check your Supabase credentials in backend/.env');
+        return;
+      }
+      if (msg.includes('Invalid credentials')) {
+        setErrorMessage('Invalid credentials. Please verify your email/roll and password.');
+        return;
+      }
+    }
+
+    // Fallback to localStorage auth if backend is down
     const res = login(emailOrRoll, password);
     if (!res.success) {
       setErrorMessage(res.message || 'Invalid institutional credentials');
-      return;
     }
   };
 
@@ -113,6 +149,16 @@ export const LoginPage: React.FC = () => {
             Department of Computer Science and Engineering
           </p>
         </div>
+
+        {/* Database Connection Status Banner */}
+        {serverStatus.checked && !serverStatus.online && (
+          <div className="mb-4 p-3 rounded-xl bg-[#FFF3E0]/95 backdrop-blur-md border border-[#FFB74D] text-[#E65100] text-xs font-semibold flex items-center gap-2 shadow-xs relative z-10">
+            <AlertTriangle size={16} className="shrink-0" />
+            <div>
+              <span className="font-bold">Backend Offline:</span> {serverStatus.message}. The portal will use local data only.
+            </div>
+          </div>
+        )}
 
         {/* Liquid Glass Surface Card - Pure Crystal Water */}
         <GlassSurface

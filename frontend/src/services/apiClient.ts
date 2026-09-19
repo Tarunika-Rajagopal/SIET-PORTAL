@@ -24,10 +24,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch (fetchErr: any) {
+    if (fetchErr.name === 'TypeError' && fetchErr.message?.includes('fetch')) {
+      throw new Error('Cannot connect to backend server at localhost:8000. Is the server running?');
+    }
+    throw fetchErr;
+  }
 
   if (!response.ok) {
     let errorDetail = 'API request failed';
@@ -44,6 +52,22 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const ApiClient = {
+  async checkServerHealth(): Promise<{ online: boolean; databaseOk: boolean; message: string }> {
+    try {
+      const res = await fetch('http://localhost:8000/health', { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) {
+        return { online: false, databaseOk: false, message: `Server returned ${res.status}` };
+      }
+      const data = await res.json();
+      return { online: true, databaseOk: data.status === 'healthy', message: data.status };
+    } catch (err: any) {
+      if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+        return { online: false, databaseOk: false, message: 'Server is not responding (timeout)' };
+      }
+      return { online: false, databaseOk: false, message: 'Cannot connect to backend server at localhost:8000' };
+    }
+  },
+
   // Auth
   async login(emailOrRoll: string, password: string) {
     const data = await request<{ success: boolean; token: string; user: any }>('/auth/login', {
