@@ -7,22 +7,13 @@ settings = get_settings()
 
 db_status = {"connected": False, "error": None}
 
-# Build async database URL for Supabase PostgreSQL
-_raw = settings.DATABASE_URL
-if _raw.startswith("postgresql://"):
-    _db_url = _raw.replace("postgresql://", "postgresql+asyncpg://", 1)
-elif _raw.startswith("postgres://"):
-    _db_url = _raw.replace("postgres://", "postgresql+asyncpg://", 1)
-else:
-    _db_url = _raw
-
 engine = create_async_engine(
-    _db_url,
+    settings.DATABASE_URL,
     echo=False,
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
-    connect_args={"ssl": _ssl.create_default_context()},
+    connect_args={"ssl": "require"},
 )
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

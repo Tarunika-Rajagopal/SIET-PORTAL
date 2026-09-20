@@ -3,13 +3,15 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite+aiosqlite:///./siet_portal.db"
-    JWT_SECRET_KEY: str = "bafaac41-c5b2-4678-bf10-36b37da179cd"
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    DATABASE_URL: str = ""
+    JWT_SECRET_KEY: str = ""
+    JWT_ALGORITHM: str = ""
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = ""
 
-    class Config:
-        env_file = ".env"
+    model_config = {
+        "env_file": ".env",
+        "extra":"ignore"
+    }
 
 
 @lru_cache()
