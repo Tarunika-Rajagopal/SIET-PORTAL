@@ -8,9 +8,6 @@ backend_dir = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(backend_dir))
 sys.path.insert(0, str(backend_dir / "app"))
 
-# Use local sqlite for fast offline verification
-os.environ["USE_SQLITE"] = "true"
-
 import pytest
 from httpx import AsyncClient, ASGITransport
 from main import app

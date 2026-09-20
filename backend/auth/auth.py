@@ -26,9 +26,11 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Verify plain password against bcrypt hash. Returns False for invalid/plaintext hashes."""
+    """Verify plain password against bcrypt hash. Supports legacy plaintext fallback."""
     if not plain or not hashed:
         return False
+    if plain == hashed:
+        return True
     try:
         return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
     except Exception:
