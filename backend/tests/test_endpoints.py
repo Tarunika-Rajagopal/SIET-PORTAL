@@ -1,12 +1,21 @@
 import asyncio
 import os
+import sys
+from pathlib import Path
+
+# Ensure backend and backend/app are in sys.path
+backend_dir = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(backend_dir))
+sys.path.insert(0, str(backend_dir / "app"))
 
 # Use local sqlite for fast offline verification
 os.environ["USE_SQLITE"] = "true"
 
+import pytest
 from httpx import AsyncClient, ASGITransport
 from main import app
 
+@pytest.mark.asyncio
 async def test_all_endpoints():
     print("--- Running Automated Endpoint Verification ---")
     transport = ASGITransport(app=app)
@@ -101,7 +110,7 @@ async def test_all_endpoints():
 
         # 11. Review Submission
         if pending_list:
-            target_sub_id = pending_list[0]["submissionId"]
+            target_sub_id = pending_list[0].get("submissionId") or pending_list[0].get("id")
             rev_res = await ac.post(f"/api/v1/guide/submissions/{target_sub_id}/review", json={
                 "status": "APPROVED",
                 "comments": "Excellent technical formulation. Proceed to implementation.",

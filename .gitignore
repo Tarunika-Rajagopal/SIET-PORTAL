@@ -1,5 +1,11 @@
 node_modules/
 dist/
+# Environment variables & secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
 
 # Python
 __pycache__/
@@ -13,6 +19,9 @@ venv/
 # Local database / generated data
 pgdata/
 *.log
+*.db
+*.sqlite*
+backend/tests/*.db
 
 # Backend generated uploads
 backend/uploads/

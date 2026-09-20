@@ -4,6 +4,7 @@ from auth.auth import (
     create_access_token,
     get_current_user,
     authenticate_user,
+    require_roles,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "create_access_token",
     "get_current_user",
     "authenticate_user",
+    "require_roles",
 ]

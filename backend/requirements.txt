@@ -8,3 +8,4 @@ PyJWT==2.9.0
 bcrypt==4.2.0
 pydantic[email]==2.9.2
 pydantic-settings==2.5.2
+alembic==1.13.3

@@ -12,6 +12,9 @@ from sqlalchemy import select
 import uuid
 from datetime import datetime
 
+from config import settings
+from auth.auth import hash_password
+
 # Routers
 from routers.auth_router import router as auth_router
 from routers.student_router import router as student_router
@@ -38,7 +41,7 @@ async def seed_initial_data():
             User(
                 id=uuid.uuid4(),
                 email="admin@siet.ac.in",
-                password="admin@123",
+                password=hash_password("admin@123"),
                 name="Department Administrator",
                 department="Computer Science and Engineering",
                 role="admin",
@@ -47,7 +50,7 @@ async def seed_initial_data():
             User(
                 id=uuid.uuid4(),
                 email="hod.cse@siet.ac.in",
-                password="hod@123",
+                password=hash_password("hod@123"),
                 name="Dr. N. Saravanan",
                 department="Computer Science and Engineering",
                 role="hod",
@@ -57,7 +60,7 @@ async def seed_initial_data():
             User(
                 id=uuid.uuid4(),
                 email="dr.karthik@siet.ac.in",
-                password="faculty@123",
+                password=hash_password("faculty@123"),
                 name="Dr. R. Karthikeyan",
                 department="Computer Science and Engineering",
                 role="advisor",
@@ -72,7 +75,7 @@ async def seed_initial_data():
             User(
                 id=uuid.uuid4(),
                 email="dr.manimegalai@siet.ac.in",
-                password="guide@123",
+                password=hash_password("guide@123"),
                 name="Dr. P. Manimegalai",
                 department="Computer Science and Engineering",
                 role="guide",
@@ -82,7 +85,7 @@ async def seed_initial_data():
             User(
                 id=uuid.uuid4(),
                 email="student@srishakthi.ac.in",
-                password="student@123",
+                password=hash_password("student@123"),
                 name="Tarunika Rajgopal",
                 roll_no="714023104112",
                 department="Computer Science and Engineering",
@@ -98,7 +101,7 @@ async def seed_initial_data():
             User(
                 id=uuid.uuid4(),
                 email="vigneshwaran.m@srishakthi.ac.in",
-                password="student@123",
+                password=hash_password("student@123"),
                 name="Vigneshwaran M",
                 roll_no="714023104178",
                 department="Computer Science and Engineering",
@@ -112,7 +115,7 @@ async def seed_initial_data():
             User(
                 id=uuid.uuid4(),
                 email="vishnupriya.s@srishakthi.ac.in",
-                password="student@123",
+                password=hash_password("student@123"),
                 name="Vishnu Priya S",
                 roll_no="714023104189",
                 department="Computer Science and Engineering",
@@ -126,7 +129,7 @@ async def seed_initial_data():
             User(
                 id=uuid.uuid4(),
                 email="kavitha.r@srishakthi.ac.in",
-                password="student@123",
+                password=hash_password("student@123"),
                 name="Kavitha R",
                 roll_no="714023104066",
                 department="Computer Science and Engineering",
@@ -291,9 +294,13 @@ app = FastAPI(
 )
 
 # Enable CORS for frontend Vite development server and production
+cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+if not cors_origins:
+    cors_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
