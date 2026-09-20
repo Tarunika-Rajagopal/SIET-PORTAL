@@ -1,5 +1,6 @@
 import os
 import ssl as _ssl
+import asyncio
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -18,12 +19,15 @@ from pathlib import Path
 engine = create_async_engine(
         settings.DATABASE_URL,
         echo=False,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
+        pool_pre_ping=False,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=300,
+        pool_timeout=10,
         connect_args={
             "ssl": "require",
             "statement_cache_size": 0,
+            "command_timeout": 10,
         },
     )
 
@@ -44,23 +48,29 @@ async def get_db():
 
 
 async def init_db():
-    """Initialize database connection and verify status.
+    """Initialize database connection with retry for Supabase cold starts.
     Production PostgreSQL/Supabase schema is managed via Alembic migrations.
-    SQLite offline test environments retain create_all for automated test isolation.
     """
     global db_status
+    max_retries = 3
 
-    try:
-        async with engine.begin() as conn:
+    for attempt in range(1, max_retries + 1):
+        try:
+            async with asyncio.timeout(15.0):
+                async with engine.begin() as conn:
+                    from sqlalchemy import text
+                    await conn.execute(text("SELECT 1"))
 
-            from sqlalchemy import text
-            await conn.execute(text("SELECT 1"))
+            db_status["connected"] = True
+            db_status["error"] = None
+            print(f"[DB] Connected to PostgreSQL (Supabase) successfully (attempt {attempt}).")
+            return
 
-        db_status["connected"] = True
-        db_type = "PostgreSQL"
-        print(f"[DB] Connected to {db_type} successfully.")
+        except Exception as exc:
+            db_status["error"] = str(exc)
+            print(f"[DB] Connection attempt {attempt}/{max_retries} failed: {exc}")
+            if attempt < max_retries:
+                await asyncio.sleep(2)
 
-    except Exception as exc:
-        db_status["error"] = str(exc)
-        print(f"[DB] Failed to connect to database: {exc}")
-        raise
+    print("[DB] All connection attempts exhausted. DB-dependent endpoints will fail.")
+

@@ -1,4 +1,5 @@
 import traceback
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -273,15 +274,18 @@ async def seed_initial_data():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        await init_db()
+    async def _bg_startup():
         try:
-            await seed_initial_data()
+            await init_db()
+            try:
+                await seed_initial_data()
+            except Exception as e:
+                print(f"[Seed] Seeding skipped or failed: {e}")
         except Exception as e:
-            print(f"[Seed] Seeding skipped or failed: {e}")
-    except Exception as e:
-        print(f"[Startup] Database unavailable: {e}")
-        print("[Startup] Server will start, but DB-dependent endpoints will fail.")
+            print(f"[Startup] Background DB notice: {e}")
+
+    # Fire background startup task without blocking Uvicorn boot
+    asyncio.create_task(_bg_startup())
     yield
     # Shutdown
 
