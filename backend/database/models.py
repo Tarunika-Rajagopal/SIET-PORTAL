@@ -5,7 +5,7 @@ from sqlalchemy import (
     ForeignKey, JSON, Enum as SAEnum
 )
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from database.database import Base
 import enum
 
@@ -82,8 +82,8 @@ class User(Base):
     name = Column(String(255), nullable=False)
     roll_no = Column(String(50), unique=True, nullable=True, index=True)
     department = Column(String(255), default="Computer Science and Engineering")
-    role = Column(String(20), nullable=False, default="student")
-    active_role = Column(String(20), nullable=True)
+    role = Column(SAEnum(RoleEnum, name="user_role", create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=RoleEnum.student)
+    active_role = Column(SAEnum(RoleEnum, name="user_role", create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=True)
     designation = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
     year = Column(String(50), nullable=True)
@@ -102,6 +102,14 @@ class User(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    @validates("role", "active_role")
+    def validate_user_role(self, key, value):
+        if isinstance(value, str):
+            for member in RoleEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
+
 
 class Faculty(Base):
     __tablename__ = "faculty"
@@ -111,15 +119,31 @@ class Faculty(Base):
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
     designation = Column(String(255), nullable=False)
-    role = Column(String(50), nullable=False, default="None")
+    role = Column(SAEnum(FacultyRoleEnum, name="faculty_role", create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=FacultyRoleEnum.none)
     advisor_batch = Column(String(100), nullable=True)
     advisor_class = Column(String(50), nullable=True)
     specialization = Column(String(255), nullable=True)
     teams_count = Column(Integer, default=0)
     max_quota = Column(Integer, default=5)
-    status = Column(String(20), default="Active")
+    status = Column(SAEnum(FacultyStatusEnum, name="faculty_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=FacultyStatusEnum.active)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    @validates("role")
+    def validate_faculty_role(self, key, value):
+        if isinstance(value, str):
+            for member in FacultyRoleEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
+
+    @validates("status")
+    def validate_faculty_status(self, key, value):
+        if isinstance(value, str):
+            for member in FacultyStatusEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
 
 
 class Student(Base):
@@ -156,14 +180,14 @@ class Team(Base):
     domain = Column(String(255), nullable=True)
     advisor_name = Column(String(255), nullable=True)
     advisor_email = Column(String(255), nullable=True)
-    status = Column(String(50), default="Pending")
+    status = Column(SAEnum(TeamStatusEnum, name="team_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=TeamStatusEnum.pending)
     progress = Column(Integer, default=0)
     capacity = Column(Integer, default=4)
     members_count = Column(Integer, default=0)
     lead_student = Column(String(255), nullable=True)
     lead_roll_no = Column(String(50), nullable=True)
     is_title_approved = Column(Boolean, default=False)
-    guide_approval_status = Column(String(50), default="Pending")
+    guide_approval_status = Column(SAEnum(GuideApprovalStatusEnum, name="guide_approval_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=GuideApprovalStatusEnum.pending)
     rejection_reason = Column(Text, nullable=True)
     submitted_title = Column(Text, nullable=True)
     problem_statement = Column(Text, default="")
@@ -174,6 +198,22 @@ class Team(Base):
     last_modified = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    @validates("status")
+    def validate_team_status(self, key, value):
+        if isinstance(value, str):
+            for member in TeamStatusEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
+
+    @validates("guide_approval_status")
+    def validate_guide_approval_status(self, key, value):
+        if isinstance(value, str):
+            for member in GuideApprovalStatusEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
 
     members = relationship("TeamMember", back_populates="team", cascade="all, delete-orphan")
     submissions = relationship("WeeklySubmission", back_populates="team", cascade="all, delete-orphan")
@@ -205,7 +245,7 @@ class WeeklySubmission(Base):
     week = Column(Integer, nullable=False)
     title = Column(String(255), default="")
     due_date = Column(String(50), nullable=True)
-    status = Column(String(50), default="Pending")
+    status = Column(SAEnum(SubmissionStatusEnum, name="submission_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=SubmissionStatusEnum.pending)
     submission_date = Column(String(50), nullable=True)
     file_name = Column(String(500), nullable=True)
     file_size = Column(String(50), nullable=True)
@@ -227,6 +267,14 @@ class WeeklySubmission(Base):
     guide_review_date = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    @validates("status")
+    def validate_submission_status(self, key, value):
+        if isinstance(value, str):
+            for member in SubmissionStatusEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
 
     team = relationship("Team", back_populates="submissions")
 
@@ -253,12 +301,20 @@ class ReviewScore(Base):
     review_number = Column(String(50), nullable=False)
     review_title = Column(String(255), nullable=False)
     date = Column(String(50), nullable=False)
-    status = Column(String(50), default="Upcoming")
+    status = Column(SAEnum(ReviewStatusEnum, name="review_status_enum", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=ReviewStatusEnum.upcoming)
     total_score = Column(Numeric(6, 2), default=0)
     max_total = Column(Numeric(6, 2), default=0)
     guide_feedback = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    @validates("status")
+    def validate_review_status(self, key, value):
+        if isinstance(value, str):
+            for member in ReviewStatusEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
 
 
 class RubricCriterion(Base):
@@ -283,11 +339,19 @@ class TitleApproval(Base):
     title = Column(Text, nullable=False)
     proposed_by = Column(String(255), nullable=False)
     submitted_on = Column(String(50), nullable=True)
-    status = Column(String(50), default="Pending")
+    status = Column(SAEnum(TitleApprovalStatusEnum, name="title_approval_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=TitleApprovalStatusEnum.pending)
     category = Column(String(100), default="Project Title Proposal")
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    @validates("status")
+    def validate_title_approval_status(self, key, value):
+        if isinstance(value, str):
+            for member in TitleApprovalStatusEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
 
 
 class Announcement(Base):

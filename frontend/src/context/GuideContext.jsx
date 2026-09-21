@@ -35,23 +35,129 @@ export const GuideProvider = ({ children }) => {
   const isTargetTeam = (team, teamId) => team?.teamId === teamId;
   const isStudentPortalTeam = (team) => team?.teamId === 'TEAM-CSE-Y3-B04' || team?.teamNumber === 4;
 
+  const [backendMetrics, setBackendMetrics] = useState(null);
+  const [backendTeamIds, setBackendTeamIds] = useState(null);
+
   // Filter so guide only sees teams assigned to them (or single student team)
   const assignedTeams = useMemo(() => {
+    if (backendTeamIds && backendTeamIds.size > 0) {
+      return allTeams.filter(t => backendTeamIds.has(t.teamId) || backendTeamIds.has(t.id));
+    }
     if (!guideName) return allTeams;
     const target = normalizeName(guideName);
     const filtered = allTeams.filter(t => {
-      const g = normalizeName(t.guide || '');
+      const g = normalizeName(t.guide || t.guideName || '');
       return g.includes(target) || target.includes(g);
     });
     return filtered.length > 0 ? filtered : allTeams;
-  }, [allTeams, guideName]);
+  }, [allTeams, guideName, backendTeamIds]);
 
   const dynamicProfile = useMemo(() => ({
     ...FACULTY_PROFILE,
     name: guideName,
     initials: getUserInitials(guideName),
-    assignedTeamsCount: assignedTeams.length
-  }), [guideName, assignedTeams.length]);
+    assignedTeamsCount: backendMetrics?.totalTeams !== undefined ? backendMetrics.totalTeams : assignedTeams.length
+  }), [guideName, backendMetrics, assignedTeams.length]);
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const data = await ApiClient.getGuideDashboard();
+      if (!data) return;
+
+      setBackendMetrics({
+        totalTeams: Number(data.totalTeams) || 0,
+        pendingTitles: Number(data.pendingTitles) || 0,
+        approvedTitles: Number(data.approvedTitles) || 0,
+        totalSubmissions: Number(data.totalSubmissions) || 0,
+        pendingReviews: Number(data.pendingReviews) || 0,
+      });
+
+      if (Array.isArray(data.teams)) {
+        const idSet = new Set();
+        data.teams.forEach(t => {
+          if (t.teamId) idSet.add(t.teamId);
+          if (t.id) idSet.add(t.id);
+        });
+        setBackendTeamIds(idSet);
+
+        setAllTeams(prevTeams => {
+          const updated = prevTeams.map(existing => {
+            const match = data.teams.find(
+              b => b.teamId === existing.teamId || b.id === existing.id || b.teamNo === existing.teamNo || (existing.teamNumber && b.teamNo && parseInt(String(b.teamNo).replace(/\D/g, ''), 10) === existing.teamNumber)
+            );
+            if (!match) return existing;
+
+            const teamNum = parseInt(String(match.teamNo || '').replace(/\D/g, ''), 10) || existing.teamNumber;
+            const isApproved = Boolean(match.isTitleApproved || match.guideApprovalStatus === 'Approved');
+
+            return {
+              ...existing,
+              id: match.id || existing.id,
+              teamId: match.teamId || existing.teamId,
+              teamNo: match.teamNo || existing.teamNo,
+              teamNumber: teamNum,
+              projectTitle: match.projectTitle !== undefined ? match.projectTitle : existing.projectTitle,
+              status: match.status || existing.status,
+              progress: match.progress !== undefined ? match.progress : existing.progress,
+              batch: match.batch || existing.batch,
+              section: match.section || existing.section,
+              classSection: existing.classSection || match.section,
+              guideName: match.guideName || existing.guideName,
+              guide: match.guideName || existing.guide,
+              advisorName: match.advisorName || existing.advisorName,
+              advisor: match.advisorName || existing.advisor,
+              isTitleApproved: isApproved,
+              guideApprovalStatus: match.guideApprovalStatus || existing.guideApprovalStatus,
+              titleStatus: isApproved ? 'Approved' : (match.guideApprovalStatus || existing.titleStatus || 'Pending'),
+              memberCount: match.memberCount !== undefined ? match.memberCount : existing.memberCount,
+              membersCount: match.memberCount !== undefined ? match.memberCount : existing.membersCount,
+            };
+          });
+
+          data.teams.forEach(b => {
+            const exists = updated.some(
+              e => e.teamId === b.teamId || e.id === b.id
+            );
+            if (!exists) {
+              const teamNum = parseInt(String(b.teamNo || '').replace(/\D/g, ''), 10) || 1;
+              const isApproved = Boolean(b.isTitleApproved || b.guideApprovalStatus === 'Approved');
+              updated.push({
+                id: b.id,
+                teamId: b.teamId,
+                teamNo: b.teamNo,
+                teamNumber: teamNum,
+                projectTitle: b.projectTitle || '',
+                status: b.status || 'In Progress',
+                progress: b.progress || 0,
+                batch: b.batch || '',
+                section: b.section || '',
+                classSection: b.section || '',
+                guideName: b.guideName || '',
+                guide: b.guideName || '',
+                advisorName: b.advisorName || '',
+                advisor: b.advisorName || '',
+                isTitleApproved: isApproved,
+                guideApprovalStatus: b.guideApprovalStatus || 'Pending',
+                titleStatus: isApproved ? 'Approved' : (b.guideApprovalStatus || 'Pending'),
+                memberCount: b.memberCount || 0,
+                membersCount: b.memberCount || 0,
+                members: [],
+                submissions: [],
+              });
+            }
+          });
+
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.warn('[GuideContext] Failed to load dashboard from API, using fallback data:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
 
   const [activities, setActivities] = useState(() => {
     try {
@@ -722,38 +828,38 @@ export const GuideProvider = ({ children }) => {
 
   // Computed Stats for assigned teams only
   const stats = useMemo(() => {
-    const assignedTeamsCount = assignedTeams.length;
-    const pendingTitleApprovalsCount = assignedTeams.filter(t => t.titleStatus === 'Pending' && hasAnyDetailSubmitted(t)).length;
-    const approvedTitlesCount = assignedTeams.filter(t => t.titleStatus === 'Approved').length;
+    const localAssignedTeamsCount = assignedTeams.length;
+    const localPendingTitleApprovalsCount = assignedTeams.filter(t => t.titleStatus === 'Pending' && hasAnyDetailSubmitted(t)).length;
+    const localApprovedTitlesCount = assignedTeams.filter(t => t.titleStatus === 'Approved').length;
     const rejectedTitlesCount = assignedTeams.filter(t => t.titleStatus === 'Rejected').length;
     const notifiedCount = assignedTeams.filter(t => t.isNotified).length;
 
-    let totalSubmissionsCount = 0;
-    let pendingWeeklySubmissionsCount = 0;
+    let localTotalSubmissionsCount = 0;
+    let localPendingWeeklySubmissionsCount = 0;
     let evaluatedSubmissionsCount = 0;
     let revisionRequiredCount = 0;
 
     assignedTeams.forEach(t => {
       (t.submissions || []).forEach(sub => {
-        totalSubmissionsCount += 1;
-        if (sub.evaluationStatus === 'Pending') pendingWeeklySubmissionsCount += 1;
+        localTotalSubmissionsCount += 1;
+        if (sub.evaluationStatus === 'Pending') localPendingWeeklySubmissionsCount += 1;
         if (sub.evaluationStatus === 'Evaluated') evaluatedSubmissionsCount += 1;
         if (sub.evaluationStatus === 'Revision Required') revisionRequiredCount += 1;
       });
     });
 
     return {
-      assignedTeamsCount,
-      pendingTitleApprovalsCount,
-      approvedTitlesCount,
+      assignedTeamsCount: backendMetrics?.totalTeams !== undefined ? backendMetrics.totalTeams : localAssignedTeamsCount,
+      pendingTitleApprovalsCount: backendMetrics?.pendingTitles !== undefined ? backendMetrics.pendingTitles : localPendingTitleApprovalsCount,
+      approvedTitlesCount: backendMetrics?.approvedTitles !== undefined ? backendMetrics.approvedTitles : localApprovedTitlesCount,
       rejectedTitlesCount,
       notifiedCount,
-      totalSubmissionsCount,
-      pendingWeeklySubmissionsCount,
+      totalSubmissionsCount: backendMetrics?.totalSubmissions !== undefined ? backendMetrics.totalSubmissions : localTotalSubmissionsCount,
+      pendingWeeklySubmissionsCount: backendMetrics?.pendingReviews !== undefined ? backendMetrics.pendingReviews : localPendingWeeklySubmissionsCount,
       evaluatedSubmissionsCount,
       revisionRequiredCount
     };
-  }, [assignedTeams]);
+  }, [assignedTeams, backendMetrics]);
 
   return (
     <GuideContext.Provider
@@ -771,7 +877,8 @@ export const GuideProvider = ({ children }) => {
         requestWeeklyRevision,
         rejectWeeklySubmission,
         notifyTeam,
-        resetData
+        resetData,
+        refreshDashboard: fetchDashboard
       }}
     >
       {children}
