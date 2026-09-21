@@ -37,13 +37,16 @@ def _create_engine():
     return create_async_engine(
         settings.DATABASE_URL,
         echo=False,
-        poolclass=NullPool,
+        pool_size=10,
+        max_overflow=20,
+        pool_pre_ping=True,
+        pool_recycle=300,
         connect_args={
             "ssl": "require",
             "statement_cache_size": 0,
             "prepared_statement_cache_size": 0,
             "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
-            "command_timeout": 10,
+            "command_timeout": 15,
         },
     )
 

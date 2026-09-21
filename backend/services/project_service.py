@@ -54,7 +54,6 @@ class ProjectService:
             approval.submitted_on = datetime.now().strftime("%d %b %Y")
 
         await self.session.commit()
-        await self.session.refresh(team)
 
         return {
             "success": True,
@@ -108,7 +107,6 @@ class ProjectService:
             approval.status = "Approved" if decision == "APPROVED" else "Rejected"
 
         await self.session.commit()
-        await self.session.refresh(team)
 
         return {
             "success": True,

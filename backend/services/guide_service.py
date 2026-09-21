@@ -122,5 +122,4 @@ class GuideService:
         s.guide_review_date = datetime.now().strftime("%d %b %Y")
 
         await self.session.commit()
-        await self.session.refresh(s)
         return {"success": True, "message": f"Submission reviewed: {s.status}", "id": str(s.id)}

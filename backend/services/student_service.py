@@ -82,25 +82,28 @@ class StudentService:
             "guideReviewDate": s.guide_review_date or "",
         }
 
-    async def _find_team(self, user: User) -> Team:
+    async def _find_team(self, user: User, with_members: bool = False) -> Team:
         if not user.team_id:
             raise HTTPException(404, "Student is not assigned to any team")
-        team = await self.team_repo.get_with_members(user.team_id)
+        if with_members:
+            team = await self.team_repo.get_with_members(user.team_id)
+        else:
+            team = await self.team_repo.get_by_team_id_string(user.team_id)
         if not team:
             raise HTTPException(404, "Student team not found")
         return team
 
     async def get_team(self, user: User) -> dict:
-        team = await self._find_team(user)
+        team = await self._find_team(user, with_members=True)
         return self._format_team(team)
 
     async def get_submissions(self, user: User) -> List[dict]:
-        team = await self._find_team(user)
+        team = await self._find_team(user, with_members=False)
         rows = await self.sub_repo.list_by_team(team.id)
         return [self._format_sub(s) for s in rows]
 
     async def get_submission_by_week(self, user: User, week: int) -> dict:
-        team = await self._find_team(user)
+        team = await self._find_team(user, with_members=False)
         s = await self.sub_repo.get_by_team_and_week(team.id, week)
         if not s:
             return {
@@ -119,7 +122,7 @@ class StudentService:
         return self._format_sub(s)
 
     async def submit_deliverables(self, user: User, week: int, req: SubmitDeliverablesRequest) -> dict:
-        team = await self._find_team(user)
+        team = await self._find_team(user, with_members=False)
         s = await self.sub_repo.get_by_team_and_week(team.id, week)
 
         today = datetime.now().strftime("%d %b %Y")
@@ -160,7 +163,6 @@ class StudentService:
                     setattr(s, attr, val)
 
         await self.session.commit()
-        await self.session.refresh(s)
         return self._format_sub(s)
 
     async def delete_submission(self, user: User, week: int) -> dict:
