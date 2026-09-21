@@ -104,17 +104,101 @@ async def test_all_endpoints():
         assert g_subs.status_code == 200, f"Guide weekly subs failed: {g_subs.text}"
         pending_list = g_subs.json()
         print(f"[PASS] GET /api/v1/guide/submissions/weekly -> 200 OK ({len(pending_list)} pending)")
-
-        # 11. Review Submission
         if pending_list:
-            target_sub_id = pending_list[0].get("submissionId") or pending_list[0].get("id")
+            s0 = pending_list[0]
+            # Verify kept fields are present
+            for field in [
+                "id", "weekNumber", "teamId", "teamNo", "teamNumber", "classSection",
+                "teamLeader", "projectTitle", "status", "evaluationStatus", "submissionDate",
+                "score", "abstractSummary", "problemStatement", "proposedSolution",
+                "technologyUsed", "obstaclesFaced", "pptUrl", "presentationFileName",
+                "reportUrl", "githubUrl", "liveDemoUrl", "images", "comments", "guideReviewDate"
+            ]:
+                assert field in s0, f"Field '{field}' missing from weekly submission"
+
+            # Verify removed alias fields are absent
+            for removed in [
+                "submissionId", "week", "abstract", "presentationFile", "pdfFile",
+                "repoUrl", "demoUrl", "screenshotFile"
+            ]:
+                assert removed not in s0, f"Field '{removed}' should have been removed"
+
+            # Verify evaluationStatus mapping
+            if s0["status"] == "Submitted":
+                assert s0["evaluationStatus"] == "Pending"
+            else:
+                assert s0["evaluationStatus"] == s0["status"]
+
+        # 11. Review Submission Tests
+        # C. Invalid submission UUID -> 400
+        invalid_res = await ac.post("/api/v1/guide/submissions/invalid-uuid-format/review", json={
+            "status": "APPROVED"
+        }, headers=g_headers)
+        assert invalid_res.status_code == 400, f"Expected 400 for invalid UUID, got: {invalid_res.status_code}"
+        print("[PASS] POST /api/v1/guide/submissions/{invalid_id}/review -> 400 Bad Request")
+
+        # D. Non-existent submission UUID -> 404
+        nonexistent_res = await ac.post("/api/v1/guide/submissions/00000000-0000-0000-0000-000000000000/review", json={
+            "status": "APPROVED"
+        }, headers=g_headers)
+        assert nonexistent_res.status_code == 404, f"Expected 404 for nonexistent UUID, got: {nonexistent_res.status_code}"
+        print("[PASS] POST /api/v1/guide/submissions/{nonexistent_id}/review -> 404 Not Found")
+
+        if pending_list:
+            target_sub_id = pending_list[0]["id"]
+
+            # A. APPROVED: assert 200, verify response, verify persisted fields
             rev_res = await ac.post(f"/api/v1/guide/submissions/{target_sub_id}/review", json={
                 "status": "APPROVED",
                 "comments": "Excellent technical formulation. Proceed to implementation.",
                 "score": 95.0
             }, headers=g_headers)
             assert rev_res.status_code == 200, f"Review failed: {rev_res.text}"
-            print(f"[PASS] POST /api/v1/guide/submissions/{target_sub_id}/review -> 200 OK")
+            rev_data = rev_res.json()
+            assert rev_data["success"] is True
+            assert rev_data["id"] == target_sub_id
+            print(f"[PASS] POST /api/v1/guide/submissions/{target_sub_id}/review (APPROVED) -> 200 OK")
+
+            # E. Verify persisted fields where practical
+            g_subs_after = await ac.get("/api/v1/guide/submissions/weekly", headers=g_headers)
+            sub_after = next((s for s in g_subs_after.json() if s["id"] == target_sub_id), None)
+            assert sub_after is not None
+            assert sub_after["status"] == "Approved"
+            assert sub_after["evaluationStatus"] == "Approved"
+            assert sub_after["score"] == 95.0
+            assert sub_after["comments"] == "Excellent technical formulation. Proceed to implementation."
+            assert bool(sub_after["guideReviewDate"]) is True
+            print(f"[PASS] Verified persisted fields for APPROVED: status={sub_after['status']}, score={sub_after['score']}, date={sub_after['guideReviewDate']}")
+
+            # B. REVISION_REQUESTED: assert 200, verify resulting status is exactly "Revision Required"
+            rev_req_res = await ac.post(f"/api/v1/guide/submissions/{target_sub_id}/review", json={
+                "status": "REVISION_REQUESTED",
+                "comments": "Please refine the architecture diagrams and references."
+            }, headers=g_headers)
+            assert rev_req_res.status_code == 200, f"Revision request failed: {rev_req_res.text}"
+            assert rev_req_res.json()["success"] is True
+
+            g_subs_rev = await ac.get("/api/v1/guide/submissions/weekly", headers=g_headers)
+            sub_rev = next((s for s in g_subs_rev.json() if s["id"] == target_sub_id), None)
+            assert sub_rev is not None
+            assert sub_rev["status"] == "Revision Required"
+            assert sub_rev["evaluationStatus"] == "Revision Required"
+            assert sub_rev["comments"] == "Please refine the architecture diagrams and references."
+            print(f"[PASS] POST /api/v1/guide/submissions/{target_sub_id}/review (REVISION_REQUESTED) -> 200 OK, status='Revision Required'")
+
+            # Additional: REJECTED review
+            rev_rej_res = await ac.post(f"/api/v1/guide/submissions/{target_sub_id}/review", json={
+                "status": "REJECTED",
+                "comments": "Milestone deliverables do not meet required criteria."
+            }, headers=g_headers)
+            assert rev_rej_res.status_code == 200, f"Reject failed: {rev_rej_res.text}"
+            g_subs_rej = await ac.get("/api/v1/guide/submissions/weekly", headers=g_headers)
+            sub_rej = next((s for s in g_subs_rej.json() if s["id"] == target_sub_id), None)
+            assert sub_rej is not None
+            assert sub_rej["status"] == "Rejected"
+            assert sub_rej["evaluationStatus"] == "Rejected"
+            print(f"[PASS] POST /api/v1/guide/submissions/{target_sub_id}/review (REJECTED) -> 200 OK, status='Rejected'")
+
 
         # 12. Approve Title
         appr_res = await ac.post("/api/v1/projects/TEAM-CSE-Y3-B04/title-approval", json={

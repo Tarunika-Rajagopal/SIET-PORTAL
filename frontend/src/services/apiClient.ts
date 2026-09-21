@@ -144,7 +144,7 @@ export const ApiClient = {
     return request<any[]>('/guide/submissions/weekly');
   },
 
-  async reviewWeeklySubmission(submissionId: string, status: 'APPROVED' | 'REVISION_REQUESTED', comments?: string, score?: number) {
+  async reviewWeeklySubmission(submissionId: string, status: 'APPROVED' | 'REVISION_REQUESTED' | 'REJECTED', comments?: string, score?: number) {
     return request<any>(`/guide/submissions/${submissionId}/review`, {
       method: 'POST',
       body: JSON.stringify({

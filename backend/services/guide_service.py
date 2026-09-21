@@ -14,20 +14,41 @@ from repositories.project_repository import ProjectRepository
 
 
 def _team_brief(t: Team) -> Dict[str, Any]:
+    digits = "".join(filter(str.isdigit, t.team_no or ""))
+    team_number = int(digits) if digits else 1
+
+    members_list = [
+        {
+            "name": m.name,
+            "rollNo": m.roll_no,
+            "email": m.email,
+            "isLead": m.is_lead,
+            "role": m.member_role,
+        }
+        for m in (t.members or [])
+    ]
+
+    status_val = t.status.value if hasattr(t.status, "value") else (t.status or "In Progress")
+    guide_status_val = t.guide_approval_status.value if hasattr(t.guide_approval_status, "value") else (t.guide_approval_status or "Pending")
+
     return {
         "id": str(t.id),
         "teamId": t.team_id,
         "teamNo": t.team_no,
+        "teamNumber": team_number,
         "projectTitle": t.project_title or "",
-        "status": t.status or "In Progress",
+        "status": status_val,
         "progress": t.progress or 0,
         "batch": t.batch,
-        "section": t.class_name,
+        "classSection": t.class_name,
         "guideName": t.guide_name or "",
         "advisorName": t.advisor_name or "",
         "isTitleApproved": bool(t.is_title_approved),
-        "guideApprovalStatus": t.guide_approval_status or "Pending",
+        "guideApprovalStatus": guide_status_val,
+        "teamLeader": t.lead_student or "",
+        "leaderRollNo": t.lead_roll_no or "",
         "memberCount": len(t.members) if t.members else 0,
+        "members": members_list,
     }
 
 
@@ -80,16 +101,40 @@ class GuideService:
         out = []
         for s in subs:
             t = team_map.get(s.team_id)
+            digits = "".join(filter(str.isdigit, t.team_no or "")) if t else ""
+            team_number = int(digits) if digits else 1
+            status_val = s.status.value if hasattr(s.status, "value") else (s.status or "Pending")
+            if status_val == "Submitted":
+                evaluation_status_val = "Pending"
+            else:
+                evaluation_status_val = status_val
+
             out.append({
                 "id": str(s.id),
-                "submissionId": str(s.id),
-                "week": s.week,
+                "weekNumber": s.week,
                 "teamId": t.team_id if t else "",
                 "teamNo": t.team_no if t else "",
+                "teamNumber": team_number,
+                "classSection": t.class_name if t else "",
+                "teamLeader": t.lead_student if t else "",
                 "projectTitle": s.project_title or (t.project_title if t else ""),
-                "status": s.status or "Pending",
+                "status": status_val,
+                "evaluationStatus": evaluation_status_val,
                 "submissionDate": s.submission_date or "",
                 "score": float(s.score) if s.score is not None else None,
+                "abstractSummary": s.abstract or "",
+                "problemStatement": s.problem_statement or "",
+                "proposedSolution": s.solution or "",
+                "technologyUsed": s.technology_used or "",
+                "obstaclesFaced": s.obstacles_faced or "",
+                "pptUrl": s.presentation_file or "",
+                "presentationFileName": s.presentation_file or "",
+                "reportUrl": s.pdf_file or "",
+                "githubUrl": s.repo_url or (t.repo_url if t else ""),
+                "liveDemoUrl": s.demo_url or (t.demo_url if t else ""),
+                "images": [s.screenshot_file] if s.screenshot_file else [],
+                "comments": s.comments or "",
+                "guideReviewDate": s.guide_review_date or "",
             })
         return out
 
@@ -115,11 +160,22 @@ class GuideService:
         if not is_guide:
             raise HTTPException(403, "You are not authorized to review submissions for this team")
 
-        s.status = "Approved" if req.status.upper() == "APPROVED" else "Revision Requested"
+        status_upper = (req.status or "").strip().upper()
+        if status_upper == "APPROVED":
+            s.status = "Approved"
+        elif status_upper in ("REVISION_REQUESTED", "REVISION REQUIRED"):
+            s.status = "Revision Required"
+        elif status_upper == "REJECTED":
+            s.status = "Rejected"
+        else:
+            s.status = "Revision Required"
+
         s.comments = req.comments or s.comments
         if req.score is not None:
             s.score = req.score
         s.guide_review_date = datetime.now().strftime("%d %b %Y")
 
         await self.session.commit()
-        return {"success": True, "message": f"Submission reviewed: {s.status}", "id": str(s.id)}
+        status_label = s.status.value if hasattr(s.status, "value") else str(s.status)
+        return {"success": True, "message": f"Submission reviewed: {status_label}", "id": str(s.id)}
+

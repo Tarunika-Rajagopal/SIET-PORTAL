@@ -205,10 +205,11 @@ async def test_repositories_and_services():
         assert own_marks["weekNumber"] == 1
 
         # Unauthorized student viewing another team's marks -> 403 Forbidden
+        rand_suffix = uuid.uuid4().hex[:6]
         other_team = Team(
             id=uuid.uuid4(),
-            team_id="TEAM-CSE-Y3-B99",
-            team_no="Team B99",
+            team_id=f"TEAM-CSE-Y3-B99-{rand_suffix}",
+            team_no=f"Team B99-{rand_suffix}",
             class_name="CSE-B",
             batch="2023-2027 (III Year)",
         )

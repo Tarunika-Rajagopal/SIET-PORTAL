@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { INITIAL_TEAMS, FACULTY_PROFILE } from '../data/guidePortalData';
 import { AuthService, getUserInitials } from '../services/authService';
 import { AdvisorHistoryService } from '../services/advisorHistoryService';
@@ -37,6 +37,7 @@ export const GuideProvider = ({ children }) => {
 
   const [backendMetrics, setBackendMetrics] = useState(null);
   const [backendTeamIds, setBackendTeamIds] = useState(null);
+  const backendSubmissionsLoadedRef = useRef(false);
 
   // Filter so guide only sees teams assigned to them (or single student team)
   const assignedTeams = useMemo(() => {
@@ -61,20 +62,52 @@ export const GuideProvider = ({ children }) => {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const data = await ApiClient.getGuideDashboard();
-      if (!data) return;
+      const [data, guideTeams, weeklySubmissions] = await Promise.all([
+        ApiClient.getGuideDashboard().catch(e => {
+          console.warn('[GuideContext] Failed to load dashboard metrics:', e);
+          return null;
+        }),
+        ApiClient.getGuideTeams().catch(e => {
+          console.warn('[GuideContext] Failed to load guide teams:', e);
+          return null;
+        }),
+        ApiClient.getGuidePendingSubmissions().catch(e => {
+          console.warn('[GuideContext] Failed to load weekly submissions:', e);
+          return null;
+        })
+      ]);
 
-      setBackendMetrics({
-        totalTeams: Number(data.totalTeams) || 0,
-        pendingTitles: Number(data.pendingTitles) || 0,
-        approvedTitles: Number(data.approvedTitles) || 0,
-        totalSubmissions: Number(data.totalSubmissions) || 0,
-        pendingReviews: Number(data.pendingReviews) || 0,
-      });
+      if (data) {
+        setBackendMetrics({
+          totalTeams: Number(data.totalTeams) || 0,
+          pendingTitles: Number(data.pendingTitles) || 0,
+          approvedTitles: Number(data.approvedTitles) || 0,
+          totalSubmissions: Number(data.totalSubmissions) || 0,
+          pendingReviews: Number(data.pendingReviews) || 0,
+        });
+      }
 
-      if (Array.isArray(data.teams)) {
+      const hasBackendSubs = Array.isArray(weeklySubmissions);
+      if (hasBackendSubs) {
+        backendSubmissionsLoadedRef.current = true;
+      }
+
+      const getTeamSubmissions = (team, fallbackSubs = []) => {
+        if (!hasBackendSubs) return fallbackSubs;
+        return weeklySubmissions.filter(s =>
+          (s.teamId && (s.teamId === team.teamId || s.teamId === team.id)) ||
+          (s.teamNo && team.teamNo && s.teamNo === team.teamNo) ||
+          (s.teamNumber && team.teamNumber && s.teamNumber === team.teamNumber)
+        );
+      };
+
+      const teamsData = Array.isArray(guideTeams) && guideTeams.length > 0
+        ? guideTeams
+        : (data && Array.isArray(data.teams) ? data.teams : null);
+
+      if (Array.isArray(teamsData)) {
         const idSet = new Set();
-        data.teams.forEach(t => {
+        teamsData.forEach(t => {
           if (t.teamId) idSet.add(t.teamId);
           if (t.id) idSet.add(t.id);
         });
@@ -82,13 +115,21 @@ export const GuideProvider = ({ children }) => {
 
         setAllTeams(prevTeams => {
           const updated = prevTeams.map(existing => {
-            const match = data.teams.find(
-              b => b.teamId === existing.teamId || b.id === existing.id || b.teamNo === existing.teamNo || (existing.teamNumber && b.teamNo && parseInt(String(b.teamNo).replace(/\D/g, ''), 10) === existing.teamNumber)
+            const match = teamsData.find(
+              b => b.teamId === existing.teamId || b.id === existing.id || b.teamNo === existing.teamNo || (existing.teamNumber && b.teamNumber && b.teamNumber === existing.teamNumber)
             );
             if (!match) return existing;
 
-            const teamNum = parseInt(String(match.teamNo || '').replace(/\D/g, ''), 10) || existing.teamNumber;
-            const isApproved = Boolean(match.isTitleApproved || match.guideApprovalStatus === 'Approved');
+            const teamNum = match.teamNumber !== undefined
+              ? match.teamNumber
+              : (parseInt(String(match.teamNo || '').replace(/\D/g, ''), 10) || existing.teamNumber);
+            const isApproved = match.isTitleApproved !== undefined
+              ? Boolean(match.isTitleApproved)
+              : Boolean(existing.isTitleApproved);
+
+            const teamSubs = getTeamSubmissions(existing, existing.submissions || []);
+            const repoUrlFromSubs = teamSubs.find(s => s.githubUrl || s.repoUrl)?.githubUrl || '';
+            const demoUrlFromSubs = teamSubs.find(s => s.liveDemoUrl || s.demoUrl)?.liveDemoUrl || '';
 
             return {
               ...existing,
@@ -100,27 +141,41 @@ export const GuideProvider = ({ children }) => {
               status: match.status || existing.status,
               progress: match.progress !== undefined ? match.progress : existing.progress,
               batch: match.batch || existing.batch,
-              section: match.section || existing.section,
-              classSection: existing.classSection || match.section,
+              classSection: match.classSection || existing.classSection || '',
+              section: match.classSection || existing.section || '',
               guideName: match.guideName || existing.guideName,
               guide: match.guideName || existing.guide,
-              advisorName: match.advisorName || existing.advisorName,
-              advisor: match.advisorName || existing.advisor,
+              advisorName: match.advisorName || existing.advisorName || '',
+              advisor: match.advisorName || existing.advisor || '',
               isTitleApproved: isApproved,
-              guideApprovalStatus: match.guideApprovalStatus || existing.guideApprovalStatus,
-              titleStatus: isApproved ? 'Approved' : (match.guideApprovalStatus || existing.titleStatus || 'Pending'),
-              memberCount: match.memberCount !== undefined ? match.memberCount : existing.memberCount,
-              membersCount: match.memberCount !== undefined ? match.memberCount : existing.membersCount,
+              guideApprovalStatus: match.guideApprovalStatus || existing.guideApprovalStatus || 'Pending',
+              titleStatus: match.guideApprovalStatus || existing.titleStatus || 'Pending',
+              teamLeader: match.teamLeader !== undefined ? match.teamLeader : (existing.teamLeader || ''),
+              leaderRollNo: match.leaderRollNo !== undefined ? match.leaderRollNo : (existing.leaderRollNo || ''),
+              members: Array.isArray(match.members) && match.members.length > 0
+                ? match.members
+                : (existing.members || []),
+              memberCount: match.memberCount !== undefined ? match.memberCount : (match.members?.length ?? existing.memberCount),
+              membersCount: match.memberCount !== undefined ? match.memberCount : (match.members?.length ?? existing.membersCount),
+              githubUrl: existing.githubUrl || repoUrlFromSubs,
+              liveDemoUrl: existing.liveDemoUrl || demoUrlFromSubs,
+              submissions: teamSubs,
             };
           });
 
-          data.teams.forEach(b => {
+          teamsData.forEach(b => {
             const exists = updated.some(
               e => e.teamId === b.teamId || e.id === b.id
             );
             if (!exists) {
-              const teamNum = parseInt(String(b.teamNo || '').replace(/\D/g, ''), 10) || 1;
-              const isApproved = Boolean(b.isTitleApproved || b.guideApprovalStatus === 'Approved');
+              const teamNum = b.teamNumber !== undefined
+                ? b.teamNumber
+                : (parseInt(String(b.teamNo || '').replace(/\D/g, ''), 10) || 1);
+              const isApproved = Boolean(b.isTitleApproved);
+              const teamSubs = getTeamSubmissions(b, []);
+              const repoUrlFromSubs = teamSubs.find(s => s.githubUrl || s.repoUrl)?.githubUrl || '';
+              const demoUrlFromSubs = teamSubs.find(s => s.liveDemoUrl || s.demoUrl)?.liveDemoUrl || '';
+
               updated.push({
                 id: b.id,
                 teamId: b.teamId,
@@ -130,28 +185,39 @@ export const GuideProvider = ({ children }) => {
                 status: b.status || 'In Progress',
                 progress: b.progress || 0,
                 batch: b.batch || '',
-                section: b.section || '',
-                classSection: b.section || '',
+                classSection: b.classSection || '',
+                section: b.classSection || '',
                 guideName: b.guideName || '',
                 guide: b.guideName || '',
                 advisorName: b.advisorName || '',
                 advisor: b.advisorName || '',
                 isTitleApproved: isApproved,
                 guideApprovalStatus: b.guideApprovalStatus || 'Pending',
-                titleStatus: isApproved ? 'Approved' : (b.guideApprovalStatus || 'Pending'),
-                memberCount: b.memberCount || 0,
-                membersCount: b.memberCount || 0,
-                members: [],
-                submissions: [],
+                titleStatus: b.guideApprovalStatus || 'Pending',
+                teamLeader: b.teamLeader || '',
+                leaderRollNo: b.leaderRollNo || '',
+                memberCount: b.memberCount || (b.members?.length ?? 0),
+                membersCount: b.memberCount || (b.members?.length ?? 0),
+                members: Array.isArray(b.members) ? b.members : [],
+                githubUrl: b.githubUrl || repoUrlFromSubs,
+                liveDemoUrl: b.liveDemoUrl || demoUrlFromSubs,
+                submissions: teamSubs,
               });
             }
           });
 
           return updated;
         });
+      } else if (hasBackendSubs) {
+        setAllTeams(prevTeams =>
+          prevTeams.map(existing => ({
+            ...existing,
+            submissions: getTeamSubmissions(existing, existing.submissions || []),
+          }))
+        );
       }
     } catch (err) {
-      console.warn('[GuideContext] Failed to load dashboard from API, using fallback data:', err);
+      console.warn('[GuideContext] Failed to load dashboard/teams from API, using fallback data:', err);
     }
   }, []);
 
@@ -191,6 +257,10 @@ export const GuideProvider = ({ children }) => {
 
   // Real-time synchronization listener
   const reloadFromStorage = useCallback(() => {
+    if (backendSubmissionsLoadedRef.current) {
+      fetchDashboard();
+      return;
+    }
     try {
       const stored = localStorage.getItem(TEAMS_STORAGE_KEY);
       if (stored) {
@@ -204,7 +274,7 @@ export const GuideProvider = ({ children }) => {
     } catch (e) {
       console.error('Error reloading teams from storage:', e);
     }
-  }, []);
+  }, [fetchDashboard]);
 
   useEffect(() => {
     window.addEventListener('siet_data_updated', reloadFromStorage);
@@ -525,8 +595,8 @@ export const GuideProvider = ({ children }) => {
           // Call backend review endpoint
           ApiClient.getGuidePendingSubmissions().then(pSubs => {
             const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
-            if (match && match.submissionId) {
-              ApiClient.reviewWeeklySubmission(match.submissionId, 'APPROVED', remarks).catch(() => {});
+            if (match && (match.id || match.submissionId)) {
+              ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'APPROVED', remarks).catch(() => {});
             }
           }).catch(() => {});
         } catch (e) {
@@ -607,8 +677,8 @@ export const GuideProvider = ({ children }) => {
           // Call backend review endpoint
           ApiClient.getGuidePendingSubmissions().then(pSubs => {
             const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
-            if (match && match.submissionId) {
-              ApiClient.reviewWeeklySubmission(match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
+            if (match && (match.id || match.submissionId)) {
+              ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
             }
           }).catch(() => {});
         } catch (e) {
@@ -687,6 +757,14 @@ export const GuideProvider = ({ children }) => {
             item.comments = reason.trim();
             StudentService.saveSubmissions(studentSubs);
           }
+
+          // Call backend review endpoint
+          ApiClient.getGuidePendingSubmissions().then(pSubs => {
+            const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
+            if (match && (match.id || match.submissionId)) {
+              ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REJECTED', reason.trim()).catch(() => {});
+            }
+          }).catch(() => {});
         } catch (e) {
           console.error('Error synchronizing rejection:', e);
         }
