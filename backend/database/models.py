@@ -99,8 +99,8 @@ class User(Base):
     advisor_class = Column(String(50), nullable=True)
     advisor_batch = Column(String(100), nullable=True)
     initials = Column(String(10), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     @validates("role", "active_role")
     def validate_user_role(self, key, value):
@@ -126,8 +126,8 @@ class Faculty(Base):
     teams_count = Column(Integer, default=0)
     max_quota = Column(Integer, default=5)
     status = Column(SAEnum(FacultyStatusEnum, name="faculty_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=FacultyStatusEnum.active)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     @validates("role")
     def validate_faculty_role(self, key, value):
@@ -160,8 +160,8 @@ class Student(Base):
     team_no = Column(String(50), default="Unassigned")
     project_title = Column(Text, default="")
     guide = Column(String(255), default="Unassigned")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class Team(Base):
@@ -195,9 +195,9 @@ class Team(Base):
     abstract = Column(Text, default="")
     repo_url = Column(String(500), default="")
     demo_url = Column(String(500), default="")
-    last_modified = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_modified = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     @validates("status")
     def validate_team_status(self, key, value):
@@ -231,7 +231,7 @@ class TeamMember(Base):
     phone = Column(String(50), nullable=True)
     is_lead = Column(Boolean, default=False)
     member_role = Column(String(50), default="Team Member")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     team = relationship("Team", back_populates="members")
     student = relationship("Student")
@@ -265,8 +265,8 @@ class WeeklySubmission(Base):
     screenshot_file = Column(String(500), nullable=True)
     guide_name = Column(String(255), nullable=True)
     guide_review_date = Column(String(50), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     @validates("status")
     def validate_submission_status(self, key, value):
@@ -290,7 +290,7 @@ class GuideNotice(Base):
     comment = Column(Text, nullable=True)
     date = Column(String(50), nullable=False)
     week_number = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class ReviewScore(Base):
@@ -305,8 +305,8 @@ class ReviewScore(Base):
     total_score = Column(Numeric(6, 2), default=0)
     max_total = Column(Numeric(6, 2), default=0)
     guide_feedback = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     @validates("status")
     def validate_review_status(self, key, value):
@@ -327,7 +327,7 @@ class RubricCriterion(Base):
     max_marks = Column(Numeric(5, 2), default=0)
     awarded_marks = Column(Numeric(5, 2), default=0)
     feedback = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class TitleApproval(Base):
@@ -342,8 +342,8 @@ class TitleApproval(Base):
     status = Column(SAEnum(TitleApprovalStatusEnum, name="title_approval_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=TitleApprovalStatusEnum.pending)
     category = Column(String(100), default="Project Title Proposal")
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     @validates("status")
     def validate_title_approval_status(self, key, value):
@@ -363,14 +363,14 @@ class Announcement(Base):
     sender = Column(String(255), nullable=False)
     tag = Column(String(100), nullable=True)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     date_formatted = Column(String(100), nullable=False)
     date_key = Column(Date, nullable=False)
     month_key = Column(String(10), nullable=False)
@@ -379,14 +379,14 @@ class AuditLog(Base):
     details = Column(Text, nullable=False)
     reason = Column(Text, nullable=True)
     admin_email = Column(String(255), default="admin@siet.ac.in")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class AdvisorHistory(Base):
     __tablename__ = "advisor_history"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     date = Column(Date, nullable=False)
     date_formatted = Column(String(100), nullable=False)
     role = Column(String(50), default="Class Advisor")
@@ -395,14 +395,14 @@ class AdvisorHistory(Base):
     target = Column(String(255), nullable=False)
     details = Column(Text, nullable=False)
     class_section = Column(String(50), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class HodHistory(Base):
     __tablename__ = "hod_history"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     date = Column(String(50), nullable=False)
     action_type = Column(String(255), nullable=False)
     target = Column(String(255), nullable=False)
@@ -410,7 +410,7 @@ class HodHistory(Base):
     batch = Column(String(100), nullable=False)
     details = Column(Text, nullable=False)
     performed_by = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class WeeklyMark(Base):
@@ -421,10 +421,10 @@ class WeeklyMark(Base):
     week_number = Column(Integer, nullable=False)
     team_average = Column(Numeric(5, 1), default=0)
     remarks = Column(Text, nullable=True)
-    graded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    graded_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     graded_by = Column(String(255), default="Class Advisor")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     member_marks = relationship("WeeklyMemberMark", back_populates="weekly_mark", cascade="all, delete-orphan")
 
@@ -437,7 +437,7 @@ class WeeklyMemberMark(Base):
     student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=True)
     roll_no = Column(String(50), nullable=False)
     mark = Column(Numeric(5, 1), default=0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     weekly_mark = relationship("WeeklyMark", back_populates="member_marks")
     student = relationship("Student")
@@ -454,8 +454,8 @@ class Checklist(Base):
     design_diagrams = Column(Boolean, default=False)
     prototype_ready = Column(Boolean, default=False)
     zeroth_review_done = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 class Setting(Base):
@@ -463,4 +463,4 @@ class Setting(Base):
 
     key = Column(String(255), primary_key=True)
     value = Column(JSON, nullable=False)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
