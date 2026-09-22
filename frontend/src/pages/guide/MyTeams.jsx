@@ -116,8 +116,18 @@ export const MyTeams = () => {
       );
 
       // Marks for this submission
-      const recordedMark = teamMarks[def.submissionNumber] || teamMarks[def.weekNumber];
-      const hasMarks = recordedMark && typeof recordedMark.teamAverage === 'number' && recordedMark.teamAverage > 0;
+      const recordedMark = teamMarks[def.submissionNumber] || 
+                           teamMarks[def.weekNumber] || 
+                           (def.submissionNumber === 1 ? teamMarks[0] : null);
+      const hasMarks = Boolean(recordedMark && (
+        (typeof recordedMark.teamAverage === 'number' && recordedMark.teamAverage > 0) ||
+        (recordedMark.memberMarks && Object.keys(recordedMark.memberMarks).length > 0)
+      ));
+
+      const isApproved = hasMarks || 
+                         existing?.evaluationStatus === 'Approved' || 
+                         existing?.status === 'Approved' || 
+                         existing?.submissionStatus === 'Approved';
 
       if (existing) {
         return {
@@ -126,10 +136,12 @@ export const MyTeams = () => {
           weekNumber: def.weekNumber,
           title: existing.title || def.defaultTitle,
           isUploaded: true,
-          status: existing.status || existing.evaluationStatus || (hasMarks ? 'Approved' : 'Submitted'),
+          status: isApproved ? 'Approved' : (existing.status === 'Revision Required' || existing.evaluationStatus === 'Revision Required' ? 'Revision Required' : (existing.status || 'Submitted')),
+          evaluationStatus: isApproved ? 'Approved' : (existing.evaluationStatus || 'Pending'),
+          submissionStatus: isApproved ? 'Approved' : (existing.submissionStatus || 'Submitted'),
           hasMarks,
-          marksScore: hasMarks ? recordedMark.teamAverage : null,
-          marksRemarks: recordedMark?.remarks || existing.guideRemarks || ''
+          marksScore: hasMarks ? (recordedMark.teamAverage ?? existing.score) : (existing.score ?? null),
+          marksRemarks: recordedMark?.remarks || existing.guideRemarks || existing.comments || ''
         };
       }
 
@@ -366,6 +378,7 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
                             setSubmissionsExpandedTeamId(null);
                           } else {
                             setExpandedTeamId(team.teamId);
+                            setSubmissionsExpandedTeamId(null);
                           }
                         }}
                         className={`transition cursor-pointer ${
@@ -846,8 +859,10 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
               {/* 7. Assigned Milestone Evaluation & Individual Student Marks Breakdown */}
               {(() => {
                 const subNum = activeSubModal.submissionNumber || (activeSubModal.weekNumber !== undefined ? activeSubModal.weekNumber + 1 : 1);
-                const marksRec = MarksService.getWeeklyMarks(activeTeamForModal.teamId, subNum, activeTeamForModal.members?.map(m => m.rollNo)) ||
-                                 (subNum === 1 ? MarksService.getWeeklyMarks(activeTeamForModal.teamId, 0, activeTeamForModal.members?.map(m => m.rollNo)) : null);
+                const memberRolls = activeTeamForModal.members?.map(m => m.rollNo);
+                const marksRec = MarksService.getWeeklyMarks(activeTeamForModal.teamId, subNum, memberRolls) ||
+                                 MarksService.getWeeklyMarks(activeTeamForModal.teamId, activeSubModal.weekNumber, memberRolls) ||
+                                 (subNum === 1 || activeSubModal.weekNumber === 0 ? MarksService.getWeeklyMarks(activeTeamForModal.teamId, 0, memberRolls) : null);
                 if (!marksRec) return null;
 
                 return (

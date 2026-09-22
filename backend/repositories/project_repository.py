@@ -1,6 +1,6 @@
 """Project repository for database access on TitleApproval entity."""
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -31,6 +31,19 @@ class ProjectRepository:
             q = q.where(TitleApproval.status == status)
         res = await self.session.execute(q)
         return res.scalar() or 0
+
+    async def get_title_counts(self, team_ids: List[uuid.UUID]) -> Dict[str, int]:
+        if not team_ids:
+            return {"approved": 0, "pending": 0}
+        q = select(
+            func.count().filter(TitleApproval.status == "Approved").label("approved"),
+            func.count().filter(TitleApproval.status == "Pending").label("pending")
+        ).where(TitleApproval.team_id.in_(team_ids))
+        res = await self.session.execute(q)
+        row = res.one_or_none()
+        if row:
+            return {"approved": row[0] or 0, "pending": row[1] or 0}
+        return {"approved": 0, "pending": 0}
 
     async def create_title_approval(self, approval: TitleApproval) -> TitleApproval:
         self.session.add(approval)

@@ -1,5 +1,6 @@
 import { INITIAL_TEAMS } from '../data/guidePortalData.js';
 import { StudentService } from '../services/studentService';
+import { MarksService } from '../services/marksService';
 
 /**
  * Ensures strictly real student submissions are visible to the guide:
@@ -73,11 +74,17 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
             dW.submittedFields?.screenshot
           );
           if (hasActualSubmission) {
+            const subMarks = MarksService.getWeeklyMarks(sTeam.id || team.teamId, subNum) || 
+                             MarksService.getWeeklyMarks(sTeam.id || team.teamId, w) ||
+                             (subNum === 1 || w === 0 ? MarksService.getWeeklyMarks(sTeam.id || team.teamId, 0) : null);
+            const isApproved = StudentService.isSubmissionApproved(subNum, sTeam.id) || 
+                               Boolean(subMarks && (subMarks.teamAverage > 0 || (subMarks.memberMarks && Object.keys(subMarks.memberMarks).length > 0)));
+
             validSubs.push({
               week: w,
               title: `Submission ${subNum} Deliverable Submission`,
               dueDate: `Submission ${subNum}`,
-              status: 'Submitted',
+              status: isApproved ? 'Approved' : 'Submitted',
               submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
               projectTitle: dW.projectTitle || d0.projectTitle || sTeam.submittedTitle || sTeam.projectTitle || '',
               problemStatement: dW.problemStatement || '',
@@ -138,9 +145,15 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
         const isPdf = Boolean(sub.pdfFile || (sub.presentationFile && sub.presentationFile.toLowerCase().endsWith('.pdf')) || (dWeek.reportFile && dWeek.reportFile.toLowerCase().endsWith('.pdf')));
         const isPpt = Boolean(sub.presentationFile && (sub.presentationFile.toLowerCase().endsWith('.ppt') || sub.presentationFile.toLowerCase().endsWith('.pptx')) || (dWeek.presentationFile && (dWeek.presentationFile.toLowerCase().endsWith('.ppt') || dWeek.presentationFile.toLowerCase().endsWith('.pptx'))));
         const isWeek0 = sub.week === 0;
+
+        const subMarks = MarksService.getWeeklyMarks(sTeam.id || team.teamId, subNum) || 
+                         MarksService.getWeeklyMarks(sTeam.id || team.teamId, sub.week) ||
+                         (isWeek0 || subNum === 1 ? MarksService.getWeeklyMarks(sTeam.id || team.teamId, 0) : null);
+        const hasMarks = Boolean(subMarks && (subMarks.teamAverage > 0 || (subMarks.memberMarks && Object.keys(subMarks.memberMarks).length > 0)));
+
         const isSubApproved = isWeek0
-          ? (currentTitleStatus === 'Approved' || sub.status === 'Approved')
-          : (sub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, sTeam.id));
+          ? (currentTitleStatus === 'Approved' || sub.status === 'Approved' || hasMarks)
+          : (sub.status === 'Approved' || sub.evaluationStatus === 'Approved' || StudentService.isSubmissionApproved(subNum, sTeam.id) || hasMarks);
 
         const pFile = sub.presentationFile || dWeek.presentationFile || (isWeek0 ? d0.presentationFile : '') || '';
         const rFile = sub.pdfFile || dWeek.reportFile || (isWeek0 ? d0.reportFile : '') || '';
@@ -155,7 +168,9 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
           evaluationStatus: evalStatus,
           status: evalStatus === 'Approved' ? 'Approved' : evalStatus === 'Revision Required' ? 'Revision Required' : 'Submitted',
           isLocked: isSubApproved,
-          guideRemarks: sub.comments || '',
+          score: subMarks?.teamAverage ?? subMarks?.score ?? sub.score ?? undefined,
+          memberMarks: subMarks?.memberMarks || sub.memberMarks || undefined,
+          guideRemarks: subMarks?.remarks || sub.comments || sub.guideRemarks || '',
           abstractSummary: sub.abstract || dWeek.abstract || (isWeek0 ? d0.abstract : '') || '',
           problemStatement: sub.problemStatement || dWeek.problemStatement || d0.problemStatement || '',
           proposedSolution: sub.solution || dWeek.solution || d0.solution || '',
@@ -174,7 +189,6 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
 
       const pendingSub = mappedSubmissions.find(s => s.evaluationStatus === 'Pending' || s.evaluationStatus === 'Revision Required');
 
-
       return {
         ...team,
         projectTitle: titleVal,
@@ -191,7 +205,7 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
         latestSubmissionStatus: pendingSub
           ? `Submission ${pendingSub.submissionNumber} Deliverables Submitted for Review`
           : currentTitleStatus === 'Approved'
-          ? 'Title Approved – Ready for Weekly Sprints'
+          ? (mappedSubmissions.length > 0 ? `Submission ${mappedSubmissions[mappedSubmissions.length - 1].submissionNumber} Approved` : 'Title Approved – Ready for Weekly Sprints')
           : currentTitleStatus === 'Rejected'
           ? 'Proposal Rejected – Revision Mandated'
           : currentTitleStatus === 'Pending'

@@ -72,18 +72,33 @@ export const ApproveProject = () => {
     const subs = team.submissions || [];
     
     // Look for any pending/unapproved submission first
-    const pending = subs.find(s => 
-      s.evaluationStatus === 'Pending' || 
-      s.evaluationStatus === 'Submitted' || 
-      s.evaluationStatus === 'Revision Required' || 
-      s.status === 'Pending' || 
-      s.status === 'Submitted' || 
-      s.submissionStatus === 'Submitted On Time' ||
-      s.submissionStatus === 'Submitted' ||
-      s.status === 'Changes Requested' ||
-      s.status === 'Revision Required' ||
-      s.status === 'Rejected'
-    );
+    const pending = subs.find(s => {
+      // If marked approved or locked, skip
+      if (s.evaluationStatus === 'Approved' || s.status === 'Approved' || s.isLocked) {
+        return false;
+      }
+      const sWeek = s.weekNumber !== undefined ? s.weekNumber : (s.week !== undefined ? s.week : (s.submissionNumber ? s.submissionNumber - 1 : 0));
+      const sSubNum = s.submissionNumber || (sWeek + 1);
+      
+      // Check if marks already exist in MarksService
+      const mRecord = MarksService.getWeeklyMarks(team.teamId, sSubNum) || 
+                      MarksService.getWeeklyMarks(team.teamId, sWeek) ||
+                      (sWeek === 0 || sSubNum === 1 ? MarksService.getWeeklyMarks(team.teamId, 0) : null);
+      if (mRecord && (mRecord.teamAverage > 0 || (mRecord.memberMarks && Object.keys(mRecord.memberMarks).length > 0))) {
+        return false;
+      }
+
+      return (
+        s.evaluationStatus === 'Pending' || 
+        s.evaluationStatus === 'Submitted' || 
+        s.evaluationStatus === 'Revision Required' || 
+        s.status === 'Pending' || 
+        s.status === 'Submitted' || 
+        s.status === 'Changes Requested' || 
+        s.status === 'Revision Required'
+      );
+    });
+
     if (pending) {
       const subNum = pending.submissionNumber || (pending.weekNumber !== undefined ? pending.weekNumber + 1 : (pending.week !== undefined ? pending.week + 1 : 1));
       const weekNum = pending.weekNumber !== undefined ? pending.weekNumber : (pending.week !== undefined ? pending.week : (subNum - 1));
@@ -96,7 +111,10 @@ export const ApproveProject = () => {
     }
 
     // If title is pending or details submitted, but not approved
-    if (team.titleStatus !== 'Approved' && (team.titleStatus === 'Pending' || hasAnyDetailSubmitted(team) || team.projectTitle)) {
+    const titleMarks = MarksService.getWeeklyMarks(team.teamId, 1) || MarksService.getWeeklyMarks(team.teamId, 0);
+    const hasTitleMarks = Boolean(titleMarks && (titleMarks.teamAverage > 0 || (titleMarks.memberMarks && Object.keys(titleMarks.memberMarks).length > 0)));
+
+    if (!hasTitleMarks && team.titleStatus !== 'Approved' && (team.titleStatus === 'Pending' || hasAnyDetailSubmitted(team) || team.projectTitle)) {
       const w0 = subs[0];
       return {
         weekNumber: w0?.weekNumber || 1,
@@ -211,11 +229,17 @@ export const ApproveProject = () => {
                       ? inspectedSub.weekNumber 
                       : (inspectedSub.week !== undefined ? inspectedSub.week : (subNumber - 1));
 
-    // Convert to numerical dictionary
+    // Convert to numerical dictionary and compute average
     const finalMemberMarks = {};
+    let totalMarks = 0;
     members.forEach(m => {
-      finalMemberMarks[m.rollNo] = Number(individualMarks[m.rollNo]);
+      const val = Number(individualMarks[m.rollNo]);
+      finalMemberMarks[m.rollNo] = val;
+      totalMarks += val;
     });
+    const calculatedTeamAverage = members.length > 0 
+      ? Math.round((totalMarks / members.length) * 10) / 10 
+      : 0;
 
     // 1. Save individual marks & calculated average to MarksService
     MarksService.saveWeeklyMarks(
@@ -225,7 +249,16 @@ export const ApproveProject = () => {
       guideRemarks.trim() || 'Satisfactory deliverables. Approved by Faculty Guide.',
       facultyProfile?.name || 'Faculty Guide'
     );
-    if (subNumber === 1) {
+    if (weekNum !== subNumber) {
+      MarksService.saveWeeklyMarks(
+        inspectedTeam.teamId,
+        weekNum,
+        finalMemberMarks,
+        guideRemarks.trim() || 'Satisfactory deliverables. Approved by Faculty Guide.',
+        facultyProfile?.name || 'Faculty Guide'
+      );
+    }
+    if (subNumber === 1 || weekNum === 0 || weekNum === 1) {
       MarksService.saveWeeklyMarks(
         inspectedTeam.teamId,
         0,
@@ -237,22 +270,39 @@ export const ApproveProject = () => {
 
     // 2. Mark submission as evaluated & approved in GuideContext
     if (evaluateWeeklySubmission) {
-      evaluateWeeklySubmission(inspectedTeam.teamId, weekNum, guideRemarks.trim() || 'Approved by Faculty Guide.');
+      evaluateWeeklySubmission(
+        inspectedTeam.teamId,
+        weekNum,
+        guideRemarks.trim() || 'Approved by Faculty Guide.',
+        calculatedTeamAverage,
+        finalMemberMarks
+      );
     }
-    if (approveTitle && subNumber === 1) {
+    if (approveTitle && (subNumber === 1 || weekNum === 0 || weekNum === 1)) {
       approveTitle(inspectedTeam.teamId);
     }
 
     // 3. Immediately synchronize approval status to Student submissions list
     try {
-      const studentSubs = StudentService.getSubmissions();
+      const studentSubs = StudentService.getSubmissions() || [];
       const targetWeek = subNumber - 1;
       let sItem = studentSubs.find(s => s.week === targetWeek || s.week === weekNum);
       if (sItem) {
         sItem.status = 'Approved';
         sItem.comments = guideRemarks.trim() || 'Approved by Faculty Guide.';
-        StudentService.saveSubmissions(studentSubs);
+        sItem.score = calculatedTeamAverage;
+      } else {
+        studentSubs.push({
+          week: weekNum,
+          title: `Submission ${subNumber} Deliverable Submission`,
+          dueDate: `Submission ${subNumber}`,
+          status: 'Approved',
+          score: calculatedTeamAverage,
+          comments: guideRemarks.trim() || 'Approved by Faculty Guide.',
+          submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        });
       }
+      StudentService.saveSubmissions(studentSubs);
     } catch (e) {}
 
     // 4. Immediately synchronize approved title to Student and Advisor stores if Submission 1

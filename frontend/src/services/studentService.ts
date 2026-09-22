@@ -309,20 +309,25 @@ export const StudentService = {
   },
 
   isSubmission1Approved(teamId?: string): boolean {
-    const tId = teamId || 'TEAM-CSE-Y3-B04';
-    try {
-      const stored = localStorage.getItem(TEAM_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && (parsed.isTitleApproved || parsed.guideApprovalStatus === 'Approved')) return true;
-      }
-    } catch (e) {}
+    if (!teamId) return false;
+    const tId = teamId.trim();
+    const isStudentTeam = tId === 'TEAM-CSE-Y3-B04' || tId === 'Team 04' || tId === 'team-4';
+
+    if (isStudentTeam) {
+      try {
+        const stored = localStorage.getItem(TEAM_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && (parsed.isTitleApproved || parsed.guideApprovalStatus === 'Approved')) return true;
+        }
+      } catch (e) {}
+    }
 
     try {
       const rawGuide = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
       if (rawGuide) {
         const guideTeams = JSON.parse(rawGuide);
-        const gt = guideTeams.find((t: any) => t.teamId === tId || t.id === tId || t.teamNumber === 4);
+        const gt = guideTeams.find((t: any) => t.teamId === tId || t.id === tId || t.teamNo === tId);
         if (gt) {
           if (gt.titleStatus === 'Approved' || gt.titleLocked === true) return true;
           if (gt.submissions && gt.submissions[0]) {
@@ -342,31 +347,35 @@ export const StudentService = {
       return true;
     }
 
-    try {
-      const sRaw = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
-      if (sRaw) {
-        const parsedS = JSON.parse(sRaw);
-        if (Array.isArray(parsedS)) {
-          const s0 = parsedS.find((s: any) => s.week === 0);
-          if (s0 && s0.status === 'Approved') return true;
+    if (isStudentTeam) {
+      try {
+        const sRaw = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
+        if (sRaw) {
+          const parsedS = JSON.parse(sRaw);
+          if (Array.isArray(parsedS)) {
+            const s0 = parsedS.find((s: any) => s.week === 0);
+            if (s0 && s0.status === 'Approved') return true;
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
 
     return false;
   },
 
   isSubmissionApproved(subNumber: number, teamId?: string): boolean {
     if (subNumber === 1) return this.isSubmission1Approved(teamId);
+    if (!teamId) return false;
 
-    const tId = teamId || 'TEAM-CSE-Y3-B04';
+    const tId = teamId.trim();
+    const isStudentTeam = tId === 'TEAM-CSE-Y3-B04' || tId === 'Team 04' || tId === 'team-4';
     const weekIndex = subNumber - 1;
 
     try {
       const rawGuide = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
       if (rawGuide) {
         const guideTeams = JSON.parse(rawGuide);
-        const gt = guideTeams.find((t: any) => t.teamId === tId || t.id === tId || t.teamNumber === 4);
+        const gt = guideTeams.find((t: any) => t.teamId === tId || t.id === tId || t.teamNo === tId);
         if (gt && gt.submissions) {
           const sub = gt.submissions.find((s: any) => s.weekNumber === weekIndex || s.submissionNumber === subNumber);
           if (sub && (sub.evaluationStatus === 'Approved' || sub.status === 'Approved')) return true;
@@ -374,14 +383,17 @@ export const StudentService = {
       }
     } catch (e) {}
 
-    const marks = MarksService.getWeeklyMarks(tId, subNumber);
+    const marks = MarksService.getWeeklyMarks(tId, subNumber) || 
+                  MarksService.getWeeklyMarks(tId, weekIndex);
     if (marks && (marks.teamAverage > 0 || (marks.memberMarks && Object.keys(marks.memberMarks).length > 0))) {
       return true;
     }
 
-    const subs = this.getSubmissions();
-    const sub = subs.find(s => s.week === weekIndex);
-    if (sub && sub.status === 'Approved') return true;
+    if (isStudentTeam) {
+      const subs = this.getSubmissions();
+      const sub = subs.find(s => s.week === weekIndex);
+      if (sub && sub.status === 'Approved') return true;
+    }
 
     return false;
   },

@@ -18,9 +18,22 @@ class TeamRepository:
 
     async def get_by_team_id_string(self, team_id_str: str) -> Optional[Team]:
         cleaned = team_id_str.strip()
+        try:
+            parsed_uuid = uuid.UUID(cleaned)
+            res = await self.session.execute(
+                select(Team).where(
+                    or_(Team.id == parsed_uuid, Team.team_id == cleaned, Team.team_no == cleaned)
+                )
+            )
+            found = res.scalar_one_or_none()
+            if found:
+                return found
+        except (ValueError, TypeError):
+            pass
+
         res = await self.session.execute(
             select(Team).where(
-                (Team.team_id == cleaned) | (cast(Team.id, String) == cleaned)
+                or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned)
             )
         )
         return res.scalar_one_or_none()
@@ -31,7 +44,11 @@ class TeamRepository:
             q = q.where(Team.id == team_identifier)
         else:
             cleaned = team_identifier.strip()
-            q = q.where((Team.team_id == cleaned) | (cast(Team.id, String) == cleaned))
+            try:
+                parsed_uuid = uuid.UUID(cleaned)
+                q = q.where(or_(Team.id == parsed_uuid, Team.team_id == cleaned, Team.team_no == cleaned))
+            except (ValueError, TypeError):
+                q = q.where(or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned))
         res = await self.session.execute(q)
         return res.scalar_one_or_none()
 
@@ -44,7 +61,11 @@ class TeamRepository:
             q = q.where(Team.id == team_identifier)
         else:
             cleaned = team_identifier.strip()
-            q = q.where((Team.team_id == cleaned) | (cast(Team.id, String) == cleaned))
+            try:
+                parsed_uuid = uuid.UUID(cleaned)
+                q = q.where(or_(Team.id == parsed_uuid, Team.team_id == cleaned, Team.team_no == cleaned))
+            except (ValueError, TypeError):
+                q = q.where(or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned))
         res = await self.session.execute(q)
         return res.scalar_one_or_none()
 

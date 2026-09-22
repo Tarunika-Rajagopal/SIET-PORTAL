@@ -37,9 +37,11 @@ class TitleApprovalRequest(BaseModel):
 
 # ── Guide review ──────────────────────────────────────────────
 class ReviewSubmissionRequest(BaseModel):
-    status: str            # APPROVED | REVISION_REQUESTED
+    status: str            # APPROVED | REVISION_REQUESTED | REJECTED
     comments: Optional[str] = ""
     score: Optional[float] = None
+    memberMarks: Optional[Dict[str, float]] = None
+    gradedBy: Optional[str] = None
 
 
 # ── Admin ─────────────────────────────────────────────────────

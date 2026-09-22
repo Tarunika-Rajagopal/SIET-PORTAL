@@ -23,7 +23,19 @@ function notifyListeners() {
   });
 }
 
+let cachedMarks: Record<string, Record<number, WeeklyMarksRecord>> | null = null;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) cachedMarks = null;
+  });
+  window.addEventListener('siet_marks_updated', () => {
+    cachedMarks = null;
+  });
+}
+
 function loadAllMarks(): Record<string, Record<number, WeeklyMarksRecord>> {
+  if (cachedMarks) return cachedMarks;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -38,8 +50,10 @@ function loadAllMarks(): Record<string, Record<number, WeeklyMarksRecord>> {
         )
       ) {
         localStorage.removeItem(STORAGE_KEY);
+        cachedMarks = {};
         return {};
       }
+      cachedMarks = parsed;
       return parsed;
     }
   } catch (e) {
@@ -47,15 +61,17 @@ function loadAllMarks(): Record<string, Record<number, WeeklyMarksRecord>> {
   }
 
   // Initially, NO marks assigned should be shown
+  cachedMarks = {};
   return {};
 }
 
 // Helper to resolve alias ids across team aliases (e.g. team-4, TEAM-CSE-Y3-B04, Team 04, etc.)
 const ALL_ALIAS_GROUPS: string[][] = [
-  ["TEAM-CSE-Y3-B04", "team-4", "Team 04", "Team 4", "team-1", "04", "4"],
-  ["TEAM-CSE-Y3-B05", "team-5", "Team 05", "Team 5", "team-2", "05", "5"],
-  ["TEAM-CSE-Y3-B06", "team-6", "Team 06", "Team 6", "team-3", "06", "6"],
+  ["TEAM-CSE-Y3-B04", "team-4", "Team 04", "Team 4", "04", "4"],
+  ["TEAM-CSE-Y3-B05", "team-5", "Team 05", "Team 5", "05", "5"],
+  ["TEAM-CSE-Y3-B06", "team-6", "Team 06", "Team 6", "06", "6"],
   ["TEAM-CSE-Y3-B07", "team-7", "Team 07", "Team 7", "07", "7"],
+  ["TEAM-CSE-Y3-A02", "team-2", "Team 02", "Team 2", "02", "2"],
   ["TEAM-CSE-Y3-C08", "team-8", "Team 08", "Team 8", "08", "8"],
   ["TEAM-CSE-Y3-C09", "team-9", "Team 09", "Team 9", "09", "9"]
 ];
@@ -172,6 +188,7 @@ export const MarksService = {
     }
 
     try {
+      cachedMarks = all;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
     } catch (e) {
       console.error('Failed to save marks to localStorage', e);
@@ -215,6 +232,7 @@ export const MarksService = {
     }
 
     try {
+      cachedMarks = all;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
     } catch (e) {
       console.error('Failed to delete marks from localStorage', e);

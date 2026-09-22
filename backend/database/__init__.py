@@ -1,4 +1,4 @@
-from database.database import Base, get_db, init_db, async_session, db_status
+from database.database import Base, get_db, init_db, async_session, db_status, check_db_connection
 from database.models import (
     User, Faculty, Student, Team, TeamMember, WeeklySubmission,
     GuideNotice, ReviewScore, RubricCriterion, TitleApproval,
@@ -15,7 +15,7 @@ from database.schemas import (
 )
 
 __all__ = [
-    "Base", "get_db", "init_db", "async_session", "db_status",
+    "Base", "get_db", "init_db", "async_session", "db_status", "check_db_connection",
     "User", "Faculty", "Student", "Team", "TeamMember", "WeeklySubmission",
     "GuideNotice", "ReviewScore", "RubricCriterion", "TitleApproval",
     "Announcement", "AuditLog", "AdvisorHistory", "HodHistory",

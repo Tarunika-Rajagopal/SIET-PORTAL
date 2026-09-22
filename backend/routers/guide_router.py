@@ -53,3 +53,14 @@ async def review_submission(
     service: GuideService = Depends(get_guide_service),
 ):
     return await service.review_submission(submission_id, req, user)
+
+
+@router.post("/teams/{team_id}/submissions/{week}/review")
+async def review_team_submission(
+    team_id: str,
+    week: int,
+    req: ReviewSubmissionRequest,
+    user: User = Depends(require_roles("guide")),
+    service: GuideService = Depends(get_guide_service),
+):
+    return await service.review_team_submission(team_id, week, req, user)

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from database import init_db, async_session, db_status
+from database import init_db, async_session, db_status, check_db_connection
 from models import (
     User, Faculty, Student, Team, TeamMember, WeeklySubmission,
     Checklist, WeeklyMark, WeeklyMemberMark, TitleApproval,
@@ -196,17 +196,77 @@ async def seed_initial_data():
             )
             session.add(s)
 
-            tm = TeamMember(
-                id=uuid.uuid4(),
-                team_id=team_id,
-                student_id=s_id,
-                roll_no=roll,
-                name=name,
-                email=email,
-                is_lead=is_lead,
-                member_role=role,
+        # Additional assigned teams for Guide Dr. P. Manimegalai
+        extra_teams = [
+            ("TEAM-CSE-Y3-B07", "Team 07", "CSE-B", "Dr. R. Karthikeyan", "dr.karthik@siet.ac.in", "Sneha M", "714023104142", [
+                ("714023104142", "Sneha M", "sneha.m@srishakthi.ac.in", True, "Team Lead"),
+                ("714023104148", "Suresh P", "suresh.p@srishakthi.ac.in", False, "Team Member"),
+                ("714023104155", "Swetha V", "swetha.v@srishakthi.ac.in", False, "Team Member"),
+                ("714023104162", "Varun K", "varun.k@srishakthi.ac.in", False, "Team Member"),
+            ]),
+            ("TEAM-CSE-Y3-A02", "Team 02", "CSE-A", "Dr. A. Ramesh", "ramesh.a@siet.ac.in", "Aravind S", "714023104018", [
+                ("714023104018", "Aravind S", "aravind.s@srishakthi.ac.in", True, "Team Lead"),
+                ("714023104022", "Balaji R", "balaji.r@srishakthi.ac.in", False, "Team Member"),
+                ("714023104028", "Divya M", "divya.m@srishakthi.ac.in", False, "Team Member"),
+                ("714023104033", "Gokul K", "gokul.k@srishakthi.ac.in", False, "Team Member"),
+            ]),
+            ("TEAM-CSE-Y3-C09", "Team 09", "CSE-C", "Dr. S. Kavitha", "kavitha.s@siet.ac.in", "Deepa N", "714023104205", [
+                ("714023104205", "Deepa N", "deepa.n@srishakthi.ac.in", True, "Team Lead"),
+                ("714023104212", "Harish V", "harish.v@srishakthi.ac.in", False, "Team Member"),
+                ("714023104220", "Janaki R", "janaki.r@srishakthi.ac.in", False, "Team Member"),
+                ("714023104228", "Keerthana S", "keerthana.s@srishakthi.ac.in", False, "Team Member"),
+            ]),
+        ]
+
+        for t_id_str, t_no_str, c_name, adv_name, adv_email, lead_name, lead_roll, mems in extra_teams:
+            e_team_id = uuid.uuid4()
+            e_team = Team(
+                id=e_team_id,
+                team_id=t_id_str,
+                team_no=t_no_str,
+                class_name=c_name,
+                batch="2023-2027 (III Year)",
+                project_title="",
+                guide_name="Dr. P. Manimegalai",
+                guide_email="dr.manimegalai@siet.ac.in",
+                advisor_name=adv_name,
+                advisor_email=adv_email,
+                status="In Progress",
+                progress=0,
+                capacity=4,
+                members_count=4,
+                lead_student=lead_name,
+                lead_roll_no=lead_roll,
+                is_title_approved=False,
+                guide_approval_status="Pending",
             )
-            session.add(tm)
+            session.add(e_team)
+
+            for m_roll, m_name, m_email, m_lead, m_role in mems:
+                st_id = uuid.uuid4()
+                st = Student(
+                    id=st_id,
+                    roll_no=m_roll,
+                    name=m_name,
+                    email=m_email,
+                    class_section=c_name,
+                    team_no=t_no_str,
+                    project_title="",
+                    guide="Dr. P. Manimegalai",
+                )
+                session.add(st)
+
+                etm = TeamMember(
+                    id=uuid.uuid4(),
+                    team_id=e_team_id,
+                    student_id=st_id,
+                    roll_no=m_roll,
+                    name=m_name,
+                    email=m_email,
+                    is_lead=m_lead,
+                    member_role=m_role,
+                )
+                session.add(etm)
 
         # 4. Weekly Submissions
         weeks_data = [
@@ -277,10 +337,11 @@ async def lifespan(app: FastAPI):
     async def _bg_startup():
         try:
             await init_db()
-            try:
-                await seed_initial_data()
-            except Exception as e:
-                print(f"[Seed] Seeding skipped or failed: {e}")
+            if db_status["connected"]:
+                try:
+                    await seed_initial_data()
+                except Exception as e:
+                    print(f"[Seed] Seeding skipped or failed: {e}")
         except Exception as e:
             print(f"[Startup] Background DB notice: {e}")
 
@@ -347,9 +408,28 @@ async def root():
 
 @app.get("/health")
 async def health():
+    if not db_status["connected"]:
+        if await check_db_connection():
+            try:
+                await seed_initial_data()
+            except Exception:
+                pass
+
     if db_status["connected"]:
         return {"status": "healthy", "database": "connected"}
     return JSONResponse(
         status_code=503,
         content={"status": "unhealthy", "database": "disconnected", "error": db_status["error"]},
     )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+        reload_dirs=["app", "routers", "services", "repositories", "database", "auth"],
+    )
+

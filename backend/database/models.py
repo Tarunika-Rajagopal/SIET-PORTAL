@@ -6,7 +6,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship, validates
-from database.database import Base
+from database import Base
 import enum
 
 

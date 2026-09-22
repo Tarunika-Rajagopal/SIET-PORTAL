@@ -39,6 +39,21 @@ const RoleBasedHome: React.FC = () => {
   }
 };
 
+const ProtectedRoute: React.FC<{ allowedRoles?: string[]; children: React.ReactNode }> = ({ allowedRoles, children }) => {
+  const { currentUser, activeRole } = useAuth();
+
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = (activeRole || currentUser.role || 'student').toLowerCase();
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -47,18 +62,48 @@ export const App: React.FC = () => {
           {/* Main Home / Login entrypoint */}
           <Route path="/" element={<RoleBasedHome />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/student" element={<StudentPortalPage />} />
-          <Route path="/advisor" element={<AdvisorPortalPage />} />
-          <Route path="/hod" element={<HodPortalPage />} />
-          <Route path="/admin" element={<AdminPortalPage />} />
+          <Route
+            path="/student"
+            element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <StudentPortalPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/advisor"
+            element={
+              <ProtectedRoute allowedRoles={['advisor']}>
+                <AdvisorPortalPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hod"
+            element={
+              <ProtectedRoute allowedRoles={['hod']}>
+                <HodPortalPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminPortalPage />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Guide Portal Routes wrapped in GuideProvider and GuideLayout */}
+          {/* Guide Portal Routes wrapped in ProtectedRoute, GuideProvider, and GuideLayout */}
           <Route
             path="/guide"
             element={
-              <GuideProvider>
-                <GuideLayout />
-              </GuideProvider>
+              <ProtectedRoute allowedRoles={['guide']}>
+                <GuideProvider>
+                  <GuideLayout />
+                </GuideProvider>
+              </ProtectedRoute>
             }
           >
             <Route index element={<Navigate to="approve-submissions" replace />} />

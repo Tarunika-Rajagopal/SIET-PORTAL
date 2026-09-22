@@ -101,6 +101,7 @@ class MarksService:
             existing.graded_at = datetime.now(timezone.utc)
             if existing.member_marks:
                 await self.marks_repo.delete_member_marks(list(existing.member_marks))
+                await self.session.flush()
             for rno, mark in member_marks.items():
                 await self.marks_repo.add_member_mark(
                     WeeklyMemberMark(

@@ -144,13 +144,60 @@ export const ApiClient = {
     return request<any[]>('/guide/submissions/weekly');
   },
 
-  async reviewWeeklySubmission(submissionId: string, status: 'APPROVED' | 'REVISION_REQUESTED' | 'REJECTED', comments?: string, score?: number) {
+  async reviewWeeklySubmission(
+    submissionId: string,
+    status: 'APPROVED' | 'REVISION_REQUESTED' | 'REJECTED',
+    comments?: string,
+    score?: number,
+    memberMarks?: Record<string, number>,
+    gradedBy?: string
+  ) {
     return request<any>(`/guide/submissions/${submissionId}/review`, {
       method: 'POST',
       body: JSON.stringify({
         status,
         comments,
-        score
+        score,
+        memberMarks,
+        gradedBy
+      }),
+    });
+  },
+
+  async reviewTeamWeeklySubmission(
+    teamId: string,
+    week: number,
+    status: 'APPROVED' | 'REVISION_REQUESTED' | 'REJECTED',
+    comments?: string,
+    score?: number,
+    memberMarks?: Record<string, number>,
+    gradedBy?: string
+  ) {
+    return request<any>(`/guide/teams/${teamId}/submissions/${week}/review`, {
+      method: 'POST',
+      body: JSON.stringify({
+        status,
+        comments,
+        score,
+        memberMarks,
+        gradedBy
+      }),
+    });
+  },
+
+  async saveWeeklyMarks(
+    teamId: string,
+    weekNumber: number,
+    memberMarks: Record<string, number>,
+    remarks?: string,
+    gradedBy?: string
+  ) {
+    return request<any>(`/marks/${teamId}/weekly/${weekNumber}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        memberMarks,
+        remarks,
+        gradedBy
       }),
     });
   },

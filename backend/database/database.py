@@ -46,7 +46,7 @@ def _create_engine():
             "statement_cache_size": 0,
             "prepared_statement_cache_size": 0,
             "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
-            "command_timeout": 15,
+            "command_timeout": 30,
         },
     )
 
@@ -69,12 +69,34 @@ async def get_db():
         yield session
 
 
+async def check_db_connection() -> bool:
+    """Verify and update database connection state."""
+    global db_status, engine
+    try:
+        async with asyncio.timeout(20.0):
+            async with engine.begin() as conn:
+                from sqlalchemy import text
+                await conn.execute(text("SELECT 1"))
+        db_status["connected"] = True
+        db_status["error"] = None
+        return True
+    except TimeoutError:
+        db_status["connected"] = False
+        db_status["error"] = "TimeoutError: Connection timed out after 20s (remote Supabase latency or cold start)"
+        return False
+    except Exception as exc:
+        db_status["connected"] = False
+        err_msg = str(exc).strip()
+        db_status["error"] = err_msg if err_msg else repr(exc)
+        return False
+
+
 async def init_db():
     """Initialize database connection with retry for Supabase cold starts.
     Production PostgreSQL/Supabase schema is managed via Alembic migrations.
     """
     global db_status, engine, async_session
-    max_retries = 3
+    max_retries = 5
 
     if _is_sqlite():
         if not str(engine.url).startswith("sqlite"):
@@ -87,23 +109,14 @@ async def init_db():
         return
 
     for attempt in range(1, max_retries + 1):
-        try:
-            async with asyncio.timeout(15.0):
-                async with engine.begin() as conn:
-                    from sqlalchemy import text
-                    await conn.execute(text("SELECT 1"))
-
-            db_status["connected"] = True
-            db_status["error"] = None
+        if await check_db_connection():
             print(f"[DB] Connected to PostgreSQL (Supabase) successfully (attempt {attempt}).")
             return
-
-        except Exception as exc:
-            db_status["error"] = str(exc)
-            print(f"[DB] Connection attempt {attempt}/{max_retries} failed: {exc}")
+        else:
+            print(f"[DB] Connection attempt {attempt}/{max_retries} failed: {db_status['error']}")
             if attempt < max_retries:
-                await asyncio.sleep(2)
+                await asyncio.sleep(min(attempt * 2, 5))
 
-    print("[DB] All connection attempts exhausted. DB-dependent endpoints will fail.")
+    print("[DB] All initial connection attempts exhausted. Retries will continue on demand via /health.")
 
 

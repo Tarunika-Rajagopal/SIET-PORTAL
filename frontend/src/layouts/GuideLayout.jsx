@@ -17,25 +17,29 @@ export const GuideLayout = () => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
-  // If user session is cleared, immediately redirect to login
+  // If user session is cleared or not a guide, immediately redirect to login
   useEffect(() => {
-    const sessionUser = sessionStorage.getItem('siet_auth_user');
+    const sessionUser = sessionStorage.getItem('siet_auth_user_v5') || localStorage.getItem('siet_auth_user_v5') || sessionStorage.getItem('siet_auth_user') || localStorage.getItem('siet_auth_user');
     if (!currentUser && !sessionUser) {
-      window.location.href = '/';
+      navigate('/login', { replace: true });
     }
-  }, [currentUser]);
+  }, [currentUser, navigate]);
 
   const handleLogout = () => {
     try {
       if (logout) {
         logout();
       }
+      sessionStorage.removeItem('siet_auth_user_v5');
+      localStorage.removeItem('siet_auth_user_v5');
       sessionStorage.removeItem('siet_auth_user');
       localStorage.removeItem('siet_auth_user');
+      localStorage.removeItem('siet_auth_token');
+      sessionStorage.removeItem('siet_auth_token');
     } catch (e) {
       console.error(e);
     }
-    window.location.href = '/';
+    navigate('/login', { replace: true });
   };
 
   const navItems = [
