@@ -54,8 +54,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     AuthService.logout();
     try {
+      sessionStorage.removeItem('siet_auth_user_v5');
       sessionStorage.removeItem('siet_auth_user');
+      sessionStorage.removeItem('siet_auth_token');
+      localStorage.removeItem('siet_auth_user_v5');
       localStorage.removeItem('siet_auth_user');
+      localStorage.removeItem('siet_auth_token');
     } catch (e) {}
     setCurrentUser(null);
     setActiveRole('student');

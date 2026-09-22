@@ -19,23 +19,24 @@ const RoleBasedHome: React.FC = () => {
   const { currentUser, activeRole } = useAuth();
 
   if (!currentUser) {
-    return <LoginPage />;
+    return <Navigate to="/login" replace />;
   }
 
-  const role = (activeRole || currentUser.role || 'student').toLowerCase();
+  const role = (activeRole || currentUser.role || '').toLowerCase();
 
   switch (role) {
     case 'guide':
       return <Navigate to="/guide/approve-submissions" replace />;
     case 'advisor':
-      return <AdvisorPortalPage />;
+      return <Navigate to="/advisor" replace />;
     case 'hod':
-      return <HodPortalPage />;
+      return <Navigate to="/hod" replace />;
     case 'admin':
-      return <AdminPortalPage />;
+      return <Navigate to="/admin" replace />;
     case 'student':
+      return <Navigate to="/student" replace />;
     default:
-      return <StudentPortalPage />;
+      return <Navigate to="/login" replace />;
   }
 };
 
@@ -46,9 +47,9 @@ const ProtectedRoute: React.FC<{ allowedRoles?: string[]; children: React.ReactN
     return <Navigate to="/login" replace />;
   }
 
-  const role = (activeRole || currentUser.role || 'student').toLowerCase();
+  const role = (activeRole || currentUser.role || '').toLowerCase();
   if (allowedRoles && !allowedRoles.includes(role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;

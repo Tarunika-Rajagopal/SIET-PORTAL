@@ -95,12 +95,16 @@ export const Header: React.FC<HeaderProps> = ({
                       setProfileDropdownOpen(false);
                       try {
                         if (logout) logout();
+                        sessionStorage.removeItem('siet_auth_user_v5');
                         sessionStorage.removeItem('siet_auth_user');
+                        sessionStorage.removeItem('siet_auth_token');
+                        localStorage.removeItem('siet_auth_user_v5');
                         localStorage.removeItem('siet_auth_user');
+                        localStorage.removeItem('siet_auth_token');
                       } catch (e) {
                         console.error(e);
                       }
-                      window.location.href = '/';
+                      window.location.href = '/login';
                     }}
                     className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#7C3838] hover:bg-[#F8EEEE] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
                   >

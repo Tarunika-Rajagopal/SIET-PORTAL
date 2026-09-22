@@ -19,7 +19,7 @@ export const GuideLayout = () => {
 
   // If user session is cleared or not a guide, immediately redirect to login
   useEffect(() => {
-    const sessionUser = sessionStorage.getItem('siet_auth_user_v5') || localStorage.getItem('siet_auth_user_v5') || sessionStorage.getItem('siet_auth_user') || localStorage.getItem('siet_auth_user');
+    const sessionUser = sessionStorage.getItem('siet_auth_user_v5') || sessionStorage.getItem('siet_auth_user');
     if (!currentUser && !sessionUser) {
       navigate('/login', { replace: true });
     }

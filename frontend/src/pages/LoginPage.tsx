@@ -20,7 +20,25 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (currentUser) {
-      navigate('/', { replace: true });
+      const role = (currentUser.activeRole || currentUser.role || 'student').toLowerCase();
+      switch (role) {
+        case 'guide':
+          navigate('/guide/approve-submissions', { replace: true });
+          break;
+        case 'advisor':
+          navigate('/advisor', { replace: true });
+          break;
+        case 'hod':
+          navigate('/hod', { replace: true });
+          break;
+        case 'admin':
+          navigate('/admin', { replace: true });
+          break;
+        case 'student':
+        default:
+          navigate('/student', { replace: true });
+          break;
+      }
     }
   }, [currentUser, navigate]);
 
@@ -49,6 +67,7 @@ export const LoginPage: React.FC = () => {
     try {
       const backendResult = await ApiClient.login(emailOrRoll, password);
       if (backendResult.success && backendResult.token) {
+        sessionStorage.setItem('siet_auth_token', backendResult.token);
         localStorage.setItem('siet_auth_token', backendResult.token);
         login(emailOrRoll, password);
         return;

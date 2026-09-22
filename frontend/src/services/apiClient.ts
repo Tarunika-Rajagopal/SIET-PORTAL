@@ -2,9 +2,9 @@ const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 function getToken(): string | null {
   try {
-    const raw = localStorage.getItem('siet_auth_token') || sessionStorage.getItem('siet_auth_token');
+    const raw = sessionStorage.getItem('siet_auth_token') || localStorage.getItem('siet_auth_token');
     if (raw) return raw;
-    const userRaw = localStorage.getItem('siet_auth_user') || sessionStorage.getItem('siet_auth_user');
+    const userRaw = sessionStorage.getItem('siet_auth_user_v5') || localStorage.getItem('siet_auth_user_v5') || sessionStorage.getItem('siet_auth_user') || localStorage.getItem('siet_auth_user');
     if (userRaw) {
       const parsed = JSON.parse(userRaw);
       return parsed.token || null;

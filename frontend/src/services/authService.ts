@@ -165,6 +165,13 @@ export const DEFAULT_USERS: User[] = [
 const STORAGE_KEY = "siet_auth_user_v5";
 const USERS_STORAGE_KEY = "siet_registered_users_v5";
 
+// Purge any stale persistent user session from localStorage so starting the frontend always requires explicit login
+try {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem("siet_auth_user");
+  localStorage.removeItem("siet_auth_token");
+} catch (e) {}
+
 export const AuthService = {
   getUserInitials,
 
@@ -198,7 +205,7 @@ export const AuthService = {
 
   getCurrentUser(): User | null {
     try {
-      const user = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
+      const user = sessionStorage.getItem(STORAGE_KEY);
       return user ? JSON.parse(user) : null;
     } catch (e) {
       return null;
@@ -214,14 +221,16 @@ export const AuthService = {
     };
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
     } catch (e) {}
   },
 
   logout(): void {
     try {
       sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem('siet_auth_user');
+      sessionStorage.removeItem('siet_auth_token');
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('siet_auth_user');
       localStorage.removeItem('siet_auth_token');
     } catch (e) {}
   },
