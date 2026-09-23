@@ -89,7 +89,7 @@ export const LoginPage: React.FC = () => {
     }
 
     // Fallback to localStorage auth if backend is down
-    const res = login(emailOrRoll, password);
+    const res = await login(emailOrRoll, password);
     if (!res.success) {
       setErrorMessage(res.message || 'Invalid institutional credentials');
     }

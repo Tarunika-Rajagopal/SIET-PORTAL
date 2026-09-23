@@ -5,7 +5,7 @@ import { AuthService } from '../services/authService';
 interface AuthContextType {
   currentUser: User | null;
   activeRole: Role;
-  login: (emailOrRoll: string, password: string) => { success: boolean; message?: string; user?: User; requiresRoleSelection?: boolean };
+  login: (emailOrRoll: string, password: string) => Promise<{success: boolean; message?: string; user?: User; requiresRoleSelection?: boolean }>;
   logout: () => void;
   selectRole: (user: User, role: Role) => void;
   switchRole: (role: Role) => void;
@@ -18,7 +18,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [currentUser, setCurrentUser] = useState<User | null>(() => AuthService.getCurrentUser());
   const [activeRole, setActiveRole] = useState<Role>(() => {
     const user = AuthService.getCurrentUser();
-    return user ? (user.activeRole || user.role) : 'student';
+    return user ? (user.activeRole || user.role) : null;
   });
 
   useEffect(() => {
@@ -29,8 +29,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const login = (emailOrRoll: string, password: string) => {
-    const res = AuthService.authenticate(emailOrRoll, password);
+  const login = async (emailOrRoll: string, password: string) => {
+    const res =await AuthService.authenticate(emailOrRoll, password);
     if (res.success && res.user && !res.requiresRoleSelection) {
       setCurrentUser(res.user);
       setActiveRole(res.user.activeRole || res.user.role);

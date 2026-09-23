@@ -70,7 +70,7 @@ export const ApiClient = {
 
   // Auth
   async login(emailOrRoll: string, password: string) {
-    const data = await request<{ success: boolean; token: string; user: any }>('/auth/login', {
+    const data = await request<{success:boolean;token:string;user:any;message?:string}>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ emailOrRoll, password }),
     });
