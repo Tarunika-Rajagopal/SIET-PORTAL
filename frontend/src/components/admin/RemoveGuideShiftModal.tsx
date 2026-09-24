@@ -16,8 +16,15 @@ export const RemoveGuideShiftModal: React.FC<RemoveGuideShiftModalProps> = ({
   onSuccess
 }) => {
   if (!isOpen || !faculty) return null;
+  const [allFaculties,setAllfaculties] = useState<AdminFaculty[]>([]);
 
-  const allFaculties = AdminService.getFaculties();
+  useEffect(()=>{
+    const faculty = async()=>{
+    const res = await AdminService.getFaculties();
+    setAllfaculties(res);
+    };
+    faculty();
+  },[])
   // Strictly eligible non-guides: must not be a guide currently, and not the outgoing faculty
   const eligibleNonGuides = allFaculties.filter(f =>
     f.email !== faculty.email && f.role !== 'Guide' && f.role !== 'Advisor & Guide'

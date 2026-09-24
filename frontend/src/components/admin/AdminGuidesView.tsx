@@ -8,18 +8,21 @@ interface AdminGuidesViewProps {
 }
 
 export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast }) => {
-  const [faculties, setFaculties] = useState<AdminFaculty[]>(() => AdminService.getFaculties());
+  const [faculties, setFaculties] = useState<AdminFaculty[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isManageMode, setIsManageMode] = useState(false);
 
   // Shift & Reassignment modal for removing guide role
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [facultyToRevoke, setFacultyToRevoke] = useState<AdminFaculty | null>(null);
-
+  
   useEffect(() => {
-    return AdminService.subscribe(() => {
-      setFaculties(AdminService.getFaculties());
-    });
+    const faculty = async()=>{
+    const f = await AdminService.getFaculties();
+    setFaculties(f);
+    };
+    faculty();
+    return AdminService.subscribe(faculty);
   }, []);
 
   // Filter only faculty assigned as Guides
@@ -59,9 +62,9 @@ export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast })
         <div className="flex items-center gap-3">
           {/* Manage / Refresh Button */}
           <button
-            onClick={() => {
+            onClick={async() => {
               if (isManageMode) {
-                setFaculties(AdminService.getFaculties());
+                setFaculties(await AdminService.getFaculties());
                 setIsManageMode(false);
                 onShowToast("Guides data refreshed.");
               } else {
@@ -135,8 +138,8 @@ export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast })
           setFacultyToRevoke(null);
         }}
         faculty={facultyToRevoke}
-        onSuccess={(msg) => {
-          setFaculties(AdminService.getFaculties());
+        onSuccess={async(msg) => {
+          setFaculties(await AdminService.getFaculties());
           onShowToast(msg);
         }}
       />

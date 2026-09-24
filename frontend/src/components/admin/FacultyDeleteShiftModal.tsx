@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { X, AlertTriangle, ArrowRight, Trash2, UserCheck, Briefcase } from 'lucide-react';
 import { AdminFaculty, AdminService } from '../../services/adminService';
 
@@ -16,8 +16,14 @@ export const FacultyDeleteShiftModal: React.FC<FacultyDeleteShiftModalProps> = (
   onSuccess
 }) => {
   if (!isOpen || !faculty) return null;
-
-  const allFaculties = AdminService.getFaculties();
+  const [allFaculties,setAllFaculties] = useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const f = async()=>{
+      const fac = await AdminService.getFaculties();
+      setAllFaculties(fac);
+    }
+    f();
+  },[]);
   const isAdvisor = faculty.role === 'Advisor' || faculty.role === 'Advisor & Guide';
   const isGuide = faculty.role === 'Guide' || faculty.role === 'Advisor & Guide';
   const hasNoRole = faculty.role === 'None';

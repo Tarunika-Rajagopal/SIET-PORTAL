@@ -52,6 +52,7 @@ class AdminService:
         advisor_class: Optional[str] = None,
     ) -> Dict[str, Any]:
         # Check if email already exists
+
         existing_fac = await self.faculty_repo.get_by_email(email)
         if existing_fac:
             return {"success": False, "message": f"Faculty with email {email} already exists"}
@@ -61,6 +62,7 @@ class AdminService:
 
         # Create corresponding User record so faculty can authenticate
         uid = uuid.uuid4()
+
         user_role = "advisor" if "advisor" in (role or "").lower() else "guide"
         active_role = "advisor" if (role or "").lower() == "advisor" else "guide"
         u = User(
@@ -76,6 +78,12 @@ class AdminService:
             department="Computer Science and Engineering",
         )
         await self.user_repo.create(u)
+        
+        # This error must be corrected by flushing this . Without flushing creates a proxy object in memory which is not persisted to the database and causes the following error:
+        # sqlalchemy.orm.exc.DetachedInstanceError: Instance <User at 0x...> is not bound to a Session;
+
+        await self.session.flush()
+
 
         fid = uuid.uuid4()
         f = Faculty(
@@ -198,11 +206,11 @@ class AdminService:
                 "rollNo": s.roll_no,
                 "name": s.name,
                 "email": s.email,
-                "batch": s.batch or "2023-2027 (III Year)",
-                "classSection": s.class_section or "CSE-B",
-                "teamNo": s.team_no or "Unassigned",
-                "projectTitle": s.project_title or "",
-                "guide": s.guide or "Unassigned",
+                "batch": s.batch,
+                "classSection": s.class_section,
+                "teamNo": s.team_no,
+                "projectTitle": s.project_title,
+                "guide": s.guide,
             }
             for s in rows
         ]
@@ -341,3 +349,29 @@ class AdminService:
         await self.audit_repo.create_audit_log(log)
         await self.session.commit()
         return {"id": str(lid), "success": True}
+    
+    async def reassign(
+        self,
+        currentEmail:str,
+        successorEmail:str,
+    ) -> Dict[str,Any]:
+        result = await self.faculty_repo.get_by_email(currentEmail);
+
+        second = await self.faculty_repo.get_by_email(successorEmail);
+
+        if result.role == "advisor":
+            result.role = "guide"
+        else:
+            result.role = "advisor"
+        
+        second.advisor_class = result.advisor_class
+        second.advisor_batch = result.advisor_batch
+
+        result.advisor_class = None
+        result.advisor_batch = None 
+        second.role = "advisor"
+        result.role = "guide"
+        await self.session.commit()
+        return {"message":"Reassigned"}
+    
+

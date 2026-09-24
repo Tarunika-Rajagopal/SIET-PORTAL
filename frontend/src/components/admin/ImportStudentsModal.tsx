@@ -80,13 +80,14 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
 
       const rows: Array<any> = [];
       for (let i = 1; i < lines.length; i++) {
+        
         const cols = lines[i].split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
         if (cols.length <= 1) continue;
 
         const name = cols[nameIdx] || '';
         const rollNo = cols[rollIdx] || '';
         const email = cols[emailIdx] || '';
-        const password = pwdIdx !== -1 && cols[pwdIdx] ? cols[pwdIdx] : 'student@123';
+        const password = 'student@123';
         const b = batchIdx !== -1 && cols[batchIdx] ? cols[batchIdx] : defaultBatch;
         const c = classIdx !== -1 && cols[classIdx] ? cols[classIdx] : defaultClass;
 

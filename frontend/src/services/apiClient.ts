@@ -1,3 +1,5 @@
+import {faculty} from '../types';
+
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 function getToken(): string | null {
@@ -220,5 +222,37 @@ export const ApiClient = {
         remarks: reason
       }),
     });
-  }
+  },
+
+  //admin endpoints
+  async getAllStudents() {
+    return request<any[]>('/admin/students');
+  },
+
+  async getAllFaculties(){
+    return request<any[]>('/admin/faculties');
+  },
+
+   async addFaculty(faculty:any){
+    return request<any>(`/admin/faculties`,{
+      method:'POST',
+      body:JSON.stringify(faculty),
+    })
+   },
+
+   async deleteFaculty(facultyId:string){
+    return request<any>(`/admin/faculties/${facultyId}`,{
+      method:'DELETE',
+    })
+   },
+   async reassign(email_one:string,email_two:string){
+    return request<any>('/admin/reassign',{
+      method:'POST',
+      body:JSON.stringify({
+        email_one:email_one,
+        email_two:email_two,
+        mess:'HI'
+      }),
+    })
+   }
 };

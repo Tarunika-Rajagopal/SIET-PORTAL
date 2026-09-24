@@ -92,7 +92,10 @@ class AuditLogRequest(BaseModel):
     reason: Optional[str] = ""
     admin: Optional[str] = "admin@siet.ac.in"
 
-
+class ReassignRequest(BaseModel):
+    email_one: str
+    email_two: str
+    mess: str
 # ── Advisor ───────────────────────────────────────────────────
 class CreateTeamRequest(BaseModel):
     className: str = "CSE-B"

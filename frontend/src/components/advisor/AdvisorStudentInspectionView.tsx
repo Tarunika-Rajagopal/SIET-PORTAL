@@ -134,20 +134,23 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
     setIsMarksModalOpen(false);
     onShowToast(`Evaluated & saved Week ${selectedWeek} marks for ${team.teamNo} (Average: ${modalAverage}/100).`);
   };
-
-  // Change Guide
-  const availableGuides: AdminFaculty[] = AdminService.getFaculties().filter(
-    f => f.role === 'Guide' || f.role === 'Advisor & Guide'
-  );
-
-  const handleConfirmChangeGuide = () => {
+   const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const f = async()=>{
+      const fac = await AdminService.getFaculties();
+      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
+    }
+    f();
+  },[]);
+ 
+  const handleConfirmChangeGuide = async () => {
     setGuideError('');
     if (!selectedNewGuide) {
       setGuideError('Please select a faculty guide from the dropdown.');
       return;
     }
 
-    const res = AdvisorService.reassignGuide(team.class, team.teamId, selectedNewGuide);
+    const res = await AdvisorService.reassignGuide(team.class, team.teamId, selectedNewGuide);
     if (!res.success) {
       setGuideError(res.message);
       return;

@@ -12,7 +12,7 @@ interface AdminHomeViewProps {
 }
 
 export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onShowToast }) => {
-  const [faculties, setFaculties] = useState<AdminFaculty[]>(() => AdminService.getFaculties());
+  const [faculties, setFaculties] = useState<AdminFaculty[]>([]);
   const [isManageMode, setIsManageMode] = useState(false);
 
   // Form state
@@ -39,9 +39,12 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
   const [facultyToAssignAdvisor, setFacultyToAssignAdvisor] = useState<AdminFaculty | null>(null);
 
   useEffect(() => {
-    return AdminService.subscribe(() => {
-      setFaculties(AdminService.getFaculties());
-    });
+    const faculty = async()=>{
+    const f = await AdminService.getFaculties();
+    setFaculties(f);
+    };
+    faculty();
+    return AdminService.subscribe(faculty);
   }, []);
 
   // Compute counts
@@ -54,21 +57,28 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
     .filter(f => f.advisorBatch === batch && f.advisorClass)
     .map(f => f.advisorClass as string);
 
-  const handleAddFaculty = (e: React.FormEvent) => {
+  const handleAddFaculty = async(e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
     const chosenRole = role || 'None';
 
-    AdminService.addFaculty({
-      name: name.trim(),
-      email: email.trim(),
-      designation,
-      role: chosenRole,
-      advisorBatch: (chosenRole === 'Advisor' || chosenRole === 'Advisor & Guide') ? batch : undefined,
-      advisorClass: (chosenRole === 'Advisor' || chosenRole === 'Advisor & Guide') ? className : undefined,
-      specialization: "Computer Science & Engineering"
-    });
+  const result = await AdminService.addFaculty({
+    name: name.trim(),
+    email: email.trim(),
+    designation,
+    role: chosenRole,
+    advisorBatch:
+      chosenRole === "Advisor" || chosenRole === "Advisor & Guide"
+        ? batch
+        : undefined,
+    advisorClass:
+      chosenRole === "Advisor" || chosenRole === "Advisor & Guide"
+        ? className
+        : undefined,
+    specialization: "Computer Science & Engineering",
+  });
+  console.log(result);
 
     onShowToast(`Faculty member ${name} onboarded successfully!`);
     setName('');
@@ -284,9 +294,9 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
+              onClick={async() => {
                 if (isManageMode) {
-                  setFaculties(AdminService.getFaculties());
+                  setFaculties(await AdminService.getFaculties());
                   setIsManageMode(false);
                   onShowToast("Faculties roster refreshed.");
                 } else {

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect} from 'react';
 import { X, UserCheck, Check, AlertTriangle } from 'lucide-react';
-import { AdminService } from '../../services/adminService';
+import { AdminFaculty, AdminService } from '../../services/adminService';
 
 interface AdvisorAssignModalProps {
   isOpen: boolean;
@@ -18,8 +18,25 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
   onSuccess
 }) => {
   if (!isOpen) return null;
+  
+  const[allFaculties,setAllfaculties] = useState<AdminFaculty[]>([]);
+  
+  useEffect(() => {
+  const fetchFaculties = async () => {
+    const f = await AdminService.getFaculties();
+    setAllfaculties(f);
+  };
 
-  const allFaculties = AdminService.getFaculties();
+  fetchFaculties();
+
+  // const unsubscribe = AdminService.subscribe((updatedFaculties:AdminFaculty[]) => {
+  //   setAllfaculties(updatedFaculties);
+  // });
+
+  // return () => {
+  //   unsubscribe();
+  // };
+}, []);
   // Faculties not already assigned to this exact class
   const candidates = allFaculties.filter(f => !(f.advisorBatch === batch && f.advisorClass === className));
 

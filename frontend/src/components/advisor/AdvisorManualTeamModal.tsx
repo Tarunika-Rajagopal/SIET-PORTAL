@@ -36,16 +36,27 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
   const [selectedMemberRolls, setSelectedMemberRolls] = useState<string[]>([]);
   const [leadRollNo, setLeadRollNo] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [unassignedStudents,setUnassignedstudent] = useState<AdminStudent[]>([]);
 
-  // Fetch all unassigned students in this class
-  const unassignedStudents: AdminStudent[] = AdvisorService.getClassStudents(className, batch).filter(
-    s => !s.teamNo || s.teamNo === 'Unassigned' || s.teamNo.trim() === ''
-  );
 
-  // Available faculty guides
-  const availableGuides: AdminFaculty[] = AdminService.getFaculties().filter(
-    f => f.role === 'Guide' || f.role === 'Advisor & Guide'
-  );
+  useEffect(()=>{
+    const fetchUnassigned = async () => {
+      const students = await AdvisorService.getClassStudents(className,batch);
+      const unassigned = students.filter(s=>
+        !s.teamNo || s.teamNo === 'Unassigned' || s.teamNo.trim() === '');
+        setUnassignedstudent(unassigned);
+  }
+      fetchUnassigned();
+},[]);
+
+  const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const f = async()=>{
+      const fac = await AdminService.getFaculties();
+      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
+    }
+    f();
+  },[]);
 
   // Pre-select initial student when modal opens
   useEffect(() => {
@@ -107,7 +118,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
     }
   };
 
-  const handleFormTeamSubmit = (e: React.FormEvent) => {
+  const handleFormTeamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -127,7 +138,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
     }
 
     // Title is NOT entered by advisors; defaults to "To be proposed by student team"
-    const res = AdvisorService.addManualTeam(className, batch, {
+    const res = await AdvisorService.addManualTeam(className, batch, {
       teamNo: teamNo.trim(),
       title: 'To be proposed by student team',
       guide: selectedGuide,

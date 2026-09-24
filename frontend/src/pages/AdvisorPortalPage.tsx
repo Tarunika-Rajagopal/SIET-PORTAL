@@ -6,15 +6,22 @@ import NotificationToast from '../components/common/NotificationToast';
 import AdvisorStudentsView from '../components/advisor/AdvisorStudentsView';
 import AdvisorHistoryView from '../components/advisor/AdvisorHistoryView';
 import { AdvisorService, ClassTeam } from '../services/advisorService';
-import { AdminStudent, AdminService } from '../services/adminService';
+import { AdminStudent, AdminService, AdminFaculty } from '../services/adminService';
 import { Users, History } from 'lucide-react';
 
 export const AdvisorPortalPage: React.FC = () => {
   const { currentUser } = useAuth();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const faculties = AdminService.getFaculties();
+  const [faculties,setFaculties] = useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const f = async()=>{
+      const faculty = await AdminService.getFaculties();
+      setFaculties(faculty);
+    };
+    f();
+    return AdminService.subscribe(f);
+  },[])
   const currentFaculty = faculties.find(f => f.email?.toLowerCase() === currentUser?.email?.toLowerCase());
   const className = currentFaculty?.advisorClass || currentUser?.advisorClass || "CSE-B";
   const batch = currentFaculty?.advisorBatch || currentUser?.advisorBatch || "2023-2027 (III Year)";
@@ -24,12 +31,20 @@ export const AdvisorPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'students' | 'history'>('students');
 
   const [teams, setTeams] = useState<ClassTeam[]>(() => AdvisorService.getTeamsForClass(className));
-  const [students, setStudents] = useState<AdminStudent[]>(() => AdvisorService.getClassStudents(className, 'ALL'));
+  const [students, setStudents] = useState<AdminStudent[]>([]);
+
+  useEffect(()=>{
+        const fetch = async()=>{
+          setTeams(AdvisorService.getTeamsForClass(className));
+          setStudents(await AdvisorService.getClassStudents(className, 'ALL'));
+        }
+        fetch();
+  },[]);
 
   useEffect(() => {
-    const handleSync = () => {
-      setTeams(AdvisorService.getTeamsForClass(className));
-      setStudents(AdvisorService.getClassStudents(className, 'ALL'));
+    const handleSync = async() => {
+      setTeams(await AdvisorService.getTeamsForClass(className));
+      setStudents(await AdvisorService.getClassStudents(className, 'ALL'));
     };
 
     const unsubAdvisor = AdvisorService.subscribe(handleSync);

@@ -32,16 +32,44 @@ export const AdvisorEditTeamModal: React.FC<AdvisorEditTeamModalProps> = ({
   const [selectedMemberRolls, setSelectedMemberRolls] = useState<string[]>([]);
   const [leadRollNo, setLeadRollNo] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
-
+  const [unassignedStudents, setUnassignedStudents] = useState<AdminStudent[]>([]);
   // Unassigned students in this class
-  const unassignedStudents: AdminStudent[] = AdvisorService.getClassStudents(className, batch).filter(
-    s => !s.teamNo || s.teamNo === 'Unassigned' || s.teamNo.trim() === ''
-  );
+  useEffect(() => {
+  const fetchUnassignedStudents = async () => {
+    try {
+      const students = await AdvisorService.getClassStudents(
+        className,
+        batch
+      );
+
+      const unassigned = students.filter(
+        s =>
+          !s.teamNo ||
+          s.teamNo === 'Unassigned' ||
+          s.teamNo.trim() === ''
+      );
+
+      setUnassignedStudents(unassigned);
+    } catch (error) {
+      console.error('Failed to fetch class students:', error);
+      setErrorMessage('Failed to load unassigned students.');
+    }
+  };
+
+  if (isOpen && className && batch) {
+    fetchUnassignedStudents();
+  }
+}, [isOpen, className, batch]);
 
   // Available faculty guides
-  const availableGuides: AdminFaculty[] = AdminService.getFaculties().filter(
-    f => f.role === 'Guide' || f.role === 'Advisor & Guide'
-  );
+const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const f = async()=>{
+      const fac = await AdminService.getFaculties();
+      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
+    }
+    f();
+  },[]);
 
   // Load team data into state when modal opens
   useEffect(() => {
@@ -93,7 +121,7 @@ export const AdvisorEditTeamModal: React.FC<AdvisorEditTeamModalProps> = ({
     }
   };
 
-  const handleSaveTeamSubmit = (e: React.FormEvent) => {
+  const handleSaveTeamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -112,7 +140,7 @@ export const AdvisorEditTeamModal: React.FC<AdvisorEditTeamModalProps> = ({
       return;
     }
 
-    const res = AdvisorService.updateTeam(className, batch, team.teamId, {
+    const res = await AdvisorService.updateTeam(className, batch, team.teamId, {
       teamNo: teamNo.trim(),
       guide: selectedGuide,
       leadRollNo: leadRollNo || selectedMemberRolls[0],
@@ -138,8 +166,14 @@ export const AdvisorEditTeamModal: React.FC<AdvisorEditTeamModalProps> = ({
     onTeamUpdated(res.team);
     onClose();
   };
-
-  const allStudents = AdminService.getStudents();
+  const [allStudents,setAllstudents] = useState<AdminStudent[]>([]);
+  useEffect(()=>{
+     const fetchStudents = async()=>{
+        const students = await AdminService.getStudents();
+        setAllstudents(students);
+    }
+    fetchStudents(); 
+  },[]);
   const selectedStudentObjects = selectedMemberRolls.map(rNo => {
     const s = allStudents.find(x => x.rollNo === rNo);
     return s || {

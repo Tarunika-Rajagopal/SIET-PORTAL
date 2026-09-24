@@ -12,6 +12,7 @@ from schemas import (
     AddStudentRequest,
     ImportStudentsRequest,
     AuditLogRequest,
+    ReassignRequest,
 )
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
@@ -168,3 +169,12 @@ async def add_audit_log(
         req.reason or "",
         req.admin or user.email,
     )
+
+@router.post("/reassign")
+async def reassign(
+    request: ReassignRequest,
+    user: User = Depends(require_roles("admin")),
+    service: AdminService = Depends(get_admin_service),
+):
+    return await service.reassign(request.email_one,request.email_two)
+

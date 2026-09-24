@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, ArrowRight, UserCheck, UserMinus, ShieldAlert } from 'lucide-react';
-import { AdminFaculty, AdminService } from '../../services/adminService';
+import { AdminFaculty, AdminService, AdminStudent } from '../../services/adminService';
 
 interface RemoveAdvisorShiftModalProps {
   isOpen: boolean;
@@ -15,24 +15,56 @@ export const RemoveAdvisorShiftModal: React.FC<RemoveAdvisorShiftModalProps> = (
   faculty,
   onSuccess
 }) => {
-  if (!isOpen || !faculty) return null;
 
-  const allFaculties = AdminService.getFaculties();
-  // Strictly eligible non-advisors: must not be an advisor currently, and not the outgoing faculty
-  const eligibleNonAdvisors = allFaculties.filter(f =>
-    f.email !== faculty.email && f.role !== 'Advisor' && f.role !== 'Advisor & Guide'
-  );
-
-  const [successorEmail, setSuccessorEmail] = useState(eligibleNonAdvisors[0]?.email || '');
+  const [allFaculties,setAllfaculties] = useState<AdminFaculty[]>([]);
+  const [successorEmail, setSuccessorEmail] = useState('');
   const [reason, setReason] = useState('Faculty academic load rebalancing & class advisory transition');
   const [error, setError] = useState('');
 
+  
+
+  
+  useEffect(()=>{
+
+    if (!isOpen || !faculty) return ;
+
+    const fac = async()=>{
+      try{
+      const facu = await AdminService.getFaculties();
+    setAllfaculties(facu);
+  } catch(err){
+        console.error('Failed to fetch faculties');
+        setError('Failed to fetch faculties');
+      }
+    };
+    fac();
+  }
+,[isOpen,faculty,[]])
+
+  useEffect(() => {
+  const fetchFaculties = async () => {
+    const facu = await AdminService.getFaculties();
+    setAllfaculties(facu);
+  };
+
+  fetchFaculties();
+}, []);
+  // Strictly eligible non-advisors: must not be an advisor currently, and not the outgoing faculty
+  const eligibleNonAdvisors = allFaculties.filter(f => f.role.trim() !== 'Advisor'
+  );
+  
+  console.log(eligibleNonAdvisors);
+  console.log("All Faculties ",allFaculties);
+
   // Auto-sync successor selection when modal opens
   useEffect(() => {
+    if(!isOpen)return;
+
+
     if (eligibleNonAdvisors.length > 0 && !eligibleNonAdvisors.some(f => f.email === successorEmail)) {
       setSuccessorEmail(eligibleNonAdvisors[0].email);
     }
-  }, [faculty]);
+  }, [allFaculties,isOpen]);
 
   const selectedSuccessor = allFaculties.find(f => f.email === successorEmail);
 
@@ -41,7 +73,7 @@ export const RemoveAdvisorShiftModal: React.FC<RemoveAdvisorShiftModalProps> = (
     return 'Advisor';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
       setError('A mandatory reason is required for institutional audit trail recording.');
@@ -58,7 +90,7 @@ export const RemoveAdvisorShiftModal: React.FC<RemoveAdvisorShiftModalProps> = (
       return;
     }
 
-    const res = AdminService.removeAdvisorWithSuccessor(faculty.email, successorEmail, reason);
+    const res = await AdminService.removeAdvisorWithSuccessor(faculty.email, successorEmail, reason);
     if (res.success) {
       onSuccess(res.message);
       onClose();
@@ -66,6 +98,9 @@ export const RemoveAdvisorShiftModal: React.FC<RemoveAdvisorShiftModalProps> = (
       setError(res.message);
     }
   };
+   if (!isOpen || !faculty) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">

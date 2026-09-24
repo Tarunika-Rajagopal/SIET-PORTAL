@@ -12,7 +12,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
   onSelectAdvisor,
   onShowToast
 }) => {
-  const [faculties, setFaculties] = useState<AdminFaculty[]>(() => AdminService.getFaculties());
+  const [faculties, setFaculties] = useState<AdminFaculty[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [batchFilter, setBatchFilter] = useState('ALL');
   const [classFilter, setClassFilter] = useState('ALL');
@@ -23,32 +23,50 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
   const [facultyToRevoke, setFacultyToRevoke] = useState<AdminFaculty | null>(null);
 
   useEffect(() => {
-    const handleUpdate = () => {
-      setFaculties(AdminService.getFaculties());
+    const fetchFaculties = async () => {
+      const data = await AdminService.getFaculties();
+      console.log(data);
+      setFaculties(data);
     };
-    window.addEventListener('admin_faculty_updated', handleUpdate);
-    return () => window.removeEventListener('admin_faculty_updated', handleUpdate);
+
+    fetchFaculties();
   }, []);
 
   // Filter only faculty assigned as Class Advisors
-  const advisorFaculties = faculties.filter(f => f.role === 'Advisor & Guide' || f.advisorClass);
+  const advisorFaculties = faculties.filter(
+    f => f.role === 'Advisor & Guide' || f.advisorClass
+  );
 
   const filtered = advisorFaculties.filter(f => {
-    const matchesBatch = batchFilter === 'ALL' || f.advisorBatch === batchFilter;
-    const matchesClass = classFilter === 'ALL' || f.advisorClass === classFilter;
-    const q = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm.trim() ||
+    const matchesBatch =
+      batchFilter === 'ALL' || f.advisorBatch === batchFilter;
+
+    const matchesClass =
+      classFilter === 'ALL' || f.advisorClass === classFilter;
+
+    const q = searchTerm.toLowerCase().trim();
+
+    const matchesSearch =
+      !q ||
       f.name.toLowerCase().includes(q) ||
       f.email.toLowerCase().includes(q) ||
-      (f.advisorClass && f.advisorClass.toLowerCase().includes(q));
+      (f.advisorClass &&
+        f.advisorClass.toLowerCase().includes(q));
 
     return matchesBatch && matchesClass && matchesSearch;
   });
 
-  const handleRowClick = (faculty: AdminFaculty, e: React.MouseEvent) => {
+  const handleRowClick = (
+    faculty: AdminFaculty,
+    e: React.MouseEvent
+  ) => {
     if ((e.target as HTMLElement).closest('button')) return;
+
     if (faculty.advisorBatch && faculty.advisorClass) {
-      onSelectAdvisor(faculty.advisorBatch, faculty.advisorClass);
+      onSelectAdvisor(
+        faculty.advisorBatch,
+        faculty.advisorClass
+      );
     }
   };
 
@@ -56,7 +74,6 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
     setFacultyToRevoke(faculty);
     setShiftModalOpen(true);
   };
-
   return (
     <div className="space-y-6 font-sans">
 
@@ -188,8 +205,8 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
           setFacultyToRevoke(null);
         }}
         faculty={facultyToRevoke}
-        onSuccess={(msg) => {
-          setFaculties(AdminService.getFaculties());
+        onSuccess={async(msg) => {
+          setFaculties(await AdminService.getFaculties());
           onShowToast(msg);
         }}
       />

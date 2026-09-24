@@ -34,10 +34,14 @@ export const AdvisorAssignGuideModal: React.FC<AdvisorAssignGuideModalProps> = (
   const teams = AdvisorService.getTeamsForClass(className);
   const teamCapacity = AdvisorService.getTeamCapacity(className);
   
-  // Available guides
-  const availableGuides: AdminFaculty[] = AdminService.getFaculties().filter(
-    f => f.role === 'Guide' || f.role === 'Advisor & Guide'
-  );
+  const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const f = async()=>{
+      const fac = await AdminService.getFaculties();
+      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
+    }
+    f();
+  },[]);
 
   useEffect(() => {
     if (isOpen && student) {
@@ -62,7 +66,7 @@ export const AdvisorAssignGuideModal: React.FC<AdvisorAssignGuideModalProps> = (
 
   if (!isOpen || !student) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -82,7 +86,12 @@ export const AdvisorAssignGuideModal: React.FC<AdvisorAssignGuideModalProps> = (
         return;
       }
 
-      const res = AdvisorService.moveStudent(className, student.rollNo, selectedTeamId);
+      const res = await AdvisorService.moveStudent(
+        className,
+        student.rollNo,
+        selectedTeamId
+      );
+      
       if (!res.success) {
         setError(res.message);
         return;
@@ -111,7 +120,7 @@ export const AdvisorAssignGuideModal: React.FC<AdvisorAssignGuideModalProps> = (
       }
 
       const guideRecord = availableGuides.find(g => g.name === selectedGuide);
-      const res = AdvisorService.assignStudentGuideAndTeam(className, student.rollNo, {
+      const res = await AdvisorService.assignStudentGuideAndTeam(className, student.rollNo, {
         mode: 'new',
         newTeamNo: newTeamNo.trim(),
         guideName: selectedGuide,

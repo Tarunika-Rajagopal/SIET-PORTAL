@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Users, Shuffle, ListOrdered, CheckCircle2, AlertCircle, Shield, UserCheck, Sparkles } from 'lucide-react';
 import { AdminService, AdminFaculty, AdminStudent } from '../../services/adminService';
 import { TeamMemberRecord } from '../../services/advisorService';
@@ -49,9 +49,14 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
   const [validationError, setValidationError] = useState<string>('');
 
   // Available guides from AdminService
-  const availableGuides: AdminFaculty[] = useMemo(() => {
-    return AdminService.getFaculties().filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide');
-  }, []);
+  const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const f = async()=>{
+      const fac = await AdminService.getFaculties();
+      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
+    }
+    f();
+  },[]);
 
   if (!isOpen) return null;
 

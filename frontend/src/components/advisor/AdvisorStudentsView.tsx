@@ -23,15 +23,24 @@ interface AdvisorStudentsViewProps {
   onShowToast: (msg: string) => void;
 }
 
-export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
+export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   className,
   batch,
   advisorName,
   onShowToast
 }) => {
-  const [students, setStudents] = useState<AdminStudent[]>(() => 
-    AdvisorService.getClassStudents(className, batch)
-  );
+  const [students, setStudents] = useState<AdminStudent[]>([]);
+
+
+  useEffect(()=>{
+  const getClassStud = async()=>{
+    const res = await AdvisorService.getClassStudents(className,batch);
+    setStudents(res);
+  };
+  getClassStud();
+}
+,[]);
+
   const [teams, setTeams] = useState<ClassTeam[]>(() => 
     AdvisorService.getTeamsForClass(className)
   );
@@ -73,8 +82,9 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [fullTeamSelected, setFullTeamSelected] = useState<ClassTeam | null>(null);
 
   // Live synchronizer: auto-updates if data is changed anywhere across the application
-  const refreshData = () => {
-    setStudents(AdvisorService.getClassStudents(className, batch));
+  const refreshData = async () => {
+    const res = await AdvisorService.getClassStudents(className, batch);
+    setStudents(res);
     setTeams(AdvisorService.getTeamsForClass(className));
   };
 
@@ -118,7 +128,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   }, [students, searchTerm]);
 
   // Handle Add Student Submit
-  const handleAddStudentSubmit = (e: React.FormEvent) => {
+  const handleAddStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAddStudentError('');
 
@@ -137,7 +147,8 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       const targetTeam = teams.find(t => t.teamId === newStudentTargetTeam || t.teamNo === newStudentTargetTeam);
       const cap = targetTeam?.capacity || teamCapacity;
       if (targetTeam && targetTeam.members.length >= cap) {
-        const res = AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, undefined, cleanEmail, cleanPassword);
+        const res = await AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, undefined, cleanEmail, cleanPassword);
+       
         if (!res.success) {
           setAddStudentError(res.message);
           return;
@@ -167,7 +178,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         return;
       }
 
-      const res = AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, newStudentTargetTeam, cleanEmail, cleanPassword);
+      const res = await AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, newStudentTargetTeam, cleanEmail, cleanPassword);
       if (!res.success) {
         setAddStudentError(res.message);
         return;
@@ -191,7 +202,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     }
 
     if (newStudentTargetTeam === 'create_new') {
-      const res = AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, undefined, cleanEmail, cleanPassword);
+      const res = await AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, undefined, cleanEmail, cleanPassword);
       if (!res.success) {
         setAddStudentError(res.message);
         return;
@@ -221,7 +232,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     }
 
     // Default: Unassigned
-    const res = AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, undefined, cleanEmail, cleanPassword);
+    const res = await AdvisorService.addStudentToClass(className, batch, cleanName, cleanRoll, undefined, cleanEmail, cleanPassword);
     if (!res.success) {
       setAddStudentError(res.message);
       return;
@@ -246,7 +257,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   };
 
   // Handle Move / Assign Student Confirm
-  const handleConfirmMoveStudent = () => {
+  const handleConfirmMoveStudent = async () => {
     if (!studentToMove || !targetTeamId) return;
     setMoveError('');
 
@@ -257,7 +268,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     }
 
     const currentTeamNo = studentToMove.teamNo || 'Unassigned';
-    const res = AdvisorService.assignStudentToTeam(className, studentToMove.rollNo, targetTeamId);
+    const res = await AdvisorService.assignStudentToTeam(className, studentToMove.rollNo, targetTeamId);
     if (!res.success) {
       setMoveError(res.message);
       return;
@@ -277,7 +288,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     setFullTeamSelected(null);
   };
 
-  const handleTeamsCreated = (
+  const handleTeamsCreated = async (
     capacity: number,
     newTeams: Array<{
       teamNo: string;
@@ -288,7 +299,7 @@ export const AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       members: TeamMemberRecord[];
     }>
   ) => {
-    AdvisorService.createTeams(className, batch, capacity, newTeams);
+    await AdvisorService.createTeams(className, batch, capacity, newTeams);
     setIsCreateTeamOpen(false);
     AdvisorHistoryService.addLog(
       className,

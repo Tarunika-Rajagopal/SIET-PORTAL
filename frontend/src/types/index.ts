@@ -155,3 +155,14 @@ export interface ChecklistState {
   prototypeReady: boolean;
   zerothReviewDone: boolean;
 }
+
+export interface faculty {
+    name: string;
+    email: string;
+    designation: string;
+    role: string;
+    department: string;
+    advisorBatch?: string;
+    advisorClass?: string;
+    specialization?: string;
+}

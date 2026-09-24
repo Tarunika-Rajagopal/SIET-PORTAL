@@ -121,10 +121,15 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
       t.members.some(m => m.name.toLowerCase().includes(q) || m.rollNo.includes(q))
     );
   });
-
-  const availableGuides: AdminFaculty[] = AdminService.getFaculties().filter(
-    f => f.role === 'Guide' || f.role === 'Advisor & Guide'
-  );
+  
+  const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const f = async()=>{
+      const fac = await AdminService.getFaculties();
+      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
+    }
+    f();
+  },[]);
 
   // Submissions for currently selected active team (Strictly authentic student submissions up to current week)
   const allTeamSubmissions: WeeklySubmission[] = activeTeam 
@@ -163,12 +168,12 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
     onShowToast(`Downloaded ${fileName}`);
   };
 
-  const handleConfirmDeleteTeam = () => {
+  const handleConfirmDeleteTeam = async () => {
     if (!activeTeam) return;
     const teamNoToDelete = activeTeam.teamNo;
     const teamIdToDelete = activeTeam.teamId;
 
-    const res = AdvisorService.deleteTeam(className, teamIdToDelete);
+    const res = await AdvisorService.deleteTeam(className, teamIdToDelete);
     if (!res.success) {
       onShowToast(res.message);
       return;

@@ -242,9 +242,9 @@ export const AdvisorService = {
     const teams = this.getTeamsForClass(className);
     return teams.length > 0;
   },
-
-  getClassStudents(className: string = "CSE-B", batch: string = "2023-2027 (III Year)"): AdminStudent[] {
-    const allStudents = AdminService.getStudents();
+  
+  async getClassStudents(className: string = "CSE-B", batch: string = "2023-2027 (III Year)"): Promise<AdminStudent[]> {
+    const allStudents =await AdminService.getStudents();
     const classStudents = allStudents.filter(s => s.classSection === className && (batch === 'ALL' || s.batch === batch));
     const teams = this.getTeamsForClass(className);
 
@@ -304,13 +304,13 @@ export const AdvisorService = {
     });
 
     if (hasMismatch) {
-      AdminService.saveStudents(allStudents);
+      await AdminService.saveStudents(allStudents);
     }
 
     return synchronized;
   },
 
-  addStudentToClass(
+  async addStudentToClass(
     className: string = "CSE-B",
     batch: string = "2023-2027 (III Year)",
     name: string,
@@ -318,7 +318,7 @@ export const AdvisorService = {
     targetTeamId?: string,
     email?: string,
     password?: string
-  ): { success: boolean; message: string } {
+  ): Promise<{ success: boolean; message: string }> {
     const cleanName = name.trim();
     const cleanRoll = rollNo.trim();
     const cleanEmail = email && email.trim() ? email.trim() : `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@srishakthi.ac.in`;
@@ -335,7 +335,7 @@ export const AdvisorService = {
 
     if (res.success) {
       if (targetTeamId) {
-        this.assignStudentToTeam(className, cleanRoll, targetTeamId);
+        await this.assignStudentToTeam(className, cleanRoll, targetTeamId);
       }
       notifyListeners();
     }
@@ -347,7 +347,7 @@ export const AdvisorService = {
     return teams.filter(t => t.guide.toLowerCase() === guideName.toLowerCase()).length;
   },
 
-  createTeams(
+  async createTeams(
     className: string,
     batch: string,
     capacity: number,
@@ -359,7 +359,7 @@ export const AdvisorService = {
       leadRollNo: string;
       members: TeamMemberRecord[];
     }>
-  ): boolean {
+  ): Promise<boolean> {
     const formattedTeams: ClassTeam[] = newTeams.map((nt, idx) => {
       const cleanNo = nt.teamNo.startsWith("Team ") ? nt.teamNo : `Team ${String(idx + 1).padStart(2, '0')}`;
       const codeNo = cleanNo.replace("Team ", "B");
@@ -389,7 +389,7 @@ export const AdvisorService = {
     this.setTeamCapacity(className, capacity);
 
     // Update students in AdminService
-    const allStudents = AdminService.getStudents();
+    const allStudents =await AdminService.getStudents();
     formattedTeams.forEach(t => {
       t.members.forEach(m => {
         const student = allStudents.find(s => s.rollNo === m.rollNo);
@@ -400,25 +400,25 @@ export const AdvisorService = {
         }
       });
     });
-    AdminService.saveStudents(allStudents);
+    await AdminService.saveStudents(allStudents);
 
     notifyListeners();
     return true;
   },
 
-  assignStudentToTeam(
+  async assignStudentToTeam(
     className: string,
     studentRollNo: string,
     targetTeamId: string
-  ): { success: boolean; message: string } {
+  ): Promise<{ success: boolean; message: string }> {
     return this.moveStudent(className, studentRollNo, targetTeamId);
   },
 
-  moveStudent(
+  async moveStudent(
     className: string,
     studentRollNo: string,
     targetTeamId: string
-  ): { success: boolean; message: string } {
+  ): Promise<{ success: boolean; message: string }> {
     const teams = this.getTeamsForClass(className);
     const targetTeam = teams.find(t => t.teamId === targetTeamId || t.teamNo === targetTeamId);
     if (!targetTeam) {
@@ -439,8 +439,8 @@ export const AdvisorService = {
       return { success: false, message: "Student is already in this team." };
     }
 
-    const allStudents = AdminService.getStudents();
-    const student = allStudents.find(s => s.rollNo === studentRollNo);
+    const allStudents = await AdminService.getStudents();
+    const student =await allStudents.find(s => s.rollNo === studentRollNo);
 
     // If student was in a source team, remove them from source team
     if (sourceTeam) {
@@ -475,7 +475,7 @@ export const AdvisorService = {
       student.teamNo = targetTeam.teamNo;
       student.projectTitle = targetTeam.title;
       student.guide = targetTeam.guide;
-      AdminService.saveStudents(allStudents);
+      await AdminService.saveStudents(allStudents);
     }
 
     notifyListeners();
@@ -485,12 +485,12 @@ export const AdvisorService = {
     };
   },
 
-  reassignGuide(
+  async reassignGuide(
     className: string,
     teamId: string,
     guideName: string,
     guideEmail?: string
-  ): { success: boolean; message: string } {
+  ): Promise<{ success: boolean; message: string }> {
     const teams = this.getTeamsForClass(className);
     const team = teams.find(t => t.teamId === teamId);
     if (!team) {
@@ -515,14 +515,15 @@ export const AdvisorService = {
     this.saveTeamsForClass(className, teams);
 
     // Update students in AdminService
-    const allStudents = AdminService.getStudents();
+    const allStudents = await AdminService.getStudents();
+    
     team.members.forEach(m => {
       const s = allStudents.find(x => x.rollNo === m.rollNo);
       if (s) {
         s.guide = guideName;
       }
     });
-    AdminService.saveStudents(allStudents);
+    await AdminService.saveStudents(allStudents);
 
     notifyListeners();
     return { 
@@ -531,12 +532,12 @@ export const AdvisorService = {
     };
   },
 
-  assignGuideToTeam(className: string, teamId: string, guideName: string): boolean {
-    const res = this.reassignGuide(className, teamId, guideName);
+  async assignGuideToTeam(className: string, teamId: string, guideName: string): Promise<boolean> {
+    const res = await this.reassignGuide(className, teamId, guideName);
     return res.success;
   },
 
-  addManualTeam(
+  async addManualTeam(
     className: string,
     batch: string,
     teamData: {
@@ -547,7 +548,7 @@ export const AdvisorService = {
       leadRollNo: string;
       memberRollNos: string[];
     }
-  ): { success: boolean; message: string; team?: ClassTeam } {
+  ): Promise<{ success: boolean; message: string; team?: ClassTeam }> {
     const teams = this.getTeamsForClass(className);
     const capacity = this.getTeamCapacity(className);
 
@@ -588,7 +589,7 @@ export const AdvisorService = {
     const teamId = `TEAM-CSE-Y3-B${codeNo.padStart(2, '0')}`;
 
     // Resolve student objects
-    const allStudents = AdminService.getStudents();
+    const allStudents = await AdminService.getStudents();
     const members: TeamMemberRecord[] = teamData.memberRollNos.map(rNo => {
       const s = allStudents.find(x => x.rollNo === rNo);
       return {
@@ -641,7 +642,7 @@ export const AdvisorService = {
         s.guide = newTeam.guide;
       }
     });
-    AdminService.saveStudents(allStudents);
+    await AdminService.saveStudents(allStudents);
 
     notifyListeners();
     return {
@@ -651,7 +652,7 @@ export const AdvisorService = {
     };
   },
 
-  assignStudentGuideAndTeam(
+  async assignStudentGuideAndTeam(
     className: string,
     studentRollNo: string,
     options: {
@@ -663,11 +664,11 @@ export const AdvisorService = {
       projectTitle?: string;
       batch?: string;
     }
-  ): { success: boolean; message: string; team?: ClassTeam } {
+  ): Promise<{ success: boolean; message: string; team?: ClassTeam }> {
     if (options.mode === 'existing' && options.targetTeamId) {
-      return this.moveStudent(className, studentRollNo, options.targetTeamId);
+      return await this.moveStudent(className, studentRollNo, options.targetTeamId);
     }
-    return this.addManualTeam(className, options.batch || "2023-2027 (III Year)", {
+    return await this.addManualTeam(className, options.batch || "2023-2027 (III Year)", {
       teamNo: options.newTeamNo,
       title: options.projectTitle || "",
       guide: options.guideName || 'Dr. P. Manimegalai',
@@ -677,7 +678,7 @@ export const AdvisorService = {
     });
   },
 
-  updateTeam(
+  async updateTeam(
     className: string,
     batch: string,
     teamId: string,
@@ -689,7 +690,7 @@ export const AdvisorService = {
       memberRollNos?: string[];
       title?: string;
     }
-  ): { success: boolean; message: string; team?: ClassTeam } {
+  ): Promise<{ success: boolean; message: string; team?: ClassTeam }> {
     const teams = this.getTeamsForClass(className);
     const teamIndex = teams.findIndex(t => t.teamId === teamId);
     if (teamIndex === -1) {
@@ -745,7 +746,7 @@ export const AdvisorService = {
     }
 
     // 3. Member updates
-    const allStudents = AdminService.getStudents();
+    const allStudents = await AdminService.getStudents();
     const oldMemberRolls = team.members.map(m => m.rollNo);
 
     if (updateData.memberRollNos && updateData.memberRollNos.length > 0) {
@@ -787,7 +788,7 @@ export const AdvisorService = {
           s.guide = team.guide;
         }
       });
-      AdminService.saveStudents(allStudents);
+      await AdminService.saveStudents(allStudents);
     } else if (updateData.leadRollNo) {
       team.members = team.members.map(m => ({
         ...m,
@@ -808,7 +809,7 @@ export const AdvisorService = {
     };
   },
 
-  deleteTeam(className: string, teamId: string): { success: boolean; message: string } {
+  async deleteTeam(className: string, teamId: string): Promise<{ success: boolean; message: string }> {
     let teams = this.getTeamsForClass(className);
     const targetTeam = teams.find(t => t.teamId === teamId);
     if (!targetTeam) {
@@ -822,7 +823,7 @@ export const AdvisorService = {
     this.saveTeamsForClass(className, teams);
 
     // Reset student assignments in AdminService to Unassigned
-    const allStudents = AdminService.getStudents();
+    const allStudents = await AdminService.getStudents();
     allStudents.forEach(s => {
       if (memberRolls.includes(s.rollNo)) {
         s.teamNo = "Unassigned";
@@ -830,7 +831,7 @@ export const AdvisorService = {
         s.guide = "";
       }
     });
-    AdminService.saveStudents(allStudents);
+    await AdminService.saveStudents(allStudents);
 
     notifyListeners();
     return {

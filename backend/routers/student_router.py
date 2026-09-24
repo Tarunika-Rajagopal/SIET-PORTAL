@@ -30,6 +30,8 @@ async def get_team(
     return await service.get_team(user)
 
 
+
+
 @router.get("/submissions")
 async def get_submissions(
     user: User = Depends(require_roles("student")),

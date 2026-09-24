@@ -26,8 +26,15 @@ export const FacultyAssignAdvisorModal: React.FC<FacultyAssignAdvisorModalProps>
 }) => {
   if (!isOpen || !faculty) return null;
 
-  const allFaculties = AdminService.getFaculties();
-
+  const [allFaculties,setAllfaculties]= useState<AdminFaculty[]>([]);
+  useEffect(()=>{
+    const faculty = async()=>{
+      const f = await AdminService.getFaculties();
+      setAllfaculties(f);
+    };
+    faculty();
+    return AdminService.subscribe(faculty);
+  },[])
   const [selectedBatch, setSelectedBatch] = useState(AVAILABLE_BATCHES[0]);
   const [selectedSection, setSelectedSection] = useState('');
   const [reason, setReason] = useState('Academic session class advisory designation');
