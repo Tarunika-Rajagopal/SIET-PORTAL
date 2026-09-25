@@ -140,35 +140,13 @@ export const AdminService = {
     this.addAuditLog("Faculty Onboarding", faculty.name, details, reason);
   },
 
-  assignAdvisor(facultyEmail: string, batch: string, className: string, reason: string): boolean {
-    const list = this.getFaculties();
-    const faculty = list.find(f => f.email === facultyEmail);
-    if (!faculty) return false;
+  async assignAdvisor(facultyEmail: string, batch: string, className: string): Promise<void> {
 
-    // Check if another advisor already holds this class
-    const existing = list.find(f => f.email !== facultyEmail && f.advisorBatch === batch && f.advisorClass === className);
-    if (existing) {
-      if (existing.role === 'Advisor & Guide') {
-        existing.role = 'Guide';
-      } else {
-        existing.role = 'None';
-      }
-      existing.advisorBatch = undefined;
-      existing.advisorClass = undefined;
+    try{
+      const res = await ApiClient.assignAdvisor(facultyEmail, batch, className);
+    }catch(e){
+      console.error(e);
     }
-
-    if (faculty.role === 'Guide') {
-      faculty.role = 'Advisor & Guide';
-    } else {
-      faculty.role = 'Advisor';
-    }
-    faculty.advisorBatch = batch;
-    faculty.advisorClass = className;
-    faculty.status = 'Active';
-
-    this.saveFaculties(list);
-    this.addAuditLog("Advisor Assignment", faculty.name, `Designated Class Advisor for Class ${className} (${batch})`, reason);
-    return true;
   },
 
   removeAdvisor(facultyEmail: string, reason: string, successorEmail?: string): boolean {
@@ -537,21 +515,15 @@ export const AdminService = {
       }
     },
 
-  deleteStudent(rollNo: string, reason: string): boolean {
-    const list = this.getStudents();
-    const student = list.find(s => s.rollNo === rollNo);
-    if (!student) return false;
+  async deleteStudent(rollNo: string): Promise<boolean> {
 
-    const updated = list.filter(s => s.rollNo !== rollNo);
-    this.saveStudents(updated);
-
-    this.addAuditLog(
-      "Student Deprovisioning",
-      `${student.name} (${student.rollNo})`,
-      `Removed from class section ${student.classSection}. Account access discontinued.`,
-      reason
-    );
-    return true;
+        try{
+          await ApiClient.deleteStudent(rollNo); 
+        } catch(e){
+          console.error(e);
+          return false;
+        }
+        return true;
   },
 
   // ---------------- AUDIT LOG OPERATIONS ----------------

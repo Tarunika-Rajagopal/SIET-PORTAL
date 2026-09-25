@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, HelpCircle, Check, AlertTriangle } from 'lucide-react';
+import { X, HelpCircle, Check, AlertTriangle,Loader2 } from 'lucide-react';
+import {AdminService} from '../../services/adminService';
 
 interface AdminReasonModalProps {
   isOpen: boolean;
@@ -9,7 +10,6 @@ interface AdminReasonModalProps {
   confirmLabel?: string;
   isDanger?: boolean;
   onClose: () => void;
-  onConfirm: (reason: string) => void;
 }
 
 export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
@@ -19,21 +19,32 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
   targetDescription,
   confirmLabel = "Confirm Action",
   isDanger = false,
-  onClose,
-  onConfirm
+  onClose
 }) => {
   if (!isOpen) return null;
 
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading,setLoading] = useState<boolean>(false);
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     if (!reason.trim()) {
       setError('Please provide a reason to fulfill system audit compliance.');
       return;
     }
-    onConfirm(reason.trim());
+    try{
+       await AdminService.deleteStudent(targetDescription.split(' ')[2].slice(1,-1));
+
+    } catch(err){
+      console.error(err)
+      setError('Failed to delete student. Please try again.');
+      return;
+    } finally{
+      setLoading(false);
+      onClose();
+    }
+    console.log();
     setReason('');
     setError('');
   };
@@ -101,11 +112,16 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
             </button>
             <button
               type="submit"
+              disabled={loading}
               className={`px-5 py-2 text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2 ${
                 isDanger ? 'bg-[#7C3838] hover:bg-[#682F2F]' : 'bg-[#111111] hover:bg-[#292725]'
               }`}
             >
-              <Check size={14} />
+              {loading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Check size={14} />
+              )}
               <span>{confirmLabel}</span>
             </button>
           </div>

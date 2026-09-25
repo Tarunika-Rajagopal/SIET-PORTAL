@@ -40,25 +40,25 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
   // Faculties not already assigned to this exact class
   const candidates = allFaculties.filter(f => !(f.advisorBatch === batch && f.advisorClass === className));
 
-  const [selectedEmail, setSelectedEmail] = useState(candidates[0]?.email || '');
+  const [id, setID] = useState('');
   const [reason, setReason] = useState(`Designated Class Advisor for ${className} (${batch})`);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEmail) {
+    if (!id) {
       setError('Please select a faculty member.');
       return;
     }
-
-    const ok = AdminService.assignAdvisor(selectedEmail, batch, className, reason);
-    if (!ok) {
+    try{
+      console.log(batch , " " , className);
+    await AdminService.assignAdvisor(id, batch, className);
+    }catch(e){
       setError('Failed to assign advisor.');
       return;
     }
-
-    const fac = allFaculties.find(f => f.email === selectedEmail);
-    onSuccess(`Assigned ${fac?.name || selectedEmail} as Class Advisor for ${className}.`);
+    const fac = allFaculties.find(f => f.id === id);
+    onSuccess(`Assigned ${fac?.name} as Class Advisor for ${className}.`);
     onClose();
   };
 
@@ -105,12 +105,12 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
           <div>
             <label className="block text-[#75695A] font-medium mb-1">Select Faculty Member</label>
             <select
-              value={selectedEmail}
-              onChange={(e) => setSelectedEmail(e.target.value)}
+              value={id}
+              onChange={(e) => setID(e.target.value)}
               className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
             >
               {candidates.map(f => (
-                <option key={f.email} value={f.email}>
+                <option key={f.id} value={f.id}>
                   {f.name} ({f.designation} • {f.role})
                 </option>
               ))}

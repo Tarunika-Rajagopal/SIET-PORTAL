@@ -277,8 +277,8 @@ export const ApiClient = {
       }),
     })
    },
-   async deleteStudent(studentId:string){
-    return request<any>(`/admin/students/${studentId}`,{
+   async deleteStudent(rollNo:string){
+    return request<any>(`/admin/students/${rollNo}`,{
       method:'DELETE',
     })
    },
@@ -286,6 +286,17 @@ export const ApiClient = {
     return request<any>(`/admin/students/${student.rollNo}`,{
       method:'PUT',
       body:JSON.stringify(student),
+    })
+   },
+   async assignAdvisor(email:string,batch:string,className:string){
+    // console.log('Endpoints', classSection);
+    return request<any>(`/admin/faculties/assign-advisor`,{
+      method:'POST',
+      body:JSON.stringify({
+        faculty_id:email,
+        batch:batch,
+        className:className,
+      }),
     })
    }
 };

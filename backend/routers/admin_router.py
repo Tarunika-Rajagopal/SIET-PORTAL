@@ -13,6 +13,7 @@ from schemas import (
     ImportStudentsRequest,
     AuditLogRequest,
     ReassignRequest,
+    AssignAdvisorModel
 )
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
@@ -84,15 +85,13 @@ async def remove_guide(
     return await service.remove_guide(faculty_id)
 
 
-@router.post("/faculties/{faculty_id}/assign-advisor")
+@router.post("/faculties/assign-advisor")
 async def assign_advisor(
-    faculty_id: str,
-    batch: str = "2023-2027 (III Year)",
-    className: str = "CSE-B",
+    data:AssignAdvisorModel, 
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.assign_advisor(faculty_id, batch, className)
+    return await service.assign_advisor(data.faculty_id, data.batch, data.className)
 
 
 @router.post("/faculties/{faculty_id}/remove-advisor")

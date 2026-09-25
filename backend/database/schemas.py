@@ -145,3 +145,9 @@ class SaveWeeklyMarksRequest(BaseModel):
     memberMarks: Dict[str, float]  # rollNo -> mark
     remarks: Optional[str] = ""
     gradedBy: Optional[str] = "Class Advisor"
+
+
+class AssignAdvisorModel(BaseModel):
+    faculty_id: str
+    batch: str 
+    className: str

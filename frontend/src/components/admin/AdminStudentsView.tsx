@@ -88,14 +88,6 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
     setDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = (reason: string) => {
-    if (!studentToDelete) return;
-    AdminService.deleteStudent(studentToDelete.rollNo, reason);
-    onShowToast(`Removed candidate ${studentToDelete.name} (${studentToDelete.rollNo}) from roster.`);
-    setDeleteModalOpen(false);
-    setStudentToDelete(null);
-  };
-
   return (
     <div className="space-y-6">
       
@@ -311,7 +303,6 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
         confirmLabel="Remove Candidate"
         isDanger={true}
         onClose={() => setDeleteModalOpen(false)}
-        onConfirm={handleConfirmDelete}
       />
 
     </div>
