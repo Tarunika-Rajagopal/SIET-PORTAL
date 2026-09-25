@@ -486,22 +486,15 @@ export const AdminService = {
     }
   },
 
-  addStudent(student: {
+  async addStudent(student: {
     name: string;
     rollNo: string;
     email: string;
     password?: string;
     batch?: string;
     classSection?: string;
-  }, reason: string = "Direct semester enrollment"): { success: boolean; message: string } {
-    const list = this.getStudents();
-    if (list.some(s => s.rollNo === student.rollNo)) {
-      return { success: false, message: `Student with Register Number ${student.rollNo} already exists!` };
-    }
-    if (list.some(s => s.email.toLowerCase() === student.email.toLowerCase())) {
-      return { success: false, message: `Student with email ${student.email} already exists!` };
-    }
-
+  }, reason: string = "Direct semester enrollment"): Promise<{ success: boolean; message: string }> {
+    
     const newStudent: AdminStudent = {
       rollNo: student.rollNo,
       name: student.name,
@@ -514,67 +507,35 @@ export const AdminService = {
       guide: "Unassigned"
     };
 
-    list.push(newStudent);
-    this.saveStudents(list);
-
-    this.addAuditLog(
-      "Student Registration",
-      `${student.name} (${student.rollNo})`,
-      `Registered to ${newStudent.classSection} • ${newStudent.batch}`,
-      reason
-    );
+    try{
+      await ApiClient.addStudent(newStudent);
+    }
+    catch(e){
+      console.error(e);
+      return { success: false, message: `Failed to enroll student ${student.name}.` };
+    }
 
     return { success: true, message: `Student ${student.name} enrolled successfully.` };
   },
 
-  importStudents(studentsToImport: Array<{
+  async importStudents(studentsToImport: Array<{
     name: string;
     rollNo: string;
     email: string;
     password?: string;
-    batch?: string;
-    classSection?: string;
-  }>, reason: string = "Batch CSV roster synchronization"): { addedCount: number; errors: string[] } {
-    const list = this.getStudents();
-    let addedCount = 0;
-    const errors: string[] = [];
-
-    studentsToImport.forEach(s => {
-      if (!s.name || !s.rollNo || !s.email) {
-        errors.push(`Row omitted: missing name, rollNo, or email.`);
-        return;
+    batch: string;
+    classSection: string;
+  }>): Promise< { addedCount: number; errors: string[] }> {
+    let addedCount = 0;  
+    try{
+        await ApiClient.importStudent(studentsToImport);
+        return { addedCount: studentsToImport.length, errors: [] };
       }
-      if (list.some(x => x.rollNo === s.rollNo)) {
-        errors.push(`Duplicate Register No ${s.rollNo} omitted.`);
-        return;
+      catch(e){
+        console.error(e);
+        return { addedCount: 0, errors: [e.message] };
       }
-
-      list.push({
-        rollNo: s.rollNo,
-        name: s.name,
-        email: s.email,
-        password: s.password || "student@123",
-        batch: s.batch || "2023-2027 (III Year)",
-        classSection: s.classSection || "CSE-B",
-        teamNo: "Unassigned",
-        projectTitle: "",
-        guide: "Unassigned"
-      });
-      addedCount++;
-    });
-
-    if (addedCount > 0) {
-      this.saveStudents(list);
-      this.addAuditLog(
-        "Bulk Student Import",
-        `${addedCount} Enrolled Candidates`,
-        `Synchronized roster with ${addedCount} student records via spreadsheet parser`,
-        reason
-      );
-    }
-
-    return { addedCount, errors };
-  },
+    },
 
   deleteStudent(rollNo: string, reason: string): boolean {
     const list = this.getStudents();

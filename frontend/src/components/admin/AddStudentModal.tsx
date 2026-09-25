@@ -29,14 +29,14 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
   const [reason, setReason] = useState('Direct semester candidate enrollment');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !rollNo.trim() || !email.trim() || !password.trim()) {
       setError('All fields including password are required.');
       return;
     }
 
-    const res = AdminService.addStudent({
+    const res =await AdminService.addStudent({
       name: name.trim(),
       rollNo: rollNo.trim(),
       email: email.trim(),

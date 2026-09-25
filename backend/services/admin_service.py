@@ -220,9 +220,10 @@ class AdminService:
         name: str,
         roll_no: str,
         email: str,
-        password: str = "student@123",
-        batch: str = "2023-2027 (III Year)",
-        class_section: str = "CSE-B",
+        password: str,
+        batch: str,
+        class_section: str,
+        guide: Optional[str],
     ) -> Dict[str, Any]:
         existing = await self.student_repo.get_by_roll_no(roll_no)
         if existing:
@@ -237,6 +238,7 @@ class AdminService:
             password=pwd_hash,
             batch=batch,
             class_section=class_section,
+            guide=guide or "Unassigned",
         )
         await self.student_repo.create(s)
         u = User(
@@ -268,40 +270,50 @@ class AdminService:
     async def import_students(self, students: list) -> Dict[str, Any]:
         added = 0
         errors = []
+
         for st in students:
-            if not st.get("name") or not st.get("rollNo") or not st.get("email"):
+            if not st.name or not st.rollNo or not st.email:
                 errors.append("Missing required fields")
                 continue
-            existing = await self.student_repo.get_by_roll_no(st["rollNo"])
+
+            existing = await self.student_repo.get_by_roll_no(st.rollNo)
             if existing:
-                errors.append(f"Duplicate {st['rollNo']}")
+                errors.append(f"Duplicate {st.rollNo}")
                 continue
+
             sid = uuid.uuid4()
-            raw_pwd = st.get("password") or "student@123"
+
+            raw_pwd = st.password or "student@123"
             pwd_hash = hash_password(raw_pwd)
+
             s = Student(
                 id=sid,
-                roll_no=st["rollNo"],
-                name=st["name"],
-                email=st["email"],
+                roll_no=st.rollNo,
+                name=st.name,
+                email=st.email,
                 password=pwd_hash,
-                batch=st.get("batch", "2023-2027 (III Year)"),
-                class_section=st.get("classSection", "CSE-B"),
+                batch=st.batch or "2023-2027 (III Year)",
+                class_section=st.classSection or "CSE-B",
             )
+
             await self.student_repo.create(s)
+
             u = User(
-                id=uuid.uuid4(),
-                email=st["email"],
-                password=pwd_hash,
-                name=st["name"],
-                roll_no=st["rollNo"],
-                department="Computer Science and Engineering",
-                role="student",
-                class_name=st.get("classSection", "CSE-B"),
-                batch=st.get("batch", "2023-2027 (III Year)"),
+            id=uuid.uuid4(),
+            email=st.email,
+            password=pwd_hash,
+            name=st.name,
+            roll_no=st.rollNo,
+            department="Computer Science and Engineering",
+            role="student",
+            class_name=st.classSection or "CSE-B",
+            batch=st.batch or "2023-2027 (III Year)",
             )
+
             await self.user_repo.create(u)
+
             added += 1
+
         await self.session.commit()
         return {"addedCount": added, "errors": errors}
 
