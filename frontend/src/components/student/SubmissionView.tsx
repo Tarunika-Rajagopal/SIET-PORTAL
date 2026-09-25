@@ -12,7 +12,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   const isTeamLead = StudentService.isCurrentUserTeamLead(team);
   const teamLeadMember = StudentService.getTeamLead(team);
   const teamLeadName = teamLeadMember ? `${teamLeadMember.name}${teamLeadMember.rollNo ? ` (${teamLeadMember.rollNo})` : ''}` : 'the designated Team Lead';
-  const teamId = team?.id || 'TEAM-CSE-Y3-B04';
+  const teamId = team?.id || '';
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
 
   // Determine active submission:

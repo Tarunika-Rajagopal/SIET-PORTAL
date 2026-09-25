@@ -5,6 +5,7 @@ import MyTeamView from '../components/student/MyTeamView';
 import SubmissionView from '../components/student/SubmissionView';
 import MySubmissionView from '../components/student/MySubmissionView';
 import { StudentService } from '../services/studentService';
+import { ApiClient } from '../services/apiClient';
 import { Users, Send, Clock, CheckCircle2 } from 'lucide-react';
 
 type StudentTab = 'my-team' | 'submission' | 'my-submission';
@@ -14,6 +15,52 @@ export const StudentPortalPage: React.FC = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [bottomToast, setBottomToast] = useState<string | null>(null);
   const [team, setTeam] = useState(() => StudentService.getTeam());
+
+  // Fetch the authenticated user's actual team from the backend on mount.
+  // The backend resolves the team from the JWT token (user.team_id),
+  // so each student dynamically receives their own team data.
+  useEffect(() => {
+    let cancelled = false;
+    ApiClient.getStudentTeam()
+      .then((backendTeam: any) => {
+        if (cancelled || !backendTeam) return;
+        // Map the backend response to the StudentTeamExtended shape and persist
+        const mapped = {
+          id: backendTeam.teamId || backendTeam.id || '',
+          teamNo: backendTeam.teamNo || '',
+          projectTitle: backendTeam.projectTitle || '',
+          submittedTitle: backendTeam.submittedTitle || backendTeam.projectTitle || '',
+          isTitleApproved: Boolean(backendTeam.isTitleApproved),
+          guideApprovalStatus: backendTeam.guideApprovalStatus || 'Pending',
+          rejectionReason: backendTeam.rejectionReason || '',
+          guideName: backendTeam.guideName || '',
+          advisorName: backendTeam.advisorName || '',
+          batch: backendTeam.batch || '',
+          section: backendTeam.section || '',
+          status: backendTeam.status || 'In Progress',
+          progress: backendTeam.progress || 0,
+          problemStatement: backendTeam.problemStatement || '',
+          proposedSolution: backendTeam.proposedSolution || '',
+          abstract: backendTeam.abstract || '',
+          repoUrl: backendTeam.repoUrl || '',
+          demoUrl: backendTeam.demoUrl || '',
+          members: (backendTeam.members || []).map((m: any) => ({
+            rollNo: m.rollNo || '',
+            name: m.name || '',
+            email: m.email || '',
+            phone: m.phone || '',
+            role: m.role || 'Team Member',
+            isLead: m.isLead || false,
+          })),
+        };
+        StudentService.saveTeam(mapped as any);
+        setTeam(mapped as any);
+      })
+      .catch((err: any) => {
+        console.warn('Could not fetch team from backend, using cached/default:', err.message);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const handleSync = () => {
@@ -28,7 +75,6 @@ export const StudentPortalPage: React.FC = () => {
       }
       setActiveTab('submission');
     };
-    handleSync();
     window.addEventListener('siet_data_updated', handleSync);
     window.addEventListener('storage', handleSync);
     window.addEventListener('student_navigate_submission', handleNavSubmission);

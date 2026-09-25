@@ -12,7 +12,7 @@ interface MyTeamViewProps {
 export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
   const [marksRecords, setMarksRecords] = useState<Record<number, WeeklyMarksRecord>>({});
 
-  const teamId = team?.id || 'TEAM-CSE-Y3-B04';
+  const teamId = team?.id || '';
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
 
   useEffect(() => {

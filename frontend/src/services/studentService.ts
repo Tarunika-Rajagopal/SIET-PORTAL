@@ -97,26 +97,26 @@ export interface StudentTeamExtended extends Team {
   rejectionReason?: string;
 }
 
-export const DEFAULT_STUDENT_TEAM: StudentTeamExtended = {
-  id: "TEAM-CSE-Y3-B04",
-  teamNo: "Team 04",
-  projectTitle: "",
-  submittedTitle: "",
-  isTitleApproved: false,
-  guideApprovalStatus: "Pending Review",
-  guideName: "Dr. P. Manimegalai",
-  advisorName: "Dr. R. Karthikeyan",
-  batch: "2023-2027 (III Year)",
-  section: "CSE-B",
-  status: "In Progress",
-  progress: 0,
-  members: [
-    { rollNo: "714023104112", name: "Tarunika Rajgopal", email: "student@srishakthi.ac.in", role: "Team Lead" },
-    { rollNo: "714023104178", name: "Vigneshwaran M", email: "vigneshwaran.m@srishakthi.ac.in", role: "Team Member" },
-    { rollNo: "714023104189", name: "Vishnu Priya S", email: "vishnupriya.s@srishakthi.ac.in", role: "Team Member" },
-    { rollNo: "714023104066", name: "Kavitha R", email: "kavitha.r@srishakthi.ac.in", role: "Team Member" }
-  ]
-};
+// Build a default team object from the authenticated user's profile instead of hardcoding Team 04.
+// This ensures the fallback always matches the logged-in student's actual team assignment.
+function buildDefaultTeamFromUser(): StudentTeamExtended {
+  const user = AuthService.getCurrentUser();
+  return {
+    id: user?.teamId || '',
+    teamNo: user?.teamNo || '',
+    projectTitle: user?.projectTitle || '',
+    submittedTitle: '',
+    isTitleApproved: false,
+    guideApprovalStatus: 'Pending',
+    guideName: user?.guideName || '',
+    advisorName: user?.advisorName || '',
+    batch: user?.batch || '',
+    section: user?.class || '',
+    status: 'In Progress',
+    progress: 0,
+    members: [],
+  };
+}
 
 export const DEFAULT_COMPLETED_WEEKS: WeeklySubmission[] = [];
 
@@ -134,7 +134,7 @@ export const StudentService = {
   },
 
   getTeam(): StudentTeamExtended {
-    let team: StudentTeamExtended = DEFAULT_STUDENT_TEAM;
+    let team: StudentTeamExtended = buildDefaultTeamFromUser();
     try {
       const stored = localStorage.getItem(TEAM_STORAGE_KEY);
       if (stored) team = JSON.parse(stored);
@@ -192,7 +192,7 @@ export const StudentService = {
       const rawGuide = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
       if (rawGuide) {
         const guideTeams = JSON.parse(rawGuide);
-        const gt = guideTeams.find((t: any) => t.teamId === team.id || t.id === team.id || t.teamNumber === 4);
+        const gt = guideTeams.find((t: any) => t.teamId === team.id || t.id === team.id || t.teamNo === team.teamNo);
         if (gt) {
           if (gt.titleStatus === 'Approved' || gt.titleLocked === true) {
             team.isTitleApproved = true;
@@ -311,7 +311,8 @@ export const StudentService = {
   isSubmission1Approved(teamId?: string): boolean {
     if (!teamId) return false;
     const tId = teamId.trim();
-    const isStudentTeam = tId === 'TEAM-CSE-Y3-B04' || tId === 'Team 04' || tId === 'team-4';
+    const currentTeam = this.getTeam();
+    const isStudentTeam = Boolean(currentTeam?.id && (tId === currentTeam.id || tId === currentTeam.teamNo));
 
     if (isStudentTeam) {
       try {
@@ -368,7 +369,8 @@ export const StudentService = {
     if (!teamId) return false;
 
     const tId = teamId.trim();
-    const isStudentTeam = tId === 'TEAM-CSE-Y3-B04' || tId === 'Team 04' || tId === 'team-4';
+    const currentTeam = this.getTeam();
+    const isStudentTeam = Boolean(currentTeam?.id && (tId === currentTeam.id || tId === currentTeam.teamNo));
     const weekIndex = subNumber - 1;
 
     try {
@@ -399,7 +401,8 @@ export const StudentService = {
   },
 
   getTeamActiveSubmissionNumber(teamId?: string): number {
-    const tId = teamId || 'TEAM-CSE-Y3-B04';
+    const currentTeam = this.getTeam();
+    const tId = teamId || currentTeam?.id || '';
     if (!this.isSubmissionApproved(1, tId)) return 1;
     if (!this.isSubmissionApproved(2, tId)) return 2;
     if (!this.isSubmissionApproved(3, tId)) return 3;
@@ -659,7 +662,8 @@ export const StudentService = {
       if (!Array.isArray(guideTeams) || guideTeams.length === 0) {
         guideTeams = INITIAL_TEAMS;
       }
-      let guideTeam = guideTeams.find((t: any) => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNumber === 4) || guideTeams[0];
+      const studentTeamId = this.getTeam()?.id || '';
+      let guideTeam = guideTeams.find((t: any) => t.teamId === studentTeamId || t.id === studentTeamId) || guideTeams[0];
       if (guideTeam) {
         if (current.projectTitle) guideTeam.projectTitle = current.projectTitle;
         if (current.problemStatement) guideTeam.problemStatement = current.problemStatement;
@@ -858,7 +862,8 @@ export const StudentService = {
         guideTeams = INITIAL_TEAMS;
       }
 
-      let guideTeam = guideTeams.find((t: any) => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNumber === 4) || guideTeams[0];
+      const studentTeamId = this.getTeam()?.id || '';
+      let guideTeam = guideTeams.find((t: any) => t.teamId === studentTeamId || t.id === studentTeamId) || guideTeams[0];
       if (guideTeam) {
         if (current.projectTitle) {
           guideTeam.projectTitle = current.projectTitle;
@@ -1017,7 +1022,7 @@ export const StudentService = {
         const rawTeams = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
         let guideTeams = rawTeams ? JSON.parse(rawTeams) : [];
         if (Array.isArray(guideTeams) && guideTeams.length > 0) {
-          const guideTeam = guideTeams.find((t: any) => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNumber === 4) || guideTeams[0];
+          const guideTeam = guideTeams.find((t: any) => t.teamId === team.id || t.id === team.id) || guideTeams[0];
           if (guideTeam) {
             guideTeam.submissions = (guideTeam.submissions || []).filter((s: any) => s.weekNumber !== weekNumber);
             guideTeam.projectTitle = '';
@@ -1038,12 +1043,12 @@ export const StudentService = {
       // 5. Reset Advisor Portal storage and marks across all portals so marks become unassigned
       try {
         const memberRollNos = team?.members?.map(m => m.rollNo) || [];
-        MarksService.deleteWeeklyMarks(team.id || 'TEAM-CSE-Y3-B04', weekNumber, memberRollNos);
+        MarksService.deleteWeeklyMarks(team.id, weekNumber, memberRollNos);
         const advRaw = localStorage.getItem('siet_advisor_teams_CSE-B');
         if (advRaw) {
           const advTeams = JSON.parse(advRaw);
           if (Array.isArray(advTeams)) {
-            const advTeam = advTeams.find((t: any) => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNo === 'Team 04');
+            const advTeam = advTeams.find((t: any) => t.teamId === team.id || t.teamNo === team.teamNo);
             if (advTeam) {
               advTeam.title = '';
               advTeam.status = 'Pending';

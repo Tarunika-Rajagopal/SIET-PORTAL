@@ -60,6 +60,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       localStorage.removeItem('siet_auth_user_v5');
       localStorage.removeItem('siet_auth_user');
       localStorage.removeItem('siet_auth_token');
+
+      // Clear student-specific cached data to prevent stale team/submission
+      // data from a previous student's session persisting across logins
+      localStorage.removeItem('siet_student_team_v6');
+      localStorage.removeItem('siet_student_submissions_v6');
+      // Clear all deliverable keys
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('siet_deliverable_v6_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
     } catch (e) {}
     setCurrentUser(null);
     setActiveRole('student');

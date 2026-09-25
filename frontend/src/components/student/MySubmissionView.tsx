@@ -40,7 +40,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
     };
   }, []);
 
-  const teamId = team?.id || 'TEAM-CSE-Y3-B04';
+  const teamId = team?.id || '';
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
 
   // Determine active submission:
