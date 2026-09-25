@@ -73,7 +73,7 @@ class AddStudentRequest(BaseModel):
     password: Optional[str] = "student@123"
     batch: Optional[str] = "2023-2027 (III Year)"
     classSection: Optional[str] = "CSE-B"
-
+    guide: Optional[str] = "Unassigned"
 class ImportStudentItem(BaseModel):
     name: str
     rollNo: str

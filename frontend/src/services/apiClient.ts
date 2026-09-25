@@ -1,4 +1,5 @@
 import {faculty} from '../types';
+import { AdminStudent } from './adminService';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
@@ -253,6 +254,38 @@ export const ApiClient = {
         email_two:email_two,
         mess:'HI'
       }),
+    })
+   },
+   async addStudent(student:AdminStudent){
+    return request<any>(`/admin/students`,{
+      method:'POST',
+      body:JSON.stringify(student),
+    })
+   },
+   async importStudent(studentsToImport: Array<{
+    name: string;
+    rollNo: string;
+    email: string;
+    password?: string;
+    batch: string;
+    classSection: string;
+  }>):Promise<any>{
+    return request<any>(`/admin/students/import`,{
+      method:'POST',
+      body:JSON.stringify({
+        students:studentsToImport
+      }),
+    })
+   },
+   async deleteStudent(studentId:string){
+    return request<any>(`/admin/students/${studentId}`,{
+      method:'DELETE',
+    })
+   },
+   async updateStudent(student:AdminStudent){
+    return request<any>(`/admin/students/${student.rollNo}`,{
+      method:'PUT',
+      body:JSON.stringify(student),
     })
    }
 };

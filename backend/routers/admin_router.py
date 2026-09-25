@@ -126,6 +126,7 @@ async def add_student(
         req.password or "student@123",
         req.batch or "2023-2027 (III Year)",
         req.classSection or "CSE-B",
+        req.guide or "Unassigned"
     )
 
 

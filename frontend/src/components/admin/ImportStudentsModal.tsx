@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, UploadCloud, FileSpreadsheet, Download, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
+import { X, UploadCloud, FileSpreadsheet, Download, CheckCircle2, AlertTriangle, FileText, Loader2 } from 'lucide-react';
 import { AdminService } from '../../services/adminService';
 
 interface ImportStudentsModalProps {
@@ -29,8 +29,10 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
     batch: string;
     classSection: string;
   }>>([]);
-  const [reason, setReason] = useState('Bulk student registration via institutional spreadsheet upload');
   const [error, setError] = useState('');
+  const [isImporting, setIsimporting] = useState(false)
+
+
 
   const handleDownloadTemplate = () => {
     const csvContent = "data:text/csv;charset=utf-8," +
@@ -47,6 +49,9 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
     link.click();
     document.body.removeChild(link);
   };
+
+
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError('');
@@ -80,7 +85,7 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
 
       const rows: Array<any> = [];
       for (let i = 1; i < lines.length; i++) {
-        
+
         const cols = lines[i].split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
         if (cols.length <= 1) continue;
 
@@ -112,22 +117,36 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
     reader.readAsText(file);
   };
 
-  const handleImportSubmit = (e: React.FormEvent) => {
+
+
+
+
+
+  const handleImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (parsedRows.length === 0) {
       setError('Please upload and parse a valid spreadsheet first.');
       return;
     }
 
-    const res = AdminService.importStudents(parsedRows, reason);
-    onSuccess(`Successfully imported ${res.addedCount} students into the roster.`);
-    onClose();
+    setIsimporting(true);
+    setError('');
+    try {
+      const res = await AdminService.importStudents(parsedRows);
+
+      onSuccess(`Successfully imported ${res.addedCount} students into the roster.`);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to import students');
+    } finally {
+      setIsimporting(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
       <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-[#D8CCBA] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
+
         {/* Modal Header */}
         <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-[#F8F5EE]">
           <div className="flex items-center gap-3">
@@ -149,7 +168,7 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
 
         {/* Modal Body */}
         <form onSubmit={handleImportSubmit} className="p-6 space-y-4 text-xs">
-          
+
           {error && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
               <AlertTriangle size={15} className="shrink-0" />
@@ -242,8 +261,6 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
             <input
               type="text"
               required
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
               className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl focus:outline-none focus:border-[#111111] font-medium text-[#111111]"
             />
           </div>
@@ -262,8 +279,17 @@ export const ImportStudentsModal: React.FC<ImportStudentsModalProps> = ({
               disabled={parsedRows.length === 0}
               className="px-5 py-2 bg-[#111111] hover:bg-[#292725] disabled:opacity-50 text-[#F8F5EE] font-semibold rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
             >
-              <FileSpreadsheet size={14} />
-              <span>Finalize Import ({parsedRows.length})</span>
+              {isImporting ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Importing {parsedRows.length} students...</span>
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet size={14} />
+                  <span>Finalize Import ({parsedRows.length})</span>
+                </>
+              )}
             </button>
           </div>
 

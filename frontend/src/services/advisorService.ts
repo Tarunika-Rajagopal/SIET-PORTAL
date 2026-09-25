@@ -324,7 +324,7 @@ export const AdvisorService = {
     const cleanEmail = email && email.trim() ? email.trim() : `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@srishakthi.ac.in`;
     const cleanPassword = password && password.trim() ? password.trim() : "student@123";
 
-    const res = AdminService.addStudent({
+    const res =await  AdminService.addStudent({
       name: cleanName,
       rollNo: cleanRoll,
       email: cleanEmail,
