@@ -67,3 +67,11 @@ async def delete_submission(
 ):
     return await service.delete_submission(user, week)
 
+
+@router.get("/week-releases")
+async def get_student_week_releases(
+    service: StudentService = Depends(get_student_service),
+):
+    releases = await service.get_week_releases()
+    return {"releases": releases}
+

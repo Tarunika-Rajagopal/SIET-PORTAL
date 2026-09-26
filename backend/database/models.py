@@ -71,6 +71,15 @@ class ReviewStatusEnum(str, enum.Enum):
     upcoming = "Upcoming"
 
 
+class HodHistoryActionEnum(str, enum.Enum):
+    marks_overridden = "Marks Overridden"
+    marks_updated = "Marks Updated"
+    project_audited = "Project Audited"
+    submission_reviewed = "Submission Reviewed"
+    advisor_appointed = "Advisor Appointed"
+    student_reassigned = "Student Reassigned"
+
+
 # ── Models ─────────────────────────────────────────────────────────
 
 class User(Base):
@@ -443,7 +452,7 @@ class HodHistory(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     date = Column(String(50), nullable=False)
-    action_type = Column(String(255), nullable=False)
+    action_type = Column(SAEnum(HodHistoryActionEnum, name="hod_history_action", create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     target = Column(String(255), nullable=False)
     class_section = Column(String(50), nullable=False)
     batch = Column(String(100), nullable=False)

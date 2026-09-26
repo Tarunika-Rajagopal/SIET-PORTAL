@@ -302,12 +302,75 @@ export const ApiClient = {
       }),
     })
    },
-   async removeGuide(email:string){
-    return request<any>(`/admin/delete-guide`,{
-      method:'POST',
-      body:JSON.stringify({
-        email_one:email,
-      }),
-    })
+   async getWeeklySubmissionsSummary(): Promise<Array<{ week: number; studentCount: number; submissionCount: number; status: string }>> {
+     return request('/hod/weekly-submissions/summary');
+   },
+   async deleteWeeklySubmissions(weeks: number[]): Promise<{ success: boolean; deletedCount: number; weeks: number[]; message: string }> {
+     return request('/hod/weekly-submissions', {
+       method: 'DELETE',
+       body: JSON.stringify({ weeks }),
+     });
+   },
+   async getHodAdvisors(batch?: string, className?: string): Promise<any[]> {
+     const params = new URLSearchParams();
+     if (batch && batch !== 'ALL') params.append('batch', batch);
+     if (className && className !== 'ALL') params.append('className', className);
+     const qs = params.toString() ? `?${params.toString()}` : '';
+     return request(`/hod/advisors${qs}`);
+   },
+   async getHodStudents(batch?: string, className?: string): Promise<any[]> {
+     const params = new URLSearchParams();
+     if (batch && batch !== 'ALL') params.append('batch', batch);
+     if (className && className !== 'ALL') params.append('className', className);
+     const qs = params.toString() ? `?${params.toString()}` : '';
+     return request(`/hod/students${qs}`);
+   },
+   async getHodTeams(batch?: string, className?: string, search?: string): Promise<any[]> {
+     const params = new URLSearchParams();
+     if (batch && batch !== 'ALL') params.append('batch', batch);
+     if (className && className !== 'ALL') params.append('className', className);
+     if (search && search.trim()) params.append('search', search.trim());
+     const qs = params.toString() ? `?${params.toString()}` : '';
+     return request(`/hod/teams${qs}`);
+   },
+   async getHodFacultyList(): Promise<any[]> {
+     return request('/hod/faculty-list');
+   },
+   async getHodHistory(): Promise<any[]> {
+     return request('/hod/history');
+   },
+   async logHodHistory(data: { actionType: string; target: string; details: string; classSection: string; batch: string; performedBy?: string }): Promise<any> {
+     return request('/hod/history', {
+       method: 'POST',
+       body: JSON.stringify(data),
+     });
+   },
+   async getHodStatistics(): Promise<{
+     totalStudents: number;
+     totalTeams: number;
+     totalGuides: number;
+     totalAdvisors: number;
+     totalFaculty: number;
+     activeProjects: number;
+     pendingApprovals: number;
+     departmentProgress: number;
+     weeklySummary: Array<{ week: number; studentCount: number; submissionCount: number; status: string }>;
+   }> {
+     return request('/hod/statistics');
+   },
+   async getHodFilterOptions(): Promise<{ batches: string[]; classes: string[] }> {
+     return request('/hod/filter-options');
+   },
+   async getHodWeekReleases(): Promise<{ releases: Record<string, boolean> }> {
+     return request('/hod/week-releases');
+   },
+   async updateHodWeekRelease(week: number, released: boolean): Promise<any> {
+     return request(`/hod/week-releases/${week}`, {
+       method: 'PUT',
+       body: JSON.stringify({ released }),
+     });
+   },
+   async getStudentWeekReleases(): Promise<{ releases: Record<string, boolean> }> {
+     return request('/student/week-releases');
    }
 };

@@ -6,7 +6,8 @@ import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
   Calendar, CheckCircle2, Clock, FileText, Upload, AlertTriangle, 
   MessageSquare, RefreshCw, X, FileCode, ExternalLink, Image as ImageIcon,
-  Award, User, Download, Check, XCircle, Bell, MapPin, Edit3, ChevronRight
+  Award, User, Download, Check, XCircle, Bell, MapPin, Edit3, ChevronRight,
+  Lock, Unlock
 } from 'lucide-react';
 
 interface MySubmissionViewProps {
@@ -23,6 +24,101 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
   const [resubmitNotes, setResubmitNotes] = useState('');
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
+
+  // Backend-controlled weekly release status (Week 1..4 -> boolean)
+  const [weekReleases, setWeekReleases] = useState<Record<number, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem('siet_week_release_status');
+      if (stored) {
+        const p = JSON.parse(stored);
+        return { 1: Boolean(p['1']), 2: Boolean(p['2']), 3: Boolean(p['3']), 4: Boolean(p['4']) };
+      }
+    } catch (e) {}
+    return { 1: true, 2: true, 3: false, 4: false };
+  });
+
+  const loadReleases = React.useCallback(async () => {
+    try {
+      const rels = await StudentService.fetchWeekReleases();
+      if (rels) {
+        setWeekReleases({
+          1: Boolean(rels['1']),
+          2: Boolean(rels['2']),
+          3: Boolean(rels['3']),
+          4: Boolean(rels['4']),
+        });
+      }
+    } catch (e) {
+      console.warn('Could not fetch student week releases in MySubmissionView:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReleases();
+
+    // Cross-tab real-time sync with BroadcastChannel
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('siet_milestone_releases');
+        bc.onmessage = (event) => {
+          if (event.data?.releases) {
+            const r = event.data.releases;
+            setWeekReleases({
+              1: Boolean(r['1']),
+              2: Boolean(r['2']),
+              3: Boolean(r['3']),
+              4: Boolean(r['4']),
+            });
+          }
+        };
+      }
+    } catch (e) {}
+
+    const handleReleaseUpdated = (e: any) => {
+      if (e?.detail?.week !== undefined && e?.detail?.released !== undefined) {
+        setWeekReleases(prev => ({
+          ...prev,
+          [e.detail.week]: Boolean(e.detail.released)
+        }));
+      } else {
+        loadReleases();
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'siet_week_release_status' && e.newValue) {
+        try {
+          const r = JSON.parse(e.newValue);
+          setWeekReleases({
+            1: Boolean(r['1']),
+            2: Boolean(r['2']),
+            3: Boolean(r['3']),
+            4: Boolean(r['4']),
+          });
+        } catch (err) {}
+      }
+    };
+
+    const handleFocus = () => {
+      loadReleases();
+    };
+
+    window.addEventListener('siet_release_updated', handleReleaseUpdated);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+
+    // Heartbeat poll every 3 seconds for bulletproof real-time sync
+    const interval = setInterval(loadReleases, 3000);
+
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('siet_release_updated', handleReleaseUpdated);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, [loadReleases]);
 
   useEffect(() => {
     const handleSync = () => {
@@ -245,6 +341,20 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                         <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-mint-700 transition">
                           Submission {sub.week + 1}
                         </h4>
+                        
+                        {/* Department Release Badge */}
+                        {weekReleases[sub.week + 1] ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 bg-[#EBF0E9] text-[#2E6930] border-[#BFCEB9]">
+                            <Unlock size={10} />
+                            <span>Released</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 bg-[#EDE7DB] text-[#75695A] border-[#D8CCBA]">
+                            <Lock size={10} />
+                            <span>Locked</span>
+                          </span>
+                        )}
+
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${
                           isApproved ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
                           isRevisionRequired ? 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse' :
@@ -337,7 +447,12 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
-                    {isRevisionRequired && isTeamLead ? (
+                    {!weekReleases[sub.week + 1] ? (
+                      <span className="px-3 py-1.5 rounded-xl border border-[#D8CCBA] bg-[#EDE7DB] text-[#75695A] text-xs font-bold flex items-center gap-1.5 select-none" title="Milestone is locked by the Head of Department">
+                        <Lock size={13} />
+                        <span>Locked by HOD</span>
+                      </span>
+                    ) : isRevisionRequired && isTeamLead ? (
                       <button
                         type="button"
                         onClick={(e) => handleEditSubmission(sub.week, e)}

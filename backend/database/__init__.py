@@ -12,6 +12,7 @@ from database.schemas import (
     ImportStudentsRequest, ImportStudentItem, AuditLogRequest,
     CreateTeamRequest, MoveStudentRequest, ReassignGuideRequest,
     UpdateTeamRequest, HodHistoryRequest, SaveWeeklyMarksRequest,
+    DeleteWeeklySubmissionsRequest,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "ImportStudentsRequest", "ImportStudentItem", "AuditLogRequest",
     "CreateTeamRequest", "MoveStudentRequest", "ReassignGuideRequest",
     "UpdateTeamRequest", "HodHistoryRequest", "SaveWeeklyMarksRequest",
+    "DeleteWeeklySubmissionsRequest",
 ]

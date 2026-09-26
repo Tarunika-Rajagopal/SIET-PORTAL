@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { LogOut, User as UserIcon } from 'lucide-react';
+import { LogOut, User as UserIcon, Settings as SettingsIcon } from 'lucide-react';
 
 interface HeaderProps {
   title?: string;
@@ -17,6 +18,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { currentUser, activeRole, logout } = useAuth();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const getInitials = (name?: string, fallback: string = 'TR') => {
     if (!name) return fallback;
@@ -31,13 +34,19 @@ export const Header: React.FC<HeaderProps> = ({
     ? currentUser.initials
     : getInitials(currentUser?.name, activeRole === 'student' ? 'TR' : 'US');
 
+  const isSettings = location.pathname === '/settings';
+
   return (
     <header className="bg-[#F8F5EE] border-b border-[#D8CCBA] sticky top-0 z-40 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
           {/* Left Brand with Uploaded Logo & Title */}
-          <div className="flex items-center gap-3">
+          <div 
+            onClick={() => navigate('/')}
+            className="flex items-center gap-3 cursor-pointer group"
+            title="Return to Dashboard"
+          >
             <img 
               src="/logo.jpg" 
               alt="SIET CSE" 
@@ -61,59 +70,76 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* Right: Only User Avatar with First Letter & Initial */}
-          <div className="relative">
+          {/* Right: Settings Icon & User Profile Avatar Dropdown */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <button
-              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="w-10 h-10 rounded-full bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-black text-xs sm:text-sm flex items-center justify-center shadow-subtle border border-[#292725] hover:ring-2 hover:ring-[#B8AA97] hover:ring-offset-2 transition focus:outline-none cursor-pointer"
-              aria-label="User profile menu"
+              id="headerSettingsButton"
+              onClick={() => navigate('/settings')}
+              className={`w-10 h-10 rounded-full flex items-center justify-center border transition focus:outline-none cursor-pointer ${
+                isSettings
+                  ? 'bg-[#111111] text-[#F8F5EE] border-[#111111] shadow-xs'
+                  : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] hover:text-[#111111] border-[#D8CCBA] shadow-2xs'
+              }`}
+              title="Settings"
+              aria-label="Settings"
             >
-              {avatarInitials}
+              <SettingsIcon size={18} className="transition-transform duration-200 hover:rotate-45" />
             </button>
 
-            {/* Dropdown with ONLY Profile and Logout options */}
-            {profileDropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setProfileDropdownOpen(false)}
-                ></div>
-                <div className="absolute right-0 mt-2 w-48 bg-[#FFFFFF] rounded-xl shadow-card border border-[#D8CCBA] p-1.5 z-50 animate-in fade-in slide-in-from-top-2">
-                  <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
-                      if (onOpenProfile) onOpenProfile();
-                    }}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
-                  >
-                    <UserIcon size={16} className="text-[#75695A]" />
-                    <span>Profile</span>
-                  </button>
+            <div className="relative">
+              <button
+                id="headerProfileAvatarButton"
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                className="w-10 h-10 rounded-full bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-black text-xs sm:text-sm flex items-center justify-center shadow-subtle border border-[#292725] hover:ring-2 hover:ring-[#B8AA97] hover:ring-offset-2 transition focus:outline-none cursor-pointer"
+                aria-label="User profile menu"
+              >
+                {avatarInitials}
+              </button>
 
-                  <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
-                      try {
-                        if (logout) logout();
-                        sessionStorage.removeItem('siet_auth_user_v5');
-                        sessionStorage.removeItem('siet_auth_user');
-                        sessionStorage.removeItem('siet_auth_token');
-                        localStorage.removeItem('siet_auth_user_v5');
-                        localStorage.removeItem('siet_auth_user');
-                        localStorage.removeItem('siet_auth_token');
-                      } catch (e) {
-                        console.error(e);
-                      }
-                      window.location.href = '/login';
-                    }}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#7C3838] hover:bg-[#F8EEEE] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
-                  >
-                    <LogOut size={16} className="text-[#7C3838]" />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              </>
-            )}
+              {/* Dropdown with ONLY Profile and Logout options */}
+              {profileDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setProfileDropdownOpen(false)}
+                  ></div>
+                  <div className="absolute right-0 mt-2 w-48 bg-[#FFFFFF] rounded-xl shadow-card border border-[#D8CCBA] p-1.5 z-50 animate-in fade-in slide-in-from-top-2">
+                    <button
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        if (onOpenProfile) onOpenProfile();
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
+                    >
+                      <UserIcon size={16} className="text-[#75695A]" />
+                      <span>Profile</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        try {
+                          if (logout) logout();
+                          sessionStorage.removeItem('siet_auth_user_v5');
+                          sessionStorage.removeItem('siet_auth_user');
+                          sessionStorage.removeItem('siet_auth_token');
+                          localStorage.removeItem('siet_auth_user_v5');
+                          localStorage.removeItem('siet_auth_user');
+                          localStorage.removeItem('siet_auth_token');
+                        } catch (e) {
+                          console.error(e);
+                        }
+                        window.location.href = '/login';
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#7C3838] hover:bg-[#F8EEEE] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
+                    >
+                      <LogOut size={16} className="text-[#7C3838]" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
         </div>
@@ -123,3 +149,4 @@ export const Header: React.FC<HeaderProps> = ({
 };
 
 export default Header;
+

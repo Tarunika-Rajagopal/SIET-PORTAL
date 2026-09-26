@@ -4,8 +4,9 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from models import User, Team, WeeklySubmission
+from models import User, Team, TeamMember, WeeklySubmission, Setting
 from repositories.team_repository import TeamRepository
 from repositories.submission_repository import SubmissionRepository
 from schemas import SubmitDeliverablesRequest
@@ -83,14 +84,31 @@ class StudentService:
         }
 
     async def _find_team(self, user: User, with_members: bool = False) -> Team:
-        if not user.team_id:
-            raise HTTPException(404, "Student is not assigned to any team")
-        if with_members:
-            team = await self.team_repo.get_with_members(user.team_id)
-        else:
-            team = await self.team_repo.get_by_team_id_string(user.team_id)
+        team = None
+        if user.team_id:
+            if with_members:
+                team = await self.team_repo.get_with_members(user.team_id)
+            else:
+                team = await self.team_repo.get_by_team_id_string(user.team_id)
+
         if not team:
-            raise HTTPException(404, "Student team not found")
+            clauses = []
+            if user.roll_no:
+                clauses.append(TeamMember.roll_no == user.roll_no)
+            if user.email:
+                clauses.append(TeamMember.email == user.email)
+            if clauses:
+                from sqlalchemy import or_
+                res = await self.session.execute(select(TeamMember).where(or_(*clauses)))
+                tm = res.scalar_one_or_none()
+                if tm and tm.team_id:
+                    if with_members:
+                        team = await self.team_repo.get_with_members(tm.team_id)
+                    else:
+                        team = await self.team_repo.get_by_id(tm.team_id)
+
+        if not team:
+            raise HTTPException(404, "Student is not assigned to any team")
         return team
 
     async def get_team(self, user: User) -> dict:
@@ -121,7 +139,30 @@ class StudentService:
             }
         return self._format_sub(s)
 
+    async def get_week_releases(self) -> dict:
+        """Return release status for all 4 weekly submissions from database."""
+        res = await self.session.execute(select(Setting).where(Setting.key == "week_release_status"))
+        setting = res.scalar_one_or_none()
+        default_status = {"1": True, "2": True, "3": False, "4": False}
+        if not setting or not isinstance(setting.value, dict):
+            return default_status
+        return {
+            "1": bool(setting.value.get("1", setting.value.get(1, True))),
+            "2": bool(setting.value.get("2", setting.value.get(2, True))),
+            "3": bool(setting.value.get("3", setting.value.get(3, False))),
+            "4": bool(setting.value.get("4", setting.value.get(4, False))),
+        }
+
     async def submit_deliverables(self, user: User, week: int, req: SubmitDeliverablesRequest) -> dict:
+        # Strict server-side verification: reject submission if week is locked by HOD
+        releases = await self.get_week_releases()
+        is_rel = bool(releases.get(str(week), False) or releases.get(int(week), False))
+        if not is_rel:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Week {week} submissions are locked and have not been released by the Head of Department."
+            )
+
         team = await self._find_team(user, with_members=False)
         s = await self.sub_repo.get_by_team_and_week(team.id, week)
 

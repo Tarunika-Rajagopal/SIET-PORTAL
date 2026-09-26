@@ -137,6 +137,12 @@ class HodHistoryRequest(BaseModel):
     batch: str
     performedBy: str
 
+class DeleteWeeklySubmissionsRequest(BaseModel):
+    weeks: List[int]
+
+class UpdateWeekReleaseRequest(BaseModel):
+    released: bool
+
 
 # ── Marks ─────────────────────────────────────────────────────
 class SaveWeeklyMarksRequest(BaseModel):

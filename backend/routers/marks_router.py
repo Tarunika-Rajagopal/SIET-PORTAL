@@ -39,7 +39,7 @@ async def save_weekly_marks(
     team_id: str,
     week_number: int,
     req: SaveWeeklyMarksRequest,
-    user: User = Depends(require_roles("advisor", "admin", "guide")),
+    user: User = Depends(require_roles("advisor", "admin", "guide", "hod")),
     service: MarksService = Depends(get_marks_service),
 ):
     return await service.save_weekly_marks(
@@ -47,7 +47,7 @@ async def save_weekly_marks(
         week_number,
         req.memberMarks,
         req.remarks or "",
-        req.gradedBy or user.name or "Faculty Guide",
+        req.gradedBy or user.name or "Head of Department",
     )
 
 
@@ -55,7 +55,8 @@ async def save_weekly_marks(
 async def delete_weekly_marks(
     team_id: str,
     week_number: int,
-    user: User = Depends(require_roles("advisor", "admin", "guide")),
+    user: User = Depends(require_roles("advisor", "admin", "guide", "hod")),
     service: MarksService = Depends(get_marks_service),
 ):
     return await service.delete_weekly_marks(team_id, week_number)
+

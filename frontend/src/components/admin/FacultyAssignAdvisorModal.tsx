@@ -60,7 +60,7 @@ export const FacultyAssignAdvisorModal: React.FC<FacultyAssignAdvisorModalProps>
     setError('');
   }, [selectedBatch, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSection) {
       setError('Please select an available class section.');
@@ -77,7 +77,7 @@ export const FacultyAssignAdvisorModal: React.FC<FacultyAssignAdvisorModalProps>
       return;
     }
 
-    const ok = AdminService.assignAdvisor(faculty.email, selectedBatch, selectedSection);
+    const ok = await AdminService.assignAdvisor(faculty.email, selectedBatch, selectedSection, reason.trim());
     if (ok) {
       onSuccess(`Assigned ${faculty.name} as Class Advisor for ${selectedSection} (${selectedBatch}).`);
       onClose();

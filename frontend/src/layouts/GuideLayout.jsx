@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   CheckSquare, Users, Clock, History, LogOut, User as UserIcon,
-  CheckCircle2, AlertCircle, Info, X 
+  CheckCircle2, AlertCircle, Info, X, Settings as SettingsIcon
 } from 'lucide-react';
 import { useGuide } from '../context/GuideContext';
 import { useAuth } from '../context/AuthContext';
@@ -97,6 +97,21 @@ export const GuideLayout = () => {
             <span className="w-1.5 h-1.5 rounded-full bg-[#111111]"></span>
             <span>Assigned: {stats.assignedTeamsCount} Teams</span>
           </div>
+
+          {/* Settings Button */}
+          <button
+            id="guideSettingsButton"
+            onClick={() => navigate('/settings')}
+            className={`w-10 h-10 rounded-full flex items-center justify-center border transition focus:outline-none cursor-pointer ${
+              location.pathname === '/settings'
+                ? 'bg-[#111111] text-[#F8F5EE] border-[#111111] shadow-xs'
+                : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] hover:text-[#111111] border-[#D8CCBA] shadow-2xs'
+            }`}
+            title="Settings"
+            aria-label="Settings"
+          >
+            <SettingsIcon size={18} className="transition-transform duration-200 hover:rotate-45" />
+          </button>
 
           {/* User Profile Avatar with First Letter & Initial */}
           <div className="relative">

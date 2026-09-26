@@ -155,7 +155,9 @@ class TeamRepository:
 
     async def list_by_advisor_name(self, advisor_name: str) -> List[Team]:
         res = await self.session.execute(
-            select(Team).where(Team.advisor_name.ilike(f"%{advisor_name.strip()}%"))
+            select(Team)
+            .options(selectinload(Team.members))
+            .where(Team.advisor_name.ilike(f"%{advisor_name.strip()}%"))
         )
         return list(res.scalars().all())
 

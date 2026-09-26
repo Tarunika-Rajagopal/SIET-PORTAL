@@ -45,17 +45,26 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
 
-  // All matching teams based on batch/class filters and search
-  const matchingTeams = HodService.getTeams(batchFilter, classFilter, searchTerm);
+  // All matching teams based on batch/class filters and search from live backend
+  const [matchingTeams, setMatchingTeams] = useState<HodTeamDetails[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    HodService.fetchTeams(batchFilter, classFilter, searchTerm).then(res => {
+      if (isMounted && Array.isArray(res)) {
+        setMatchingTeams(res);
+      }
+      setLoading(false);
+    }).catch(() => {
+      if (isMounted) setLoading(false);
+    });
+    return () => { isMounted = false; };
+  }, [batchFilter, classFilter, searchTerm]);
 
   // Selected team state (null initially; details only visible when a team is clicked)
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(() => {
-    if (initialStudentRollNo) {
-      const team = HodService.getTeamByStudent(initialStudentRollNo);
-      if (team) return team.id;
-    }
-    return null;
-  });
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedTeamOnly, setSelectedTeamOnly] = useState<boolean>(Boolean(initialStudentRollNo));
 
   const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
@@ -103,9 +112,7 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
 
   // Keep selected team synced (only when a team is selected)
   const activeTeam = selectedTeamId
-    ? (matchingTeams.find(t => t.id === selectedTeamId) || 
-       HodService.getTeams().find(t => t.id === selectedTeamId) || 
-       null)
+    ? (matchingTeams.find(t => t.id === selectedTeamId) || null)
     : null;
 
   // Teams to display in the grid: if a team is clicked, do not show the remaining teams

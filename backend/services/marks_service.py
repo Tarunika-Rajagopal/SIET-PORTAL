@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import WeeklyMark, WeeklyMemberMark, Team, User
 from repositories.team_repository import TeamRepository
 from repositories.marks_repository import MarksRepository
+from repositories.submission_repository import SubmissionRepository
 
 
 class MarksService:
@@ -16,6 +17,7 @@ class MarksService:
         self.session = session
         self.team_repo = TeamRepository(session)
         self.marks_repo = MarksRepository(session)
+        self.sub_repo = SubmissionRepository(session)
 
     async def find_team(self, team_id: str) -> Team:
         team = await self.team_repo.get_by_team_id_string(team_id)
@@ -111,6 +113,14 @@ class MarksService:
                         mark=mark,
                     )
                 )
+            try:
+                sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
+                if sub:
+                    sub.score = avg
+                    if remarks:
+                        sub.comments = remarks
+            except Exception:
+                pass
             await self.session.commit()
             return {"success": True, "message": "Marks updated", "teamAverage": avg}
         else:
@@ -133,6 +143,14 @@ class MarksService:
                         mark=mark,
                     )
                 )
+            try:
+                sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
+                if sub:
+                    sub.score = avg
+                    if remarks:
+                        sub.comments = remarks
+            except Exception:
+                pass
             await self.session.commit()
             return {"success": True, "message": "Marks saved", "teamAverage": avg}
 
@@ -147,12 +165,24 @@ class MarksService:
                 if wm.member_marks:
                     await self.marks_repo.delete_member_marks(list(wm.member_marks))
                 await self.marks_repo.delete_weekly_mark(wm)
+            try:
+                sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
+                if sub:
+                    sub.score = None
+            except Exception:
+                pass
         else:
             wms = await self.marks_repo.list_by_team(team.id)
             for wm in wms:
                 if wm.member_marks:
                     await self.marks_repo.delete_member_marks(list(wm.member_marks))
                 await self.marks_repo.delete_weekly_mark(wm)
+            try:
+                subs = await self.sub_repo.list_by_team(team.id)
+                for s in subs:
+                    s.score = None
+            except Exception:
+                pass
 
         await self.session.commit()
         return {"success": True, "message": "Marks deleted"}

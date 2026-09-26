@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, UserCheck, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, UserCheck, CheckCircle2, RefreshCw } from 'lucide-react';
 import { HodService } from '../../services/hodService';
 
 interface AssignAdvisorModalProps {
@@ -15,13 +15,38 @@ export const AssignAdvisorModal: React.FC<AssignAdvisorModalProps> = ({
   onClose,
   onAssign
 }) => {
-  const facultyList = HodService.getFacultyList();
-  const [selectedFaculty, setSelectedFaculty] = useState(facultyList[0]?.name || 'Dr. R. Karthikeyan');
+  const [facultyList, setFacultyList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFaculty, setSelectedFaculty] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    setLoading(true);
+    HodService.fetchFacultyList().then(list => {
+      if (!isMounted) return;
+      if (Array.isArray(list) && list.length > 0) {
+        setFacultyList(list);
+        setSelectedFaculty(list[0]?.name || '');
+      } else {
+        setFacultyList([]);
+        setSelectedFaculty('');
+      }
+      setLoading(false);
+    }).catch(() => {
+      if (isMounted) setLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedFaculty) return;
     onAssign(selectedFaculty, targetClass);
     onClose();
   };
@@ -56,30 +81,42 @@ export const AssignAdvisorModal: React.FC<AssignAdvisorModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-[#111111] mb-1">Select Senior Faculty</label>
-            <select
-              value={selectedFaculty}
-              onChange={(e) => setSelectedFaculty(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
-            >
-              {facultyList.map(f => (
-                <option key={f.id} value={f.name}>
-                  {f.name} ({f.designation})
-                </option>
-              ))}
-            </select>
+            {loading ? (
+              <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#75695A] flex items-center gap-2">
+                <RefreshCw size={13} className="animate-spin text-[#75695A]" />
+                <span>Loading available faculty from database...</span>
+              </div>
+            ) : facultyList.length === 0 ? (
+              <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs text-[#75695A]">
+                No faculty records found in database.
+              </div>
+            ) : (
+              <select
+                value={selectedFaculty}
+                onChange={(e) => setSelectedFaculty(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
+              >
+                {facultyList.map(f => (
+                  <option key={f.id || f.email || f.name} value={f.name}>
+                    {f.name} ({f.designation || 'Faculty'})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-[#75695A] hover:text-[#111111] hover:bg-[#EDE7DB] rounded-xl transition"
+              className="px-4 py-2 text-xs font-medium text-[#75695A] hover:text-[#111111] hover:bg-[#EDE7DB] rounded-xl transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95"
+              disabled={loading || !selectedFaculty}
+              className="px-5 py-2.5 bg-[#111111] hover:bg-[#292725] disabled:opacity-50 disabled:cursor-not-allowed text-[#F8F5EE] font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
             >
               <CheckCircle2 size={15} />
               <span>Issue Allocation Order</span>

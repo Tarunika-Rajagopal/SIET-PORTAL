@@ -3,6 +3,8 @@ import { HodService, HodTeamDetails } from '../../services/hodService';
 import { MarksService } from '../../services/marksService';
 import { HodHistoryService } from '../../services/hodHistoryService';
 import { StudentService } from '../../services/studentService';
+import { ApiClient } from '../../services/apiClient';
+import { AuthService } from '../../services/authService';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
   Search, UserCheck, CheckCircle2, RefreshCw, ChevronDown, ChevronUp, 
@@ -71,8 +73,44 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     else if (initialClass) setClassFilter(initialClass);
   }, [selectedBatch, selectedClass, initialBatch, initialClass]);
 
-  const teams = HodService.getTeams(batchFilter, classFilter, searchTerm);
-  const advisors = HodService.getAdvisors(batchFilter, classFilter);
+  const [teams, setTeams] = useState<HodTeamDetails[]>([]);
+  const [advisors, setAdvisors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [batchOptions, setBatchOptions] = useState<string[]>([]);
+  const [classOptions, setClassOptions] = useState<string[]>([]);
+
+  const loadBackendData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [liveTeams, liveAdvisors, filterOpts] = await Promise.all([
+        HodService.fetchTeams(batchFilter, classFilter, searchTerm),
+        HodService.fetchAdvisors(batchFilter, classFilter),
+        HodService.fetchFilterOptions()
+      ]);
+      setTeams(Array.isArray(liveTeams) ? liveTeams : []);
+      setAdvisors(Array.isArray(liveAdvisors) ? liveAdvisors : []);
+      if (filterOpts) {
+        if (Array.isArray(filterOpts.batches) && filterOpts.batches.length > 0) {
+          setBatchOptions(filterOpts.batches);
+        }
+        if (Array.isArray(filterOpts.classes) && filterOpts.classes.length > 0) {
+          setClassOptions(filterOpts.classes);
+        }
+      }
+    } catch (e: any) {
+      console.warn('Failed to fetch teams/advisors:', e);
+      setError('Unable to load student teams and advisors from database.');
+    } finally {
+      setLoading(false);
+    }
+  }, [batchFilter, classFilter, searchTerm]);
+
+  useEffect(() => {
+    loadBackendData();
+  }, [loadBackendData]);
+
   const currentAdvisor = advisors.find(a => a.assignedClass === classFilter);
 
   // Helper to get initials
@@ -109,12 +147,15 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     : 0;
 
   // Handle save marks from HOD
-  const handleSaveMarks = () => {
+  const handleSaveMarks = async () => {
     if (!activeModalTeam || !activeModalSub) return;
 
     const subNum = (activeModalSub as any).submissionNumber || (activeModalSub.week !== undefined ? activeModalSub.week + 1 : 1);
 
     // 0. Log action to HodHistoryService for audit tracking
+    const currentUser = AuthService.getCurrentUser();
+    const hodAuthor = currentUser?.name ? `${currentUser.name} (HOD / CSE)` : 'HOD / CSE';
+
     try {
       HodHistoryService.logAction({
         actionType: 'Marks Overridden',
@@ -122,13 +163,26 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
         classSection: activeModalTeam.classSection,
         batch: activeModalTeam.batch,
         details: `HOD overridden marks for ${activeModalTeam.teamNo} (Submission ${subNum}) with average score ${draftAverage}/100. ${draftRemarks ? `Remarks: "${draftRemarks}"` : ''}`,
-        performedBy: 'Dr. S. K. Aruna (HOD / CSE)'
+        performedBy: hodAuthor
       });
     } catch (e) {
       console.error(e);
     }
 
-    // 1. Save to MarksService under subNum (and 0 if submission 1)
+    // 1. Call backend API to persist marks in database
+    try {
+      await ApiClient.saveWeeklyMarks(
+        activeModalTeam.id,
+        subNum,
+        draftMemberMarks,
+        draftRemarks,
+        hodAuthor
+      );
+    } catch (e) {
+      console.warn('[HodStudentsView] Backend saveWeeklyMarks failed, continuing with local storage:', e);
+    }
+
+    // 2. Save to MarksService under subNum (and 0 if submission 1)
     MarksService.saveWeeklyMarks(
       activeModalTeam.id,
       subNum,
@@ -267,8 +321,8 @@ startxref
 Project: ${formattedTitle}
 Team: ${team.teamNo} | Class: ${team.classSection}
 Milestone: Submission ${sub.week}
-Guide: ${team.guide?.name || 'Dr. P. Manimegalai'}
-Advisor: ${team.advisor?.name || 'Dr. R. Karthikeyan'}
+Guide: ${team.guide?.name || 'Unassigned'}
+Advisor: ${team.advisor?.name || 'Unassigned'}
 Generated for Academic Verification.`;
     }
 
@@ -296,9 +350,9 @@ Generated for Academic Verification.`;
           className="px-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111]"
         >
           <option value="ALL">All Batches</option>
-          <option value="2023-2027 (III Year)">2023-2027 (III Year)</option>
-          <option value="2024-2028 (II Year)">2024-2028 (II Year)</option>
-          <option value="2022-2026 (IV Year)">2022-2026 (IV Year)</option>
+          {batchOptions.map(b => (
+            <option key={b} value={b}>{b}</option>
+          ))}
         </select>
 
         {/* Class Filter */}
@@ -308,9 +362,9 @@ Generated for Academic Verification.`;
           className="px-3.5 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111]"
         >
           <option value="ALL">All Classes</option>
-          <option value="CSE-A">Class CSE-A</option>
-          <option value="CSE-B">Class CSE-B</option>
-          <option value="CSE-C">Class CSE-C</option>
+          {classOptions.map(c => (
+            <option key={c} value={c}>Class {c}</option>
+          ))}
         </select>
 
         {/* Search Bar */}
@@ -328,12 +382,12 @@ Generated for Academic Verification.`;
         {/* Refresh button */}
         <button
           type="button"
-          onClick={() => window.location.reload()}
-          title="Refresh page"
+          onClick={() => loadBackendData()}
+          title="Refresh real data"
           className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
-          aria-label="Refresh page"
+          aria-label="Refresh real data"
         >
-          <RefreshCw size={14} />
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
 
       </div>
@@ -349,10 +403,10 @@ Generated for Academic Verification.`;
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-[#75695A] uppercase tracking-wider">Designated Class Advisor:</span>
                 <span className="text-xs font-extrabold text-[#111111]">
-                  {currentAdvisor ? currentAdvisor.name : 'Dr. R. Karthikeyan'}
+                  {currentAdvisor ? currentAdvisor.name : 'Unassigned'}
                 </span>
                 <span className="text-[11px] text-[#75695A] font-mono">
-                  ({currentAdvisor ? currentAdvisor.email : 'dr.karthik@siet.ac.in'})
+                  ({currentAdvisor ? currentAdvisor.email : 'No advisor email assigned'})
                 </span>
               </div>
               <p className="text-[11px] text-[#75695A] mt-0.5 font-medium">
@@ -376,7 +430,31 @@ Generated for Academic Verification.`;
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D8CCBA] font-medium">
-              {teams.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="p-12 text-center text-[#75695A]">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <RefreshCw size={24} className="animate-spin text-[#75695A]" />
+                      <p className="font-bold text-xs text-[#111111]">Loading real team deliverables &amp; evaluation status...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-rose-600 bg-rose-50/50">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <p className="font-bold text-xs">{error}</p>
+                      <button
+                        type="button"
+                        onClick={loadBackendData}
+                        className="px-3 py-1 bg-white border border-rose-200 rounded-lg text-xs font-bold hover:bg-rose-50 cursor-pointer shadow-xs"
+                      >
+                        Retry Loading
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : teams.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="p-8 text-center text-[#75695A]">
                     No project teams match the selected filters.
@@ -412,7 +490,7 @@ Generated for Academic Verification.`;
                             </span>
                           </div>
                           <span className="text-[11px] text-[#75695A] block mt-1 font-medium">
-                            Guide: {team.guide?.name || 'Dr. P. Manimegalai'}
+                            Guide: {team.guide?.name || 'Unassigned'}
                           </span>
                         </td>
 

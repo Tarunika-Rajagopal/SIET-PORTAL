@@ -196,6 +196,18 @@ async def seed_initial_data():
             )
             session.add(s)
 
+            tm = TeamMember(
+                id=uuid.uuid4(),
+                team_id=team_id,
+                student_id=s_id,
+                roll_no=roll,
+                name=name,
+                email=email,
+                is_lead=is_lead,
+                member_role=role,
+            )
+            session.add(tm)
+
         # Additional assigned teams for Guide Dr. P. Manimegalai
         extra_teams = [
             ("TEAM-CSE-Y3-B07", "Team 07", "CSE-B", "Dr. R. Karthikeyan", "dr.karthik@siet.ac.in", "Sneha M", "714023104142", [

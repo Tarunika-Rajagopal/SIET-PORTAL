@@ -3,9 +3,11 @@ import Header from '../components/common/Header';
 import ProfileModal from '../components/common/ProfileModal';
 import HodAdvisorsView from '../components/hod/HodAdvisorsView';
 import HodStudentsView from '../components/hod/HodStudentsView';
-import { UserCheck, GraduationCap, CheckCircle2 } from 'lucide-react';
+import WeeklySubmissionManagementView from '../components/hod/WeeklySubmissionManagementView';
+import HodHistoryView from '../components/hod/HodHistoryView';
+import { UserCheck, GraduationCap, CheckCircle2, Calendar, History } from 'lucide-react';
 
-type HodTab = 'advisors' | 'students';
+type HodTab = 'advisors' | 'students' | 'submissions' | 'history';
 
 export const HodPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<HodTab>('advisors');
@@ -13,8 +15,8 @@ export const HodPortalPage: React.FC = () => {
   const [bottomToast, setBottomToast] = useState<string | null>(null);
 
   // State passed through navigation flow
-  const [selectedBatch, setSelectedBatch] = useState('2023-2027 (III Year)');
-  const [selectedClass, setSelectedClass] = useState('CSE-B');
+  const [selectedBatch, setSelectedBatch] = useState('ALL');
+  const [selectedClass, setSelectedClass] = useState('ALL');
   const [selectedStudentRollNo, setSelectedStudentRollNo] = useState<string | undefined>(undefined);
 
   const showToast = (message: string) => {
@@ -87,6 +89,34 @@ export const HodPortalPage: React.FC = () => {
               <span>Students</span>
             </button>
 
+            {/* 3. Weekly Submissions Tab */}
+            <button
+              id="tabHodSubmissions"
+              onClick={() => handleTabClick('submissions')}
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'submissions'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
+              }`}
+            >
+              <Calendar size={16} />
+              <span>Weekly Submissions</span>
+            </button>
+
+            {/* 4. Action History Tab */}
+            <button
+              id="tabHodHistory"
+              onClick={() => handleTabClick('history')}
+              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'history'
+                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
+                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
+              }`}
+            >
+              <History size={16} />
+              <span>Action History</span>
+            </button>
+
           </nav>
         </div>
       </div>
@@ -104,6 +134,12 @@ export const HodPortalPage: React.FC = () => {
             selectedClass={selectedClass}
             onSelectStudent={handleSelectStudent}
           />
+        )}
+        {activeTab === 'submissions' && (
+          <WeeklySubmissionManagementView />
+        )}
+        {activeTab === 'history' && (
+          <HodHistoryView />
         )}
       </main>
 

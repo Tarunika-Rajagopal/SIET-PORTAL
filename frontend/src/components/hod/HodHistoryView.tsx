@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HodHistoryService, HodHistoryRecord } from '../../services/hodHistoryService';
+import { HodService } from '../../services/hodService';
 import { 
   History, Search, Calendar, Filter, Download, 
   CheckCircle2, AlertCircle, FileText, UserCheck, 
-  Award, Shield, ArrowRight, Printer, Sparkles
+  Award, Shield, ArrowRight, Printer, Sparkles, RefreshCw
 } from 'lucide-react';
 
 export const HodHistoryView: React.FC = () => {
-  const [history, setHistory] = useState<HodHistoryRecord[]>(() => HodHistoryService.getHistory());
+  const [history, setHistory] = useState<HodHistoryRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [batchOptions, setBatchOptions] = useState<string[]>([]);
+  const [classOptions, setClassOptions] = useState<string[]>([]);
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,11 +20,36 @@ export const HodHistoryView: React.FC = () => {
   const [dateFilter, setDateFilter] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState('ALL');
 
+  const loadData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const [records, filterOpts] = await Promise.all([
+        HodHistoryService.fetchHistory(),
+        HodService.fetchFilterOptions()
+      ]);
+      if (Array.isArray(records)) {
+        setHistory(records);
+      }
+      if (filterOpts) {
+        if (Array.isArray(filterOpts.batches) && filterOpts.batches.length > 0) {
+          setBatchOptions(filterOpts.batches);
+        }
+        if (Array.isArray(filterOpts.classes) && filterOpts.classes.length > 0) {
+          setClassOptions(filterOpts.classes);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch HOD history:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
+    loadData();
     const handleSync = () => {
-      setHistory(HodHistoryService.getHistory());
+      loadData();
     };
-    handleSync();
     const unsub = HodHistoryService.subscribe(handleSync);
     window.addEventListener('siet_hod_history_updated', handleSync);
     window.addEventListener('storage', handleSync);
@@ -29,7 +58,7 @@ export const HodHistoryView: React.FC = () => {
       window.removeEventListener('siet_hod_history_updated', handleSync);
       window.removeEventListener('storage', handleSync);
     };
-  }, []);
+  }, [loadData]);
 
   // Filtered action records
   const filteredHistory = useMemo(() => {
@@ -194,9 +223,9 @@ export const HodHistoryView: React.FC = () => {
                 className="bg-transparent text-xs font-bold text-[#111111] focus:outline-none cursor-pointer py-1"
               >
                 <option value="ALL">All Classes</option>
-                <option value="CSE-A">CSE-A</option>
-                <option value="CSE-B">CSE-B</option>
-                <option value="CSE-C">CSE-C</option>
+                {classOptions.map(c => (
+                  <option key={c} value={c}>Class {c}</option>
+                ))}
               </select>
             </div>
 
@@ -209,9 +238,9 @@ export const HodHistoryView: React.FC = () => {
                 className="bg-transparent text-xs font-bold text-[#111111] focus:outline-none cursor-pointer py-1"
               >
                 <option value="ALL">All Batches</option>
-                <option value="2023-2027 (III Year)">2023-2027 (III Year)</option>
-                <option value="2024-2028 (II Year)">2024-2028 (II Year)</option>
-                <option value="2022-2026 (IV Year)">2022-2026 (IV Year)</option>
+                {batchOptions.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
               </select>
             </div>
 
@@ -277,14 +306,23 @@ export const HodHistoryView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D8CCBA] font-medium">
-              {filteredHistory.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center text-[#75695A]">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <RefreshCw size={24} className="animate-spin text-[#75695A]" />
+                      <p className="font-bold text-xs text-[#111111]">Loading audit history from database...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredHistory.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-12 text-center text-[#75695A]">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <History size={28} className="text-[#B8AA97]" />
-                      <p className="font-bold text-[#111111] text-sm">No actions match your current filters</p>
+                      <p className="font-bold text-[#111111] text-sm">No actions recorded in department audit log</p>
                       <p className="text-xs text-[#75695A]">
-                        Try adjusting your Date, Class, or Batch filter selections above.
+                        Interventions such as HOD marks modifications or audits will appear here in real-time.
                       </p>
                     </div>
                   </td>

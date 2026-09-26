@@ -7,6 +7,7 @@ import StudentPortalPage from './pages/StudentPortalPage';
 import AdvisorPortalPage from './pages/AdvisorPortalPage';
 import HodPortalPage from './pages/HodPortalPage';
 import AdminPortalPage from './pages/AdminPortalPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Guide Portal components & layout
 import GuideLayout from './layouts/GuideLayout';
@@ -87,11 +88,22 @@ export const App: React.FC = () => {
               </ProtectedRoute>
             }
           />
+          <Route path="/hod/settings" element={<Navigate to="/settings" replace />} />
           <Route
             path="/admin"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminPortalPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Settings Route - Accessible to all authenticated users */}
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />
@@ -113,6 +125,7 @@ export const App: React.FC = () => {
             <Route path="teams" element={<MyTeams />} />
             <Route path="weekly-submissions" element={<WeeklySubmissions />} />
             <Route path="submission-history" element={<SubmissionHistory />} />
+            <Route path="settings" element={<Navigate to="/settings" replace />} />
 
             {/* Fallback redirects specified in requirements */}
             <Route path="title-approval" element={<Navigate to="approve-submissions" replace />} />
