@@ -324,11 +324,9 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                 <th className="p-4">Institutional Email</th>
                 <th className="p-4">Designation</th>
                 <th className="p-4 text-center whitespace-nowrap">Current Role</th>
-                <th className="p-4">Assigned Workload</th>
                 {isManageMode && (
                   <>
-                    <th className="p-4 text-center">Assign Guide</th>
-                    <th className="p-4 text-center">Assign Advisor</th>
+                    
                     <th className="p-4 text-center">Delete</th>
                   </>
                 )}
@@ -340,16 +338,6 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                   <td className="p-4 font-bold text-slate-900">{f.name}</td>
                   <td className="p-4 text-slate-500 font-mono">{f.email}</td>
                   <td className="p-4 text-slate-700">{f.designation}</td>
-                  <td className="p-4 text-center whitespace-nowrap">
-                    <span className={`inline-flex items-center justify-center min-w-[125px] px-3 py-1 rounded-full font-bold text-[10px] text-center border ${
-                      f.role === 'Advisor' ? 'bg-amber-50 text-amber-900 border-amber-200' :
-                      f.role === 'Guide' ? 'bg-mint-100 text-mint-900 border-mint-200' :
-                      f.role === 'Advisor & Guide' ? 'bg-purple-50 text-purple-900 border-purple-200' :
-                      'bg-slate-100 text-slate-600 border-slate-200'
-                    }`}>
-                      {f.role}
-                    </span>
-                  </td>
                   <td className="p-4 text-slate-700 font-bold">
                     {f.advisorClass ? `Class ${f.advisorClass} (${f.advisorBatch})` : ''}
                     {f.advisorClass && f.teamsCount > 0 ? ' • ' : ''}
@@ -362,32 +350,6 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                   {/* Manage Action Columns */}
                   {isManageMode && (
                     <>
-                      <td className="p-4 text-center">
-                        <button
-                          onClick={() => handleToggleGuide(f)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                            f.role === 'Guide' || f.role === 'Advisor & Guide'
-                              ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                              : 'bg-mint-50 text-mint-800 border-mint-200 hover:bg-mint-100'
-                          }`}
-                        >
-                          {f.role === 'Guide' || f.role === 'Advisor & Guide' ? 'Remove Guide' : 'Assign Guide'}
-                        </button>
-                      </td>
-
-                      <td className="p-4 text-center">
-                        <button
-                          onClick={() => handleToggleAdvisor(f)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                            f.role === 'Advisor' || f.role === 'Advisor & Guide'
-                              ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                              : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
-                          }`}
-                        >
-                          {f.role === 'Advisor' || f.role === 'Advisor & Guide' ? 'Remove Advisor' : 'Assign Advisor'}
-                        </button>
-                      </td>
-
                       <td className="p-4 text-center">
                         <button
                           onClick={() => openDeleteModal(f)}

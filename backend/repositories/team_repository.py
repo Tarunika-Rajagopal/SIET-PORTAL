@@ -161,6 +161,18 @@ class TeamRepository:
 
     async def list_by_guide_name(self, guide_name: str) -> List[Team]:
         res = await self.session.execute(
-            select(Team).where(Team.guide_name.ilike(f"%{guide_name.strip()}%"))
+            select(Team).where(Team.guide_name==guide_name.strip())
+        )
+        return list(res.scalars().all())
+
+    async def get_by_guide_id(self, guide_id: str) -> List[Team]:
+        res = await self.session.execute(
+            select(Team).where(Team.guide_id == guide_id)
+        )
+        return list(res.scalars().all())
+
+    async def get_by_advisor_id(self, advisor_id: str) -> List[Team]:
+        res = await self.session.execute(
+            select(Team).where(Team.advisor_id == advisor_id)
         )
         return list(res.scalars().all())

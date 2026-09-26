@@ -94,8 +94,6 @@ class AuditLogRequest(BaseModel):
 
 class ReassignRequest(BaseModel):
     email_one: str
-    email_two: str
-    mess: str
 # ── Advisor ───────────────────────────────────────────────────
 class CreateTeamRequest(BaseModel):
     className: str = "CSE-B"
@@ -151,3 +149,6 @@ class AssignAdvisorModel(BaseModel):
     faculty_id: str
     batch: str 
     className: str
+
+class deleteFaculty(BaseModel):
+    faculty_email: str

@@ -77,7 +77,7 @@ export const FacultyAssignAdvisorModal: React.FC<FacultyAssignAdvisorModalProps>
       return;
     }
 
-    const ok = AdminService.assignAdvisor(faculty.email, selectedBatch, selectedSection, reason.trim());
+    const ok = AdminService.assignAdvisor(faculty.email, selectedBatch, selectedSection);
     if (ok) {
       onSuccess(`Assigned ${faculty.name} as Class Advisor for ${selectedSection} (${selectedBatch}).`);
       onClose();

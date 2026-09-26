@@ -177,11 +177,9 @@ export const AdminService = {
 
   async removeAdvisorWithSuccessor(
     currentAdvisorEmail: string,
-    successorEmail: string,
-    reason: string
   ): Promise<{ success: boolean; message: string }> {
     
-    await ApiClient.reassign(currentAdvisorEmail,successorEmail);
+    await ApiClient.reassign(currentAdvisorEmail);
 
     return {
       success: true,
@@ -228,216 +226,24 @@ export const AdminService = {
     return true;
   },
 
-  removeGuideWithSuccessor(
-    currentGuideEmail: string,
-    successorEmail: string,
-    reason: string
-  ): { success: boolean; message: string } {
-    const list = this.getFaculties();
-    const current = list.find(f => f.email === currentGuideEmail);
-    if (!current) return { success: false, message: "Guide record not found." };
-
-    const successor = list.find(f => f.email === successorEmail);
-    if (!successor) return { success: false, message: "Successor faculty record not found." };
-
-    const currentName = current.name;
-    const successorName = successor.name;
-    const teamsToShift = current.teamsCount;
-
-    // 1. Relieve current guide
-    if (current.role === 'Advisor & Guide') {
-      current.role = 'Advisor';
-    } else {
-      current.role = 'None';
-    }
-    current.teamsCount = 0;
-
-    // 2. Assign successor as guide and transfer teams
-    successor.teamsCount += teamsToShift;
-    if (successor.role === 'Advisor') {
-      successor.role = 'Advisor & Guide';
-    } else {
-      successor.role = 'Guide';
-    }
-    successor.status = 'Active';
-
-    this.saveFaculties(list);
-
-    // 3. Update student records that had this guide
-    try {
-      const students = this.getStudents();
-      let updatedStudents = false;
-      students.forEach(s => {
-        if (s.guide === currentName) {
-          s.guide = successorName;
-          updatedStudents = true;
-        }
-      });
-      if (updatedStudents) {
-        this.saveStudents(students);
-      }
-    } catch (e) {
-      console.error("Error shifting student guides:", e);
-    }
-
-    // 4. Update advisor teams in localStorage if any
-    try {
-      ['CSE-A', 'CSE-B', 'CSE-C'].forEach(c => {
-        const key = `siet_advisor_teams_${c}`;
-        const stored = localStorage.getItem(key);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            let updated = false;
-            parsed.forEach((t: any) => {
-              if (t.guide === currentName || t.guideEmail === currentGuideEmail) {
-                t.guide = successorName;
-                t.guideEmail = successor.email;
-                updated = true;
-              }
-            });
-            if (updated) {
-              localStorage.setItem(key, JSON.stringify(parsed));
-            }
-          }
-        }
-      });
-    } catch (e) {
-      console.error("Error updating advisor teams:", e);
-    }
-
-    // 5. Dual Audit Log Entries
-    this.addAuditLog(
-      "Guide Workload Reallocation",
-      successorName,
-      `Adopted ${teamsToShift} capstone project teams from departing guide ${currentName}. Designated as Project Guide.`,
-      reason
-    );
-    this.addAuditLog(
-      "Guide Role Revocation",
-      currentName,
-      `Relieved from Project Guide role. Reassigned ${teamsToShift} teams to non-guide faculty ${successorName}. Role set to ${current.role}`,
-      reason
-    );
-
-    return {
-      success: true,
-      message: `Shifted ${teamsToShift} teams to ${successorName} and removed guide role from ${currentName}.`
-    };
+  async removeGuidewithoutSuccessor(
+    currentGuideEmail: string
+  ): Promise<{ success: boolean; message: string }> {
+      await ApiClient.removeGuide(currentGuideEmail);
+      return {success: true, message: "Details updated Successfully"};
   },
 
-  shiftWorkloadAndDeleteFaculty(
-    deleteEmail: string,
-    advisorSuccessorEmail?: string,
-    guideSuccessorEmail?: string,
-    reason: string = "Faculty tenure concluded"
-  ): boolean {
-    const list = this.getFaculties();
-    const faculty = list.find(f => f.email === deleteEmail);
-    if (!faculty) return false;
-
-    const deletedName = faculty.name;
-    const isAdvisor = faculty.role === 'Advisor' || faculty.role === 'Advisor & Guide';
-    const isGuide = faculty.role === 'Guide' || faculty.role === 'Advisor & Guide';
-
-    // 1. Shift Advisor workload if applicable
-    if (isAdvisor && advisorSuccessorEmail && faculty.advisorClass && faculty.advisorBatch) {
-      const advSuccessor = list.find(f => f.email === advisorSuccessorEmail);
-      if (advSuccessor) {
-        advSuccessor.advisorBatch = faculty.advisorBatch;
-        advSuccessor.advisorClass = faculty.advisorClass;
-        if (advSuccessor.role === 'Guide') {
-          advSuccessor.role = 'Advisor & Guide';
-        } else {
-          advSuccessor.role = 'Advisor';
-        }
-        advSuccessor.status = 'Active';
-        this.addAuditLog(
-          "Workload Reallocation",
-          advSuccessor.name,
-          `Inherited Class Advisor duties for ${faculty.advisorClass} from departing faculty ${deletedName}`,
-          reason
-        );
-      }
+  async deleteFaculty(
+    deleteid: string
+  ): Promise<boolean> {
+    try{
+      await ApiClient.deleteFaculty(deleteid);
+      return true;
     }
-
-    // 2. Shift Guide workload if applicable
-    if (isGuide && guideSuccessorEmail) {
-      const gdSuccessor = list.find(f => f.email === guideSuccessorEmail);
-      if (gdSuccessor) {
-        gdSuccessor.teamsCount += faculty.teamsCount;
-        if (gdSuccessor.role === 'Advisor') {
-          gdSuccessor.role = 'Advisor & Guide';
-        } else {
-          gdSuccessor.role = 'Guide';
-        }
-        gdSuccessor.status = 'Active';
-
-        // Update student records that had this guide
-        try {
-          const students = this.getStudents();
-          let updatedStudents = false;
-          students.forEach(s => {
-            if (s.guide === deletedName) {
-              s.guide = gdSuccessor.name;
-              updatedStudents = true;
-            }
-          });
-          if (updatedStudents) {
-            this.saveStudents(students);
-          }
-        } catch (e) {
-          console.error("Error updating student guides on delete:", e);
-        }
-
-        // Update advisor teams in localStorage
-        try {
-          ['CSE-A', 'CSE-B', 'CSE-C'].forEach(c => {
-            const key = `siet_advisor_teams_${c}`;
-            const stored = localStorage.getItem(key);
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              if (Array.isArray(parsed)) {
-                let updated = false;
-                parsed.forEach((t: any) => {
-                  if (t.guide === deletedName || t.guideEmail === deleteEmail) {
-                    t.guide = gdSuccessor.name;
-                    t.guideEmail = gdSuccessor.email;
-                    updated = true;
-                  }
-                });
-                if (updated) {
-                  localStorage.setItem(key, JSON.stringify(parsed));
-                }
-              }
-            }
-          });
-        } catch (e) {
-          console.error("Error updating advisor teams on delete:", e);
-        }
-
-        this.addAuditLog(
-          "Mentorship Reallocation",
-          gdSuccessor.name,
-          `Inherited ${faculty.teamsCount} research teams from departing guide ${deletedName}`,
-          reason
-        );
-      }
+    catch(e){
+      console.error(e);
+      return false;
     }
-
-    // 3. Remove faculty from list
-    const updatedList = list.filter(f => f.email !== deleteEmail);
-    this.saveFaculties(updatedList);
-
-    // 4. Log full deletion
-    this.addAuditLog(
-      "Faculty Termination & Account Purge",
-      deletedName,
-      `Completely purged faculty credentials (${deleteEmail}). Access revoked.`,
-      reason
-    );
-
-    return true;
   },
 
   // ---------------- STUDENT OPERATIONS ----------------

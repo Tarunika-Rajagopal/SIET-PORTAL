@@ -53,7 +53,7 @@ export const RemoveGuideShiftModal: React.FC<RemoveGuideShiftModalProps> = ({
     return 'Guide';
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit =async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
       setError('A mandatory reason is required for institutional audit trail recording.');
@@ -70,7 +70,7 @@ export const RemoveGuideShiftModal: React.FC<RemoveGuideShiftModalProps> = ({
       return;
     }
 
-    const res = AdminService.removeGuideWithSuccessor(faculty.email, successorEmail, reason);
+    const res = await AdminService.removeGuidewithoutSuccessor(faculty.email);
     if (res.success) {
       onSuccess(res.message);
       onClose();
@@ -130,64 +130,12 @@ export const RemoveGuideShiftModal: React.FC<RemoveGuideShiftModalProps> = ({
 
           {/* Workload Transfer Warning & Selector */}
           <div className="p-4 rounded-2xl bg-mint-50/70 border border-mint-200 space-y-3">
-            <div className="flex items-center gap-2 text-mint-900 font-extrabold text-xs">
-              <Briefcase size={16} className="text-mint-700 shrink-0" />
-              <span>Mandatory Mentorship Handover (Non-Guide Faculty)</span>
-            </div>
+            
             <p className="text-[11px] text-mint-800 leading-relaxed">
-              <strong>{faculty.name}</strong> currently guides <strong>{faculty.teamsCount} Capstone Teams</strong>.
-              To ensure research projects continue without interruption, you must select an eligible <strong>non-guide faculty</strong> to adopt these teams:
+            Are you sure to remove the faculty from guide staff , should the stalf be advisor and guide , the staff would be reassigned as an advisor
             </p>
 
-            {eligibleSuccessors.length === 0 ? (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[11px] font-bold">
-                ⚠️ No eligible faculty available with capacity to adopt these teams. Onboard a faculty first.
-              </div>
-            ) : (
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">
-                  Assign Teams To Non-Guide Faculty:
-                </label>
-                <select
-                  value={successorEmail}
-                  onChange={(e) => setSuccessorEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-mint-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-mint-500 text-xs shadow-2xs"
-                >
-                  {eligibleSuccessors.map(f => (
-                    <option key={f.email} value={f.email}>
-                      {f.name} ({f.designation} • Current: {f.role} • {f.teamsCount}/{f.maxQuota} Teams)
-                    </option>
-                  ))}
-                </select>
-
-                {selectedSuccessor && (
-                  <div className="mt-2.5 p-2.5 bg-white/80 rounded-xl border border-mint-200 flex items-center gap-2 text-[11px] text-slate-700">
-                    <ArrowRight size={13} className="text-mint-600 shrink-0" />
-                    <span>
-                      <strong>{selectedSuccessor.name}</strong> will inherit{' '}
-                      <strong>{faculty.teamsCount} Teams</strong> (New Role:{' '}
-                      <span className="font-bold text-mint-900">{getProjectedRole(selectedSuccessor)}</span>)
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
-
-          {/* Mandatory Reason */}
-          <div>
-            <label className="block text-slate-700 font-bold mb-1">
-              Institutional Audit Justification <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              required
-              rows={2}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8E4] rounded-xl text-slate-800 focus:outline-none focus:border-mint-500 text-xs"
-            />
-          </div>
-
           {/* Actions */}
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E2E8E4]">
             <button
@@ -207,7 +155,7 @@ export const RemoveGuideShiftModal: React.FC<RemoveGuideShiftModalProps> = ({
               }`}
             >
               <UserMinus size={14} />
-              <span>Confirm Shift &amp; Remove Guide</span>
+              <span> Remove Guide</span>
             </button>
           </div>
 

@@ -11,7 +11,7 @@ from repositories.faculty_repository import FacultyRepository
 from repositories.user_repository import UserRepository
 from repositories.student_repository import StudentRepository
 from repositories.audit_repository import AuditRepository
-
+from repositories.team_repository import TeamRepository
 
 class AdminService:
     def __init__(self, session: AsyncSession):
@@ -20,7 +20,7 @@ class AdminService:
         self.user_repo = UserRepository(session)
         self.student_repo = StudentRepository(session)
         self.audit_repo = AuditRepository(session)
-
+        self.team_repo = TeamRepository(session)
     # ── Faculties ───────────────────────────────────────────────────
     async def get_faculties(self) -> List[Dict[str, Any]]:
         rows = await self.faculty_repo.list_all()
@@ -126,20 +126,32 @@ class AdminService:
         await self.session.commit()
         return {"success": True, "message": f"Faculty {f.name} updated"}
 
-    async def delete_faculty(self, faculty_id: str) -> Dict[str, Any]:
-        f = await self.faculty_repo.get_by_id(faculty_id)
+    async def delete_faculty(self, faculty_email: str) -> Dict[str, Any]:
+        f = await self.faculty_repo.get_by_email(faculty_email)
         if not f:
             return {"success": False, "message": "Faculty not found"}
 
         # Delete corresponding User record if present
-        if f.user_id:
-            u = await self.user_repo.get_by_id(f.user_id)
-            if u:
-                await self.user_repo.delete(u)
+
+        teams = await self.team_repo.list_by_guide_name(f.name)
+        
+        for team in teams:
+            team.guide_email = None
+            team.guide_designation = None
+            team.guide_department = None
+
+        if f.advisor_batch or f.advisor_class:
+            advisor_teams = await self.team_repo.list_by_advisor_name(f.name)
+            for team in advisor_teams:
+                team.advisor_email = None
+                team.advisor_designation = None
+                team.advisor_department = None
+            
+        u = await self.user_repo.get_by_email(f.email)
+        if u:
+            await self.user_repo.delete(u)
         else:
-            u = await self.user_repo.get_by_email(f.email)
-            if u:
-                await self.user_repo.delete(u)
+            return {"success": False, "message": "Error while deleting the User. Please try again later."}
 
         await self.faculty_repo.delete(f)
         await self.session.commit()
@@ -364,26 +376,38 @@ class AdminService:
     
     async def reassign(
         self,
-        currentEmail:str,
-        successorEmail:str,
+        currentEmail:str
     ) -> Dict[str,Any]:
         result = await self.faculty_repo.get_by_email(currentEmail);
 
-        second = await self.faculty_repo.get_by_email(successorEmail);
+        if result.role == "Advisor":
+            result.role = "None"
+        if result.role == "Advisor & Guide":
+            result.role = "Guide"
 
-        if result.role == "advisor":
-            result.role = "guide"
-        else:
-            result.role = "advisor"
         
-        second.advisor_class = result.advisor_class
-        second.advisor_batch = result.advisor_batch
-
         result.advisor_class = None
         result.advisor_batch = None 
-        second.role = "advisor"
-        result.role = "guide"
         await self.session.commit()
-        return {"message":"Reassigned"}
+        return {"message":"Removed as an advisor "}
+
+    async def delete_guide(
+        self,
+        email:str
+    ) -> Dict[str,Any]:
+        
+        result = await self.faculty_repo.get_by_email(email)
+        
+        if result.role == "Guide":
+            result.role = "None"
+        if result.role == "Advisor & Guide":
+            result.role = "Advisor"
+
+        result.teams_count = 0
+
+        await self.session.commit()
+
+        return {"message":"Removed as a guide "}
+        
     
 

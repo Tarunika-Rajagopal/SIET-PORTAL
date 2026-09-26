@@ -43,32 +43,22 @@ export const FacultyDeleteShiftModal: React.FC<FacultyDeleteShiftModalProps> = (
   const [reason, setReason] = useState('Faculty resignation / academic semester restructuring');
   const [error, setError] = useState('');
 
-  const handleConfirm = (e: React.FormEvent) => {
+  const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
       setError('A mandatory reason is required to finalize faculty deletion.');
       return;
     }
+      try{
+      await AdminService.deleteFaculty(
+      faculty.email
+      );
+      onSuccess(`Faculty ${faculty.name} successfully deleted.`);
+      onClose();
 
-    if (isAdvisor && !advisorSuccessor && eligibleAdvisors.length > 0) {
-      setError('Please select an eligible non-advisor faculty member to inherit the Class Advisor duties.');
-      return;
-    }
-
-    if (isGuide && !guideSuccessor && eligibleNonGuides.length > 0) {
-      setError('Please select an eligible non-guide faculty member to inherit the Project Guide duties.');
-      return;
-    }
-
-    AdminService.shiftWorkloadAndDeleteFaculty(
-      faculty.email,
-      isAdvisor ? advisorSuccessor : undefined,
-      isGuide ? guideSuccessor : undefined,
-      reason
-    );
-
-    onSuccess(`Faculty ${faculty.name} successfully deleted. Workloads shifted and audit trail updated.`);
-    onClose();
+  } catch(err){
+    console.error(err);
+  } 
   };
 
   return (
@@ -82,7 +72,7 @@ export const FacultyDeleteShiftModal: React.FC<FacultyDeleteShiftModalProps> = (
               <Trash2 size={20} />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">Delete Faculty & Shift Workload</h3>
+              <h3 className="text-base font-extrabold text-slate-900">Delete Faculty</h3>
               <p className="text-xs text-slate-500">Decommission profile and reallocate responsibilities</p>
             </div>
           </div>
@@ -124,66 +114,8 @@ export const FacultyDeleteShiftModal: React.FC<FacultyDeleteShiftModalProps> = (
             </div>
           ) : null}
 
-          {/* Shift Advisor Workload */}
-          {isAdvisor && (
-            <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-2.5">
-              <div className="flex items-center gap-2 text-amber-900 font-extrabold text-xs">
-                <UserCheck size={16} className="text-amber-700" />
-                <span>Class Advisor Shift Required</span>
-              </div>
-              <p className="text-[11px] text-amber-800">
-                Currently supervising <strong>{faculty.advisorClass || 'Assigned Class'}</strong> ({faculty.advisorBatch || 'Current Batch'}).
-                Select an eligible non-advisor faculty to inherit this section:
-              </p>
-              <select
-                value={advisorSuccessor}
-                onChange={(e) => setAdvisorSuccessor(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-mint-500 text-xs"
-              >
-                {eligibleAdvisors.length === 0 ? (
-                  <option value="">No other faculties available</option>
-                ) : (
-                  eligibleAdvisors.map(f => (
-                    <option key={f.email} value={f.email}>
-                      {f.name} ({f.designation} • Current: {f.role})
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-          )}
 
-          {/* Shift Guide Workload */}
-          {isGuide && (
-            <div className="p-4 rounded-2xl bg-mint-50/60 border border-mint-200 space-y-2.5">
-              <div className="flex items-center gap-2 text-mint-900 font-extrabold text-xs">
-                <Briefcase size={16} className="text-mint-700" />
-                <span>Project Mentorship Shift Required</span>
-              </div>
-              <p className="text-[11px] text-mint-800">
-                {faculty.teamsCount > 0 ? (
-                  <>Currently mentoring <strong>{faculty.teamsCount} Capstone Teams</strong>. Select an eligible non-guide faculty to inherit these teams:</>
-                ) : (
-                  <>Currently designated as Project Guide. Select an eligible non-guide faculty to inherit the guide role:</>
-                )}
-              </p>
-              <select
-                value={guideSuccessor}
-                onChange={(e) => setGuideSuccessor(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-mint-300 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-mint-500 text-xs"
-              >
-                {eligibleNonGuides.length === 0 ? (
-                  <option value="">No available non-guide faculty</option>
-                ) : (
-                  eligibleNonGuides.map(f => (
-                    <option key={f.email} value={f.email}>
-                      {f.name} ({f.designation} • Current: {f.role})
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-          )}
+
 
           {/* Mandatory Reason Prompt */}
           <div>
@@ -213,7 +145,7 @@ export const FacultyDeleteShiftModal: React.FC<FacultyDeleteShiftModalProps> = (
               className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl shadow-sm transition flex items-center gap-2"
             >
               <Trash2 size={14} />
-              <span>Confirm Workload Shift &amp; Delete</span>
+              <span> Delete</span>
             </button>
           </div>
 

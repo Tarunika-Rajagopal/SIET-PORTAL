@@ -13,7 +13,8 @@ from schemas import (
     ImportStudentsRequest,
     AuditLogRequest,
     ReassignRequest,
-    AssignAdvisorModel
+    AssignAdvisorModel,
+    deleteFaculty
 )
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
@@ -58,13 +59,13 @@ async def update_faculty(
     return await service.update_faculty(faculty_id, req.dict(exclude_unset=True))
 
 
-@router.delete("/faculties/{faculty_id}")
+@router.post("/faculties/remove-faculty")
 async def delete_faculty(
-    faculty_id: str,
+    req: deleteFaculty,
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.delete_faculty(faculty_id)
+    return await service.delete_faculty(req.faculty_email)
 
 
 @router.post("/faculties/{faculty_id}/assign-guide")
@@ -96,11 +97,11 @@ async def assign_advisor(
 
 @router.post("/faculties/{faculty_id}/remove-advisor")
 async def remove_advisor(
-    faculty_id: str,
+    faculty_name: str,
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.remove_advisor(faculty_id)
+    return await service.remove_advisor(faculty_name)
 
 
 # ── Students ────────────────────────────────────────────────────
@@ -176,5 +177,13 @@ async def reassign(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.reassign(request.email_one,request.email_two)
+    return await service.reassign(request.email_one)
 
+@router.post("/delete-guide")
+async def delete_guide(
+    request: ReassignRequest,
+    user: User = Depends(require_roles("admin")),
+    service: AdminService = Depends(get_admin_service),
+):
+    return await service.delete_guide(request.email_one)
+    

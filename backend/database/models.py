@@ -168,36 +168,75 @@ class Team(Base):
     __tablename__ = "teams"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    team_id = Column(String(100), unique=True, nullable=False, index=True)
-    team_no = Column(String(50), nullable=False)
-    class_name = Column(String(50), nullable=False)
-    batch = Column(String(100), nullable=False)
+
+    team_id = Column(Text, unique=True, nullable=False, index=True)
+    team_no = Column(Text, nullable=False)
+    class_name = Column(Text, nullable=False)
+    batch = Column(Text, nullable=False)
+
     project_title = Column(Text, default="")
-    guide_name = Column(String(255), nullable=True)
-    guide_email = Column(String(255), nullable=True)
-    guide_designation = Column(String(255), nullable=True)
-    guide_department = Column(String(255), nullable=True)
-    domain = Column(String(255), nullable=True)
-    advisor_name = Column(String(255), nullable=True)
-    advisor_email = Column(String(255), nullable=True)
-    status = Column(SAEnum(TeamStatusEnum, name="team_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=TeamStatusEnum.pending)
+
+    guide_name = Column(Text, nullable=True)
+    guide_email = Column(Text, nullable=True)
+    guide_designation = Column(Text, nullable=True)
+    guide_department = Column(Text, nullable=True)
+
+    domain = Column(Text, nullable=True)
+
+    advisor_name = Column(Text, nullable=True)
+    advisor_email = Column(Text, nullable=True)
+
+    status = Column(
+        SAEnum(
+            TeamStatusEnum,
+            name="team_status",
+            create_type=False,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        default=TeamStatusEnum.pending,
+    )
+
     progress = Column(Integer, default=0)
     capacity = Column(Integer, default=4)
     members_count = Column(Integer, default=0)
-    lead_student = Column(String(255), nullable=True)
-    lead_roll_no = Column(String(50), nullable=True)
+
+    lead_student = Column(Text, nullable=True)
+    lead_roll_no = Column(Text, nullable=True)
+
     is_title_approved = Column(Boolean, default=False)
-    guide_approval_status = Column(SAEnum(GuideApprovalStatusEnum, name="guide_approval_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=GuideApprovalStatusEnum.pending)
+
+    guide_approval_status = Column(
+        SAEnum(
+            GuideApprovalStatusEnum,
+            name="guide_approval_status",
+            create_type=False,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        default=GuideApprovalStatusEnum.pending,
+    )
+
     rejection_reason = Column(Text, nullable=True)
     submitted_title = Column(Text, nullable=True)
+
     problem_statement = Column(Text, default="")
     proposed_solution = Column(Text, default="")
     abstract = Column(Text, default="")
-    repo_url = Column(String(500), default="")
-    demo_url = Column(String(500), default="")
+
+    repo_url = Column(Text, default="")
+    demo_url = Column(Text, default="")
+
     last_modified = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
 
     @validates("status")
     def validate_team_status(self, key, value):

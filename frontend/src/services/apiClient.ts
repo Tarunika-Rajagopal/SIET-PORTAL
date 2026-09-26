@@ -241,18 +241,21 @@ export const ApiClient = {
     })
    },
 
-   async deleteFaculty(facultyId:string){
-    return request<any>(`/admin/faculties/${facultyId}`,{
-      method:'DELETE',
+   async deleteFaculty(facultyEmail:string){
+    return request<any>(`/admin/faculties/remove-faculty`,{
+      method:'POST',
+      body:JSON.stringify({
+        faculty_email:facultyEmail,
+      }),
     })
    },
-   async reassign(email_one:string,email_two:string){
+   async reassign(email_one:string){
+
+    // console.log('Communication to backend')
     return request<any>('/admin/reassign',{
       method:'POST',
       body:JSON.stringify({
         email_one:email_one,
-        email_two:email_two,
-        mess:'HI'
       }),
     })
    },
@@ -296,6 +299,14 @@ export const ApiClient = {
         faculty_id:email,
         batch:batch,
         className:className,
+      }),
+    })
+   },
+   async removeGuide(email:string){
+    return request<any>(`/admin/delete-guide`,{
+      method:'POST',
+      body:JSON.stringify({
+        email_one:email,
       }),
     })
    }
