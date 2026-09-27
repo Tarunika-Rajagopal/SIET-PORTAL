@@ -79,6 +79,7 @@ export const ApiClient = {
     });
     if (data.token) {
       localStorage.setItem('siet_auth_token', data.token);
+      sessionStorage.setItem('siet_auth_token', data.token);
     }
     return data;
   },
@@ -188,6 +189,18 @@ export const ApiClient = {
     });
   },
 
+  async getAllWeeklyMarks(): Promise<Record<string, Record<number, any>>> {
+    return request<Record<string, Record<number, any>>>('/marks/all');
+  },
+
+  async getTeamWeeklyMarks(teamId: string): Promise<Record<number, any>> {
+    return request<Record<number, any>>(`/marks/${teamId}/weekly`);
+  },
+
+  async getWeeklyMark(teamId: string, weekNumber: number): Promise<any> {
+    return request<any>(`/marks/${teamId}/weekly/${weekNumber}`);
+  },
+
   async saveWeeklyMarks(
     teamId: string,
     weekNumber: number,
@@ -222,6 +235,122 @@ export const ApiClient = {
         decision: 'REJECTED',
         remarks: reason
       }),
+    });
+  },
+
+  // Advisor Endpoints
+  async getAdvisorStudents(className: string = "CSE-B", batch?: string): Promise<AdminStudent[]> {
+    const params = new URLSearchParams();
+    if (className) params.append('className', className);
+    if (batch && batch !== 'ALL') params.append('batch', batch);
+    return request<AdminStudent[]>(`/advisor/students?${params.toString()}`);
+  },
+
+  async getAdvisorTeams(className: string = "CSE-B"): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (className) params.append('className', className);
+    return request<any[]>(`/advisor/teams?${params.toString()}`);
+  },
+
+  async getAdvisorAvailableGuides(): Promise<any[]> {
+    return request<any[]>('/advisor/available-guides');
+  },
+
+  async createAdvisorTeam(teamData: {
+    className: string;
+    batch: string;
+    capacity: number;
+    teamNo: string;
+    title?: string;
+    guide: string;
+    guideEmail?: string;
+    leadRollNo: string;
+    memberRollNos: string[];
+  }): Promise<any> {
+    return request<any>('/advisor/teams', {
+      method: 'POST',
+      body: JSON.stringify(teamData),
+    });
+  },
+
+  async createAdvisorTeamsBulk(bulkData: {
+    className: string;
+    batch: string;
+    capacity: number;
+    teams: Array<{
+      teamNo: string;
+      title?: string;
+      guide: string;
+      guideEmail?: string;
+      leadRollNo: string;
+      memberRollNos?: string[];
+      members?: any[];
+    }>;
+  }): Promise<any> {
+    return request<any>('/advisor/teams/bulk', {
+      method: 'POST',
+      body: JSON.stringify(bulkData),
+    });
+  },
+
+  async moveAdvisorStudent(data: {
+    className: string;
+    studentRollNo: string;
+    targetTeamId: string;
+  }): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>('/advisor/move-student', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async reassignAdvisorGuide(data: {
+    className: string;
+    teamId: string;
+    guideName: string;
+    guideEmail?: string;
+  }): Promise<{ success: boolean; message: string; team?: any }> {
+    return request<{ success: boolean; message: string; team?: any }>('/advisor/reassign-guide', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getAdvisorHistory(className: string = "CSE-B"): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (className) params.append('className', className);
+    return request<any[]>(`/advisor/history?${params.toString()}`);
+  },
+
+  async logAdvisorHistory(entry: {
+    className: string;
+    actionType: string;
+    target: string;
+    details: string;
+    actorName: string;
+    role?: string;
+  }): Promise<any> {
+    return request<any>('/advisor/history', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    });
+  },
+
+  async getHodHistory(): Promise<any[]> {
+    return request<any[]>('/hod/history');
+  },
+
+  async logHodHistory(entry: {
+    actionType: string;
+    target: string;
+    details: string;
+    classSection: string;
+    batch: string;
+    performedBy: string;
+  }): Promise<any> {
+    return request<any>('/hod/history', {
+      method: 'POST',
+      body: JSON.stringify(entry),
     });
   },
 

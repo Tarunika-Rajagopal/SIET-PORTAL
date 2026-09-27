@@ -22,6 +22,11 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
+    AdvisorHistoryService.fetchHistory(className).then(fetched => {
+      if (Array.isArray(fetched) && fetched.length > 0) {
+        setLogs(fetched);
+      }
+    });
     return AdvisorHistoryService.subscribe(() => {
       setLogs(AdvisorHistoryService.getHistory(className));
     });

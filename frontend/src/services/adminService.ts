@@ -140,12 +140,13 @@ export const AdminService = {
     this.addAuditLog("Faculty Onboarding", faculty.name, details, reason);
   },
 
-  async assignAdvisor(facultyEmail: string, batch: string, className: string): Promise<void> {
-
-    try{
-      const res = await ApiClient.assignAdvisor(facultyEmail, batch, className);
-    }catch(e){
+  async assignAdvisor(facultyEmail: string, batch: string, className: string, reason?: string): Promise<boolean> {
+    try {
+      await ApiClient.assignAdvisor(facultyEmail, batch, className);
+      return true;
+    } catch(e) {
       console.error(e);
+      return false;
     }
   },
 

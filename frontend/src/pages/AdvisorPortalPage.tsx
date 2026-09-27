@@ -33,17 +33,23 @@ export const AdvisorPortalPage: React.FC = () => {
   const [teams, setTeams] = useState<ClassTeam[]>(() => AdvisorService.getTeamsForClass(className));
   const [students, setStudents] = useState<AdminStudent[]>([]);
 
-  useEffect(()=>{
-        const fetch = async()=>{
-          setTeams(AdvisorService.getTeamsForClass(className));
-          setStudents(await AdvisorService.getClassStudents(className, 'ALL'));
-        }
-        fetch();
-  },[]);
+  useEffect(() => {
+    let isMounted = true;
+    const fetch = async () => {
+      const dbTeams = await AdvisorService.fetchTeamsForClass(className);
+      const dbStudents = await AdvisorService.getClassStudents(className, 'ALL');
+      if (isMounted) {
+        setTeams(dbTeams);
+        setStudents(dbStudents);
+      }
+    };
+    fetch();
+    return () => { isMounted = false; };
+  }, [className]);
 
   useEffect(() => {
-    const handleSync = async() => {
-      setTeams(await AdvisorService.getTeamsForClass(className));
+    const handleSync = async () => {
+      setTeams(await AdvisorService.fetchTeamsForClass(className));
       setStudents(await AdvisorService.getClassStudents(className, 'ALL'));
     };
 
@@ -66,11 +72,11 @@ export const AdvisorPortalPage: React.FC = () => {
       {/* 1. Header with Uploaded SIET Logo & Profile */}
       <Header
         title="Class Advisor Workspace"
-        subtitle={`Advisor: ${advisorName} &bull; Section ${className}`}
+        subtitle=""
         onOpenProfile={() => setProfileModalOpen(true)}
       />
 
-      {/* 2. Sticky Top Navigation Bar (Like Other Portals: Center-Aligned) */}
+      {/* 2. Sticky Top Navigation Bar (Center-Aligned) */}
       <div className="bg-white border-b border-[#E2E8E4] sticky top-16 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">

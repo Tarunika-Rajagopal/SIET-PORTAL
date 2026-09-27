@@ -108,6 +108,21 @@ class CreateTeamRequest(BaseModel):
     leadRollNo: str
     memberRollNos: List[str]
 
+class BulkCreateTeamItem(BaseModel):
+    teamNo: str
+    title: Optional[str] = ""
+    guide: str
+    guideEmail: Optional[str] = ""
+    leadRollNo: str
+    memberRollNos: Optional[List[str]] = []
+    members: Optional[List[Dict[str, Any]]] = []
+
+class BulkCreateTeamsRequest(BaseModel):
+    className: str = "CSE-B"
+    batch: str = "2023-2027 (III Year)"
+    capacity: int = 4
+    teams: List[BulkCreateTeamItem]
+
 class MoveStudentRequest(BaseModel):
     className: str = "CSE-B"
     studentRollNo: str
@@ -128,6 +143,14 @@ class UpdateTeamRequest(BaseModel):
     leadRollNo: Optional[str] = None
     memberRollNos: Optional[List[str]] = None
     title: Optional[str] = None
+
+class AdvisorHistoryLogRequest(BaseModel):
+    className: str = "CSE-B"
+    actionType: str
+    target: str
+    details: str
+    actorName: str
+    role: Optional[str] = "Class Advisor"
 
 
 # ── HOD ───────────────────────────────────────────────────────

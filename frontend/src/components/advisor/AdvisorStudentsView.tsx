@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Search, RefreshCw, Plus, MoveRight, UserPlus, Sparkles, 
   CheckCircle2, AlertCircle, X, Check, ChevronRight, ChevronDown, Settings,
-  School, FileText, FileCode, Github, ExternalLink, Download, XCircle, Award, Eye, Clock
+  School, FileText, FileCode, Github, ExternalLink, Download, XCircle, Award, Eye, Clock,
+  ArrowRightLeft, ArrowRight, BookOpen
 } from 'lucide-react';
 import { AdminService, AdminStudent } from '../../services/adminService';
 import { AdvisorService, ClassTeam, TeamMemberRecord } from '../../services/advisorService';
@@ -13,6 +14,7 @@ import { StudentService } from '../../services/studentService';
 import { WeeklySubmission } from '../../types';
 import AdvisorCreateTeamModal from './AdvisorCreateTeamModal';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
+import AdvisorGuideReassignModal from './AdvisorGuideReassignModal';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
 interface AdvisorStudentsViewProps {
@@ -32,14 +34,19 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [students, setStudents] = useState<AdminStudent[]>([]);
 
 
-  useEffect(()=>{
-  const getClassStud = async()=>{
-    const res = await AdvisorService.getClassStudents(className,batch);
-    setStudents(res);
-  };
-  getClassStud();
-}
-,[]);
+  useEffect(() => {
+    let isMounted = true;
+    const loadData = async () => {
+      const res = await AdvisorService.getClassStudents(className, batch);
+      const teamList = await AdvisorService.fetchTeamsForClass(className);
+      if (isMounted) {
+        setStudents(res);
+        setTeams(teamList);
+      }
+    };
+    loadData();
+    return () => { isMounted = false; };
+  }, [className, batch]);
 
   const [teams, setTeams] = useState<ClassTeam[]>(() => 
     AdvisorService.getTeamsForClass(className)
@@ -64,6 +71,8 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [isManualTeamOpen, setIsManualTeamOpen] = useState<boolean>(false);
   const [studentToMove, setStudentToMove] = useState<AdminStudent | null>(null);
   const [studentForManualTeam, setStudentForManualTeam] = useState<AdminStudent | null>(null);
+  const [isReassignGuideOpen, setIsReassignGuideOpen] = useState<boolean>(false);
+  const [teamForGuideReassign, setTeamForGuideReassign] = useState<ClassTeam | null>(null);
 
   // Add student form state (NO placeholders)
   const [newStudentName, setNewStudentName] = useState<string>('');
@@ -80,12 +89,26 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [targetTeamId, setTargetTeamId] = useState<string>('');
   const [moveError, setMoveError] = useState<string>('');
   const [fullTeamSelected, setFullTeamSelected] = useState<ClassTeam | null>(null);
+  const [isMovingStudent, setIsMovingStudent] = useState<boolean>(false);
+  const [teamSearchFilter, setTeamSearchFilter] = useState<string>('');
 
   // Live synchronizer: auto-updates if data is changed anywhere across the application
+  const isRefreshingRef = React.useRef<boolean>(false);
   const refreshData = async () => {
-    const res = await AdvisorService.getClassStudents(className, batch);
-    setStudents(res);
-    setTeams(AdvisorService.getTeamsForClass(className));
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    try {
+      const [res, teamList] = await Promise.all([
+        AdvisorService.getClassStudents(className, batch),
+        AdvisorService.fetchTeamsForClass(className),
+      ]);
+      setStudents(res);
+      setTeams(teamList);
+    } catch (err) {
+      console.error("Failed to refresh advisor data:", err);
+    } finally {
+      isRefreshingRef.current = false;
+    }
   };
 
   useEffect(() => {
@@ -260,17 +283,21 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const handleConfirmMoveStudent = async () => {
     if (!studentToMove || !targetTeamId) return;
     setMoveError('');
+    setIsMovingStudent(true);
 
     const targetTeam = teams.find(t => t.teamId === targetTeamId);
     if (!targetTeam) {
       setMoveError('Please select a valid destination team.');
+      setIsMovingStudent(false);
       return;
     }
 
     const currentTeamNo = studentToMove.teamNo || 'Unassigned';
+    const isTransfer = currentTeamNo !== 'Unassigned' && currentTeamNo.trim() !== '';
     const res = await AdvisorService.assignStudentToTeam(className, studentToMove.rollNo, targetTeamId);
     if (!res.success) {
       setMoveError(res.message);
+      setIsMovingStudent(false);
       return;
     }
 
@@ -278,14 +305,20 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       className,
       'Student Transfer',
       `${studentToMove.name} (${studentToMove.rollNo})`,
-      `Shifted allocation from ${currentTeamNo} to ${targetTeam.teamNo}.`,
-      advisorName
+      isTransfer
+        ? `Transferred student from ${currentTeamNo} to ${targetTeam.teamNo} (Guide: ${targetTeam.guide}).`
+        : `Reallocated student to ${targetTeam.teamNo} (Guide: ${targetTeam.guide}).`,
+      advisorName,
+      'Class Advisor'
     );
 
-    onShowToast(`${studentToMove.name} successfully assigned to ${targetTeam.teamNo}.`);
+    onShowToast(`${studentToMove.name} successfully ${isTransfer ? 'transferred' : 'allocated'} to ${targetTeam.teamNo}.`);
     setStudentToMove(null);
     setTargetTeamId('');
     setFullTeamSelected(null);
+    setTeamSearchFilter('');
+    setIsMovingStudent(false);
+    await refreshData();
   };
 
   const handleTeamsCreated = async (
@@ -419,14 +452,6 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
               <div className="w-10 h-10 rounded-2xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-xs">
                 <Settings size={18} />
               </div>
-              <div>
-                <h4 className="text-sm font-extrabold text-slate-900">
-                  Class {className} Administrative Controls
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Configure team formation, re-partition project groups, and enroll new students.
-                </p>
-              </div>
             </div>
 
             <button
@@ -438,7 +463,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
             {/* Setting 1: Team Formation & Allocation */}
             <div className="p-4 rounded-2xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between gap-3">
               <div className="flex items-start gap-3">
@@ -449,35 +474,43 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   <span className="font-extrabold text-slate-900 text-xs block">
                     Team Formation &amp; Allocation
                   </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                    {areTeamsCreated 
-                      ? `${teams.length} teams actively partitioned with capacity of ${teamCapacity} members each.`
-                      : 'Generate and partition class cohort into balanced project teams.'}
-                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[#E2E8E4]/60">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E2E8E4]/60">
                 <span className="text-[11px] font-bold text-slate-600">
                   Status: <strong className="text-mint-800">{areTeamsCreated ? 'Configured' : 'Not Formed'}</strong>
                 </span>
-                {areTeamsCreated ? (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setIsCreateTeamOpen(true)}
-                    className="px-3.5 py-1.5 bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 rounded-xl text-xs font-extrabold transition cursor-pointer"
+                    onClick={() => {
+                      setStudentForManualTeam(null);
+                      setIsManualTeamOpen(true);
+                    }}
+                    className="px-3 py-1.5 bg-mint-500 hover:bg-mint-600 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs flex items-center gap-1"
                   >
-                    Re-shuffle Teams
+                    <Sparkles size={13} />
+                    <span>Manual Team Wizard</span>
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateTeamOpen(true)}
-                    className="px-3.5 py-1.5 bg-mint-500 hover:bg-mint-600 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs"
-                  >
-                    Create Teams
-                  </button>
-                )}
+                  {areTeamsCreated ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateTeamOpen(true)}
+                      className="px-3.5 py-1.5 bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 rounded-xl text-xs font-extrabold transition cursor-pointer"
+                    >
+                      Re-shuffle Teams
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreateTeamOpen(true)}
+                      className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs"
+                    >
+                      Auto-Generate
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -491,9 +524,6 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   <span className="font-extrabold text-slate-900 text-xs block">
                     Student Enrollment &amp; Registration
                   </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                    Manually register a candidate into Class {className} roster for Academic Batch {batch}.
-                  </p>
                 </div>
               </div>
 
@@ -516,6 +546,37 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Setting 3: Faculty Guide Reassignment */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
+                  <BookOpen size={16} />
+                </div>
+                <div>
+                  <span className="font-extrabold text-slate-900 text-xs block">
+                    Faculty Guide Reassignment
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-[#E2E8E4]/60">
+                <span className="text-[11px] font-bold text-slate-600">
+                  Assigned: <strong className="text-purple-900">{teams.filter(t => t.guide && t.guide !== 'Unassigned').length} / {teams.length} Teams</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeamForGuideReassign(null);
+                    setIsReassignGuideOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs flex items-center gap-1"
+                >
+                  <BookOpen size={13} />
+                  <span>Reassign Guide</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -529,7 +590,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 <th className="p-4">Register Number</th>
                 <th className="p-4">Student Name</th>
                 <th className="p-4">Assigned Team</th>
-                <th className="p-4">Technical Guide</th>
+                <th className="p-4">Assigned Guide</th>
                 {isManageMode && <th className="p-4 text-right">Team Allocation</th>}
               </tr>
             </thead>
@@ -545,10 +606,11 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   const hasTeam = s.teamNo && s.teamNo !== 'Unassigned';
                   const isExpanded = expandedStudentRoll === s.rollNo;
 
-                  // Find assigned team for student
+                  // Find assigned team for student - prioritize actual membership roster!
                   let assignedTeam = teams.find(t => 
-                    (hasTeam && t.teamNo.toLowerCase() === s.teamNo.toLowerCase()) ||
-                    t.members.some(m => m.rollNo === s.rollNo)
+                    t.members && t.members.some(m => m.rollNo === s.rollNo)
+                  ) || teams.find(t => 
+                    hasTeam && t.teamNo && t.teamNo.toLowerCase() === s.teamNo.toLowerCase()
                   );
                   if (!assignedTeam) {
                     const studentTeam = StudentService.getTeam();
@@ -613,7 +675,11 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
                         {/* Assigned Team */}
                         <td className="p-4 whitespace-nowrap">
-                          {hasTeam ? (
+                          {assignedTeam ? (
+                            <span className="px-2.5 py-1 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-[11px]">
+                              {assignedTeam.teamNo}
+                            </span>
+                          ) : hasTeam ? (
                             <span className="px-2.5 py-1 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-[11px]">
                               {s.teamNo}
                             </span>
@@ -626,25 +692,44 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
                         {/* Technical Guide */}
                         <td className="p-4 text-slate-700 whitespace-nowrap">
-                          <span className="font-bold">{s.guide || 'Unassigned'}</span>
+                          <span className="font-bold">{assignedTeam?.guide || s.guide || 'Unassigned'}</span>
                         </td>
 
                         {/* Manage Actions (Move / Assign) */}
                         {isManageMode && (
                           <td className="p-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setStudentToMove(s);
-                                setTargetTeamId('');
-                                setMoveError('');
-                                setFullTeamSelected(null);
-                              }}
-                              className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer"
-                            >
-                              {hasTeam ? <MoveRight size={13} /> : <UserPlus size={13} />}
-                              <span>{hasTeam ? 'Move' : 'Assign'}</span>
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {!hasTeam && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStudentForManualTeam(s);
+                                    setIsManualTeamOpen(true);
+                                  }}
+                                  title="Form Team via Wizard"
+                                  className="px-2.5 py-1.5 bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Sparkles size={12} />
+                                  <span>Wizard</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setStudentToMove(s);
+                                  setTargetTeamId('');
+                                  setMoveError('');
+                                  setFullTeamSelected(null);
+                                  setTeamSearchFilter('');
+                                }}
+                                title={hasTeam ? 'Transfer student to another team' : 'Reallocate student to a team'}
+                                className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer"
+                              >
+                                {hasTeam ? <ArrowRightLeft size={13} /> : <UserPlus size={13} />}
+                                <span>{hasTeam ? 'Transfer' : 'Reallocate'}</span>
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -688,8 +773,22 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                       }
                                     })()}
                                   </div>
-                                  <div className="text-[11px] text-slate-500 font-bold">
-                                    Technical Guide: <strong className="text-slate-800">{assignedTeam?.guide || s.guide || 'Unassigned'}</strong>
+                                  <div className="text-[11px] text-slate-500 font-bold flex items-center gap-2">
+                                    <span>Assigned Guide: <strong className="text-slate-800">{assignedTeam?.guide || s.guide || 'Unassigned'}</strong></span>
+                                    {isManageMode && assignedTeam && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setTeamForGuideReassign(assignedTeam);
+                                          setIsReassignGuideOpen(true);
+                                        }}
+                                        className="px-2 py-0.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-[10px] font-extrabold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                      >
+                                        <BookOpen size={11} />
+                                        <span>Reassign Guide</span>
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
 
@@ -1559,21 +1658,24 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       {studentToMove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
           <div 
-            className="bg-white w-full max-w-md rounded-3xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all"
+            className="bg-white w-full max-w-lg rounded-3xl shadow-modal border border-[#E2E8E4] overflow-hidden transform transition-all"
             role="dialog"
             aria-modal="true"
           >
-            <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-mint-50/70 via-white to-slate-50 px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold">
-                  {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? <MoveRight size={20} /> : <UserPlus size={20} />}
+                <div className="w-10 h-10 rounded-2xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-xs">
+                  {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? <ArrowRightLeft size={19} /> : <UserPlus size={19} />}
                 </div>
                 <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">
-                    {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? 'Shift Student Team' : 'Assign Student Team'}
+                  <h3 className="text-sm font-black text-slate-900">
+                    {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' 
+                      ? 'Student Team Transfer & Reallocation' 
+                      : 'Student Team Allocation'}
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    {studentToMove.name} ({studentToMove.rollNo})
+                    {studentToMove.name} &bull; Roll No: <span className="font-mono font-bold text-slate-700">{studentToMove.rollNo}</span>
                   </p>
                 </div>
               </div>
@@ -1581,6 +1683,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 onClick={() => {
                   setStudentToMove(null);
                   setFullTeamSelected(null);
+                  setTeamSearchFilter('');
                 }}
                 className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
               >
@@ -1588,83 +1691,154 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="p-6 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
               {moveError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-bold flex items-center gap-2">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-bold flex items-center gap-2 animate-fadeIn">
                   <AlertCircle size={15} className="shrink-0 text-rose-600" />
                   <span>{moveError}</span>
                 </div>
               )}
 
-              <div className="p-3 bg-slate-50 rounded-xl border border-[#E2E8E4] space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Current Status:</span>
-                <span className="font-extrabold text-slate-900 block text-xs">
-                  {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? studentToMove.teamNo : 'Unassigned'}
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1.5">
-                  Select Destination Team (Max Capacity: {teamCapacity} Members)
-                </label>
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {teams.map((t) => {
-                    const isCurrent = t.teamNo.toLowerCase() === (studentToMove.teamNo || '').toLowerCase();
-                    const currentCount = t.members.length;
-                    const maxCap = t.capacity || teamCapacity;
-                    const isFull = currentCount >= maxCap;
-                    const isSelected = targetTeamId === t.teamId;
-
-                    return (
-                      <div
-                        key={t.teamId}
-                        onClick={() => {
-                          if (isCurrent) return;
-                          if (isFull) {
-                            setFullTeamSelected(t);
-                            setTargetTeamId('');
-                          } else {
-                            setFullTeamSelected(null);
-                            setTargetTeamId(t.teamId);
-                          }
-                        }}
-                        className={`p-3 rounded-2xl border transition flex items-center justify-between gap-3 ${
-                          isCurrent
-                            ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
-                            : isFull
-                            ? fullTeamSelected?.teamId === t.teamId
-                              ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-300/50 cursor-pointer'
-                              : 'bg-rose-50/50 border-rose-200 hover:border-amber-300 cursor-pointer'
-                            : isSelected
-                            ? 'bg-mint-50 border-mint-500 ring-2 ring-mint-400/40 shadow-xs cursor-pointer'
-                            : 'bg-white border-[#E2E8E4] hover:bg-slate-50 cursor-pointer'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-slate-900 text-xs">{t.teamNo}</span>
-                            <span className="text-[10px] text-slate-500 truncate max-w-[160px]">{t.title}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">Guide: {t.guide}</span>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${
-                            isFull 
-                              ? 'bg-rose-100 text-rose-800 border-rose-200' 
-                              : 'bg-mint-100 text-mint-900 border-mint-200'
-                          }`}>
-                            {currentCount} / {maxCap} Members
-                          </span>
-                          {isFull && <span className="text-[9px] text-rose-600 block mt-0.5 font-bold">Team Full</span>}
-                          {isCurrent && <span className="text-[9px] text-slate-400 block mt-0.5">Current Team</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
+              {/* Current Status Card */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-[#E2E8E4] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block">
+                    Current Allocation
+                  </span>
+                  {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? (
+                    <span className="px-2 py-0.5 rounded-full bg-mint-100 text-mint-900 border border-mint-200 text-[10px] font-black">
+                      {studentToMove.teamNo}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-black">
+                      Unassigned
+                    </span>
+                  )}
                 </div>
 
-                {/* If selected team is full, allow direct creation of a new team */}
+                <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-slate-600">
+                  <div>
+                    <span>Guide: </span>
+                    <strong className="text-slate-800">{studentToMove.guide || 'Not Assigned'}</strong>
+                  </div>
+                  <div>
+                    <span>Section: </span>
+                    <strong className="text-slate-800">{studentToMove.classSection || className}</strong>
+                  </div>
+                </div>
+
+                {(() => {
+                  const currentTeam = teams.find(t => t.teamNo.toLowerCase() === (studentToMove.teamNo || '').toLowerCase());
+                  const isLeader = currentTeam && (currentTeam.leadStudent?.includes(studentToMove.rollNo) || currentTeam.members?.some(m => m.rollNo === studentToMove.rollNo && m.isLead));
+                  if (isLeader) {
+                    return (
+                      <div className="mt-1 p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-bold flex items-center gap-1.5">
+                        <AlertCircle size={13} className="text-amber-600 shrink-0" />
+                        <span>Candidate is currently Team Leader. Transferring will automatically promote the next member.</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+
+              {/* Destination Team Selector */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">
+                    Select Target Team (Capacity: {teamCapacity} Max)
+                  </label>
+                  <span className="text-[11px] font-bold text-slate-500">
+                    {teams.length} Teams Available
+                  </span>
+                </div>
+
+                {/* Filter Teams */}
+                {teams.length > 4 && (
+                  <div className="relative mb-2">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={teamSearchFilter}
+                      onChange={(e) => setTeamSearchFilter(e.target.value)}
+                      placeholder="Filter destination teams by number, title, or guide..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-[#EFF3F1] border border-[#E2E8E4] rounded-xl text-xs focus:outline-none focus:border-mint-500 text-slate-800"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {teams
+                    .filter(t => {
+                      if (!teamSearchFilter.trim()) return true;
+                      const q = teamSearchFilter.toLowerCase();
+                      return t.teamNo.toLowerCase().includes(q) || 
+                             t.guide.toLowerCase().includes(q) || 
+                             (t.title && t.title.toLowerCase().includes(q));
+                    })
+                    .map((t) => {
+                      const isCurrent = t.teamNo.toLowerCase() === (studentToMove.teamNo || '').toLowerCase();
+                      const currentCount = t.members.length;
+                      const maxCap = t.capacity || teamCapacity;
+                      const isFull = currentCount >= maxCap;
+                      const isSelected = targetTeamId === t.teamId;
+                      const openSlots = Math.max(0, maxCap - currentCount);
+
+                      return (
+                        <div
+                          key={t.teamId}
+                          onClick={() => {
+                            if (isCurrent) return;
+                            if (isFull) {
+                              setFullTeamSelected(t);
+                              setTargetTeamId('');
+                            } else {
+                              setFullTeamSelected(null);
+                              setTargetTeamId(t.teamId);
+                            }
+                          }}
+                          className={`p-3 rounded-2xl border transition flex items-center justify-between gap-3 ${
+                            isCurrent
+                              ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                              : isFull
+                              ? fullTeamSelected?.teamId === t.teamId
+                                ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-300/50 cursor-pointer'
+                                : 'bg-rose-50/40 border-rose-200 hover:border-amber-300 cursor-pointer'
+                              : isSelected
+                              ? 'bg-mint-50 border-mint-500 ring-2 ring-mint-400/40 shadow-xs cursor-pointer'
+                              : 'bg-white border-[#E2E8E4] hover:bg-slate-50 cursor-pointer'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-slate-900 text-xs">{t.teamNo}</span>
+                              <span className="text-[10px] text-slate-500 truncate max-w-[170px]">{t.title || 'Untitled'}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">Guide: {t.guide}</span>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${
+                              isFull 
+                                ? 'bg-rose-100 text-rose-800 border-rose-200' 
+                                : 'bg-mint-100 text-mint-900 border-mint-200'
+                            }`}>
+                              {currentCount} / {maxCap}
+                            </span>
+                            {isFull && <span className="text-[9px] text-rose-600 block mt-0.5 font-bold">Team Full</span>}
+                            {!isFull && !isCurrent && (
+                              <span className="text-[9px] text-emerald-700 block mt-0.5 font-medium">
+                                {openSlots} open slot{openSlots > 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {isCurrent && <span className="text-[9px] text-slate-400 block mt-0.5 font-bold">Current</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                {/* If selected team is full */}
                 {fullTeamSelected && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 animate-fadeIn">
                     <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
@@ -1688,32 +1862,47 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   </div>
                 )}
 
-                {/* Option to create new team instead of selecting existing */}
-                <div className="pt-3 border-t border-[#E2E8E4] mt-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const student = studentToMove;
-                      setStudentToMove(null);
-                      setFullTeamSelected(null);
-                      setStudentForManualTeam(student);
-                      setIsManualTeamOpen(true);
-                    }}
-                    className="w-full py-2 px-3 bg-slate-50 hover:bg-mint-50 text-mint-900 font-bold border border-mint-200 border-dashed rounded-xl transition flex items-center justify-center gap-2 cursor-pointer text-xs"
-                  >
-                    <Plus size={14} className="text-mint-600" />
-                    <span>Or Create New Team Instead</span>
-                  </button>
-                </div>
+
               </div>
+
+              {/* Reallocation Preview */}
+              {targetTeamId && (() => {
+                const target = teams.find(t => t.teamId === targetTeamId);
+                if (!target) return null;
+                const isTransfer = studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned';
+
+                return (
+                  <div className="p-3.5 bg-mint-50/70 rounded-2xl border border-mint-200 space-y-2 animate-fadeIn">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-mint-900 block">
+                      Transfer &amp; Reallocation Summary
+                    </span>
+                    <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
+                      <span className="px-2.5 py-1 rounded-lg bg-white border border-[#E2E8E4]">
+                        {studentToMove.teamNo || 'Unassigned'}
+                      </span>
+                      <ArrowRight size={14} className="text-mint-600 shrink-0" />
+                      <span className="px-2.5 py-1 rounded-lg bg-mint-600 text-white shadow-2xs">
+                        {target.teamNo}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 space-y-0.5">
+                      <div>Assigned Technical Guide: <strong className="text-slate-800">{target.guide}</strong></div>
+                      <div>Target Capacity After Move: <strong>{target.members.length + 1} / {target.capacity || teamCapacity} members</strong></div>
+                    </div>
+                  </div>
+                );
+              })()}
+
             </div>
 
+            {/* Modal Actions */}
             <div className="bg-[#F8FAF9] px-6 py-4 border-t border-[#E2E8E4] flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => {
                   setStudentToMove(null);
                   setFullTeamSelected(null);
+                  setTeamSearchFilter('');
                 }}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition cursor-pointer"
               >
@@ -1721,16 +1910,29 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
               </button>
               <button
                 type="button"
-                disabled={!targetTeamId}
+                disabled={!targetTeamId || isMovingStudent}
                 onClick={handleConfirmMoveStudent}
                 className={`px-5 py-2 text-xs font-extrabold text-white rounded-xl shadow-sm transition flex items-center gap-1.5 ${
-                  targetTeamId
-                    ? 'bg-mint-500 hover:bg-mint-600 cursor-pointer'
+                  targetTeamId && !isMovingStudent
+                    ? 'bg-mint-500 hover:bg-mint-600 cursor-pointer active:scale-95'
                     : 'bg-slate-300 cursor-not-allowed'
                 }`}
               >
-                <Check size={14} />
-                <span>Confirm Assignment</span>
+                {isMovingStudent ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Processing Reallocation...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    <span>
+                      {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned'
+                        ? 'Confirm Team Transfer'
+                        : 'Confirm Allocation'}
+                    </span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -1762,9 +1964,27 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         onTeamCreated={(newTeam) => {
           setIsManualTeamOpen(false);
           setStudentForManualTeam(null);
+          refreshData();
           onShowToast(`Team ${newTeam.teamNo} successfully formed and allocated.`);
         }}
         onShowToast={onShowToast}
+      />
+
+      {/* POP-UP 6: Faculty Guide Reassignment Modal */}
+      <AdvisorGuideReassignModal
+        isOpen={isReassignGuideOpen}
+        onClose={() => {
+          setIsReassignGuideOpen(false);
+          setTeamForGuideReassign(null);
+        }}
+        className={className}
+        advisorName={advisorName}
+        teams={teams}
+        initialTeam={teamForGuideReassign}
+        onSuccess={(msg) => {
+          refreshData();
+          onShowToast(msg);
+        }}
       />
 
     </div>

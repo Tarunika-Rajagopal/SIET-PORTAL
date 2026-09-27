@@ -1,3 +1,5 @@
+import { ApiClient } from './apiClient';
+
 export interface WeeklyMarksRecord {
   teamId: string;
   weekNumber: number;
@@ -83,6 +85,21 @@ function getAliasesForTeam(teamId: string): string[] {
 }
 
 export const MarksService = {
+  async fetchAllMarks(): Promise<Record<string, Record<number, WeeklyMarksRecord>>> {
+    try {
+      const serverMarks = await ApiClient.getAllWeeklyMarks();
+      if (serverMarks && typeof serverMarks === 'object' && Object.keys(serverMarks).length > 0) {
+        cachedMarks = serverMarks;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverMarks));
+        notifyListeners();
+        return serverMarks;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch marks from backend:', e);
+    }
+    return loadAllMarks();
+  },
+
   getAllMarks(): Record<string, Record<number, WeeklyMarksRecord>> {
     return loadAllMarks();
   },
@@ -194,6 +211,11 @@ export const MarksService = {
       console.error('Failed to save marks to localStorage', e);
     }
 
+    // Persist to backend database
+    ApiClient.saveWeeklyMarks(teamId, weekNumber, memberMarks, remarks, gradedBy).catch(err => {
+      console.warn('Failed to persist marks to backend:', err);
+    });
+
     notifyListeners();
     // Dispatch global events for instant cross-portal reactive updates (HOD, Guide, Student)
     window.dispatchEvent(new Event('siet_marks_updated'));
@@ -262,5 +284,10 @@ export const MarksService = {
     };
   }
 };
+
+if (typeof window !== 'undefined') {
+  // Background fetch all marks from backend database
+  MarksService.fetchAllMarks().catch(() => {});
+}
 
 export default MarksService;

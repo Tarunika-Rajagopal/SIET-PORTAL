@@ -270,6 +270,54 @@ export const StudentService = {
     window.dispatchEvent(new Event('siet_data_updated'));
   },
 
+  async fetchTeamFromBackend(): Promise<StudentTeamExtended | null> {
+    try {
+      const backendTeam = await ApiClient.getStudentTeam();
+      if (backendTeam && (backendTeam.teamNo || backendTeam.teamId)) {
+        const teamObj: StudentTeamExtended = {
+          id: backendTeam.teamId || backendTeam.id,
+          teamNo: backendTeam.teamNo,
+          projectTitle: backendTeam.title || backendTeam.projectTitle || '',
+          submittedTitle: backendTeam.title || backendTeam.submittedTitle || '',
+          isTitleApproved: backendTeam.status === 'Approved' || backendTeam.status === 'Active & Approved',
+          guideApprovalStatus: (backendTeam.status === 'Approved' || backendTeam.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
+          guideName: backendTeam.guide || backendTeam.guideName || '',
+          advisorName: backendTeam.advisorName || '',
+          batch: backendTeam.batch || '',
+          section: backendTeam.class || backendTeam.section || '',
+          status: 'In Progress',
+          progress: 0,
+          members: (backendTeam.members || []).map((m: any) => ({
+            rollNo: m.rollNo,
+            name: m.name,
+            email: m.email,
+            role: m.isLead ? 'Team Lead' : 'Team Member',
+          })),
+        };
+        this.saveTeam(teamObj);
+        return teamObj;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch student team from backend:', e);
+    }
+    return null;
+  },
+
+  async fetchSubmissionsFromBackend(): Promise<WeeklySubmission[]> {
+    try {
+      const serverSubs = await ApiClient.getStudentSubmissions();
+      if (Array.isArray(serverSubs) && serverSubs.length > 0) {
+        localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(serverSubs));
+        window.dispatchEvent(new Event('siet_student_submissions_updated'));
+        window.dispatchEvent(new Event('siet_data_updated'));
+        return serverSubs;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch student submissions from backend:', e);
+    }
+    return this.getSubmissions();
+  },
+
   getSubmissions(): WeeklySubmission[] {
     try {
       const stored = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);

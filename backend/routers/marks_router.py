@@ -15,6 +15,14 @@ def get_marks_service(db: AsyncSession = Depends(get_db)) -> MarksService:
     return MarksService(db)
 
 
+@router.get("/all")
+async def get_all_marks(
+    user: User = Depends(require_roles("advisor", "advisor & guide", "hod", "guide", "student", "admin")),
+    service: MarksService = Depends(get_marks_service),
+):
+    return await service.get_all_marks()
+
+
 @router.get("/{team_id}/weekly")
 async def get_all_weekly_marks(
     team_id: str,
