@@ -1084,7 +1084,7 @@ export const StudentService = {
       demoUrl: current.demoUrl,
       isSubmit: true
     }).catch(err => {
-      console.log('Backend sync queued or offline:', err);
+      console.error('Backend sync queued or offline:', err);
     });
 
     // 4. Dispatch global events for instant UI synchronization across tabs and pages

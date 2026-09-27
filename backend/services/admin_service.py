@@ -52,7 +52,6 @@ class AdminService:
         advisor_class: Optional[str] = None,
     ) -> Dict[str, Any]:
         # Check if email already exists
-
         existing_fac = await self.faculty_repo.get_by_email(email)
         if existing_fac:
             return {"success": False, "message": f"Faculty with email {email} already exists"}
@@ -60,11 +59,33 @@ class AdminService:
         if existing_user:
             return {"success": False, "message": f"User account with email {email} already exists"}
 
-        # Create corresponding User record so faculty can authenticate
-        uid = uuid.uuid4()
+        # 1. Normalize Faculty Role
+        faculty_role = (role or "None").strip()
+        if faculty_role.lower() == "none" or not faculty_role:
+            faculty_role = "None"
+        elif "advisor" in faculty_role.lower() and "guide" in faculty_role.lower():
+            faculty_role = "Advisor & Guide"
+        elif "advisor" in faculty_role.lower():
+            faculty_role = "Advisor"
+        elif "guide" in faculty_role.lower():
+            faculty_role = "Guide"
 
-        user_role = "advisor" if "advisor" in (role or "").lower() else "guide"
-        active_role = "advisor" if (role or "").lower() == "advisor" else "guide"
+        # If advisor class was assigned, check if class is already assigned to someone else
+        if faculty_role in ("Advisor", "Advisor & Guide") and advisor_batch and advisor_class:
+            existing_advisor = await self.faculty_repo.get_advisor_for_class(advisor_batch, advisor_class)
+            if existing_advisor:
+                if existing_advisor.role == "Advisor & Guide":
+                    existing_advisor.role = "Guide"
+                else:
+                    existing_advisor.role = "None"
+                existing_advisor.advisor_batch = None
+                existing_advisor.advisor_class = None
+
+        # 2. Map to valid User RoleEnum for the `users` table ('advisor' or 'guide')
+        user_role = "advisor" if "advisor" in faculty_role.lower() else "guide"
+        active_role = user_role
+
+        uid = uuid.uuid4()
         u = User(
             id=uid,
             email=email,
@@ -73,18 +94,14 @@ class AdminService:
             designation=designation,
             role=user_role,
             active_role=active_role,
-            advisor_class=advisor_class,
-            advisor_batch=advisor_batch,
+            advisor_class=advisor_class if faculty_role in ("Advisor", "Advisor & Guide") else None,
+            advisor_batch=advisor_batch if faculty_role in ("Advisor", "Advisor & Guide") else None,
             department="Computer Science and Engineering",
         )
         await self.user_repo.create(u)
-        
-        # This error must be corrected by flushing this . Without flushing creates a proxy object in memory which is not persisted to the database and causes the following error:
-        # sqlalchemy.orm.exc.DetachedInstanceError: Instance <User at 0x...> is not bound to a Session;
-
         await self.session.flush()
 
-
+        # 3. Create Faculty Record with explicit faculty_role
         fid = uuid.uuid4()
         f = Faculty(
             id=fid,
@@ -92,15 +109,17 @@ class AdminService:
             name=name,
             email=email,
             designation=designation,
-            role=role,
+            role=faculty_role,
             specialization=specialization,
-            advisor_batch=advisor_batch,
-            advisor_class=advisor_class,
+            advisor_batch=advisor_batch if faculty_role in ("Advisor", "Advisor & Guide") else None,
+            advisor_class=advisor_class if faculty_role in ("Advisor", "Advisor & Guide") else None,
+            status="Active" if faculty_role != "None" else "Available",
         )
         await self.faculty_repo.create(f)
         await self.session.commit()
         return {"id": str(fid), "name": name, "email": email, "success": True}
 
+    
     async def update_faculty(self, faculty_id: str, updates: dict) -> Dict[str, Any]:
         f = await self.faculty_repo.get_by_id(faculty_id)
         if not f:

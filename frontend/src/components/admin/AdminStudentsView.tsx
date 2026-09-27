@@ -44,7 +44,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
   const loadStudents = async () => {
     const students = await AdminService.getStudents();
 
-    console.log("Students fetched:", students);
+    
 
     setStudents(students);
 
@@ -56,7 +56,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
   const unsubscribe = AdminService.subscribe(async () => {
     const students = await AdminService.getStudents();
 
-    console.log("Students updated:", students);
+    
 
     setStudents(students);
     setFaculties(await AdminService.getFaculties());

@@ -25,7 +25,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
   useEffect(() => {
     const fetchFaculties = async () => {
       const data = await AdminService.getFaculties();
-      console.log(data);
+     
       setFaculties(data);
     };
 
