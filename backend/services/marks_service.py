@@ -39,6 +39,41 @@ class MarksService:
             if not is_guide:
                 raise HTTPException(status_code=403, detail="You are not authorized to view marks for this team")
 
+    async def get_all_marks(self) -> Dict[str, Dict[int, Any]]:
+        rows = await self.marks_repo.list_all_marks()
+        result: Dict[str, Dict[int, Any]] = {}
+        teams = await self.team_repo.list_all()
+        team_id_to_no = {str(t.id): t.team_no for t in teams}
+        team_id_to_str_id = {str(t.id): t.team_id for t in teams}
+
+        for wm in rows:
+            t_uuid = str(wm.team_id)
+            t_no = team_id_to_no.get(t_uuid, t_uuid)
+            t_id_str = team_id_to_str_id.get(t_uuid, t_uuid)
+
+            member_marks = {}
+            for mm in (wm.member_marks or []):
+                member_marks[mm.roll_no] = float(mm.mark) if mm.mark else 0
+
+            entry = {
+                "teamId": t_no or t_id_str or t_uuid,
+                "weekNumber": wm.week_number,
+                "memberMarks": member_marks,
+                "teamAverage": float(wm.team_average) if wm.team_average else 0,
+                "remarks": wm.remarks or "",
+                "gradedAt": wm.graded_at.isoformat() if wm.graded_at else "",
+                "gradedBy": wm.graded_by or "Class Advisor",
+            }
+
+            for key in set([t_uuid, t_no, t_id_str]):
+                if not key:
+                    continue
+                if key not in result:
+                    result[key] = {}
+                result[key][wm.week_number] = entry
+
+        return result
+
     async def get_all_team_marks(self, team_id: str, user: User) -> Dict[int, Any]:
         team = await self.find_team(team_id)
         self.check_team_access(team, user)

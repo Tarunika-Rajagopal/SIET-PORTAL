@@ -42,6 +42,7 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
       const canvas = await html2canvas(reportElement, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff'
       });
@@ -90,18 +91,18 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto font-sans">
       <div className="bg-white rounded-3xl w-full max-w-4xl shadow-xl border border-[#D8CCBA] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Modal Controls Bar */}
-        <div className="p-4 border-b border-[#D8CCBA] flex flex-wrap items-center justify-between gap-3 bg-[#F8F5EE] print:hidden">
+        {/* Modal Controls Bar (Sticky at Top) */}
+        <div className="p-4 border-b border-[#D8CCBA] flex flex-wrap items-center justify-between gap-3 bg-[#F8F5EE] sticky top-0 z-20 print:hidden">
           <div className="flex items-center gap-2 text-[#111111] font-medium text-xs">
             <FileText size={16} className="text-[#111111]" />
-            <span>Document Format Preview</span>
+            <span className="font-bold text-sm">Document Format Preview</span>
           </div>
 
           <div className="flex items-center gap-2">
             {downloadSuccess && (
               <span className="text-xs text-[#111111] font-medium flex items-center gap-1 bg-[#EDE7DB] px-2.5 py-1 rounded-lg border border-[#D8CCBA] animate-fadeIn">
                 <CheckCircle2 size={13} className="text-emerald-700" />
-                <span>Downloaded Automatically!</span>
+                <span>PDF Downloaded Successfully!</span>
               </span>
             )}
 
@@ -109,7 +110,7 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
               type="button"
               disabled={isGeneratingPdf}
               onClick={handleDownloadPdf}
-              className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2 text-xs cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2 text-xs cursor-pointer disabled:opacity-50 active:scale-95"
             >
               {isGeneratingPdf ? (
                 <>
@@ -119,7 +120,7 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
               ) : (
                 <>
                   <Download size={14} />
-                  <span>Download as PDF</span>
+                  <span>Download PDF</span>
                 </>
               )}
             </button>
@@ -234,6 +235,35 @@ export const AdvisorHistoryPdfModal: React.FC<AdvisorHistoryPdfModalProps> = ({
             </div>
           </div>
 
+        </div>
+
+        {/* Modal Bottom Footer Bar */}
+        <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-end gap-2 bg-[#F8F5EE] print:hidden">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-white hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] font-medium rounded-xl border border-[#D8CCBA] transition text-xs cursor-pointer"
+          >
+            Close Preview
+          </button>
+          <button
+            type="button"
+            disabled={isGeneratingPdf}
+            onClick={handleDownloadPdf}
+            className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2 text-xs cursor-pointer disabled:opacity-50 active:scale-95"
+          >
+            {isGeneratingPdf ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Generating PDF...</span>
+              </>
+            ) : (
+              <>
+                <Download size={14} />
+                <span>Download PDF</span>
+              </>
+            )}
+          </button>
         </div>
 
       </div>

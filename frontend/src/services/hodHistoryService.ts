@@ -50,6 +50,20 @@ function loadHistory(): HodHistoryRecord[] {
 }
 
 export const HodHistoryService = {
+  async fetchHistory(): Promise<HodHistoryRecord[]> {
+    try {
+      const serverLogs = await ApiClient.getHodHistory();
+      if (Array.isArray(serverLogs) && serverLogs.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverLogs));
+        notify();
+        return serverLogs;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch HOD history from backend:', e);
+    }
+    return loadHistory();
+  },
+
   getHistory(): HodHistoryRecord[] {
     return loadHistory();
   },
@@ -98,7 +112,7 @@ export const HodHistoryService = {
       console.error('Failed to save HOD action history:', e);
     }
 
-    // Also persist to backend asynchronously
+    // Persist to backend
     ApiClient.logHodHistory({
       actionType: entry.actionType,
       target: entry.target,
@@ -107,7 +121,7 @@ export const HodHistoryService = {
       batch: entry.batch,
       performedBy: entry.performedBy
     }).catch(err => {
-      console.warn('[HodHistoryService] Could not persist action to backend:', err);
+      console.warn('Failed to persist HOD history to backend:', err);
     });
 
     notify();
@@ -121,3 +135,7 @@ export const HodHistoryService = {
     return () => listeners.delete(listener);
   }
 };
+
+if (typeof window !== 'undefined') {
+  HodHistoryService.fetchHistory().catch(() => {});
+}

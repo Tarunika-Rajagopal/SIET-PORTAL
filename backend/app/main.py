@@ -1,3 +1,4 @@
+# Trigger reload for advisor endpoints including guide reassignment and available guides
 import traceback
 import asyncio
 from contextlib import asynccontextmanager
@@ -25,6 +26,7 @@ from routers.admin_router import router as admin_router
 from routers.hod_router import router as hod_router
 from routers.advisor_router import router as advisor_router
 from routers.marks_router import router as marks_router
+# Advisor portal bulk team creation supported
 
 
 async def seed_initial_data():

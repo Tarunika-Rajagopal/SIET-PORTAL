@@ -1,3 +1,5 @@
+import { ApiClient } from './apiClient';
+
 export interface AdvisorHistoryLog {
   id: string;
   timestamp: string; // ISO string
@@ -40,6 +42,20 @@ function notifyListeners() {
 export const AdvisorHistoryService = {
   getStorageKey(className: string = 'CSE-B'): string {
     return `siet_advisor_history_${className}`;
+  },
+
+  async fetchHistory(className: string = 'CSE-B'): Promise<AdvisorHistoryLog[]> {
+    try {
+      const serverLogs = await ApiClient.getAdvisorHistory(className);
+      if (Array.isArray(serverLogs) && serverLogs.length > 0) {
+        localStorage.setItem(this.getStorageKey(className), JSON.stringify(serverLogs));
+        notifyListeners();
+        return serverLogs;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch advisor history from backend:', e);
+    }
+    return this.getHistory(className);
   },
 
   getHistory(className: string = 'CSE-B'): AdvisorHistoryLog[] {
@@ -212,6 +228,18 @@ export const AdvisorHistoryService = {
     } catch (e) {
       console.error(e);
     }
+
+    // Persist to backend
+    ApiClient.logAdvisorHistory({
+      className,
+      actionType,
+      target,
+      details,
+      actorName,
+      role
+    }).catch(err => {
+      console.warn('Failed to persist advisor history log to backend:', err);
+    });
 
     notifyListeners();
     return newLog;

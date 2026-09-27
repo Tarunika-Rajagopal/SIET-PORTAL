@@ -67,23 +67,39 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
   const [, setMarksUpdate] = useState<number>(0);
 
   useEffect(() => {
+    let isMounted = true;
+    const loadTeams = async () => {
+      try {
+        const serverTeams = await AdvisorService.fetchTeamsForClass(className);
+        if (isMounted && Array.isArray(serverTeams) && serverTeams.length > 0) {
+          setTeams(serverTeams);
+        }
+      } catch (e) {
+        if (isMounted) setTeams(AdvisorService.getTeamsForClass(className));
+      }
+    };
+    loadTeams();
+
     const unsubAdvisor = AdvisorService.subscribe(() => {
-      setTeams(AdvisorService.getTeamsForClass(className));
+      loadTeams();
     });
     const unsubMarks = MarksService.subscribe(() => {
       setMarksUpdate(n => n + 1);
     });
     const handleSync = () => {
-      setTeams(AdvisorService.getTeamsForClass(className));
+      loadTeams();
       setMarksUpdate(n => n + 1);
     };
     window.addEventListener('siet_data_updated', handleSync);
+    window.addEventListener('siet_admin_students_updated', handleSync);
     window.addEventListener('siet_marks_updated', handleSync);
     window.addEventListener('storage', handleSync);
     return () => {
+      isMounted = false;
       unsubAdvisor();
       unsubMarks();
       window.removeEventListener('siet_data_updated', handleSync);
+      window.removeEventListener('siet_admin_students_updated', handleSync);
       window.removeEventListener('siet_marks_updated', handleSync);
       window.removeEventListener('storage', handleSync);
     };
