@@ -230,7 +230,7 @@ export const AdminService = {
   async removeGuidewithoutSuccessor(
     currentGuideEmail: string
   ): Promise<{ success: boolean; message: string }> {
-      await ApiClient.removeGuide(currentGuideEmail);
+      await ApiClient.deleteGuide(currentGuideEmail);
       return {success: true, message: "Details updated Successfully"};
   },
 

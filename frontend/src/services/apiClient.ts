@@ -335,10 +335,7 @@ export const ApiClient = {
       body: JSON.stringify(entry),
     });
   },
-
-  async getHodHistory(): Promise<any[]> {
-    return request<any[]>('/hod/history');
-  },
+  
 
   async logHodHistory(entry: {
     actionType: string;
@@ -468,12 +465,6 @@ export const ApiClient = {
    async getHodHistory(): Promise<any[]> {
      return request('/hod/history');
    },
-   async logHodHistory(data: { actionType: string; target: string; details: string; classSection: string; batch: string; performedBy?: string }): Promise<any> {
-     return request('/hod/history', {
-       method: 'POST',
-       body: JSON.stringify(data),
-     });
-   },
    async getHodStatistics(): Promise<{
      totalStudents: number;
      totalTeams: number;
@@ -501,5 +492,13 @@ export const ApiClient = {
    },
    async getStudentWeekReleases(): Promise<{ releases: Record<string, boolean> }> {
      return request('/student/week-releases');
+   },
+   async deleteGuide(guideEmail:string): Promise<null> {
+     return request<null>(`/admin/delete-guide`,{
+      method:'POST',
+      body:JSON.stringify({
+        guide_email:guideEmail,
+      }),
+     })
    }
 };

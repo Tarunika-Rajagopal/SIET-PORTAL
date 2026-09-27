@@ -864,32 +864,6 @@ export const StudentService = {
     return current;
   },
 
-  updateSubmission(week: number, note?: string): void {
-    try {
-      const list = this.getSubmissions();
-      let item = list.find(s => s.week === week || s.week === week + 1);
-      const subDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      if (item) {
-        item.status = 'Submitted';
-        item.submissionDate = subDate;
-        if (note) item.comments = note;
-      } else {
-        item = {
-          week,
-          title: `Submission ${week + 1} Deliverable Submission`,
-          dueDate: `Submission ${week + 1}`,
-          status: 'Submitted',
-          submissionDate: subDate,
-          comments: note || '',
-        } as any;
-        list.push(item);
-      }
-      this.saveSubmissions(list);
-    } catch (e) {
-      console.warn('updateSubmission error:', e);
-    }
-  },
-
   saveDeliverableField(
     weekText: string,
     field: keyof StudentDeliverableState['submittedFields'],

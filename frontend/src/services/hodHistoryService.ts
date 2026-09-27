@@ -68,33 +68,6 @@ export const HodHistoryService = {
     return loadHistory();
   },
 
-  async fetchHistory(): Promise<HodHistoryRecord[]> {
-    try {
-      const live = await ApiClient.getHodHistory();
-      if (Array.isArray(live)) {
-        const records: HodHistoryRecord[] = live.map((h: any) => ({
-          id: h.id || `HOD-${Math.random()}`,
-          timestamp: h.timestamp || new Date().toISOString(),
-          date: h.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          actionType: h.actionType as any,
-          target: h.target || '',
-          classSection: h.classSection || '',
-          batch: h.batch || '',
-          details: h.details || '',
-          performedBy: h.performedBy || 'HOD / CSE'
-        }));
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-        } catch (e) {}
-        notify();
-        return records;
-      }
-    } catch (e) {
-      console.warn('[HodHistoryService] Failed to fetch live history from backend:', e);
-    }
-    return loadHistory();
-  },
-
   logAction(entry: Omit<HodHistoryRecord, 'id' | 'timestamp' | 'date'>): HodHistoryRecord {
     const history = loadHistory();
     const now = new Date();
