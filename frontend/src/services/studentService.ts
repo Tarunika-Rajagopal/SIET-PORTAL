@@ -816,32 +816,6 @@ export const StudentService = {
     return current;
   },
 
-  updateSubmission(week: number, note?: string): void {
-    try {
-      const list = this.getSubmissions();
-      let item = list.find(s => s.week === week || s.week === week + 1);
-      const subDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      if (item) {
-        item.status = 'Submitted';
-        item.submissionDate = subDate;
-        if (note) item.comments = note;
-      } else {
-        item = {
-          week,
-          title: `Submission ${week + 1} Deliverable Submission`,
-          dueDate: `Submission ${week + 1}`,
-          status: 'Submitted',
-          submissionDate: subDate,
-          comments: note || '',
-        } as any;
-        list.push(item);
-      }
-      this.saveSubmissions(list);
-    } catch (e) {
-      console.warn('updateSubmission error:', e);
-    }
-  },
-
   saveDeliverableField(
     weekText: string,
     field: keyof StudentDeliverableState['submittedFields'],
@@ -1072,14 +1046,27 @@ export const StudentService = {
     return current;
   },
 
-  updateSubmission(weekNumber: number, updatedComments: string): boolean {
+  updateSubmission(weekNumber: number, updatedComments?: string): boolean {
     const list = this.getSubmissions();
-    const item = list.find(s => s.week === weekNumber);
-    if (!item) return false;
-
-    item.status = 'Submitted';
-    item.submissionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    item.comments = `Updated: ${updatedComments}`;
+    let item = list.find(s => s.week === weekNumber || s.week === weekNumber + 1);
+    const subDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (item) {
+      item.status = 'Submitted';
+      item.submissionDate = subDate;
+      if (updatedComments) {
+        item.comments = updatedComments.startsWith('Updated:') ? updatedComments : `Updated: ${updatedComments}`;
+      }
+    } else {
+      item = {
+        week: weekNumber,
+        title: `Submission ${weekNumber + 1} Deliverable Submission`,
+        dueDate: `Submission ${weekNumber + 1}`,
+        status: 'Submitted',
+        submissionDate: subDate,
+        comments: updatedComments || '',
+      } as any;
+      list.push(item);
+    }
     this.saveSubmissions(list);
 
     // Call backend

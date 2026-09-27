@@ -56,19 +56,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const ApiClient = {
   async checkServerHealth(): Promise<{ online: boolean; databaseOk: boolean; message: string }> {
-    try {
-      const res = await fetch('http://localhost:8000/health', { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) {
-        return { online: false, databaseOk: false, message: `Server returned ${res.status}` };
+    const urls = ['http://localhost:8000/health', 'http://127.0.0.1:8000/health'];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (res.ok) {
+          const data = await res.json();
+          return { online: true, databaseOk: data.status === 'healthy', message: data.status };
+        }
+      } catch (err: any) {
+        // Continue to next URL fallback
       }
-      const data = await res.json();
-      return { online: true, databaseOk: data.status === 'healthy', message: data.status };
-    } catch (err: any) {
-      if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-        return { online: false, databaseOk: false, message: 'Server is not responding (timeout)' };
-      }
-      return { online: false, databaseOk: false, message: 'Cannot connect to backend server at localhost:8000' };
     }
+    return { online: false, databaseOk: false, message: 'Server is not responding (timeout)' };
   },
 
   // Auth
@@ -258,6 +258,14 @@ export const ApiClient = {
         email_one:email_one,
       }),
     })
+   },
+   async removeGuide(email_one: string) {
+    return request<any>('/admin/delete-guide', {
+      method: 'POST',
+      body: JSON.stringify({
+        email_one: email_one,
+      }),
+    });
    },
    async addStudent(student:AdminStudent){
     return request<any>(`/admin/students`,{
