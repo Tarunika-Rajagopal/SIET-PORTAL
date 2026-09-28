@@ -21,6 +21,18 @@ export function useFaculties() {
 }
 
 /**
+ * Centrally managed hook for available technical guides in the advisor workspace.
+ * Queries /advisor/available-guides which is authorized for advisor roles.
+ */
+export function useAdvisorGuides() {
+  return useQuery<AdminFaculty[]>({
+    queryKey: QUERY_KEYS.advisorGuides,
+    queryFn: () => ApiClient.getAdvisorAvailableGuides(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
  * Centrally managed hook for students.
  */
 export function useAdminStudents() {

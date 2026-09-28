@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, Shuffle, ListOrdered, CheckCircle2, AlertCircle, Shield, UserCheck, Sparkles } from 'lucide-react';
 import { AdminService, AdminFaculty, AdminStudent } from '../../services/adminService';
-import { useFaculties } from '../../hooks/useQueries';
+import { useAdvisorGuides } from '../../hooks/useQueries';
 import { TeamMemberRecord } from '../../services/advisorService';
 
 interface AdvisorCreateTeamModalProps {
@@ -50,11 +50,7 @@ export const AdvisorCreateTeamModal: React.FC<AdvisorCreateTeamModalProps> = ({
   const [validationError, setValidationError] = useState<string>('');
 
   // Available guides from TanStack Query
-  const { data: allFaculties = [] } = useFaculties();
-  const availableGuides = React.useMemo(
-    () => allFaculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide'),
-    [allFaculties]
-  );
+  const { data: availableGuides = [] } = useAdvisorGuides();
 
   if (!isOpen) return null;
 

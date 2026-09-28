@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { AdminService, AdminStudent, AdminFaculty } from '../../services/adminService';
-import { useFaculties } from '../../hooks/useQueries';
+import { useAdvisorGuides } from '../../hooks/useQueries';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 
 interface AdvisorManualTeamModalProps {
@@ -44,11 +44,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
   const [leadRollNo, setLeadRollNo] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [unassignedStudents, setUnassignedStudents] = useState<AdminStudent[]>([]);
-  const { data: allFaculties = [] } = useFaculties();
-  const availableGuides = React.useMemo(() => {
-    const eligible = allFaculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide');
-    return eligible.length > 0 ? eligible : allFaculties;
-  }, [allFaculties]);
+  const { data: availableGuides = [] } = useAdvisorGuides();
   const [allStudents, setAllStudents] = useState<AdminStudent[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
