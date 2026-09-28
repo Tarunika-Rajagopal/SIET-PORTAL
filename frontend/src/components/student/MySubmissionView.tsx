@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { WeeklySubmission } from '../../types';
 import { StudentService } from '../../services/studentService';
 import { MarksService } from '../../services/marksService';
+import { ApiClient } from '../../services/apiClient';
+import { AuthService } from '../../services/authService';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
-import { 
-  Calendar, CheckCircle2, Clock, FileText, Upload, AlertTriangle, 
+import {
+  Calendar, CheckCircle2, Clock, FileText, Upload, AlertTriangle,
   MessageSquare, RefreshCw, X, FileCode, ExternalLink, Image as ImageIcon,
-  Award, User, Download, Check, XCircle, Bell, MapPin, Edit3, ChevronRight,
-  Lock, Unlock
+  Award, User, Download, Check, XCircle, Bell, MapPin, Edit3, ChevronRight
 } from 'lucide-react';
 
 interface MySubmissionViewProps {
@@ -16,8 +17,12 @@ interface MySubmissionViewProps {
 }
 
 export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, onNavigateToSubmission }) => {
-  const [submissions, setSubmissions] = useState<WeeklySubmission[]>(() => StudentService.getSubmissions());
-  const [team, setTeam] = useState(() => StudentService.getTeam());
+  const [submissions, setSubmissions] = useState<WeeklySubmission[]>([]);
+  const [team, setTeam] = useState<any>(null);
+  const [backendMarks, setBackendMarks] = useState<Record<number, any>>({});
+  const [historyLoading, setHistoryLoading] = useState<boolean>(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
   const isTeamLead = StudentService.isCurrentUserTeamLead(team);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [activeWeekSub, setActiveWeekSub] = useState<WeeklySubmission | null>(null);
@@ -25,114 +30,40 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   const [resubmitNotes, setResubmitNotes] = useState('');
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
 
-  // Backend-controlled weekly release status (Week 1..4 -> boolean)
-  const [weekReleases, setWeekReleases] = useState<Record<number, boolean>>(() => {
-    try {
-      const stored = localStorage.getItem('siet_week_release_status');
-      if (stored) {
-        const p = JSON.parse(stored);
-        return { 1: Boolean(p['1']), 2: Boolean(p['2']), 3: Boolean(p['3']), 4: Boolean(p['4']) };
-      }
-    } catch (e) {}
-    return { 1: true, 2: true, 3: false, 4: false };
-  });
-
-  const loadReleases = React.useCallback(async () => {
-    try {
-      const rels = await StudentService.fetchWeekReleases();
-      if (rels) {
-        setWeekReleases({
-          1: Boolean(rels['1']),
-          2: Boolean(rels['2']),
-          3: Boolean(rels['3']),
-          4: Boolean(rels['4']),
-        });
-      }
-    } catch (e) {
-      console.warn('Could not fetch student week releases in MySubmissionView:', e);
-    }
-  }, []);
-
   useEffect(() => {
-    loadReleases();
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError(null);
 
-    // Cross-tab real-time sync with BroadcastChannel
-    let bc: BroadcastChannel | null = null;
-    try {
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        bc = new BroadcastChannel('siet_milestone_releases');
-        bc.onmessage = (event) => {
-          if (event.data?.releases) {
-            const r = event.data.releases;
-            setWeekReleases({
-              1: Boolean(r['1']),
-              2: Boolean(r['2']),
-              3: Boolean(r['3']),
-              4: Boolean(r['4']),
-            });
-          }
-        };
-      }
-    } catch (e) {}
+    const loadBackendData = async () => {
+      try {
+        const [fetchedTeam, fetchedSubs, fetchedMarks] = await Promise.all([
+          ApiClient.getStudentTeam().catch(() => null),
+          ApiClient.getStudentSubmissions(),
+          ApiClient.getStudentWeeklyMarks().catch(() => ({}))
+        ]);
 
-    const handleReleaseUpdated = (e: any) => {
-      if (e?.detail?.week !== undefined && e?.detail?.released !== undefined) {
-        setWeekReleases(prev => ({
-          ...prev,
-          [e.detail.week]: Boolean(e.detail.released)
-        }));
-      } else {
-        loadReleases();
+        if (!cancelled) {
+          if (fetchedTeam) setTeam(fetchedTeam);
+          setSubmissions(fetchedSubs || []);
+          if (fetchedMarks) setBackendMarks(fetchedMarks);
+          setHistoryError(null);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('Failed to fetch milestone evaluation history:', err);
+          setHistoryError(err?.message || 'Failed to load evaluation history from backend server');
+          setSubmissions([]);
+        }
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
       }
     };
 
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'siet_week_release_status' && e.newValue) {
-        try {
-          const r = JSON.parse(e.newValue);
-          setWeekReleases({
-            1: Boolean(r['1']),
-            2: Boolean(r['2']),
-            3: Boolean(r['3']),
-            4: Boolean(r['4']),
-          });
-        } catch (err) {}
-      }
-    };
-
-    const handleFocus = () => {
-      loadReleases();
-    };
-
-    window.addEventListener('siet_release_updated', handleReleaseUpdated);
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('focus', handleFocus);
-
-    // Heartbeat poll every 3 seconds for bulletproof real-time sync
-    const interval = setInterval(loadReleases, 3000);
+    loadBackendData();
 
     return () => {
-      if (bc) bc.close();
-      window.removeEventListener('siet_release_updated', handleReleaseUpdated);
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(interval);
-    };
-  }, [loadReleases]);
-
-  useEffect(() => {
-    const handleSync = () => {
-      setSubmissions(StudentService.getSubmissions());
-      setTeam(StudentService.getTeam());
-    };
-    handleSync();
-    window.addEventListener('siet_marks_updated', handleSync);
-    window.addEventListener('siet_data_updated', handleSync);
-    window.addEventListener('storage', handleSync);
-    return () => {
-      window.removeEventListener('siet_marks_updated', handleSync);
-      window.removeEventListener('siet_data_updated', handleSync);
-      window.removeEventListener('storage', handleSync);
+      cancelled = true;
     };
   }, []);
 
@@ -176,23 +107,51 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
     setResubmitModalOpen(true);
   };
 
-  const handleResubmitConfirm = (e: React.FormEvent) => {
+  const handleResubmitConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isTeamLead) return;
     if (!activeWeekSub || !resubmitNotes.trim()) return;
 
-    StudentService.updateSubmission(activeWeekSub.week, resubmitNotes);
-    setSubmissions(StudentService.getSubmissions());
-    setResubmitModalOpen(false);
-    if (detailModalOpen) setDetailModalOpen(false);
-    if (onSuccess) {
-      onSuccess(`Submission ${activeWeekSub.week + 1} milestone updated and submitted for Guide re-review.`);
+    setHistoryLoading(true);
+    setHistoryError(null);
+
+    try {
+      await ApiClient.submitStudentDeliverables(activeWeekSub.week, {
+        obstaclesFaced: activeWeekSub.obstaclesFaced ? `${activeWeekSub.obstaclesFaced}\n[Revision Notes]: ${resubmitNotes}` : resubmitNotes,
+        isSubmit: true
+      });
+
+      const [refreshedTeam, refreshedSubs, refreshedMarks] = await Promise.all([
+        ApiClient.getStudentTeam().catch(() => null),
+        ApiClient.getStudentSubmissions().catch(() => []),
+        ApiClient.getStudentWeeklyMarks().catch(() => ({}))
+      ]);
+
+      if (refreshedTeam) setTeam(refreshedTeam);
+      setSubmissions(refreshedSubs);
+      if (refreshedMarks) setBackendMarks(refreshedMarks);
+
+      setResubmitModalOpen(false);
+      if (detailModalOpen) setDetailModalOpen(false);
+      if (onSuccess) {
+        onSuccess(`Submission ${activeWeekSub.week + 1} milestone updated and submitted for Guide re-review.`);
+      }
+    } catch (err: any) {
+      console.error('Failed to resubmit deliverable:', err);
+      setHistoryError(err?.message || 'Failed to submit updated deliverable to backend server');
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
   // Real file download trigger for PPT and PDF
   const handleDownloadFile = (fileName: string, fileType: 'ppt' | 'pdf', sub: WeeklySubmission, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+
+    const currentUser = AuthService.getCurrentUser();
+    const currentStudentName = currentUser?.name || 'Student';
+    const currentStudentRoll = currentUser?.rollNo || currentUser?.email || 'N/A';
+    const guideDisplayName = sub.guideName || team?.guideName || 'Project Guide';
 
     let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     let content = '';
@@ -201,7 +160,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
       mimeType = 'application/pdf';
       content = `%PDF-1.4
 1 0 obj
-<< /Title (${fileName}) /Author (${sub.guideName || 'Dr. P. Manimegalai'}) >>
+<< /Title (${fileName}) /Author (${guideDisplayName}) >>
 endobj
 2 0 obj
 << /Type /Catalog /Pages 3 0 R >>
@@ -224,9 +183,9 @@ BT
 0 -20 Td
 (Project Title: ${getSubmissionTitle(sub.projectTitle)}) Tj
 0 -20 Td
-(Student: Tarunika Rajgopal | Roll No: 714023104112) Tj
+(Student: ${currentStudentName} | Roll No: ${currentStudentRoll}) Tj
 0 -20 Td
-(Project Guide: ${sub.guideName || 'Dr. P. Manimegalai'} | Status: ${sub.status}) Tj
+(Project Guide: ${guideDisplayName} | Status: ${sub.status}) Tj
 0 -20 Td
 (Submitted Date: ${sub.submissionDate || 'N/A'}) Tj
 ET
@@ -245,8 +204,8 @@ startxref
       content = `SIET PowerPoint Milestone Presentation
 Milestone: Week ${sub.week} - ${sub.title}
 Project: ${getSubmissionTitle(sub.projectTitle)}
-Student: Tarunika Rajgopal (714023104112)
-Project Guide: ${sub.guideName || 'Dr. P. Manimegalai'}
+Student: ${currentStudentName} (${currentStudentRoll})
+Project Guide: ${guideDisplayName}
 Submission Date: ${sub.submissionDate || 'N/A'}
 Evaluation Status: ${sub.status}
 Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
@@ -270,12 +229,27 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
   return (
     <div className="space-y-4 font-sans">
-      
+
       {/* Toast Notification */}
       {downloadToast && (
         <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border border-slate-700 animate-in fade-in slide-in-from-top-2">
           <Download size={14} className="text-mint-400" />
           <span>{downloadToast}</span>
+        </div>
+      )}
+
+      {/* Backend Evaluation History Error Alert */}
+      {historyError && (
+        <div className="bg-[#F8EEEE] border border-[#D9AEAE] rounded-2xl p-4 text-xs text-[#7C3838] font-medium flex items-center gap-3">
+          <AlertTriangle size={18} className="shrink-0 text-[#7C3838]" />
+          <span>Unable to retrieve milestone evaluation history: {historyError}</span>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {historyLoading && (
+        <div className="text-center py-2 text-xs text-[#75695A] font-medium italic">
+          Loading evaluation history from backend...
         </div>
       )}
 
@@ -309,8 +283,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                 ? (sub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved')
                 : (sub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, teamId));
               const isRevisionRequired = !isApproved && (sub.status === 'Changes Requested' || sub.status === 'Rejected');
-              const marksRec = MarksService.getWeeklyMarks(teamId, subNum, memberRollNos) ||
-                               (sub.week === 0 ? MarksService.getWeeklyMarks(teamId, 0, memberRollNos) : null);
+              const marksRec = backendMarks[subNum] || (sub.week === 0 ? backendMarks[0] : null);
               const isMarksAssigned = Boolean(
                 marksRec && (
                   (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
@@ -325,13 +298,12 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   className="p-5 sm:p-6 hover:bg-mint-50/40 transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 group"
                 >
                   <div className="flex items-start gap-4">
-                    
+
                     {/* Submission Badge */}
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs transition group-hover:scale-105 ${
-                      isApproved ? 'bg-mint-500 text-white' :
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-extrabold text-sm shrink-0 shadow-xs transition group-hover:scale-105 ${isApproved ? 'bg-mint-500 text-white' :
                       isRevisionRequired ? 'bg-rose-500 text-white' :
-                      'bg-amber-500 text-white'
-                    }`}>
+                        'bg-amber-500 text-white'
+                      }`}>
                       S{sub.week + 1}
                     </div>
 
@@ -341,30 +313,14 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                         <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-mint-700 transition">
                           Submission {sub.week + 1}
                         </h4>
-                        
-                        {/* Department Release Badge */}
-                        {weekReleases[sub.week + 1] ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 bg-[#EBF0E9] text-[#2E6930] border-[#BFCEB9]">
-                            <Unlock size={10} />
-                            <span>Released</span>
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 bg-[#EDE7DB] text-[#75695A] border-[#D8CCBA]">
-                            <Lock size={10} />
-                            <span>Locked</span>
-                          </span>
-                        )}
-
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${
-                          isApproved ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${isApproved ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
                           isRevisionRequired ? 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse' :
-                          'bg-amber-50 text-amber-800 border-amber-200'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            isApproved ? 'bg-emerald-500' :
+                            'bg-amber-50 text-amber-800 border-amber-200'
+                          }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isApproved ? 'bg-emerald-500' :
                             isRevisionRequired ? 'bg-rose-500' :
-                            'bg-amber-500'
-                          }`}></span>
+                              'bg-amber-500'
+                            }`}></span>
                           <span>{isApproved ? 'Approved' : isRevisionRequired ? sub.status : 'Pending'}</span>
                         </span>
                       </div>
@@ -447,12 +403,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
-                    {!weekReleases[sub.week + 1] ? (
-                      <span className="px-3 py-1.5 rounded-xl border border-[#D8CCBA] bg-[#EDE7DB] text-[#75695A] text-xs font-bold flex items-center gap-1.5 select-none" title="Milestone is locked by the Head of Department">
-                        <Lock size={13} />
-                        <span>Locked by HOD</span>
-                      </span>
-                    ) : isRevisionRequired && isTeamLead ? (
+                    {isRevisionRequired && isTeamLead ? (
                       <button
                         type="button"
                         onClick={(e) => handleEditSubmission(sub.week, e)}
@@ -507,8 +458,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
           ? (activeWeekSub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved')
           : (activeWeekSub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, teamId));
         const isModalRevision = !isModalApproved && (activeWeekSub.status === 'Changes Requested' || activeWeekSub.status === 'Rejected');
-        const modalMarks = MarksService.getWeeklyMarks(teamId, subNum, memberRollNos) ||
-                           (activeWeekSub.week === 0 ? MarksService.getWeeklyMarks(teamId, 0, memberRollNos) : null);
+        const modalMarks = backendMarks[subNum] || (activeWeekSub.week === 0 ? backendMarks[0] : null);
         const isModalMarksAssigned = Boolean(
           modalMarks && (
             (modalMarks.teamAverage !== undefined && modalMarks.teamAverage > 0) ||
@@ -517,395 +467,393 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
         );
 
         return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl border border-[#D8CCBA] overflow-hidden flex flex-col">
-            
-            {/* Modal Header */}
-            <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-slate-50/70 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm text-white shadow-xs ${
-                  isModalApproved ? 'bg-mint-500' :
-                  isModalRevision ? 'bg-rose-500' :
-                  'bg-amber-500'
-                }`}>
-                  S{activeWeekSub.week + 1}
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900 leading-snug">
-                    Submission {activeWeekSub.week + 1} Details
-                  </h3>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                    <span>Submitted on {activeWeekSub.submissionDate || 'N/A'}</span>
-                    <span>&bull;</span>
-                    <span className={`font-bold ${
-                      isModalApproved ? 'text-emerald-700' :
-                      isModalRevision ? 'text-rose-700' :
-                      'text-amber-700'
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl border border-[#D8CCBA] overflow-hidden flex flex-col">
+
+              {/* Modal Header */}
+              <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-slate-50/70 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm text-white shadow-xs ${isModalApproved ? 'bg-mint-500' :
+                    isModalRevision ? 'bg-rose-500' :
+                      'bg-amber-500'
                     }`}>
-                      {isModalApproved ? 'Approved' : isModalRevision ? activeWeekSub.status : 'Pending'}
-                    </span>
+                    S{activeWeekSub.week + 1}
                   </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setDetailModalOpen(false)}
-                className="w-9 h-9 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Scrollable Body: Pure Student Submission Details (Consultation Notice & Guide Review Cards Removed) */}
-            <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700 flex-1">
-              
-              {/* Complete Submission by Student */}
-              <div className="space-y-4">
-                <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#D8CCBA] pb-2">
-                  Complete Student Submission Details
-                </h4>
-
-                {/* Project Title */}
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                    Project Title
-                  </span>
-                  <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs font-bold text-slate-900">
-                    {getSubmissionTitle(activeWeekSub.projectTitle)}
-                  </div>
-                </div>
-
-                {/* Problem Statement */}
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                    Problem Statement
-                  </span>
-                  {activeWeekSub.problemStatement ? (
-                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
-                      {activeWeekSub.problemStatement}
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
-                      <XCircle size={14} className="text-rose-600" />
-                      <span>Not Submitted</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Proposed Solution */}
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                    Proposed Solution &amp; Technical Approach
-                  </span>
-                  {activeWeekSub.solution ? (
-                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
-                      {activeWeekSub.solution}
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
-                      <XCircle size={14} className="text-rose-600" />
-                      <span>Not Submitted</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Technologies Used */}
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                    Technologies Used
-                  </span>
-                  {activeWeekSub.technologyUsed ? (
-                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 font-mono font-bold">
-                      {activeWeekSub.technologyUsed}
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
-                      <XCircle size={14} className="text-rose-600" />
-                      <span>Not Submitted</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Obstacles Faced */}
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                    Obstacles Faced
-                  </span>
-                  {activeWeekSub.obstaclesFaced ? (
-                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
-                      {activeWeekSub.obstaclesFaced}
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
-                      <XCircle size={14} className="text-rose-600" />
-                      <span>Not Submitted</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Abstract */}
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                    Project Abstract
-                  </span>
-                  {activeWeekSub.abstract ? (
-                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
-                      {activeWeekSub.abstract}
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
-                      <XCircle size={14} className="text-rose-600" />
-                      <span>Not Submitted</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Submission Files & External Artifacts Grid */}
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
-                    Submitted Files, Repositories &amp; Media
-                  </span>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    
-                    {/* Presentation PPT */}
-                    {activeWeekSub.fileName || activeWeekSub.presentationFile ? (
-                      <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                            <FileText size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                              {activeWeekSub.fileName || activeWeekSub.presentationFile || `Week_${activeWeekSub.week}_Presentation.pptx`}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">{activeWeekSub.fileSize || '4.2 MB'} &bull; PowerPoint</span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => handleDownloadFile(activeWeekSub.fileName || activeWeekSub.presentationFile || `Week_${activeWeekSub.week}_Presentation.pptx`, 'ppt', activeWeekSub, e)}
-                          className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                        >
-                          <Download size={13} />
-                          <span>Download</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
-                            <FileText size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-700 block">Presentation Deck</span>
-                            <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
-                          </div>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                          <XCircle size={12} />
-                          <span>Not Submitted</span>
-                        </span>
-                      </div>
-                    )}
-
-                    {/* PDF Dossier */}
-                    {activeWeekSub.pdfFile ? (
-                      <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
-                            <FileCode size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                              {activeWeekSub.pdfFile}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">PDF Technical Report</span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => handleDownloadFile(activeWeekSub.pdfFile || `Week_${activeWeekSub.week}_Report.pdf`, 'pdf', activeWeekSub, e)}
-                          className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                        >
-                          <Download size={13} />
-                          <span>Download PDF</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
-                            <FileCode size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-700 block">Technical Report</span>
-                            <span className="text-[10px] text-slate-400">PDF Document</span>
-                          </div>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                          <XCircle size={12} />
-                          <span>Not Submitted</span>
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Source Code Repository */}
-                    {activeWeekSub.repoUrl ? (
-                      <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
-                            <FileCode size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block">GitHub Source Code</span>
-                            <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px] block">
-                              {activeWeekSub.repoUrl}
-                            </span>
-                          </div>
-                        </div>
-                        <a
-                          href={activeWeekSub.repoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-[11px] font-bold transition flex items-center gap-1 shrink-0"
-                        >
-                          <ExternalLink size={12} />
-                          <span>Visit</span>
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
-                            <FileCode size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-700 block">GitHub Source Code</span>
-                            <span className="text-[10px] text-slate-400">Repository</span>
-                          </div>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                          <XCircle size={12} />
-                          <span>Not Submitted</span>
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Live Demo URL */}
-                    {activeWeekSub.demoUrl ? (
-                      <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
-                            <ExternalLink size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block">Live Deployment</span>
-                            <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px] block">
-                              {activeWeekSub.demoUrl}
-                            </span>
-                          </div>
-                        </div>
-                        <a
-                          href={activeWeekSub.demoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2.5 py-1.5 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-[11px] font-bold transition flex items-center gap-1 shrink-0"
-                        >
-                          <ExternalLink size={12} />
-                          <span>Demo</span>
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
-                            <ExternalLink size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-700 block">Live Deployment</span>
-                            <span className="text-[10px] text-slate-400">Web Demo</span>
-                          </div>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                          <XCircle size={12} />
-                          <span>Not Submitted</span>
-                        </span>
-                      </div>
-                    )}
-
-                  </div>
-                </div>
-
-                {/* Output Screenshot Media Preview */}
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                    Submitted Output Screenshot
-                  </span>
-                  {activeWeekSub.screenshotFile ? (
-                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-2xl flex items-center gap-3">
-                      <img 
-                        src={activeWeekSub.screenshotFile} 
-                        alt="Output preview" 
-                        className="w-16 h-16 rounded-xl object-contain border border-mint-200 bg-white p-1"
-                      />
-                      <div>
-                        <span className="font-bold text-slate-800 block text-xs">Edge Vision Inference Output</span>
-                        <span className="text-[11px] text-slate-500">Real-time classification telemetry screenshot</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-2xl flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
-                        <ImageIcon size={20} />
-                      </div>
-                      <div className="flex-1">
-                        <span className="font-bold text-slate-700 block text-xs">Output Screenshot</span>
-                        <span className="text-[11px] text-slate-500">No output screenshot image uploaded for this week</span>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                        <XCircle size={12} />
-                        <span>Not Submitted</span>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900 leading-snug">
+                      Submission {activeWeekSub.week + 1} Details
+                    </h3>
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                      <span>Submitted on {activeWeekSub.submissionDate || 'N/A'}</span>
+                      <span>&bull;</span>
+                      <span className={`font-bold ${isModalApproved ? 'text-emerald-700' :
+                        isModalRevision ? 'text-rose-700' :
+                          'text-amber-700'
+                        }`}>
+                        {isModalApproved ? 'Approved' : isModalRevision ? activeWeekSub.status : 'Pending'}
                       </span>
                     </div>
-                  )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDetailModalOpen(false)}
+                  className="w-9 h-9 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Scrollable Body: Pure Student Submission Details (Consultation Notice & Guide Review Cards Removed) */}
+              <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700 flex-1">
+
+                {/* Complete Submission by Student */}
+                <div className="space-y-4">
+                  <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#D8CCBA] pb-2">
+                    Complete Student Submission Details
+                  </h4>
+
+                  {/* Project Title */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Project Title
+                    </span>
+                    <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs font-bold text-slate-900">
+                      {getSubmissionTitle(activeWeekSub.projectTitle)}
+                    </div>
+                  </div>
+
+                  {/* Problem Statement */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Problem Statement
+                    </span>
+                    {activeWeekSub.problemStatement ? (
+                      <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
+                        {activeWeekSub.problemStatement}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
+                        <XCircle size={14} className="text-rose-600" />
+                        <span>Not Submitted</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Proposed Solution */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Proposed Solution &amp; Technical Approach
+                    </span>
+                    {activeWeekSub.solution ? (
+                      <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
+                        {activeWeekSub.solution}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
+                        <XCircle size={14} className="text-rose-600" />
+                        <span>Not Submitted</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Technologies Used */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Technologies Used
+                    </span>
+                    {activeWeekSub.technologyUsed ? (
+                      <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 font-mono font-bold">
+                        {activeWeekSub.technologyUsed}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
+                        <XCircle size={14} className="text-rose-600" />
+                        <span>Not Submitted</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Obstacles Faced */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Obstacles Faced
+                    </span>
+                    {activeWeekSub.obstaclesFaced ? (
+                      <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
+                        {activeWeekSub.obstaclesFaced}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
+                        <XCircle size={14} className="text-rose-600" />
+                        <span>Not Submitted</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Abstract */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Project Abstract
+                    </span>
+                    {activeWeekSub.abstract ? (
+                      <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-xl text-xs text-slate-800 leading-relaxed">
+                        {activeWeekSub.abstract}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-1.5">
+                        <XCircle size={14} className="text-rose-600" />
+                        <span>Not Submitted</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submission Files & External Artifacts Grid */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
+                      Submitted Files, Repositories &amp; Media
+                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                      {/* Presentation PPT */}
+                      {activeWeekSub.fileName || activeWeekSub.presentationFile ? (
+                        <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                              <FileText size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
+                                {activeWeekSub.fileName || activeWeekSub.presentationFile || `Week_${activeWeekSub.week}_Presentation.pptx`}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">{activeWeekSub.fileSize || '4.2 MB'} &bull; PowerPoint</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDownloadFile(activeWeekSub.fileName || activeWeekSub.presentationFile || `Week_${activeWeekSub.week}_Presentation.pptx`, 'ppt', activeWeekSub, e)}
+                            className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                          >
+                            <Download size={13} />
+                            <span>Download</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
+                              <FileText size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-700 block">Presentation Deck</span>
+                              <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                            <XCircle size={12} />
+                            <span>Not Submitted</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* PDF Dossier */}
+                      {activeWeekSub.pdfFile ? (
+                        <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
+                              <FileCode size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
+                                {activeWeekSub.pdfFile}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">PDF Technical Report</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDownloadFile(activeWeekSub.pdfFile || `Week_${activeWeekSub.week}_Report.pdf`, 'pdf', activeWeekSub, e)}
+                            className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                          >
+                            <Download size={13} />
+                            <span>Download PDF</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
+                              <FileCode size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-700 block">Technical Report</span>
+                              <span className="text-[10px] text-slate-400">PDF Document</span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                            <XCircle size={12} />
+                            <span>Not Submitted</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Source Code Repository */}
+                      {activeWeekSub.repoUrl ? (
+                        <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
+                              <FileCode size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-900 block">GitHub Source Code</span>
+                              <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px] block">
+                                {activeWeekSub.repoUrl}
+                              </span>
+                            </div>
+                          </div>
+                          <a
+                            href={activeWeekSub.repoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-[11px] font-bold transition flex items-center gap-1 shrink-0"
+                          >
+                            <ExternalLink size={12} />
+                            <span>Visit</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
+                              <FileCode size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-700 block">GitHub Source Code</span>
+                              <span className="text-[10px] text-slate-400">Repository</span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                            <XCircle size={12} />
+                            <span>Not Submitted</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Live Demo URL */}
+                      {activeWeekSub.demoUrl ? (
+                        <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
+                              <ExternalLink size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-900 block">Live Deployment</span>
+                              <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px] block">
+                                {activeWeekSub.demoUrl}
+                              </span>
+                            </div>
+                          </div>
+                          <a
+                            href={activeWeekSub.demoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2.5 py-1.5 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-[11px] font-bold transition flex items-center gap-1 shrink-0"
+                          >
+                            <ExternalLink size={12} />
+                            <span>Demo</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
+                              <ExternalLink size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-700 block">Live Deployment</span>
+                              <span className="text-[10px] text-slate-400">Web Demo</span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                            <XCircle size={12} />
+                            <span>Not Submitted</span>
+                          </span>
+                        </div>
+                      )}
+
+                    </div>
+                  </div>
+
+                  {/* Output Screenshot Media Preview */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Submitted Output Screenshot
+                    </span>
+                    {activeWeekSub.screenshotFile ? (
+                      <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-2xl flex items-center gap-3">
+                        <img
+                          src={activeWeekSub.screenshotFile}
+                          alt="Output preview"
+                          className="w-16 h-16 rounded-xl object-contain border border-mint-200 bg-white p-1"
+                        />
+                        <div>
+                          <span className="font-bold text-slate-800 block text-xs">Edge Vision Inference Output</span>
+                          <span className="text-[11px] text-slate-500">Real-time classification telemetry screenshot</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-2xl flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
+                          <ImageIcon size={20} />
+                        </div>
+                        <div className="flex-1">
+                          <span className="font-bold text-slate-700 block text-xs">Output Screenshot</span>
+                          <span className="text-[11px] text-slate-500">No output screenshot image uploaded for this week</span>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                          <XCircle size={12} />
+                          <span>Not Submitted</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
                 </div>
 
               </div>
 
-            </div>
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-between bg-slate-50 shrink-0">
+                {!isModalMarksAssigned && isTeamLead ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailModalOpen(false);
+                      handleEditSubmission(activeWeekSub.week);
+                    }}
+                    className="px-4 py-2 bg-[#EDE7DB] hover:bg-[#E2D9C8] text-[#111111] border border-[#D8CCBA] text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                    title="Edit your submitted details before marks are assigned"
+                  >
+                    <Edit3 size={13} />
+                    <span>Edit Submission</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-between bg-slate-50 shrink-0">
-              {!isModalMarksAssigned && isTeamLead ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setDetailModalOpen(false);
-                    handleEditSubmission(activeWeekSub.week);
-                  }}
-                  className="px-4 py-2 bg-[#EDE7DB] hover:bg-[#E2D9C8] text-[#111111] border border-[#D8CCBA] text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                  title="Edit your submitted details before marks are assigned"
+                  onClick={() => setDetailModalOpen(false)}
+                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer"
                 >
-                  <Edit3 size={13} />
-                  <span>Edit Submission</span>
+                  Close
                 </button>
-              ) : (
-                <div />
-              )}
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setDetailModalOpen(false)}
-                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer"
-              >
-                Close
-              </button>
             </div>
-
           </div>
-        </div>
         );
       })()}
 
@@ -913,7 +861,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
       {resubmitModalOpen && activeWeekSub && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-[#D8CCBA] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            
+
             <div className="p-6 border-b border-[#D8CCBA] flex items-center justify-between bg-rose-50/60">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
@@ -933,7 +881,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
             </div>
 
             <form onSubmit={handleResubmitConfirm} className="p-6 space-y-4 text-xs">
-              
+
               <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200 text-rose-950">
                 <span className="font-bold block mb-1">Guide Feedback to Address:</span>
                 <p className="italic text-[11px]">{activeWeekSub.comments}</p>

@@ -32,8 +32,8 @@ try {
       guideTeams.forEach((t: any) => {
         if (t.teamId !== 'TEAM-CSE-Y3-B04' && t.teamNumber !== 4) {
           const isMockTitle = (
-            t.projectTitle === 'Wildfire Prediction Mesh Network' || 
-            t.projectTitle === 'Automated Legal Document Summarizer' || 
+            t.projectTitle === 'Wildfire Prediction Mesh Network' ||
+            t.projectTitle === 'Automated Legal Document Summarizer' ||
             t.projectTitle === 'Autonomous Solar Panel Cleaning Drone'
           );
           if (isMockTitle) {
@@ -55,7 +55,7 @@ try {
       }
     }
   }
-} catch (e) {}
+} catch (e) { }
 
 const TEAM_STORAGE_KEY = "siet_student_team_v6";
 const SUBMISSIONS_STORAGE_KEY = "siet_student_submissions_v6";
@@ -138,7 +138,7 @@ export const StudentService = {
     try {
       const stored = localStorage.getItem(TEAM_STORAGE_KEY);
       if (stored) team = JSON.parse(stored);
-    } catch (e) {}
+    } catch (e) { }
 
     // Check if the current user belongs to another class team in advisor records
     try {
@@ -181,7 +181,7 @@ export const StudentService = {
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Check if Guide has approved title or submission 1 without calling this.isSubmission1Approved()
     if (team.isTitleApproved || team.guideApprovalStatus === 'Approved') {
@@ -206,7 +206,7 @@ export const StudentService = {
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (team.isTitleApproved) {
       if (!team.projectTitle || team.projectTitle === 'No Title Submitted' || team.projectTitle === 'Title Approval Pending') {
@@ -219,7 +219,7 @@ export const StudentService = {
               team.submittedTitle = p1.projectTitle.trim();
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     }
 
@@ -232,7 +232,7 @@ export const StudentService = {
       if (res && res.releases) {
         try {
           localStorage.setItem('siet_week_release_status', JSON.stringify(res.releases));
-        } catch (e) {}
+        } catch (e) { }
         return res.releases;
       }
     } catch (e) {
@@ -241,7 +241,7 @@ export const StudentService = {
     try {
       const cached = localStorage.getItem('siet_week_release_status');
       if (cached) return JSON.parse(cached);
-    } catch (e) {}
+    } catch (e) { }
     return { '1': true, '2': true, '3': false, '4': false };
   },
 
@@ -345,7 +345,7 @@ export const StudentService = {
               const parsedT = JSON.parse(tRaw);
               isGuideApproved = Boolean(parsedT?.isTitleApproved || parsedT?.guideApprovalStatus === 'Approved');
             }
-          } catch (e) {}
+          } catch (e) { }
 
           return parsed.filter((sub: any) => {
             if (!sub || typeof sub !== 'object') return false;
@@ -360,7 +360,7 @@ export const StudentService = {
           });
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(DEFAULT_COMPLETED_WEEKS));
     return DEFAULT_COMPLETED_WEEKS;
   },
@@ -385,7 +385,7 @@ export const StudentService = {
           const parsed = JSON.parse(stored);
           if (parsed && (parsed.isTitleApproved || parsed.guideApprovalStatus === 'Approved')) return true;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     try {
@@ -401,7 +401,7 @@ export const StudentService = {
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const marks = MarksService.getWeeklyMarks(tId, 1);
     if (marks && (marks.teamAverage > 0 || (marks.memberMarks && Object.keys(marks.memberMarks).length > 0))) {
@@ -422,7 +422,7 @@ export const StudentService = {
             if (s0 && s0.status === 'Approved') return true;
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     return false;
@@ -447,10 +447,10 @@ export const StudentService = {
           if (sub && (sub.evaluationStatus === 'Approved' || sub.status === 'Approved')) return true;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
-    const marks = MarksService.getWeeklyMarks(tId, subNumber) || 
-                  MarksService.getWeeklyMarks(tId, weekIndex);
+    const marks = MarksService.getWeeklyMarks(tId, subNumber) ||
+      MarksService.getWeeklyMarks(tId, weekIndex);
     if (marks && (marks.teamAverage > 0 || (marks.memberMarks && Object.keys(marks.memberMarks).length > 0))) {
       return true;
     }
@@ -496,7 +496,7 @@ export const StudentService = {
           if (fallback) loadedState = JSON.parse(fallback);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const defaultState: StudentDeliverableState = loadedState || {
       week: weekText,
@@ -528,7 +528,7 @@ export const StudentService = {
     };
 
     // Sequential Carryover: Title, Problem Statement, Solution are carried over once approved in prior milestones
-    const isSubAfter1 = 
+    const isSubAfter1 =
       weekText.toLowerCase().includes('submission 2') ||
       weekText.toLowerCase().includes('submission 3') ||
       weekText.toLowerCase().includes('submission 4') ||
@@ -556,7 +556,7 @@ export const StudentService = {
           try {
             const rawPrev = localStorage.getItem(dPrevKey) || (dLegacyKey ? localStorage.getItem(dLegacyKey) : null);
             if (rawPrev) dPrev = JSON.parse(rawPrev);
-          } catch (e) {}
+          } catch (e) { }
 
           const t = dPrev?.projectTitle || (sNum === 1 ? (team.projectTitle || team.submittedTitle) : '');
           const p = dPrev?.problemStatement || '';
@@ -808,12 +808,38 @@ export const StudentService = {
       repoUrl: current.repoUrl,
       demoUrl: current.demoUrl,
       isSubmit: true
-    }).catch(() => {});
+    }).catch(() => { });
 
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
 
     return current;
+  },
+
+  updateSubmission(week: number, note?: string): void {
+    try {
+      const list = this.getSubmissions();
+      let item = list.find(s => s.week === week || s.week === week + 1);
+      const subDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      if (item) {
+        item.status = 'Submitted';
+        item.submissionDate = subDate;
+        if (note) item.comments = note;
+      } else {
+        item = {
+          week,
+          title: `Submission ${week + 1} Deliverable Submission`,
+          dueDate: `Submission ${week + 1}`,
+          status: 'Submitted',
+          submissionDate: subDate,
+          comments: note || '',
+        } as any;
+        list.push(item);
+      }
+      this.saveSubmissions(list);
+    } catch (e) {
+      console.warn('updateSubmission error:', e);
+    }
   },
 
   saveDeliverableField(
@@ -837,9 +863,9 @@ export const StudentService = {
       // Also trigger backend title update
       ApiClient.getStudentTeam().then(backendTeam => {
         if (backendTeam?.id) {
-          ApiClient.updateProjectTitle(backendTeam.id, value).catch(() => {});
+          ApiClient.updateProjectTitle(backendTeam.id, value).catch(() => { });
         }
-      }).catch(() => {});
+      }).catch(() => { });
     } else if (field === 'problemStatement') {
       current.problemStatement = value;
     } else if (field === 'solution') {
@@ -950,7 +976,7 @@ export const StudentService = {
             studentTeam.rejectionReason = '';
             this.saveTeam(studentTeam);
           }
-        } catch (e) {}
+        } catch (e) { }
 
         if (current.problemStatement) guideTeam.problemStatement = current.problemStatement;
         if (current.solution) guideTeam.proposedSolution = current.solution;
@@ -961,10 +987,10 @@ export const StudentService = {
 
         if (!guideTeam.submissions) guideTeam.submissions = [];
         let sub = guideTeam.submissions.find((s: any) => s.weekNumber === weekNum);
-        
+
         const isPdf = Boolean(current.presentationFile && current.presentationFile.toLowerCase().endsWith('.pdf'));
         const isPpt = Boolean(current.presentationFile && (current.presentationFile.toLowerCase().endsWith('.ppt') || current.presentationFile.toLowerCase().endsWith('.pptx')));
-        
+
         if (!sub) {
           sub = {
             weekNumber: weekNum,
@@ -1046,33 +1072,20 @@ export const StudentService = {
     return current;
   },
 
-  updateSubmission(weekNumber: number, updatedComments?: string): boolean {
+  async updateSubmission(weekNumber: number, updatedComments: string): boolean {
     const list = this.getSubmissions();
-    let item = list.find(s => s.week === weekNumber || s.week === weekNumber + 1);
-    const subDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    if (item) {
-      item.status = 'Submitted';
-      item.submissionDate = subDate;
-      if (updatedComments) {
-        item.comments = updatedComments.startsWith('Updated:') ? updatedComments : `Updated: ${updatedComments}`;
-      }
-    } else {
-      item = {
-        week: weekNumber,
-        title: `Submission ${weekNumber + 1} Deliverable Submission`,
-        dueDate: `Submission ${weekNumber + 1}`,
-        status: 'Submitted',
-        submissionDate: subDate,
-        comments: updatedComments || '',
-      } as any;
-      list.push(item);
-    }
+    const item = list.find(s => s.week === weekNumber);
+    if (!item) return false;
+
+    item.status = 'Submitted';
+    item.submissionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    item.comments = `Updated: ${updatedComments}`;
     this.saveSubmissions(list);
 
     // Call backend
-    ApiClient.submitStudentDeliverables(weekNumber, {
+    await ApiClient.submitStudentDeliverables(weekNumber, {
       isSubmit: true
-    }).catch(() => {});
+    }).catch(() => { });
 
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
@@ -1119,7 +1132,7 @@ export const StudentService = {
             localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // 5. Reset Advisor Portal storage and marks across all portals so marks become unassigned
       try {
@@ -1137,10 +1150,10 @@ export const StudentService = {
             }
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // 6. Asynchronous call to backend to delete submission
-      ApiClient.deleteStudentSubmission(weekNumber).catch(() => {});
+      ApiClient.deleteStudentSubmission(weekNumber).catch(() => { });
 
       // 7. Global event dispatch
       window.dispatchEvent(new Event('siet_data_updated'));
@@ -1195,7 +1208,7 @@ export const StudentService = {
         });
         localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
       }
-    } catch (e) {}
+    } catch (e) { }
 
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
