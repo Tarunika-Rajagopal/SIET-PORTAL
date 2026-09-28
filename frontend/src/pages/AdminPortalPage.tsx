@@ -5,14 +5,13 @@ import AdminHomeView from '../components/admin/AdminHomeView';
 import AdminAdvisorsView from '../components/admin/AdminAdvisorsView';
 import AdminGuidesView from '../components/admin/AdminGuidesView';
 import AdminStudentsView from '../components/admin/AdminStudentsView';
-import AdminHistoryView from '../components/admin/AdminHistoryView';
-import { Home, UserCheck, Briefcase, GraduationCap, History, CheckCircle2 } from 'lucide-react';
+import { Home, UserCheck, Briefcase, GraduationCap, CheckCircle2 } from 'lucide-react';
 
 export const AdminPortalPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'home' | 'advisors' | 'guides' | 'students' | 'history'>(() => {
+  const [activeTab, setActiveTab] = useState<'home' | 'advisors' | 'guides' | 'students'>(() => {
     try {
       const saved = localStorage.getItem('siet_admin_active_tab');
-      if (saved && ['home', 'advisors', 'guides', 'students', 'history'].includes(saved)) {
+      if (saved && ['home', 'advisors', 'guides', 'students'].includes(saved)) {
         return saved as any;
       }
     } catch (e) {}
@@ -20,7 +19,7 @@ export const AdminPortalPage: React.FC = () => {
   });
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
-  const changeTab = (tab: 'home' | 'advisors' | 'guides' | 'students' | 'history') => {
+  const changeTab = (tab: 'home' | 'advisors' | 'guides' | 'students') => {
     setActiveTab(tab);
     try {
       localStorage.setItem('siet_admin_active_tab', tab);
@@ -56,6 +55,7 @@ export const AdminPortalPage: React.FC = () => {
         title="Department Administration Portal"
         subtitle="Faculty Role Governance & Academic Student Allocation Engine"
         onOpenProfile={() => setProfileModalOpen(true)}
+        hideSettings={true}
       />
 
       {/* Sticky Horizontal Navigation Bar */}
@@ -109,18 +109,6 @@ export const AdminPortalPage: React.FC = () => {
               <GraduationCap size={15} />
               <span>Students</span>
             </button>
-
-            <button
-              onClick={() => changeTab('history')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'history'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
-              }`}
-            >
-              <History size={15} />
-              <span>History</span>
-            </button>
           </nav>
         </div>
       </div>
@@ -150,9 +138,6 @@ export const AdminPortalPage: React.FC = () => {
             selectedClass={selectedStudentClass}
             onShowToast={showToast}
           />
-        )}
-        {activeTab === 'history' && (
-          <AdminHistoryView />
         )}
       </main>
 

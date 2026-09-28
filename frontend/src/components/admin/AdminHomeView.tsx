@@ -7,7 +7,7 @@ import RemoveGuideShiftModal from './RemoveGuideShiftModal';
 import FacultyAssignAdvisorModal from './FacultyAssignAdvisorModal';
 
 interface AdminHomeViewProps {
-  onNavigateTab: (tab: 'home' | 'advisors' | 'guides' | 'students' | 'history') => void;
+  onNavigateTab: (tab: 'home' | 'advisors' | 'guides' | 'students') => void;
   onShowToast: (msg: string) => void;
 }
 

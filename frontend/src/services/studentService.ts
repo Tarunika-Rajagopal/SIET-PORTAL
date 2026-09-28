@@ -1087,7 +1087,7 @@ export const StudentService = {
     return current;
   },
 
-  async updateSubmission(weekNumber: number, updatedComments: string): boolean {
+  async updateSubmission(weekNumber: number, updatedComments: string): Promise<boolean> {
     const list = this.getSubmissions();
     const item = list.find(s => s.week === weekNumber);
     if (!item) return false;
