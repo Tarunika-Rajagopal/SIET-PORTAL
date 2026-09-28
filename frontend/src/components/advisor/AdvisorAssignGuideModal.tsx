@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, UserCheck, BookOpen, Users, AlertCircle, Sparkles, CheckCircle2, Shield } from 'lucide-react';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { AdminService, AdminFaculty, AdminStudent } from '../../services/adminService';
+import { useFaculties } from '../../hooks/useQueries';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 import { getUserInitials } from '../../services/authService';
 
@@ -34,14 +35,11 @@ export const AdvisorAssignGuideModal: React.FC<AdvisorAssignGuideModalProps> = (
   const teams = AdvisorService.getTeamsForClass(className);
   const teamCapacity = AdvisorService.getTeamCapacity(className);
   
-  const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
-  useEffect(()=>{
-    const f = async()=>{
-      const fac = await AdminService.getFaculties();
-      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
-    }
-    f();
-  },[]);
+  const { data: allFaculties = [] } = useFaculties();
+  const availableGuides = React.useMemo(
+    () => allFaculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide'),
+    [allFaculties]
+  );
 
   useEffect(() => {
     if (isOpen && student) {

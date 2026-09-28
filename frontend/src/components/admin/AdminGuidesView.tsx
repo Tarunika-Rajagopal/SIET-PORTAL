@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Briefcase, Search, RotateCw, CheckCircle2, UserMinus, RefreshCw } from 'lucide-react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
+import { useFaculties, invalidateFacultiesQuery } from '../../hooks/useQueries';
 import RemoveGuideShiftModal from './RemoveGuideShiftModal';
 
 interface AdminGuidesViewProps {
@@ -8,22 +9,13 @@ interface AdminGuidesViewProps {
 }
 
 export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast }) => {
-  const [faculties, setFaculties] = useState<AdminFaculty[]>([]);
+  const { data: faculties = [], refetch: refetchFaculties } = useFaculties();
   const [searchTerm, setSearchTerm] = useState('');
   const [isManageMode, setIsManageMode] = useState(false);
 
   // Shift & Reassignment modal for removing guide role
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [facultyToRevoke, setFacultyToRevoke] = useState<AdminFaculty | null>(null);
-  
-  useEffect(() => {
-    const faculty = async()=>{
-    const f = await AdminService.getFaculties();
-    setFaculties(f);
-    };
-    faculty();
-    return AdminService.subscribe(faculty);
-  }, []);
 
   // Filter only faculty assigned as Guides
   const guides = faculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide');
@@ -64,7 +56,7 @@ export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast })
           <button
             onClick={async() => {
               if (isManageMode) {
-                setFaculties(await AdminService.getFaculties());
+                refetchFaculties();
                 setIsManageMode(false);
                 onShowToast("Guides data refreshed.");
               } else {
@@ -138,8 +130,8 @@ export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast })
           setFacultyToRevoke(null);
         }}
         faculty={facultyToRevoke}
-        onSuccess={async(msg) => {
-          setFaculties(await AdminService.getFaculties());
+        onSuccess={(msg) => {
+          invalidateFacultiesQuery();
           onShowToast(msg);
         }}
       />

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
+import { useFaculties, invalidateFacultiesQuery } from '../../hooks/useQueries';
 import { Users, UserCheck, Briefcase, Plus, CheckCircle2, RotateCw, Trash2, ShieldAlert, ArrowRight } from 'lucide-react';
 import FacultyDeleteShiftModal from './FacultyDeleteShiftModal';
 import RemoveAdvisorShiftModal from './RemoveAdvisorShiftModal';
@@ -7,12 +8,12 @@ import RemoveGuideShiftModal from './RemoveGuideShiftModal';
 import FacultyAssignAdvisorModal from './FacultyAssignAdvisorModal';
 
 interface AdminHomeViewProps {
-  onNavigateTab: (tab: 'home' | 'advisors' | 'guides' | 'students' | 'history') => void;
+  onNavigateTab: (tab: 'home' | 'advisors' | 'guides' | 'students') => void;
   onShowToast: (msg: string) => void;
 }
 
 export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onShowToast }) => {
-  const [faculties, setFaculties] = useState<AdminFaculty[]>([]);
+  const { data: faculties = [], refetch: refetchFaculties } = useFaculties();
   const [isManageMode, setIsManageMode] = useState(false);
 
   // Form state
@@ -37,15 +38,6 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
   // Assign Advisor Modal state
   const [assignAdvisorModalOpen, setAssignAdvisorModalOpen] = useState(false);
   const [facultyToAssignAdvisor, setFacultyToAssignAdvisor] = useState<AdminFaculty | null>(null);
-
-  useEffect(() => {
-    const faculty = async()=>{
-    const f = await AdminService.getFaculties();
-    setFaculties(f);
-    };
-    faculty();
-    return AdminService.subscribe(faculty);
-  }, []);
 
   // Compute counts
   const availableFacultiesCount = faculties.length;
@@ -85,9 +77,7 @@ try{
     onShowToast(`Error adding faculty: ${err}`);
   }
 
-    // Re-fetch AFTER adding:
-    const updated = await AdminService.getFaculties();
-    setFaculties(updated);
+    invalidateFacultiesQuery();
 
     onShowToast(`Faculty member ${name} onboarded successfully!`);
     setName('');
@@ -306,7 +296,7 @@ try{
             <button
               onClick={async() => {
                 if (isManageMode) {
-                  setFaculties(await AdminService.getFaculties());
+                  refetchFaculties();
                   setIsManageMode(false);
                   onShowToast("Faculties roster refreshed.");
                 } else {

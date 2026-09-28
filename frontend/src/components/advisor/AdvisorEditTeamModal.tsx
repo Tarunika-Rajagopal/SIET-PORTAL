@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Users, AlertCircle, CheckCircle2, ChevronDown, Check, UserMinus, Edit3, Sparkles } from 'lucide-react';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { AdminService, AdminStudent, AdminFaculty } from '../../services/adminService';
+import { useFaculties, useAdminStudents } from '../../hooks/useQueries';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 
 interface AdvisorEditTeamModalProps {
@@ -61,15 +62,12 @@ export const AdvisorEditTeamModal: React.FC<AdvisorEditTeamModalProps> = ({
   }
 }, [isOpen, className, batch]);
 
-  // Available faculty guides
-const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
-  useEffect(()=>{
-    const f = async()=>{
-      const fac = await AdminService.getFaculties();
-      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
-    }
-    f();
-  },[]);
+  // Available faculty guides from TanStack Query
+  const { data: allFaculties = [] } = useFaculties();
+  const availableGuides = React.useMemo(
+    () => allFaculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide'),
+    [allFaculties]
+  );
 
   // Load team data into state when modal opens
   useEffect(() => {
@@ -166,14 +164,7 @@ const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
     onTeamUpdated(res.team);
     onClose();
   };
-  const [allStudents,setAllstudents] = useState<AdminStudent[]>([]);
-  useEffect(()=>{
-     const fetchStudents = async()=>{
-        const students = await AdminService.getStudents();
-        setAllstudents(students);
-    }
-    fetchStudents(); 
-  },[]);
+  const { data: allStudents = [] } = useAdminStudents();
   const selectedStudentObjects = selectedMemberRolls.map(rNo => {
     const s = allStudents.find(x => x.rollNo === rNo);
     return s || {

@@ -6,6 +6,7 @@ from database import get_db
 from auth import require_roles
 from models import User
 from services.admin_service import AdminService
+from services.cache_service import cache_service
 from schemas import (
     AddFacultyRequest,
     UpdateFacultyRequest,
@@ -29,7 +30,13 @@ async def get_faculties(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.get_faculties()
+    cache_key = "cache:admin:faculties"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_faculties()
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.post("/faculties")
@@ -38,7 +45,7 @@ async def add_faculty(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.add_faculty(
+    res = await service.add_faculty(
         req.name,
         req.email,
         req.designation,
@@ -47,6 +54,8 @@ async def add_faculty(
         req.advisorBatch,
         req.advisorClass,
     )
+    await cache_service.invalidate_faculties()
+    return res
 
 
 @router.put("/faculties/{faculty_id}")
@@ -56,7 +65,9 @@ async def update_faculty(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.update_faculty(faculty_id, req.dict(exclude_unset=True))
+    res = await service.update_faculty(faculty_id, req.dict(exclude_unset=True))
+    await cache_service.invalidate_faculties()
+    return res
 
 
 @router.post("/faculties/remove-faculty")
@@ -65,7 +76,9 @@ async def delete_faculty(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.delete_faculty(req.faculty_email)
+    res = await service.delete_faculty(req.faculty_email)
+    await cache_service.invalidate_faculties()
+    return res
 
 
 @router.post("/faculties/{faculty_id}/assign-guide")
@@ -74,7 +87,9 @@ async def assign_guide(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.assign_guide(faculty_id)
+    res = await service.assign_guide(faculty_id)
+    await cache_service.invalidate_faculties()
+    return res
 
 
 @router.post("/faculties/{faculty_id}/remove-guide")
@@ -83,7 +98,9 @@ async def remove_guide(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.remove_guide(faculty_id)
+    res = await service.remove_guide(faculty_id)
+    await cache_service.invalidate_faculties()
+    return res
 
 
 @router.post("/faculties/assign-advisor")
@@ -92,7 +109,9 @@ async def assign_advisor(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.assign_advisor(data.faculty_id, data.batch, data.className)
+    res = await service.assign_advisor(data.faculty_id, data.batch, data.className)
+    await cache_service.invalidate_faculties()
+    return res
 
 
 @router.post("/faculties/{faculty_id}/remove-advisor")
@@ -101,7 +120,9 @@ async def remove_advisor(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.remove_advisor(faculty_name)
+    res = await service.remove_advisor(faculty_name)
+    await cache_service.invalidate_faculties()
+    return res
 
 
 # ── Students ────────────────────────────────────────────────────
@@ -110,7 +131,13 @@ async def get_students(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.get_students()
+    cache_key = "cache:admin:students"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_students()
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.post("/students")
@@ -119,7 +146,7 @@ async def add_student(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.add_student(
+    res = await service.add_student(
         req.name,
         req.rollNo,
         req.email,
@@ -128,6 +155,8 @@ async def add_student(
         req.classSection or "CSE-B",
         req.guide or "Unassigned"
     )
+    await cache_service.invalidate_students()
+    return res
 
 
 @router.post("/students/import")
@@ -136,7 +165,9 @@ async def import_students(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.import_students(req.students)
+    res = await service.import_students(req.students)
+    await cache_service.invalidate_students()
+    return res
 
 
 @router.delete("/students/{roll_no}")
@@ -145,7 +176,9 @@ async def delete_student(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.delete_student(roll_no)
+    res = await service.delete_student(roll_no)
+    await cache_service.invalidate_students()
+    return res
 
 
 # ── Audit Logs ──────────────────────────────────────────────────
@@ -177,7 +210,9 @@ async def reassign(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.reassign(request.email_one)
+    res = await service.reassign(request.email_one)
+    await cache_service.invalidate_faculties()
+    return res
 
 @router.post("/delete-guide")
 async def delete_guide(
@@ -185,5 +220,7 @@ async def delete_guide(
     user: User = Depends(require_roles("admin")),
     service: AdminService = Depends(get_admin_service),
 ):
-    return await service.delete_guide(request.email_one)
+    res = await service.delete_guide(request.email_one)
+    await cache_service.invalidate_faculties()
+    return res
     

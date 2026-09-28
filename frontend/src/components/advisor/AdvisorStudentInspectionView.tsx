@@ -7,6 +7,7 @@ import {
 import { ClassTeam, AdvisorService } from '../../services/advisorService';
 import { MarksService, WeeklyMarksRecord } from '../../services/marksService';
 import { AdminService, AdminFaculty } from '../../services/adminService';
+import { useFaculties } from '../../hooks/useQueries';
 import { StudentService } from '../../services/studentService';
 import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsService';
 import { WeeklySubmission } from '../../types';
@@ -134,14 +135,11 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
     setIsMarksModalOpen(false);
     onShowToast(`Evaluated & saved Week ${selectedWeek} marks for ${team.teamNo} (Average: ${modalAverage}/100).`);
   };
-   const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
-  useEffect(()=>{
-    const f = async()=>{
-      const fac = await AdminService.getFaculties();
-      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
-    }
-    f();
-  },[]);
+  const { data: allFaculties = [] } = useFaculties();
+  const availableGuides = React.useMemo(
+    () => allFaculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide'),
+    [allFaculties]
+  );
  
   const handleConfirmChangeGuide = async () => {
     setGuideError('');

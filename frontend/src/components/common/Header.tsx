@@ -8,13 +8,15 @@ interface HeaderProps {
   subtitle?: string;
   onOpenProfile?: () => void;
   children?: React.ReactNode;
+  hideSettings?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   title = "Department Project Portal",
   subtitle = "Department of Computer Science and Engineering",
   onOpenProfile,
-  children
+  children,
+  hideSettings
 }) => {
   const { currentUser, activeRole, logout } = useAuth();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -35,6 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
     : getInitials(currentUser?.name, activeRole === 'student' ? 'TR' : 'US');
 
   const isSettings = location.pathname === '/settings';
+  const role = (activeRole || currentUser?.role || '').toLowerCase();
+  const shouldHideSettings = hideSettings || role === 'admin';
 
   return (
     <header className="bg-[#F8F5EE] border-b border-[#D8CCBA] sticky top-0 z-40 shadow-xs">
@@ -72,19 +76,21 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right: Settings Icon & User Profile Avatar Dropdown */}
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <button
-              id="headerSettingsButton"
-              onClick={() => navigate('/settings')}
-              className={`w-10 h-10 rounded-full flex items-center justify-center border transition focus:outline-none cursor-pointer ${
-                isSettings
-                  ? 'bg-[#111111] text-[#F8F5EE] border-[#111111] shadow-xs'
-                  : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] hover:text-[#111111] border-[#D8CCBA] shadow-2xs'
-              }`}
-              title="Settings"
-              aria-label="Settings"
-            >
-              <SettingsIcon size={18} className="transition-transform duration-200 hover:rotate-45" />
-            </button>
+            {!shouldHideSettings && (
+              <button
+                id="headerSettingsButton"
+                onClick={() => navigate('/settings')}
+                className={`w-10 h-10 rounded-full flex items-center justify-center border transition focus:outline-none cursor-pointer ${
+                  isSettings
+                    ? 'bg-[#111111] text-[#F8F5EE] border-[#111111] shadow-xs'
+                    : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] hover:text-[#111111] border-[#D8CCBA] shadow-2xs'
+                }`}
+                title="Settings"
+                aria-label="Settings"
+              >
+                <SettingsIcon size={18} className="transition-transform duration-200 hover:rotate-45" />
+              </button>
+            )}
 
             <div className="relative">
               <button

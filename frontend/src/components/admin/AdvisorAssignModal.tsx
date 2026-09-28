@@ -1,6 +1,7 @@
-import React, { useState,useEffect} from 'react';
+import React, { useState } from 'react';
 import { X, UserCheck, Check, AlertTriangle } from 'lucide-react';
 import { AdminFaculty, AdminService } from '../../services/adminService';
+import { useFaculties, invalidateFacultiesQuery } from '../../hooks/useQueries';
 
 interface AdvisorAssignModalProps {
   isOpen: boolean;
@@ -19,45 +20,29 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
 }) => {
   if (!isOpen) return null;
   
-  const[allFaculties,setAllfaculties] = useState<AdminFaculty[]>([]);
-  
-  useEffect(() => {
-  const fetchFaculties = async () => {
-    const f = await AdminService.getFaculties();
-    setAllfaculties(f);
-  };
-
-  fetchFaculties();
-
-  // const unsubscribe = AdminService.subscribe((updatedFaculties:AdminFaculty[]) => {
-  //   setAllfaculties(updatedFaculties);
-  // });
-
-  // return () => {
-  //   unsubscribe();
-  // };
-}, []);
+  const { data: allFaculties = [] } = useFaculties();
   // Faculties not already assigned to this exact class
   const candidates = allFaculties.filter(f => !(f.advisorBatch === batch && f.advisorClass === className));
 
-  const [id, setID] = useState('');
+  const [id, setID] = useState(candidates[0]?.id || '');
   const [reason, setReason] = useState(`Designated Class Advisor for ${className} (${batch})`);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) {
+    const targetId = id || candidates[0]?.id;
+    if (!targetId) {
       setError('Please select a faculty member.');
       return;
     }
-    try{
-     
-    await AdminService.assignAdvisor(id, batch, className);
-    }catch(e){
+    try {
+      await AdminService.assignAdvisor(targetId, batch, className);
+      await invalidateFacultiesQuery();
+    } catch(e) {
       setError('Failed to assign advisor.');
       return;
     }
-    const fac = allFaculties.find(f => f.id === id);
+    const fac = allFaculties.find(f => f.id === targetId);
     onSuccess(`Assigned ${fac?.name} as Class Advisor for ${className}.`);
     onClose();
   };

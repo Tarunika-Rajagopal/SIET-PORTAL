@@ -6,6 +6,7 @@ from database import get_db
 from auth import require_roles
 from models import User
 from services.advisor_service import AdvisorService
+from services.cache_service import cache_service
 from schemas import (
     CreateTeamRequest,
     BulkCreateTeamsRequest,
@@ -27,7 +28,13 @@ async def get_available_guides(
     user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
-    return await service.get_available_guides()
+    cache_key = "cache:advisor:guides"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_available_guides()
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.get("/teams")

@@ -3,6 +3,7 @@ import {
   BookOpen, X, AlertCircle, Check, ArrowRight, UserCheck, Shield, ChevronDown
 } from 'lucide-react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
+import { useFaculties } from '../../hooks/useQueries';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { ApiClient } from '../../services/apiClient';
 
@@ -27,7 +28,7 @@ export const AdvisorGuideReassignModal: React.FC<AdvisorGuideReassignModalProps>
 }) => {
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [selectedNewGuide, setSelectedNewGuide] = useState<string>('');
-  const [availableGuides, setAvailableGuides] = useState<AdminFaculty[]>([]);
+  const { data: availableGuides = [] } = useFaculties();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -40,27 +41,6 @@ export const AdvisorGuideReassignModal: React.FC<AdvisorGuideReassignModalProps>
       }
       setSelectedNewGuide('');
       setErrorMessage('');
-
-      // Load all faculty technical guides directly from database
-      const fetchFaculty = async () => {
-        try {
-          let faculties: AdminFaculty[] = [];
-          try {
-            faculties = await ApiClient.getAdvisorAvailableGuides();
-          } catch (err) {
-            faculties = await AdminService.getFaculties();
-          }
-          if (!Array.isArray(faculties) || faculties.length === 0) {
-            const local = localStorage.getItem('siet_admin_faculties');
-            if (local) faculties = JSON.parse(local);
-          }
-          // Show all guides who are available in db without restricting by arbitrary role filter
-          setAvailableGuides(faculties || []);
-        } catch (err) {
-          console.error('Failed to load faculty for guide reassignment:', err);
-        }
-      };
-      fetchFaculty();
     }
   }, [isOpen, initialTeam, teams]);
 

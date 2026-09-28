@@ -34,21 +34,23 @@ def _create_engine():
         db_url = f"sqlite+aiosqlite:///{sqlite_path.as_posix()}"
         return create_async_engine(db_url, echo=False)
 
+    # In backend/database/database.py
     return create_async_engine(
         settings.DATABASE_URL,
         echo=False,
         pool_size=10,
         max_overflow=20,
-        pool_pre_ping=True,
-        pool_recycle=300,
+        pool_pre_ping=False,  # <-- Change from True to False (avoids extra remote round-trip per request)
+        pool_recycle=180,     # Recycle before Supavisor idle timeout
         connect_args={
             "ssl": "require",
             "statement_cache_size": 0,
             "prepared_statement_cache_size": 0,
             "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
             "command_timeout": 30,
-        },
+    },
     )
+
 
 
 engine = _create_engine()
@@ -119,4 +121,4 @@ async def init_db():
 
     print("[DB] All initial connection attempts exhausted. Retries will continue on demand via /health.")
 
-
+

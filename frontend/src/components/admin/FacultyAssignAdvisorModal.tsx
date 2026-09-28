@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserCheck, AlertTriangle, Check, ShieldAlert } from 'lucide-react';
 import { AdminFaculty, AdminService } from '../../services/adminService';
+import { useFaculties, invalidateFacultiesQuery } from '../../hooks/useQueries';
 
 interface FacultyAssignAdvisorModalProps {
   isOpen: boolean;
@@ -26,15 +27,7 @@ export const FacultyAssignAdvisorModal: React.FC<FacultyAssignAdvisorModalProps>
 }) => {
   if (!isOpen || !faculty) return null;
 
-  const [allFaculties,setAllfaculties]= useState<AdminFaculty[]>([]);
-  useEffect(()=>{
-    const faculty = async()=>{
-      const f = await AdminService.getFaculties();
-      setAllfaculties(f);
-    };
-    faculty();
-    return AdminService.subscribe(faculty);
-  },[])
+  const { data: allFaculties = [] } = useFaculties();
   const [selectedBatch, setSelectedBatch] = useState(AVAILABLE_BATCHES[0]);
   const [selectedSection, setSelectedSection] = useState('');
   const [reason, setReason] = useState('Academic session class advisory designation');
@@ -79,6 +72,7 @@ export const FacultyAssignAdvisorModal: React.FC<FacultyAssignAdvisorModalProps>
 
     const ok = await AdminService.assignAdvisor(faculty.email, selectedBatch, selectedSection, reason.trim());
     if (ok) {
+      invalidateFacultiesQuery();
       onSuccess(`Assigned ${faculty.name} as Class Advisor for ${selectedSection} (${selectedBatch}).`);
       onClose();
     } else {

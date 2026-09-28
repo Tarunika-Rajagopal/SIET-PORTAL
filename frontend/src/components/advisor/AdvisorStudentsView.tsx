@@ -15,6 +15,7 @@ import { WeeklySubmission } from '../../types';
 import AdvisorCreateTeamModal from './AdvisorCreateTeamModal';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
 import AdvisorGuideReassignModal from './AdvisorGuideReassignModal';
+import { useClassStudents, useClassTeams, invalidateStudentsQuery, invalidateTeamsQuery } from '../../hooks/useQueries';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
 interface AdvisorStudentsViewProps {
@@ -31,26 +32,8 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   advisorName,
   onShowToast
 }) => {
-  const [students, setStudents] = useState<AdminStudent[]>([]);
-
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadData = async () => {
-      const res = await AdvisorService.getClassStudents(className, batch);
-      const teamList = await AdvisorService.fetchTeamsForClass(className);
-      if (isMounted) {
-        setStudents(res);
-        setTeams(teamList);
-      }
-    };
-    loadData();
-    return () => { isMounted = false; };
-  }, [className, batch]);
-
-  const [teams, setTeams] = useState<ClassTeam[]>(() => 
-    AdvisorService.getTeamsForClass(className)
-  );
+  const { data: students = [], refetch: refetchStudents } = useClassStudents(className, batch);
+  const { data: teams = [], refetch: refetchTeams } = useClassTeams(className);
 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isManageMode, setIsManageMode] = useState<boolean>(false);
@@ -92,46 +75,9 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [isMovingStudent, setIsMovingStudent] = useState<boolean>(false);
   const [teamSearchFilter, setTeamSearchFilter] = useState<string>('');
 
-  // Live synchronizer: auto-updates if data is changed anywhere across the application
-  const isRefreshingRef = React.useRef<boolean>(false);
   const refreshData = async () => {
-    if (isRefreshingRef.current) return;
-    isRefreshingRef.current = true;
-    try {
-      const [res, teamList] = await Promise.all([
-        AdvisorService.getClassStudents(className, batch),
-        AdvisorService.fetchTeamsForClass(className),
-      ]);
-      setStudents(res);
-      setTeams(teamList);
-    } catch (err) {
-      console.error("Failed to refresh advisor data:", err);
-    } finally {
-      isRefreshingRef.current = false;
-    }
+    await Promise.all([refetchStudents(), refetchTeams()]);
   };
-
-  useEffect(() => {
-    const unsubAdvisor = AdvisorService.subscribe(refreshData);
-    const unsubAdmin = AdminService.subscribe(refreshData);
-
-    const handleStorageChange = () => refreshData();
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('siet_data_updated', handleStorageChange);
-    window.addEventListener('siet_marks_updated', handleStorageChange);
-    window.addEventListener('siet_student_submissions_updated', handleStorageChange);
-    window.addEventListener('siet_admin_students_updated', handleStorageChange);
-
-    return () => {
-      unsubAdvisor();
-      unsubAdmin();
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('siet_data_updated', handleStorageChange);
-      window.removeEventListener('siet_marks_updated', handleStorageChange);
-      window.removeEventListener('siet_student_submissions_updated', handleStorageChange);
-      window.removeEventListener('siet_admin_students_updated', handleStorageChange);
-    };
-  }, [className, batch]);
 
   const teamCapacity = AdvisorService.getTeamCapacity(className);
   const areTeamsCreated = teams.length > 0 && students.some(s => s.teamNo && s.teamNo !== 'Unassigned');

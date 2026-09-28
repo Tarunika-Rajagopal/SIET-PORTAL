@@ -7,21 +7,14 @@ import AdvisorStudentsView from '../components/advisor/AdvisorStudentsView';
 import AdvisorHistoryView from '../components/advisor/AdvisorHistoryView';
 import { AdvisorService, ClassTeam } from '../services/advisorService';
 import { AdminStudent, AdminService, AdminFaculty } from '../services/adminService';
+import { useFaculties, useClassStudents } from '../hooks/useQueries';
 import { Users, History } from 'lucide-react';
 
 export const AdvisorPortalPage: React.FC = () => {
   const { currentUser } = useAuth();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [faculties,setFaculties] = useState<AdminFaculty[]>([]);
-  useEffect(()=>{
-    const f = async()=>{
-      const faculty = await AdminService.getFaculties();
-      setFaculties(faculty);
-    };
-    f();
-    return AdminService.subscribe(f);
-  },[])
+  const { data: faculties = [] } = useFaculties();
   const currentFaculty = faculties.find(f => f.email?.toLowerCase() === currentUser?.email?.toLowerCase());
   const className = currentFaculty?.advisorClass || currentUser?.advisorClass || "CSE-B";
   const batch = currentFaculty?.advisorBatch || currentUser?.advisorBatch || "2023-2027 (III Year)";
@@ -29,42 +22,7 @@ export const AdvisorPortalPage: React.FC = () => {
 
   // Navigation tab: 'students' | 'history'
   const [activeTab, setActiveTab] = useState<'students' | 'history'>('students');
-
-  const [teams, setTeams] = useState<ClassTeam[]>(() => AdvisorService.getTeamsForClass(className));
-  const [students, setStudents] = useState<AdminStudent[]>([]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetch = async () => {
-      const dbTeams = await AdvisorService.fetchTeamsForClass(className);
-      const dbStudents = await AdvisorService.getClassStudents(className, 'ALL');
-      if (isMounted) {
-        setTeams(dbTeams);
-        setStudents(dbStudents);
-      }
-    };
-    fetch();
-    return () => { isMounted = false; };
-  }, [className]);
-
-  useEffect(() => {
-    const handleSync = async () => {
-      setTeams(await AdvisorService.fetchTeamsForClass(className));
-      setStudents(await AdvisorService.getClassStudents(className, 'ALL'));
-    };
-
-    const unsubAdvisor = AdvisorService.subscribe(handleSync);
-    const unsubAdmin = AdminService.subscribe(handleSync);
-    window.addEventListener('siet_admin_students_updated', handleSync);
-    window.addEventListener('storage', handleSync);
-
-    return () => {
-      unsubAdvisor();
-      unsubAdmin();
-      window.removeEventListener('siet_admin_students_updated', handleSync);
-      window.removeEventListener('storage', handleSync);
-    };
-  }, [className]);
+  const { data: students = [] } = useClassStudents(className, batch);
 
   return (
     <div className="min-h-screen bg-[#EFF3F1] flex flex-col font-sans relative">

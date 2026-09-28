@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/common/Header';
 import ProfileModal from '../components/common/ProfileModal';
@@ -12,6 +12,10 @@ export const SettingsPage: React.FC = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const role = (activeRole || currentUser?.role || '').toLowerCase();
+  if (role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
   const isHod = role === 'hod';
 
   return (
