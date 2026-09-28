@@ -9,6 +9,9 @@ from models import User
 from services.hod_service import HODService
 from schemas import HodHistoryRequest, DeleteWeeklySubmissionsRequest, UpdateWeekReleaseRequest
 
+from services.cache_service import cache_service
+from job_queue.producer import enqueue_job
+
 router = APIRouter(prefix="/api/v1/hod", tags=["HOD"])
 
 
@@ -136,5 +139,30 @@ async def update_week_release(
     user: User = Depends(require_roles("hod", "admin")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.update_week_release(week, req.released, user.name or user.email)
+    # 1. Critical DB update runs immediately
+    res = await service.update_week_release(week, req.released, user.name or user.email)
+
+    # 2. Invalidate relevant caches
+    await cache_service.delete_prefix("cache:")
+
+    # 3. Enqueue notification job to Redis queue without blocking response
+    job_info = enqueue_job(
+        job_type="SEND_WEEKLY_RELEASE_NOTIFICATION",
+        payload={
+            "week": week,
+            "released": req.released,
+            "performed_by": user.name or user.email,
+        },
+        idempotency_key=f"week_release_{week}_{req.released}",
+    )
+
+    # 4. Return response immediately
+    return {
+        "success": True,
+        "week": res["week"],
+        "released": res["released"],
+        "releases": res["releases"],
+        "job_id": job_info.get("job_id"),
+        "message": f"Week {week} release status updated successfully.",
+    }
 
