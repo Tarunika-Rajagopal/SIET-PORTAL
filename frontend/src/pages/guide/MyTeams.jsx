@@ -109,39 +109,50 @@ export const MyTeams = () => {
     return ALL_SUBMISSIONS.filter(s => s.submissionNumber <= Math.max(4, currentAcademicWeek)).map(def => {
       // Find matching submission in team.submissions
       const existing = (team.submissions || []).find(s => 
-        (s.submissionNumber === def.submissionNumber) || 
         (s.weekNumber === def.weekNumber) || 
-        (s.weekNumber === def.submissionNumber) ||
+        (s.week === def.weekNumber) ||
+        (s.submissionNumber === def.submissionNumber) ||
         (def.submissionNumber === 1 && (s.weekNumber === 0 || s.weekNumber === 1))
       );
 
       // Marks for this submission
-      const recordedMark = teamMarks[def.submissionNumber] || 
-                           teamMarks[def.weekNumber] || 
-                           (def.submissionNumber === 1 ? teamMarks[0] : null);
+      const recordedMark = teamMarks[def.weekNumber] || 
+                           (def.weekNumber === 1 ? teamMarks[0] : null);
       const hasMarks = Boolean(recordedMark && (
         (typeof recordedMark.teamAverage === 'number' && recordedMark.teamAverage > 0) ||
         (recordedMark.memberMarks && Object.keys(recordedMark.memberMarks).length > 0)
       ));
 
-      const isApproved = hasMarks || 
+      const isApproved = existing?.status === 'Approved' || 
                          existing?.evaluationStatus === 'Approved' || 
-                         existing?.status === 'Approved' || 
                          existing?.submissionStatus === 'Approved';
 
       if (existing) {
+        const hasRealContent = Boolean(
+          existing.hasContent !== undefined
+            ? existing.hasContent
+            : (
+                existing.submissionDate &&
+                (existing.abstractSummary || existing.problemStatement || existing.proposedSolution || existing.technologyUsed || existing.obstaclesFaced || existing.pptUrl || existing.reportUrl || existing.presentationFileName || existing.pdfFile || existing.githubUrl || existing.liveDemoUrl || (existing.images && existing.images.length > 0)) &&
+                !String(existing.pptUrl || '').includes('mock_ppt') &&
+                !String(existing.presentationFileName || '').includes('mock_ppt')
+              )
+        );
+
+        const isUploaded = Boolean(isApproved || hasRealContent);
+
         return {
           ...existing,
           submissionNumber: def.submissionNumber,
           weekNumber: def.weekNumber,
           title: existing.title || def.defaultTitle,
-          isUploaded: true,
-          status: isApproved ? 'Approved' : (existing.status === 'Revision Required' || existing.evaluationStatus === 'Revision Required' ? 'Revision Required' : (existing.status || 'Submitted')),
-          evaluationStatus: isApproved ? 'Approved' : (existing.evaluationStatus || 'Pending'),
-          submissionStatus: isApproved ? 'Approved' : (existing.submissionStatus || 'Submitted'),
-          hasMarks,
-          marksScore: hasMarks ? (recordedMark.teamAverage ?? existing.score) : (existing.score ?? null),
-          marksRemarks: recordedMark?.remarks || existing.guideRemarks || existing.comments || ''
+          isUploaded,
+          status: isApproved ? 'Approved' : (hasRealContent ? (existing.status === 'Revision Required' || existing.evaluationStatus === 'Revision Required' ? 'Revision Required' : (existing.status || 'Submitted')) : 'Not Uploaded'),
+          evaluationStatus: isApproved ? 'Approved' : (hasRealContent ? (existing.evaluationStatus || 'Pending') : 'Pending'),
+          submissionStatus: isApproved ? 'Approved' : (hasRealContent ? (existing.submissionStatus || 'Submitted') : 'Not Uploaded'),
+          hasMarks: isApproved && hasMarks,
+          marksScore: (isApproved && hasMarks) ? (recordedMark.teamAverage ?? existing.score) : (isApproved ? (existing.score ?? null) : null),
+          marksRemarks: isApproved ? (recordedMark?.remarks || existing.guideRemarks || existing.comments || '') : ''
         };
       }
 
@@ -858,11 +869,13 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
 
               {/* 7. Assigned Milestone Evaluation & Individual Student Marks Breakdown */}
               {(() => {
-                const subNum = activeSubModal.submissionNumber || (activeSubModal.weekNumber !== undefined ? activeSubModal.weekNumber + 1 : 1);
+                const subNum = Number(activeSubModal.weekNumber !== undefined ? activeSubModal.weekNumber : (activeSubModal.week !== undefined ? activeSubModal.week : (activeSubModal.submissionNumber || 1)));
+                const isApproved = activeSubModal.status === 'Approved' || activeSubModal.evaluationStatus === 'Approved' || activeSubModal.submissionStatus === 'Approved';
+                if (!isApproved) return null;
+
                 const memberRolls = activeTeamForModal.members?.map(m => m.rollNo);
                 const marksRec = MarksService.getWeeklyMarks(activeTeamForModal.teamId, subNum, memberRolls) ||
-                                 MarksService.getWeeklyMarks(activeTeamForModal.teamId, activeSubModal.weekNumber, memberRolls) ||
-                                 (subNum === 1 || activeSubModal.weekNumber === 0 ? MarksService.getWeeklyMarks(activeTeamForModal.teamId, 0, memberRolls) : null);
+                                 (subNum === 1 ? MarksService.getWeeklyMarks(activeTeamForModal.teamId, 0, memberRolls) : null);
                 if (!marksRec) return null;
 
                 return (

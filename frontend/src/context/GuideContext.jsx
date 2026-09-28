@@ -110,27 +110,39 @@ export const GuideProvider = ({ children }) => {
           const bWeek = bSub.weekNumber !== undefined ? bSub.weekNumber : bSub.week;
           const idx = merged.findIndex(fSub => {
             const fWeek = fSub.weekNumber !== undefined ? fSub.weekNumber : fSub.week;
-            const fSubNum = fSub.submissionNumber;
-            return fWeek === bWeek || fSubNum === bWeek;
+            return fWeek === bWeek;
           });
+
+          const bStatus = bSub.status || 'Pending';
+          const bEvalStatus = bSub.evaluationStatus || (bStatus === 'Submitted' ? 'Pending' : bStatus);
+          const isApproved = bStatus === 'Approved' || bEvalStatus === 'Approved';
+
+          const hasRealContent = bSub.hasContent !== undefined 
+            ? Boolean(bSub.hasContent) 
+            : Boolean(
+                bSub.abstractSummary || bSub.problemStatement || bSub.proposedSolution || 
+                bSub.technologyUsed || bSub.obstaclesFaced || bSub.pptUrl || bSub.reportUrl || 
+                bSub.presentationFileName || bSub.pdfFile || bSub.githubUrl || bSub.liveDemoUrl || 
+                (bSub.images && bSub.images.length > 0)
+              );
+
+          const formattedSub = {
+            ...(idx >= 0 ? merged[idx] : {}),
+            ...bSub,
+            hasContent: hasRealContent,
+            status: bStatus,
+            evaluationStatus: bEvalStatus,
+            submissionStatus: bSub.submissionStatus || bStatus,
+            isLocked: isApproved,
+            score: bSub.score !== undefined ? bSub.score : (isApproved && idx >= 0 ? merged[idx].score : null),
+            memberMarks: (bSub.memberMarks && Object.keys(bSub.memberMarks).length > 0) ? bSub.memberMarks : (isApproved && idx >= 0 ? (merged[idx].memberMarks || {}) : {}),
+            guideRemarks: bSub.comments || bSub.guideRemarks || (isApproved && idx >= 0 ? (merged[idx].guideRemarks || '') : '')
+          };
+
           if (idx >= 0) {
-            const isApproved = bSub.status === 'Approved' || 
-                               bSub.evaluationStatus === 'Approved' || 
-                               merged[idx].status === 'Approved' || 
-                               merged[idx].evaluationStatus === 'Approved';
-            merged[idx] = {
-              ...merged[idx],
-              ...bSub,
-              status: isApproved ? 'Approved' : (bSub.status || merged[idx].status),
-              evaluationStatus: isApproved ? 'Approved' : (bSub.evaluationStatus || merged[idx].evaluationStatus),
-              submissionStatus: isApproved ? 'Approved' : (bSub.submissionStatus || merged[idx].submissionStatus),
-              isLocked: isApproved ? true : (bSub.isLocked || merged[idx].isLocked),
-              score: bSub.score !== undefined && bSub.score !== null ? bSub.score : merged[idx].score,
-              memberMarks: (bSub.memberMarks && Object.keys(bSub.memberMarks).length > 0) ? bSub.memberMarks : merged[idx].memberMarks,
-              guideRemarks: bSub.comments || bSub.guideRemarks || merged[idx].guideRemarks
-            };
+            merged[idx] = formattedSub;
           } else {
-            merged.push(bSub);
+            merged.push(formattedSub);
           }
         });
         return merged;
@@ -585,7 +597,7 @@ export const GuideProvider = ({ children }) => {
   const evaluateWeeklySubmission = async (teamId, weekNumber, remarks, score, memberMarks) => {
     const today = new Date().toISOString().split('T')[0];
     const weekNum = Number(weekNumber);
-    const subNum = weekNum + 1;
+    const subNum = weekNum;
 
     // Calculate score
     const markVals = Object.values(memberMarks || {}).map(Number).filter(v => !isNaN(v));
@@ -601,8 +613,7 @@ export const GuideProvider = ({ children }) => {
         const updatedSubmissions = (team.submissions || []).map(sub => {
           const isMatch = sub.weekNumber === weekNum || 
                           sub.week === weekNum || 
-                          sub.submissionNumber === weekNum ||
-                          sub.submissionNumber === subNum;
+                          sub.submissionNumber === weekNum;
           if (isMatch) {
             matched = true;
             return {
@@ -623,8 +634,8 @@ export const GuideProvider = ({ children }) => {
         if (!matched) {
           updatedSubmissions.push({
             weekNumber: weekNum,
-            submissionNumber: subNum,
-            title: `Submission ${subNum}`,
+            submissionNumber: weekNum,
+            title: `Submission ${weekNum}`,
             evaluationStatus: 'Approved',
             status: 'Approved',
             submissionStatus: 'Approved',
@@ -640,7 +651,7 @@ export const GuideProvider = ({ children }) => {
           ...team,
           submissions: updatedSubmissions,
           latestSubmissionStatus: `Week ${weekNum} Evaluated & Endorsed`,
-          ...(weekNum <= 1 ? { isTitleApproved: true, titleStatus: 'Approved', guideApprovalStatus: 'Approved' } : {})
+          ...(weekNum === 1 ? { isTitleApproved: true, titleStatus: 'Approved', guideApprovalStatus: 'Approved' } : {})
         };
         return updatedTeam;
       }
@@ -659,10 +670,7 @@ export const GuideProvider = ({ children }) => {
       if (isStudentPortalTeam(updatedTeam)) {
         try {
           const studentSubs = StudentService.getSubmissions() || [];
-          const targetWeek = weekNum >= 1 && !studentSubs.some(s => s.week === weekNum) 
-            ? weekNum - 1 
-            : weekNum;
-          let item = studentSubs.find(s => s.week === targetWeek || s.week === weekNum);
+          let item = studentSubs.find(s => s.week === weekNum);
           if (item) {
             item.status = 'Approved';
             item.comments = remarks || 'Endorsed. Satisfactory technical milestone deliverables.';
@@ -671,8 +679,8 @@ export const GuideProvider = ({ children }) => {
           } else {
             studentSubs.push({
               week: weekNum,
-              title: `Submission ${subNum} Deliverable Submission`,
-              dueDate: `Submission ${subNum}`,
+              title: `Submission ${weekNum} Deliverable Submission`,
+              dueDate: `Submission ${weekNum}`,
               status: 'Approved',
               score: calculatedAvg,
               comments: remarks || 'Endorsed. Satisfactory technical milestone deliverables.',
@@ -682,7 +690,7 @@ export const GuideProvider = ({ children }) => {
           }
           StudentService.saveSubmissions(studentSubs);
 
-          if (weekNum <= 1) {
+          if (weekNum === 1) {
             StudentService.updateApprovalStatus('Approved');
           }
         } catch (e) {
@@ -690,22 +698,16 @@ export const GuideProvider = ({ children }) => {
         }
       }
 
-      // 2. Synchronize to MarksService
+      // 2. Synchronize to MarksService (saves marks for weekNum and persists to backend via ApiClient.saveWeeklyMarks)
       try {
         if (memberMarks && Object.keys(memberMarks).length > 0) {
-          MarksService.saveWeeklyMarks(teamId, subNum, memberMarks, remarks, guideName);
-          if (weekNum !== subNum) {
-            MarksService.saveWeeklyMarks(teamId, weekNum, memberMarks, remarks, guideName);
-          }
-          if (weekNum <= 1 || subNum === 1) {
-            MarksService.saveWeeklyMarks(teamId, 0, memberMarks, remarks, guideName);
-          }
+          MarksService.saveWeeklyMarks(teamId, weekNum, memberMarks, remarks, guideName);
         }
       } catch (e) {
         console.error('Error saving marks in MarksService:', e);
       }
 
-      // 3. Persist to Backend API for all teams
+      // 3. Persist review status to Backend API for all teams
       try {
         await ApiClient.reviewTeamWeeklySubmission(
           teamId,
@@ -733,12 +735,6 @@ export const GuideProvider = ({ children }) => {
             );
           }
         });
-
-        if (memberMarks && Object.keys(memberMarks).length > 0) {
-          await ApiClient.saveWeeklyMarks(teamId, weekNum, memberMarks, remarks).catch(e => {
-            console.warn('[GuideContext] saveWeeklyMarks backend failed:', e);
-          });
-        }
       } catch (e) {
         console.error('Error calling backend review:', e);
       }

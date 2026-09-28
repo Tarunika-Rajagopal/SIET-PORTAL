@@ -2,7 +2,7 @@
 import uuid
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, distinct, delete
+from sqlalchemy import select, func, distinct, delete, or_
 
 from models import WeeklySubmission, TeamMember, Team, GuideNotice
 
@@ -56,9 +56,24 @@ class SubmissionRepository:
     async def get_submission_counts(self, team_ids: List[uuid.UUID]) -> Dict[str, int]:
         if not team_ids:
             return {"total": 0, "pending": 0}
+
+        has_content_filter = or_(
+            func.coalesce(func.trim(WeeklySubmission.problem_statement), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.solution), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.technology_used), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.obstacles_faced), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.abstract), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.repo_url), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.demo_url), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.presentation_file), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.pdf_file), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.file_name), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.screenshot_file), "") != "",
+        )
+
         q = select(
-            func.count().label("total"),
-            func.count().filter(WeeklySubmission.status == "Submitted").label("pending")
+            func.count().filter(has_content_filter).label("total"),
+            func.count().filter(WeeklySubmission.status == "Submitted", has_content_filter).label("pending")
         ).where(WeeklySubmission.team_id.in_(team_ids))
         res = await self.session.execute(q)
         row = res.one_or_none()
@@ -133,7 +148,7 @@ class SubmissionRepository:
                     team_id=team.id,
                     week=w,
                     title=week_titles.get(w, f"Week {w} Deliverables"),
-                    status="Submitted",
+                    status="Draft",
                     submission_date="18 Feb 2026",
                     score=None,
                     max_score=100.0,

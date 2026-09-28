@@ -117,20 +117,35 @@ class GuideService:
             status_val = s.status.value if hasattr(s.status, "value") else (s.status or "Pending")
 
             wm = marks_map.get((s.team_id, s.week))
+            is_approved = status_val == "Approved"
+
             member_marks = {}
-            if wm:
+            if is_approved and wm:
                 for mm in (wm.member_marks or []):
                     member_marks[mm.roll_no] = float(mm.mark) if mm.mark is not None else 0
 
-            score_val = float(s.score) if s.score is not None else (float(wm.team_average) if wm and wm.team_average else None)
+            score_val = float(s.score) if s.score is not None else (float(wm.team_average) if is_approved and wm and wm.team_average else None)
 
-            if status_val in ("Submitted", "Pending") and (wm and wm.team_average and wm.team_average > 0):
-                status_val = "Approved"
+            if is_approved:
                 evaluation_status_val = "Approved"
             elif status_val == "Submitted":
                 evaluation_status_val = "Pending"
             else:
                 evaluation_status_val = status_val
+
+            has_content = bool(
+                (s.abstract and s.abstract.strip()) or
+                (s.problem_statement and s.problem_statement.strip()) or
+                (s.solution and s.solution.strip()) or
+                (s.technology_used and s.technology_used.strip()) or
+                (s.obstacles_faced and s.obstacles_faced.strip()) or
+                (s.presentation_file and s.presentation_file.strip() and "mock_ppt" not in s.presentation_file) or
+                (s.pdf_file and s.pdf_file.strip()) or
+                (s.file_name and s.file_name.strip()) or
+                (s.repo_url and s.repo_url.strip()) or
+                (s.demo_url and s.demo_url.strip()) or
+                (s.screenshot_file and s.screenshot_file.strip())
+            )
 
             out.append({
                 "id": str(s.id),
@@ -142,6 +157,7 @@ class GuideService:
                 "teamLeader": t.lead_student if t else "",
                 "projectTitle": s.project_title or (t.project_title if t else ""),
                 "status": status_val,
+                "hasContent": has_content,
                 "evaluationStatus": evaluation_status_val,
                 "submissionDate": s.submission_date or "",
                 "score": score_val,
@@ -157,7 +173,7 @@ class GuideService:
                 "githubUrl": s.repo_url or (t.repo_url if t else ""),
                 "liveDemoUrl": s.demo_url or (t.demo_url if t else ""),
                 "images": [s.screenshot_file] if s.screenshot_file else [],
-                "comments": s.comments or (wm.remarks if wm else ""),
+                "comments": (s.comments or (wm.remarks if wm else "")) if (is_approved or status_val in ("Revision Required", "Rejected")) else "",
                 "guideReviewDate": s.guide_review_date or "",
             })
         return out
