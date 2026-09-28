@@ -575,7 +575,7 @@ export const StudentService = {
       }
     };
 
-    // Sequential Carryover: Title, Problem Statement, Solution are carried over once approved in prior milestones
+    // Project Title is shared across milestones; deliverable fields remain milestone-independent
     const isSubAfter1 =
       weekText.toLowerCase().includes('submission 2') ||
       weekText.toLowerCase().includes('submission 3') ||
@@ -593,8 +593,6 @@ export const StudentService = {
 
       const team = this.getTeam();
       let latestTitle = '';
-      let latestProblem = '';
-      let latestSolution = '';
 
       for (let sNum = 1; sNum < currentSubNum; sNum++) {
         if (this.isSubmissionApproved(sNum)) {
@@ -607,23 +605,18 @@ export const StudentService = {
           } catch (e) { }
 
           const t = dPrev?.projectTitle || (sNum === 1 ? (team.projectTitle || team.submittedTitle) : '');
-          const p = dPrev?.problemStatement || '';
-          const s = dPrev?.solution || '';
           if (t && t.trim() && t !== 'No Title Submitted' && t !== 'Title Approval Pending') latestTitle = t.trim();
-          if (p && p.trim()) latestProblem = p.trim();
-          if (s && s.trim()) latestSolution = s.trim();
         }
+      }
+
+      if (!latestTitle) {
+        const teamT = (team?.projectTitle || team?.submittedTitle || '').trim();
+        if (teamT && teamT !== 'No Title Submitted' && teamT !== 'Title Approval Pending') latestTitle = teamT;
       }
 
       if (latestTitle && !defaultState.projectTitle) {
         defaultState.projectTitle = latestTitle;
         defaultState.isTitleApproved = true;
-      }
-      if (latestProblem && !defaultState.problemStatement) {
-        defaultState.problemStatement = latestProblem;
-      }
-      if (latestSolution && !defaultState.solution) {
-        defaultState.solution = latestSolution;
       }
     }
 

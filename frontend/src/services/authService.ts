@@ -17,13 +17,6 @@ export function getUserInitials(name?: string): string {
 const STORAGE_KEY = "siet_auth_user_v5";
 const USERS_STORAGE_KEY = "siet_registered_users_v5";
 
-// Purge any stale persistent user session from localStorage so starting the frontend always requires explicit login
-try {
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem("siet_auth_user");
-  localStorage.removeItem("siet_auth_token");
-} catch (e) {}
-
 
 export const AuthService = {
 

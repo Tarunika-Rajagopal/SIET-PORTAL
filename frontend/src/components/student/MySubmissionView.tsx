@@ -37,16 +37,14 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
 
     const loadBackendData = async () => {
       try {
-        const [fetchedTeam, fetchedSubs, fetchedMarks] = await Promise.all([
+        const [fetchedTeam, fetchedSubs] = await Promise.all([
           ApiClient.getStudentTeam().catch(() => null),
           ApiClient.getStudentSubmissions(),
-          ApiClient.getStudentWeeklyMarks().catch(() => ({}))
         ]);
 
         if (!cancelled) {
           if (fetchedTeam) setTeam(fetchedTeam);
           setSubmissions(fetchedSubs || []);
-          if (fetchedMarks) setBackendMarks(fetchedMarks);
           setHistoryError(null);
         }
       } catch (err: any) {
@@ -91,9 +89,10 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   const handleEditSubmission = (subWeek: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!isTeamLead) return;
+    const targetWeekIndex = subWeek >= 1 ? subWeek - 1 : subWeek;
     localStorage.setItem('siet_student_start_edit_mode', 'true');
-    localStorage.setItem('siet_student_target_week', String(subWeek));
-    window.dispatchEvent(new CustomEvent('student_navigate_submission', { detail: { edit: true, week: subWeek } }));
+    localStorage.setItem('siet_student_target_week', String(targetWeekIndex));
+    window.dispatchEvent(new CustomEvent('student_navigate_submission', { detail: { edit: true, week: targetWeekIndex } }));
     if (onNavigateToSubmission) {
       onNavigateToSubmission();
     }
@@ -121,20 +120,19 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
         isSubmit: true
       });
 
-      const [refreshedTeam, refreshedSubs, refreshedMarks] = await Promise.all([
+      const [refreshedTeam, refreshedSubs] = await Promise.all([
         ApiClient.getStudentTeam().catch(() => null),
         ApiClient.getStudentSubmissions().catch(() => []),
-        ApiClient.getStudentWeeklyMarks().catch(() => ({}))
       ]);
 
       if (refreshedTeam) setTeam(refreshedTeam);
       setSubmissions(refreshedSubs);
-      if (refreshedMarks) setBackendMarks(refreshedMarks);
 
       setResubmitModalOpen(false);
       if (detailModalOpen) setDetailModalOpen(false);
       if (onSuccess) {
-        onSuccess(`Submission ${activeWeekSub.week + 1} milestone updated and submitted for Guide re-review.`);
+        const subNum = activeWeekSub.week === 0 ? 1 : activeWeekSub.week;
+        onSuccess(`Submission ${subNum} milestone updated and submitted for Guide re-review.`);
       }
     } catch (err: any) {
       console.error('Failed to resubmit deliverable:', err);
@@ -278,16 +276,19 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
         ) : (
           <div className="divide-y divide-[#D8CCBA]">
             {displaySubmissions.map((sub) => {
-              const subNum = sub.week + 1;
-              const isApproved = sub.week === 0
+              const subNum = sub.week === 0 ? 1 : sub.week;
+              const isApproved = subNum === 1
                 ? (sub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved')
                 : (sub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, teamId));
               const isRevisionRequired = !isApproved && (sub.status === 'Changes Requested' || sub.status === 'Rejected');
               const marksRec = backendMarks[subNum] || (sub.week === 0 ? backendMarks[0] : null);
               const isMarksAssigned = Boolean(
-                marksRec && (
-                  (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
-                  (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
+                isApproved && (
+                  (marksRec && (
+                    (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
+                    (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
+                  )) ||
+                  (sub.score != null && Number(sub.score) > 0)
                 )
               );
 
@@ -304,14 +305,14 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                       isRevisionRequired ? 'bg-rose-500 text-white' :
                         'bg-amber-500 text-white'
                       }`}>
-                      S{sub.week + 1}
+                      S{subNum}
                     </div>
 
                     <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         {/* Display submission number */}
                         <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-mint-700 transition">
-                          Submission {sub.week + 1}
+                          Submission {subNum}
                         </h4>
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${isApproved ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
                           isRevisionRequired ? 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse' :
@@ -331,7 +332,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
                       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
                         <span>Submitted: <strong className="text-slate-700 font-bold">{sub.submissionDate || "N/A"}</strong></span>
-                        {(marksRec?.teamAverage !== undefined || sub.score !== undefined) && (
+                        {(isApproved && (marksRec?.teamAverage != null || sub.score != null)) && (
                           <>
                             <span>&bull;</span>
                             <span className="text-mint-700 font-extrabold">Score: {marksRec?.teamAverage ?? sub.score} / {sub.maxScore || 100}</span>
@@ -453,16 +454,19 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
       {/* Comprehensive Submission Detail Modal (Screenshot sections removed as requested) */}
       {detailModalOpen && activeWeekSub && (() => {
-        const subNum = activeWeekSub.week + 1;
-        const isModalApproved = activeWeekSub.week === 0
+        const subNum = activeWeekSub.week === 0 ? 1 : activeWeekSub.week;
+        const isModalApproved = subNum === 1
           ? (activeWeekSub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved')
           : (activeWeekSub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, teamId));
         const isModalRevision = !isModalApproved && (activeWeekSub.status === 'Changes Requested' || activeWeekSub.status === 'Rejected');
         const modalMarks = backendMarks[subNum] || (activeWeekSub.week === 0 ? backendMarks[0] : null);
         const isModalMarksAssigned = Boolean(
-          modalMarks && (
-            (modalMarks.teamAverage !== undefined && modalMarks.teamAverage > 0) ||
-            (modalMarks.memberMarks && Object.keys(modalMarks.memberMarks).length > 0)
+          isModalApproved && (
+            (modalMarks && (
+              (modalMarks.teamAverage !== undefined && modalMarks.teamAverage > 0) ||
+              (modalMarks.memberMarks && Object.keys(modalMarks.memberMarks).length > 0)
+            )) ||
+            (activeWeekSub.score != null && Number(activeWeekSub.score) > 0)
           )
         );
 
@@ -477,11 +481,11 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     isModalRevision ? 'bg-rose-500' :
                       'bg-amber-500'
                     }`}>
-                    S{activeWeekSub.week + 1}
+                    S{subNum}
                   </div>
                   <div>
                     <h3 className="text-base font-extrabold text-slate-900 leading-snug">
-                      Submission {activeWeekSub.week + 1} Details
+                      Submission {subNum} Details
                     </h3>
                     <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
                       <span>Submitted on {activeWeekSub.submissionDate || 'N/A'}</span>
@@ -868,7 +872,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   <RefreshCw size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Update Submission {activeWeekSub.week + 1} Deliverable</h3>
+                  <h3 className="text-base font-extrabold text-slate-900">Update Submission {activeWeekSub.week === 0 ? 1 : activeWeekSub.week} Deliverable</h3>
                   <p className="text-xs text-slate-500">Address guide feedback and submit updated milestone documentation</p>
                 </div>
               </div>

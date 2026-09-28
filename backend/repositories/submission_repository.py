@@ -135,7 +135,7 @@ class SubmissionRepository:
                     title=week_titles.get(w, f"Week {w} Deliverables"),
                     status="Submitted",
                     submission_date="18 Feb 2026",
-                    score=88.0 if w < 3 else None,
+                    score=None,
                     max_score=100.0,
                     project_title=team.project_title or "Intelligent Project Workspace",
                     guide_name=team.guide_name or "Dr. P. Manimegalai",

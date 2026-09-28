@@ -191,6 +191,8 @@ class StudentService:
         else:
             s.status = status
             s.submission_date = today
+            if req.isSubmit:
+                s.score = None
             for attr, val in [
                 ("problem_statement", req.problemStatement),
                 ("solution", req.solution),

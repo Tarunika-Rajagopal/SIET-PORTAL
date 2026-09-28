@@ -141,8 +141,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   );
 
   const [submissions, setSubmissions] = useState(() => StudentService.getSubmissions());
-  // Match both 0-based (legacy frontend) and 1-based (backend DB) week numbering
-  const currentSub = submissions.find(s => s.week === currentWeekNumber || s.week === currentSubmissionNumber);
+  // Match strictly by backend's 1-based week number
+  const currentSub = submissions.find(s => s.week === currentSubmissionNumber);
   const isRevisionRequired = currentSub?.status === 'Changes Requested' || currentSub?.status === 'Rejected';
   const isTitleRejected = team?.guideApprovalStatus === 'Rejected';
 
@@ -277,7 +277,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       if (saved && saved <= todayDateStr) {
         setSubmissionDate(saved);
       } else {
-        const sub = submissions.find(s => s.week === currentWeekNumber || s.week === currentSubmissionNumber);
+        const sub = submissions.find(s => s.week === currentSubmissionNumber);
         if (sub?.submissionDate && sub.submissionDate <= todayDateStr) {
           setSubmissionDate(sub.submissionDate);
         } else {
@@ -285,7 +285,85 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         }
       }
     } catch (e) {}
-  }, [weekText, currentWeekNumber, submissions, todayDateStr]);
+  }, [weekText, currentSubmissionNumber, submissions, todayDateStr]);
+
+  // Retrieve saved milestone submission directly from the backend/database on load or week change
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSavedSubmission = async () => {
+      try {
+        const backendSub = await ApiClient.getStudentSubmissionByWeek(currentSubmissionNumber);
+        if (!isMounted || !backendSub) return;
+
+        // If backend has a saved record (has DB id, non-pending status, or populated deliverable content)
+        if (
+          backendSub.id ||
+          (backendSub.status && backendSub.status !== 'Pending') ||
+          backendSub.problemStatement ||
+          backendSub.technologyUsed ||
+          backendSub.solution ||
+          backendSub.obstaclesFaced
+        ) {
+          const updated = StudentService.saveAllDeliverables(weekText, {
+            projectTitle: backendSub.projectTitle,
+            problemStatement: backendSub.problemStatement,
+            solution: backendSub.solution,
+            technologyUsed: backendSub.technologyUsed,
+            obstaclesFaced: backendSub.obstaclesFaced,
+            abstract: backendSub.abstract,
+            presentationFile: backendSub.presentationFile,
+            reportFile: backendSub.pdfFile || backendSub.reportFile,
+            repoUrl: backendSub.repoUrl,
+            demoUrl: backendSub.demoUrl,
+            screenshotFile: backendSub.screenshotFile,
+            submissionDate: backendSub.submissionDate,
+          });
+
+          if (!isMounted) return;
+          setDeliverables(updated);
+          setSubmissions(StudentService.getSubmissions());
+
+          if (backendSub.submissionDate) {
+            setSubmissionDate(backendSub.submissionDate);
+            try {
+              localStorage.setItem(`siet_submission_date_${weekText}`, backendSub.submissionDate);
+            } catch (e) {}
+          }
+        } else {
+          // Backend has NO saved record or it is Pending with empty fields:
+          // Explicitly clear/reset form state to empty/default values so previous milestone state never persists
+          if (!isMounted) return;
+          const key = `siet_deliverable_v6_${weekText.toLowerCase().replace(/\s+/g, '_')}`;
+          try {
+            localStorage.removeItem(key);
+            localStorage.removeItem(`siet_submission_date_${weekText}`);
+          } catch (e) {}
+
+          const emptyState = StudentService.getDeliverables(weekText);
+          setDeliverables(emptyState);
+          setProblemStatement('');
+          setSolution('');
+          setTechnology('');
+          setObstaclesFaced('');
+          setAbstract('');
+          setPresentationFileName('');
+          setReportFileName('');
+          setRepoUrl('');
+          setDemoUrl('');
+          setScreenshotName('');
+          setSubmissionDate(todayDateStr);
+        }
+      } catch (err) {
+        console.warn('Could not fetch saved submission from backend, relying on cache:', err);
+      }
+    };
+
+    fetchSavedSubmission();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentSubmissionNumber, weekText, todayDateStr]);
 
   // Check if Class Advisor or Guide has already awarded marks for THIS specific milestone submission
   // Submission 1: check subNumber 1 or legacy 0
@@ -304,35 +382,29 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   // Submissions are evaluated if marks are assigned for THIS milestone
   const isEvaluated = isMarksAssigned;
 
-  // Helper: get carried-over value from any previous submission (used for initial state)
+  // Helper: get carried-over project title from team or previous submission (used for initial state)
   const getInitialCarriedOver = (currentVal: string, field: 'title' | 'problemStatement' | 'solution'): string => {
-    if (currentVal) return currentVal;
-    if (currentSubmissionNumber <= 1) return '';
+    if (field !== 'title') return currentVal || '';
+    if (currentVal && currentVal !== 'No Title Submitted' && currentVal !== 'Title Approval Pending') return currentVal;
+    if (currentSubmissionNumber <= 1) {
+      const tv = (team?.projectTitle || team?.submittedTitle || '').trim();
+      return (tv && tv !== 'No Title Submitted' && tv !== 'Title Approval Pending') ? tv : '';
+    }
     for (let sNum = currentSubmissionNumber - 1; sNum >= 1; sNum--) {
       const d = StudentService.getDeliverables(`Submission ${sNum}`);
       const dLeg = sNum === 1 ? StudentService.getDeliverables('Week 0') : null;
-      if (field === 'title') {
-        const v = (d.projectTitle || dLeg?.projectTitle || '').trim();
-        if (v && v !== 'No Title Submitted' && v !== 'Title Approval Pending') return v;
-      } else if (field === 'problemStatement') {
-        const v = (d.problemStatement || dLeg?.problemStatement || '').trim();
-        if (v) return v;
-      } else if (field === 'solution') {
-        const v = (d.solution || dLeg?.solution || '').trim();
-        if (v) return v;
-      }
+      const v = (d.projectTitle || dLeg?.projectTitle || '').trim();
+      if (v && v !== 'No Title Submitted' && v !== 'Title Approval Pending') return v;
     }
-    if (field === 'title') {
-      const tv = (team.projectTitle || team.submittedTitle || '').trim();
-      if (tv && tv !== 'No Title Submitted' && tv !== 'Title Approval Pending') return tv;
-    }
+    const tv = (team?.projectTitle || team?.submittedTitle || '').trim();
+    if (tv && tv !== 'No Title Submitted' && tv !== 'Title Approval Pending') return tv;
     return '';
   };
 
   // Field values state
   const [title, setTitle] = useState(() => getInitialCarriedOver(deliverables.projectTitle || '', 'title'));
-  const [problemStatement, setProblemStatement] = useState(() => getInitialCarriedOver(deliverables.problemStatement || '', 'problemStatement'));
-  const [solution, setSolution] = useState(() => getInitialCarriedOver(deliverables.solution || '', 'solution'));
+  const [problemStatement, setProblemStatement] = useState(deliverables.problemStatement || '');
+  const [solution, setSolution] = useState(deliverables.solution || '');
   const [technology, setTechnology] = useState(deliverables.technologyUsed || '');
   const [obstaclesFaced, setObstaclesFaced] = useState(deliverables.obstaclesFaced || '');
   const [abstract, setAbstract] = useState(deliverables.abstract || '');
@@ -343,36 +415,23 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   const [screenshotName, setScreenshotName] = useState(deliverables.screenshotFile || '');
 
   useEffect(() => {
-    // For title, problemStatement, solution: if current week has no value, carry over from previous milestones
-    const resolveCarriedOver = (currentVal: string, field: 'title' | 'problemStatement' | 'solution'): string => {
-      if (currentVal) return currentVal;
-      if (currentSubmissionNumber <= 1) return '';
-      // Search previous milestones from most recent to earliest
+    // Only project title is shared across milestones; deliverables remain completely independent
+    const resolveCarriedOverTitle = (currentVal: string): string => {
+      if (currentVal && currentVal !== 'No Title Submitted' && currentVal !== 'Title Approval Pending') return currentVal;
       for (let subNum = currentSubmissionNumber - 1; subNum >= 1; subNum--) {
         const d = StudentService.getDeliverables(`Submission ${subNum}`);
         const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0') : null;
-        if (field === 'title') {
-          const val = (d.projectTitle || dLegacy?.projectTitle || '').trim();
-          if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') return val;
-        } else if (field === 'problemStatement') {
-          const val = (d.problemStatement || dLegacy?.problemStatement || '').trim();
-          if (val) return val;
-        } else if (field === 'solution') {
-          const val = (d.solution || dLegacy?.solution || '').trim();
-          if (val) return val;
-        }
+        const val = (d.projectTitle || dLegacy?.projectTitle || '').trim();
+        if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') return val;
       }
-      // Fallback for title: team-level data
-      if (field === 'title') {
-        const teamVal = (team.projectTitle || team.submittedTitle || '').trim();
-        if (teamVal && teamVal !== 'No Title Submitted' && teamVal !== 'Title Approval Pending') return teamVal;
-      }
+      const teamVal = (team?.projectTitle || team?.submittedTitle || '').trim();
+      if (teamVal && teamVal !== 'No Title Submitted' && teamVal !== 'Title Approval Pending') return teamVal;
       return '';
     };
 
-    setTitle(resolveCarriedOver(deliverables.projectTitle || '', 'title'));
-    setProblemStatement(resolveCarriedOver(deliverables.problemStatement || '', 'problemStatement'));
-    setSolution(resolveCarriedOver(deliverables.solution || '', 'solution'));
+    setTitle(resolveCarriedOverTitle(deliverables.projectTitle || ''));
+    setProblemStatement(deliverables.problemStatement || '');
+    setSolution(deliverables.solution || '');
     setTechnology(deliverables.technologyUsed || '');
     setObstaclesFaced(deliverables.obstaclesFaced || '');
     setAbstract(deliverables.abstract || '');
@@ -383,10 +442,13 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     setScreenshotName(deliverables.screenshotFile || '');
   }, [deliverables, currentSubmissionNumber]);
 
-  // Granular proposal locking rule:
-  // If any one of title, problem statement, solution was NOT submitted in week 1 (or prior approved weeks),
-  // then that detail alone is NOT locked for next week. Once submitted and approved in any milestone, it is locked.
+  // Project title locking rule:
+  // Once project title is submitted and approved in a prior milestone, it is locked as read-only.
+  // Deliverables (problem statement, solution, etc.) are milestone-specific and NEVER locked by carryover.
   const isCarriedOverLocked = (field: 'title' | 'problemStatement' | 'solution'): boolean => {
+    if (field !== 'title') {
+      return false; // Deliverables are never locked by carryover
+    }
     if (currentSubmissionNumber <= 1) {
       return false; // Submission 1 is always unlocked for proposal entry until submitted/evaluated
     }
@@ -397,75 +459,40 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       if (isApproved) {
         const d = StudentService.getDeliverables(`Submission ${subNum}`);
         const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0') : null;
-
-        if (field === 'title') {
-          const val = (d.projectTitle || dLegacy?.projectTitle || team.projectTitle || team.submittedTitle || '').trim();
-          if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') {
-            return true;
-          }
-        } else if (field === 'problemStatement') {
-          const val = (d.problemStatement || dLegacy?.problemStatement || '').trim();
-          if (val) {
-            return true;
-          }
-        } else if (field === 'solution') {
-          const val = (d.solution || dLegacy?.solution || '').trim();
-          if (val) {
-            return true;
-          }
+        const val = (d.projectTitle || dLegacy?.projectTitle || team?.projectTitle || team?.submittedTitle || '').trim();
+        if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') {
+          return true;
         }
       }
     }
 
-    // Even if not "approved", still try to carry over from any previous milestone that had data
-    // (e.g. Submission 1 submitted but HOD locked it – still show the data as read-only)
     for (let subNum = 1; subNum < currentSubmissionNumber; subNum++) {
       const d = StudentService.getDeliverables(`Submission ${subNum}`);
       const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0') : null;
-
-      if (field === 'title') {
-        const val = (d.projectTitle || dLegacy?.projectTitle || team.projectTitle || team.submittedTitle || '').trim();
-        if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') {
-          return true;
-        }
-      } else if (field === 'problemStatement') {
-        const val = (d.problemStatement || dLegacy?.problemStatement || '').trim();
-        if (val) return true;
-      } else if (field === 'solution') {
-        const val = (d.solution || dLegacy?.solution || '').trim();
-        if (val) return true;
+      const val = (d.projectTitle || dLegacy?.projectTitle || team?.projectTitle || team?.submittedTitle || '').trim();
+      if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') {
+        return true;
       }
     }
 
     return false;
   };
 
-  // Returns the actual carried-over value from a previous milestone so it can be displayed
+  // Returns the actual carried-over title from a previous milestone
   const getCarriedOverValue = (field: 'title' | 'problemStatement' | 'solution'): string => {
-    if (currentSubmissionNumber <= 1) return '';
+    if (field !== 'title' || currentSubmissionNumber <= 1) return '';
 
     // Search previous milestones from most recent to earliest
     for (let subNum = currentSubmissionNumber - 1; subNum >= 1; subNum--) {
       const d = StudentService.getDeliverables(`Submission ${subNum}`);
       const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0') : null;
-
-      if (field === 'title') {
-        const val = (d.projectTitle || dLegacy?.projectTitle || '').trim();
-        if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') return val;
-      } else if (field === 'problemStatement') {
-        const val = (d.problemStatement || dLegacy?.problemStatement || '').trim();
-        if (val) return val;
-      } else if (field === 'solution') {
-        const val = (d.solution || dLegacy?.solution || '').trim();
-        if (val) return val;
-      }
+      const val = (d.projectTitle || dLegacy?.projectTitle || '').trim();
+      if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') return val;
     }
 
     // Fallback: check team-level data for title
-    if (field === 'title') {
-      const teamVal = (team.projectTitle || team.submittedTitle || '').trim();
-      if (teamVal && teamVal !== 'No Title Submitted' && teamVal !== 'Title Approval Pending') return teamVal;
-    }
+    const teamVal = (team?.projectTitle || team?.submittedTitle || '').trim();
+    if (teamVal && teamVal !== 'No Title Submitted' && teamVal !== 'Title Approval Pending') return teamVal;
 
     return '';
   };
@@ -532,7 +559,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
     // If this week was in revision/rejected state or in edit mode, update submission status
     if (isRevisionRequired || isEditing) {
-      StudentService.updateSubmission(currentWeekNumber, `Updated deliverables for ${weekText}`);
+      StudentService.updateSubmission(currentSubmissionNumber, `Updated deliverables for ${weekText}`);
     }
 
     setDeliverables(updated);
@@ -586,8 +613,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     if (!isTeamLead) {
       return true;
     }
-    // 1. Title, Problem Statement, Solution are carried over & locked in Submissions 2, 3, 4
-    if ((field === 'title' || field === 'problemStatement' || field === 'solution') && isCarriedOverLocked(field)) {
+    // 1. Project Title is carried over & locked in Submissions 2, 3, 4 once established
+    if (field === 'title' && isCarriedOverLocked('title')) {
       return true;
     }
     // 2. If user is in Edit Mode or Revision Required, ALL other details are unlocked!
