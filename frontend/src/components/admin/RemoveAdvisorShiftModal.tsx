@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, ArrowRight, UserCheck, UserMinus, ShieldAlert } from 'lucide-react';
 import { AdminFaculty, AdminService, AdminStudent } from '../../services/adminService';
+import { useFaculties, invalidateFacultiesQuery } from '../../hooks/useQueries';
 
 interface RemoveAdvisorShiftModalProps {
   isOpen: boolean;
@@ -15,40 +16,10 @@ export const RemoveAdvisorShiftModal: React.FC<RemoveAdvisorShiftModalProps> = (
   faculty,
   onSuccess
 }) => {
-
-  const [allFaculties,setAllfaculties] = useState<AdminFaculty[]>([]);
+  const { data: allFaculties = [] } = useFaculties();
   const [successorEmail, setSuccessorEmail] = useState('');
   const [reason, setReason] = useState('Faculty academic load rebalancing & class advisory transition');
   const [error, setError] = useState('');
-
-  
-
-  
-  useEffect(()=>{
-
-    if (!isOpen || !faculty) return ;
-
-    const fac = async()=>{
-      try{
-      const facu = await AdminService.getFaculties();
-    setAllfaculties(facu);
-  } catch(err){
-        console.error('Failed to fetch faculties');
-        setError('Failed to fetch faculties');
-      }
-    };
-    fac();
-  }
-,[isOpen,faculty,[]])
-
-  useEffect(() => {
-  const fetchFaculties = async () => {
-    const facu = await AdminService.getFaculties();
-    setAllfaculties(facu);
-  };
-
-  fetchFaculties();
-}, []);
   // Strictly eligible non-advisors: must not be an advisor currently, and not the outgoing faculty
   const eligibleNonAdvisors = allFaculties.filter(f => f.role.trim() !== 'Advisor'
   );
@@ -83,6 +54,7 @@ export const RemoveAdvisorShiftModal: React.FC<RemoveAdvisorShiftModalProps> = (
 
     const res = await AdminService.removeAdvisorWithSuccessor(faculty.email);
     if (res.success) {
+      invalidateFacultiesQuery();
       onSuccess(res.message);
       onClose();
     } else {

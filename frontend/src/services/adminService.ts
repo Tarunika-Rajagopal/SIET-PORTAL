@@ -1,5 +1,6 @@
 import { AuditLog } from '../types';
-import {ApiClient} from './apiClient';
+import { ApiClient } from './apiClient';
+import { queryClient, QUERY_KEYS } from '../lib/queryClient';
 
 
 export interface AdminFaculty {
@@ -83,11 +84,27 @@ export const AdminService = {
     return () => listeners.delete(listener);
   },
 
-  // ---------------- FACULTY OPERATIONS ----------------
-  async getFaculties(): Promise<AdminFaculty[]> {
+  getCachedFaculties(): AdminFaculty[] {
+    const data = queryClient.getQueryData<AdminFaculty[]>(QUERY_KEYS.faculties);
+    if (data && Array.isArray(data)) return [...data];
     try {
-      const fetchFaculty = await ApiClient.getAllFaculties(); 
-      return fetchFaculty;
+      const stored = localStorage.getItem("siet_admin_faculties");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async getFaculties(forceRefresh: boolean = false): Promise<AdminFaculty[]> {
+    try {
+      if (forceRefresh) {
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.faculties });
+      }
+      return await queryClient.fetchQuery({
+        queryKey: QUERY_KEYS.faculties,
+        queryFn: () => ApiClient.getAllFaculties(),
+        staleTime: 1000 * 60 * 5,
+      });
     } catch (e) {
       return [];
     }
@@ -96,11 +113,8 @@ export const AdminService = {
   saveFaculties(faculties: AdminFaculty[]): void {
     try {
       localStorage.setItem("siet_admin_faculties", JSON.stringify(faculties));
+      queryClient.setQueryData(QUERY_KEYS.faculties, faculties);
       notifyListeners();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('siet_admin_faculties_updated'));
-        window.dispatchEvent(new Event('storage'));
-      }
     } catch (e) {
       console.error(e);
     }
@@ -131,6 +145,7 @@ export const AdminService = {
     };
 
     await ApiClient.addFaculty(newFaculty);
+    await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.faculties });
      
     
     let details = `Onboarded as ${faculty.role}`;
@@ -143,6 +158,7 @@ export const AdminService = {
   async assignAdvisor(facultyEmail: string, batch: string, className: string, reason?: string): Promise<boolean> {
     try {
       await ApiClient.assignAdvisor(facultyEmail, batch, className);
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.faculties });
       return true;
     } catch(e) {
       console.error(e);
@@ -156,7 +172,7 @@ export const AdminService = {
       return res.success;
     }
 
-    const list = this.getFaculties();
+    const list = this.getCachedFaculties();
     const faculty = list.find(f => f.email === facultyEmail);
     if (!faculty) return false;
 
@@ -189,7 +205,7 @@ export const AdminService = {
   },
 
   assignGuide(facultyEmail: string, reason: string): boolean {
-    const list = this.getFaculties();
+    const list = this.getCachedFaculties();
     const faculty = list.find(f => f.email === facultyEmail);
     if (!faculty) return false;
 
@@ -211,7 +227,7 @@ export const AdminService = {
       return res.success;
     }
 
-    const list = this.getFaculties();
+    const list = this.getCachedFaculties();
     const faculty = list.find(f => f.email === facultyEmail);
     if (!faculty) return false;
 
@@ -239,6 +255,7 @@ export const AdminService = {
   ): Promise<boolean> {
     try{
       await ApiClient.deleteFaculty(deleteid);
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.faculties });
       return true;
     }
     catch(e){
@@ -248,9 +265,16 @@ export const AdminService = {
   },
 
   // ---------------- STUDENT OPERATIONS ----------------
-  async getStudents(): Promise<AdminStudent[]> {
+  async getStudents(forceRefresh: boolean = false): Promise<AdminStudent[]> {
     try{
-      return await ApiClient.getAllStudents();
+      if (forceRefresh) {
+        await queryClient.invalidateQueries({ queryKey: ['admin', 'students'] });
+      }
+      return await queryClient.fetchQuery({
+        queryKey: ['admin', 'students', 'ALL', 'ALL'],
+        queryFn: () => ApiClient.getAllStudents(),
+        staleTime: 1000 * 60 * 5,
+      });
     }
     catch(e){
       console.error(e);
@@ -261,11 +285,8 @@ export const AdminService = {
   async saveStudents(students: AdminStudent[]): Promise<void> {
     try {
       localStorage.setItem("siet_admin_students", JSON.stringify(students));
+      queryClient.setQueryData(['admin', 'students', 'ALL', 'ALL'], students);
       notifyListeners();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
-        window.dispatchEvent(new Event('storage'));
-      }
     } catch (e) {
       console.error(e);
     }
@@ -294,6 +315,7 @@ export const AdminService = {
 
     try{
       await ApiClient.addStudent(newStudent);
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'students'] });
     }
     catch(e){
       console.error(e);
@@ -314,18 +336,19 @@ export const AdminService = {
     let addedCount = 0;  
     try{
         await ApiClient.importStudent(studentsToImport);
+        await queryClient.invalidateQueries({ queryKey: ['admin', 'students'] });
         return { addedCount: studentsToImport.length, errors: [] };
       }
-      catch(e){
+      catch(e: any){
         console.error(e);
-        return { addedCount: 0, errors: [e.message] };
+        return { addedCount: 0, errors: [e?.message || 'Import error'] };
       }
     },
 
   async deleteStudent(rollNo: string): Promise<boolean> {
-
         try{
           await ApiClient.deleteStudent(rollNo); 
+          await queryClient.invalidateQueries({ queryKey: ['admin', 'students'] });
         } catch(e){
           console.error(e);
           return false;

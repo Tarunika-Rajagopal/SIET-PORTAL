@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { UserCheck, Search, Settings, Trash2, CheckCircle2, ArrowUpRight, UserMinus } from 'lucide-react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
+import { useFaculties, invalidateFacultiesQuery } from '../../hooks/useQueries';
 import RemoveAdvisorShiftModal from './RemoveAdvisorShiftModal';
 
 interface AdminAdvisorsViewProps {
@@ -12,7 +13,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
   onSelectAdvisor,
   onShowToast
 }) => {
-  const [faculties, setFaculties] = useState<AdminFaculty[]>([]);
+  const { data: faculties = [] } = useFaculties();
   const [searchTerm, setSearchTerm] = useState('');
   const [batchFilter, setBatchFilter] = useState('ALL');
   const [classFilter, setClassFilter] = useState('ALL');
@@ -21,16 +22,6 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
   // Shift & Reassignment modal for removing advisor role
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [facultyToRevoke, setFacultyToRevoke] = useState<AdminFaculty | null>(null);
-
-  useEffect(() => {
-    const fetchFaculties = async () => {
-      const data = await AdminService.getFaculties();
-     
-      setFaculties(data);
-    };
-
-    fetchFaculties();
-  }, []);
 
   // Filter only faculty assigned as Class Advisors
   const advisorFaculties = faculties.filter(
@@ -205,8 +196,8 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
           setFacultyToRevoke(null);
         }}
         faculty={facultyToRevoke}
-        onSuccess={async(msg) => {
-          setFaculties(await AdminService.getFaculties());
+        onSuccess={(msg) => {
+          invalidateFacultiesQuery();
           onShowToast(msg);
         }}
       />

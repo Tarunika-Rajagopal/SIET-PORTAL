@@ -76,6 +76,9 @@ def _decode(token: str) -> dict:
         )
 
 
+_USER_SESSION_CACHE: dict = {}
+
+
 # ── dependency: current user from JWT ──────────────────────────
 async def get_current_user(
     creds: HTTPAuthorizationCredentials = Depends(_bearer),
@@ -97,6 +100,11 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    now = datetime.now(timezone.utc).timestamp()
+    cached = _USER_SESSION_CACHE.get(uid)
+    if cached and cached[1] > now:
+        return cached[0]
+
     user = None
     # Try as UUID first
     try:
@@ -116,6 +124,8 @@ async def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    _USER_SESSION_CACHE[uid] = (user, now + 60.0)
     return user
 
 

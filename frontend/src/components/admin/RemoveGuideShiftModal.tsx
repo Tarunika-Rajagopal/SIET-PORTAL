@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, ArrowRight, Briefcase, UserMinus, ShieldAlert } from 'lucide-react';
 import { AdminFaculty, AdminService } from '../../services/adminService';
+import { useFaculties, invalidateFacultiesQuery } from '../../hooks/useQueries';
 
 interface RemoveGuideShiftModalProps {
   isOpen: boolean;
@@ -16,15 +17,7 @@ export const RemoveGuideShiftModal: React.FC<RemoveGuideShiftModalProps> = ({
   onSuccess
 }) => {
   if (!isOpen || !faculty) return null;
-  const [allFaculties,setAllfaculties] = useState<AdminFaculty[]>([]);
-
-  useEffect(()=>{
-    const faculty = async()=>{
-    const res = await AdminService.getFaculties();
-    setAllfaculties(res);
-    };
-    faculty();
-  },[])
+  const { data: allFaculties = [] } = useFaculties();
   // Strictly eligible non-guides: must not be a guide currently, and not the outgoing faculty
   const eligibleNonGuides = allFaculties.filter(f =>
     f.email !== faculty.email && f.role !== 'Guide' && f.role !== 'Advisor & Guide'
@@ -72,6 +65,7 @@ export const RemoveGuideShiftModal: React.FC<RemoveGuideShiftModalProps> = ({
 
     const res = await AdminService.removeGuidewithoutSuccessor(faculty.email);
     if (res.success) {
+      invalidateFacultiesQuery();
       onSuccess(res.message);
       onClose();
     } else {

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { AdminService, AdminStudent, AdminFaculty } from '../../services/adminService';
+import { useFaculties } from '../../hooks/useQueries';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 
 interface AdvisorManualTeamModalProps {
@@ -43,19 +44,13 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
   const [leadRollNo, setLeadRollNo] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [unassignedStudents, setUnassignedStudents] = useState<AdminStudent[]>([]);
-  const [availableGuides, setAvailableGuides] = useState<AdminFaculty[]>([]);
+  const { data: allFaculties = [] } = useFaculties();
+  const availableGuides = React.useMemo(() => {
+    const eligible = allFaculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide');
+    return eligible.length > 0 ? eligible : allFaculties;
+  }, [allFaculties]);
   const [allStudents, setAllStudents] = useState<AdminStudent[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-  // Fetch guides and students
-  useEffect(() => {
-    const fetchGuides = async () => {
-      const fac = await AdminService.getFaculties();
-      const eligible = fac.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide');
-      setAvailableGuides(eligible.length > 0 ? eligible : fac);
-    };
-    fetchGuides();
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

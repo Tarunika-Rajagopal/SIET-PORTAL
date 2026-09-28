@@ -377,6 +377,10 @@ cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if
 if not cors_origins:
     cors_origins = ["*"]
 
+from fastapi.middleware.gzip import GZipMiddleware
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,

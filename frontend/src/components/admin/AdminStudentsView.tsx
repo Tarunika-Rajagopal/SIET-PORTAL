@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GraduationCap, Search, Plus, FileSpreadsheet, Trash2, UserCheck, AlertCircle, RotateCw, RefreshCw } from 'lucide-react';
 import { AdminService, AdminStudent, AdminFaculty } from '../../services/adminService';
+import { useAdminStudents, useFaculties } from '../../hooks/useQueries';
 import AddStudentModal from './AddStudentModal';
 import ImportStudentsModal from './ImportStudentsModal';
 import AdvisorAssignModal from './AdvisorAssignModal';
@@ -17,8 +18,8 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
   selectedClass = "CSE-B",
   onShowToast
 }) => {
-  const [students, setStudents] = useState<AdminStudent[]>([]);
-  const [faculties, setFaculties] = useState<AdminFaculty[]>([]);
+  const { data: students = [], refetch: refetchStudents } = useAdminStudents();
+  const { data: faculties = [] } = useFaculties();
   const [batchFilter, setBatchFilter] = useState(selectedBatch);
   const [sectionFilter, setSectionFilter] = useState(selectedClass);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,39 +32,11 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<AdminStudent | null>(null);
 
-
-  
-
   // Update filter when props change (e.g. from Advisors tab row click)
   useEffect(() => {
     if (selectedBatch) setBatchFilter(selectedBatch);
     if (selectedClass) setSectionFilter(selectedClass);
   }, [selectedBatch, selectedClass]);
-
- useEffect(() => {
-  const loadStudents = async () => {
-    const students = await AdminService.getStudents();
-
-    
-
-    setStudents(students);
-
-    setFaculties(await AdminService.getFaculties());
-  };
-
-  loadStudents();
-
-  const unsubscribe = AdminService.subscribe(async () => {
-    const students = await AdminService.getStudents();
-
-    
-
-    setStudents(students);
-    setFaculties(await AdminService.getFaculties());
-  });
-
-  return unsubscribe;
-}, []);
   // Find the assigned advisor for current batch and section
   const currentAdvisor = faculties.find(f => 
     (f.role === 'Advisor' || f.role === 'Advisor & Guide') &&
@@ -155,7 +128,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
           <button
             onClick={async() => {
               if (isManageMode) {
-                setStudents(await AdminService.getStudents());
+                await refetchStudents();
                 setIsManageMode(false);
                 onShowToast("Students roster refreshed.");
               } else {

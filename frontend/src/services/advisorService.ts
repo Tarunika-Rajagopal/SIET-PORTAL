@@ -449,7 +449,6 @@ export const AdvisorService = {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
       window.dispatchEvent(new CustomEvent('siet_data_updated'));
-      window.dispatchEvent(new Event('storage'));
     }
     return true;
   },
@@ -591,7 +590,6 @@ export const AdvisorService = {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
       window.dispatchEvent(new CustomEvent('siet_data_updated'));
-      window.dispatchEvent(new Event('storage'));
     }
 
     return { 
@@ -676,7 +674,6 @@ export const AdvisorService = {
     notifyListeners();
     window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
     window.dispatchEvent(new CustomEvent('siet_data_updated'));
-    window.dispatchEvent(new Event('storage'));
 
     return { 
       success: true, 
@@ -827,7 +824,6 @@ export const AdvisorService = {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
       window.dispatchEvent(new CustomEvent('siet_data_updated'));
-      window.dispatchEvent(new Event('storage'));
     }
     return {
       success: true,

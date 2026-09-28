@@ -16,42 +16,70 @@ function getToken(): string | null {
   return null;
 }
 
+const inFlightRequests = new Map<string, Promise<any>>();
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {}),
+  const method = (options.method || 'GET').toUpperCase();
+  const isGet = method === 'GET';
+
+  if (!isGet) {
+    inFlightRequests.clear();
+  } else if (inFlightRequests.has(endpoint)) {
+    return inFlightRequests.get(endpoint) as Promise<T>;
+  }
+
+  const exec = async (): Promise<T> => {
+    const token = getToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string> || {}),
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (fetchErr: any) {
+      if (fetchErr.name === 'TypeError' && fetchErr.message?.includes('fetch')) {
+        throw new Error('Cannot connect to backend server at localhost:8000. Is the server running?');
+      }
+      throw fetchErr;
+    }
+
+    if (!response.ok) {
+      let errorDetail = 'API request failed';
+      try {
+        const errJson = await response.json();
+        errorDetail = errJson.detail || JSON.stringify(errJson);
+      } catch (e) {
+        errorDetail = `${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorDetail);
+    }
+
+    return response.json();
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  const promise = exec().catch((err) => {
+    inFlightRequests.delete(endpoint);
+    throw err;
+  });
+
+  if (isGet) {
+    inFlightRequests.set(endpoint, promise);
+    // Cooldown deduplication window (5 seconds) across siblings and re-renders
+    setTimeout(() => {
+      inFlightRequests.delete(endpoint);
+    }, 5000);
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-  } catch (fetchErr: any) {
-    if (fetchErr.name === 'TypeError' && fetchErr.message?.includes('fetch')) {
-      throw new Error('Cannot connect to backend server at localhost:8000. Is the server running?');
-    }
-    throw fetchErr;
-  }
-
-  if (!response.ok) {
-    let errorDetail = 'API request failed';
-    try {
-      const errJson = await response.json();
-      errorDetail = errJson.detail || JSON.stringify(errJson);
-    } catch (e) {
-      errorDetail = `${response.status} ${response.statusText}`;
-    }
-    throw new Error(errorDetail);
-  }
-
-  return response.json();
+  return promise;
 }
 
 export const ApiClient = {

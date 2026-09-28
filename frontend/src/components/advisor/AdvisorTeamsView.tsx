@@ -13,6 +13,7 @@ import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsServ
 import { WeeklySubmission } from '../../types';
 import { StudentService } from '../../services/studentService';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
+import { useFaculties } from '../../hooks/useQueries';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
 import AdvisorEditTeamModal from './AdvisorEditTeamModal';
 
@@ -138,14 +139,11 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
     );
   });
   
-  const [availableGuides,setAvailableguides] = useState<AdminFaculty[]>([]);
-  useEffect(()=>{
-    const f = async()=>{
-      const fac = await AdminService.getFaculties();
-      setAvailableguides(fac.filter(f=>f.role === 'Guide' || f.role === 'Advisor & Guide'));
-    }
-    f();
-  },[]);
+  const { data: allFaculties = [] } = useFaculties();
+  const availableGuides = React.useMemo(
+    () => allFaculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide'),
+    [allFaculties]
+  );
 
   // Submissions for currently selected active team (Strictly authentic student submissions up to current week)
   const allTeamSubmissions: WeeklySubmission[] = activeTeam 
