@@ -150,8 +150,9 @@ class TeamRepository:
             .join(TeamMember, Team.id == TeamMember.team_id)
             .options(selectinload(Team.members))
             .where(TeamMember.roll_no == roll_no.strip())
+            .distinct()
         )
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
     async def list_by_advisor_name(self, advisor_name: str) -> List[Team]:
         res = await self.session.execute(

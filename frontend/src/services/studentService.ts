@@ -332,6 +332,54 @@ export const StudentService = {
     window.dispatchEvent(new Event('siet_data_updated'));
   },
 
+  async fetchTeamFromBackend(): Promise<StudentTeamExtended | null> {
+    try {
+      const backendTeam = await ApiClient.getStudentTeam();
+      if (backendTeam && (backendTeam.teamNo || backendTeam.teamId)) {
+        const teamObj: StudentTeamExtended = {
+          id: backendTeam.teamId || backendTeam.id,
+          teamNo: backendTeam.teamNo,
+          projectTitle: backendTeam.title || backendTeam.projectTitle || '',
+          submittedTitle: backendTeam.title || backendTeam.submittedTitle || '',
+          isTitleApproved: backendTeam.status === 'Approved' || backendTeam.status === 'Active & Approved',
+          guideApprovalStatus: (backendTeam.status === 'Approved' || backendTeam.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
+          guideName: backendTeam.guide || backendTeam.guideName || '',
+          advisorName: backendTeam.advisorName || '',
+          batch: backendTeam.batch || '',
+          section: backendTeam.class || backendTeam.section || '',
+          status: 'In Progress',
+          progress: 0,
+          members: (backendTeam.members || []).map((m: any) => ({
+            rollNo: m.rollNo,
+            name: m.name,
+            email: m.email,
+            role: m.isLead ? 'Team Lead' : 'Team Member',
+          })),
+        };
+        this.saveTeam(teamObj);
+        return teamObj;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch student team from backend:', e);
+    }
+    return null;
+  },
+
+  async fetchSubmissionsFromBackend(): Promise<WeeklySubmission[]> {
+    try {
+      const serverSubs = await ApiClient.getStudentSubmissions();
+      if (Array.isArray(serverSubs) && serverSubs.length > 0) {
+        localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(serverSubs));
+        window.dispatchEvent(new Event('siet_student_submissions_updated'));
+        window.dispatchEvent(new Event('siet_data_updated'));
+        return serverSubs;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch student submissions from backend:', e);
+    }
+    return this.getSubmissions();
+  },
+
   getSubmissions(): WeeklySubmission[] {
     try {
       const stored = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
@@ -816,32 +864,6 @@ export const StudentService = {
     return current;
   },
 
-  updateSubmission(week: number, note?: string): void {
-    try {
-      const list = this.getSubmissions();
-      let item = list.find(s => s.week === week || s.week === week + 1);
-      const subDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      if (item) {
-        item.status = 'Submitted';
-        item.submissionDate = subDate;
-        if (note) item.comments = note;
-      } else {
-        item = {
-          week,
-          title: `Submission ${week + 1} Deliverable Submission`,
-          dueDate: `Submission ${week + 1}`,
-          status: 'Submitted',
-          submissionDate: subDate,
-          comments: note || '',
-        } as any;
-        list.push(item);
-      }
-      this.saveSubmissions(list);
-    } catch (e) {
-      console.warn('updateSubmission error:', e);
-    }
-  },
-
   saveDeliverableField(
     weekText: string,
     field: keyof StudentDeliverableState['submittedFields'],
@@ -1062,7 +1084,7 @@ export const StudentService = {
       demoUrl: current.demoUrl,
       isSubmit: true
     }).catch(err => {
-      console.log('Backend sync queued or offline:', err);
+      console.error('Backend sync queued or offline:', err);
     });
 
     // 4. Dispatch global events for instant UI synchronization across tabs and pages

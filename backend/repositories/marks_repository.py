@@ -32,6 +32,14 @@ class MarksRepository:
         )
         return list(res.scalars().all())
 
+    async def list_all_marks(self) -> List[WeeklyMark]:
+        res = await self.session.execute(
+            select(WeeklyMark)
+            .options(selectinload(WeeklyMark.member_marks))
+            .order_by(WeeklyMark.week_number)
+        )
+        return list(res.scalars().all())
+
     async def create_weekly_mark(self, mark: WeeklyMark) -> WeeklyMark:
         self.session.add(mark)
         return mark

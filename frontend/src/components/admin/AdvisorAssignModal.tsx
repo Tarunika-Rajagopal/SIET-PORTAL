@@ -51,7 +51,7 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
       return;
     }
     try{
-      console.log(batch , " " , className);
+     
     await AdminService.assignAdvisor(id, batch, className);
     }catch(e){
       setError('Failed to assign advisor.');

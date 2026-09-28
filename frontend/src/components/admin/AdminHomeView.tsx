@@ -57,34 +57,44 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
     .filter(f => f.advisorBatch === batch && f.advisorClass)
     .map(f => f.advisorClass as string);
 
-  const handleAddFaculty = async(e: React.FormEvent) => {
+
+  const handleAddFaculty = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
     const chosenRole = role || 'None';
+try{
+    await AdminService.addFaculty({
+      name: name.trim(),
+      email: email.trim(),
+      designation,
+      role: chosenRole,
+      advisorBatch:
+        chosenRole === "Advisor" || chosenRole === "Advisor & Guide"
+          ? batch
+          : undefined,
+      advisorClass:
+        chosenRole === "Advisor" || chosenRole === "Advisor & Guide"
+          ? className
+          : undefined,
+      specialization: "Computer Science & Engineering",
+    });
 
-  const result = await AdminService.addFaculty({
-    name: name.trim(),
-    email: email.trim(),
-    designation,
-    role: chosenRole,
-    advisorBatch:
-      chosenRole === "Advisor" || chosenRole === "Advisor & Guide"
-        ? batch
-        : undefined,
-    advisorClass:
-      chosenRole === "Advisor" || chosenRole === "Advisor & Guide"
-        ? className
-        : undefined,
-    specialization: "Computer Science & Engineering",
-  });
-  console.log(result);
+  } catch (err){
+    console.error(err);
+    onShowToast(`Error adding faculty: ${err}`);
+  }
+
+    // Re-fetch AFTER adding:
+    const updated = await AdminService.getFaculties();
+    setFaculties(updated);
 
     onShowToast(`Faculty member ${name} onboarded successfully!`);
     setName('');
     setEmail('');
     setRole('');
   };
+
 
   const handleToggleAdvisor = (fac: AdminFaculty) => {
     if (fac.role === 'Advisor' || fac.role === 'Advisor & Guide') {
@@ -339,14 +349,16 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
                   <td className="p-4 text-slate-500 font-mono">{f.email}</td>
                   <td className="p-4 text-slate-700">{f.designation}</td>
                   <td className="p-4 text-slate-700 font-bold">
-                    {f.advisorClass ? `Class ${f.advisorClass} (${f.advisorBatch})` : ''}
-                    {f.advisorClass && f.teamsCount > 0 ? ' • ' : ''}
-                    {f.teamsCount > 0 ? `${f.teamsCount} Mentored Teams` : ''}
-                    {!f.advisorClass && f.teamsCount === 0 ? (
-                      <span className="text-slate-400 font-normal">None (Available)</span>
-                    ) : null}
-                  </td>
-
+                <div className="flex flex-col gap-0.5">
+              <span>{f.role && f.role !== 'None' ? f.role : <span className="text-slate-400 font-normal">None (Available)</span>}</span>
+    {f.advisorClass && (
+      <span className="text-[11px] text-mint-700 font-medium">Class {f.advisorClass} ({f.advisorBatch})</span>
+    )}
+    {f.teamsCount > 0 && (
+      <span className="text-[11px] text-slate-500 font-medium">{f.teamsCount} Mentored Teams</span>
+    )}
+  </div>
+</td>
                   {/* Manage Action Columns */}
                   {isManageMode && (
                     <>
@@ -413,4 +425,4 @@ export const AdminHomeView: React.FC<AdminHomeViewProps> = ({ onNavigateTab, onS
   );
 };
 
-export default AdminHomeView;
+export default AdminHomeView; 

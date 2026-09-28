@@ -53,8 +53,8 @@ export const RemoveAdvisorShiftModal: React.FC<RemoveAdvisorShiftModalProps> = (
   const eligibleNonAdvisors = allFaculties.filter(f => f.role.trim() !== 'Advisor'
   );
   
-  console.log(eligibleNonAdvisors);
-  console.log("All Faculties ",allFaculties);
+  
+  
 
   // Auto-sync successor selection when modal opens
   useEffect(() => {

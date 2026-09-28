@@ -50,34 +50,21 @@ function loadHistory(): HodHistoryRecord[] {
 }
 
 export const HodHistoryService = {
-  getHistory(): HodHistoryRecord[] {
+  async fetchHistory(): Promise<HodHistoryRecord[]> {
+    try {
+      const serverLogs = await ApiClient.getHodHistory();
+      if (Array.isArray(serverLogs) && serverLogs.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverLogs));
+        notify();
+        return serverLogs;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch HOD history from backend:', e);
+    }
     return loadHistory();
   },
 
-  async fetchHistory(): Promise<HodHistoryRecord[]> {
-    try {
-      const live = await ApiClient.getHodHistory();
-      if (Array.isArray(live)) {
-        const records: HodHistoryRecord[] = live.map((h: any) => ({
-          id: h.id || `HOD-${Math.random()}`,
-          timestamp: h.timestamp || new Date().toISOString(),
-          date: h.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          actionType: h.actionType as any,
-          target: h.target || '',
-          classSection: h.classSection || '',
-          batch: h.batch || '',
-          details: h.details || '',
-          performedBy: h.performedBy || 'HOD / CSE'
-        }));
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-        } catch (e) {}
-        notify();
-        return records;
-      }
-    } catch (e) {
-      console.warn('[HodHistoryService] Failed to fetch live history from backend:', e);
-    }
+  getHistory(): HodHistoryRecord[] {
     return loadHistory();
   },
 
@@ -98,7 +85,7 @@ export const HodHistoryService = {
       console.error('Failed to save HOD action history:', e);
     }
 
-    // Also persist to backend asynchronously
+    // Persist to backend
     ApiClient.logHodHistory({
       actionType: entry.actionType,
       target: entry.target,
@@ -107,7 +94,7 @@ export const HodHistoryService = {
       batch: entry.batch,
       performedBy: entry.performedBy
     }).catch(err => {
-      console.warn('[HodHistoryService] Could not persist action to backend:', err);
+      console.warn('Failed to persist HOD history to backend:', err);
     });
 
     notify();
@@ -121,3 +108,7 @@ export const HodHistoryService = {
     return () => listeners.delete(listener);
   }
 };
+
+if (typeof window !== 'undefined') {
+  HodHistoryService.fetchHistory().catch(() => {});
+}

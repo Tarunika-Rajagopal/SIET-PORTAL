@@ -44,7 +44,7 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
       setLoading(false);
       onClose();
     }
-    console.log();
+    
     setReason('');
     setError('');
   };

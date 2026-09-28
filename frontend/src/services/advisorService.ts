@@ -1,5 +1,7 @@
 import { AdminService, AdminStudent } from './adminService';
 import { StudentService } from './studentService';
+import { ApiClient } from './apiClient';
+import { AdvisorHistoryService } from './advisorHistoryService';
 
 export interface TeamMemberRecord {
   rollNo: string;
@@ -229,6 +231,19 @@ export const AdvisorService = {
     }
   },
 
+  async fetchTeamsForClass(className: string = "CSE-B"): Promise<ClassTeam[]> {
+    try {
+      const serverTeams = await ApiClient.getAdvisorTeams(className);
+      if (Array.isArray(serverTeams) && serverTeams.length > 0) {
+        localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(serverTeams));
+        return serverTeams;
+      }
+    } catch (err) {
+      console.warn("Direct /advisor/teams API error, using cached teams fallback:", err);
+    }
+    return this.getTeamsForClass(className);
+  },
+
   saveTeamsForClass(className: string, teams: ClassTeam[]) {
     try {
       localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(teams));
@@ -244,7 +259,16 @@ export const AdvisorService = {
   },
   
   async getClassStudents(className: string = "CSE-B", batch: string = "2023-2027 (III Year)"): Promise<AdminStudent[]> {
-    const allStudents =await AdminService.getStudents();
+    try {
+      const serverStudents = await ApiClient.getAdvisorStudents(className, batch);
+      if (Array.isArray(serverStudents) && serverStudents.length > 0) {
+        return serverStudents;
+      }
+    } catch (err) {
+      console.warn("Direct /advisor/students API unavailable, applying admin fallback:", err);
+    }
+
+    const allStudents = await AdminService.getStudents();
     const classStudents = allStudents.filter(s => s.classSection === className && (batch === 'ALL' || s.batch === batch));
     const teams = this.getTeamsForClass(className);
 
@@ -385,11 +409,30 @@ export const AdvisorService = {
       };
     });
 
+    // 1. Persist to backend database via bulk API
+    try {
+      await ApiClient.createAdvisorTeamsBulk({
+        className,
+        batch,
+        capacity,
+        teams: newTeams.map(nt => ({
+          teamNo: nt.teamNo,
+          title: nt.title || "",
+          guide: nt.guide,
+          guideEmail: nt.guideEmail || "",
+          leadRollNo: nt.leadRollNo,
+          memberRollNos: nt.members.map(m => m.rollNo),
+        })),
+      });
+    } catch (apiErr) {
+      console.warn("Backend bulk team creation failed, continuing with local sync fallback:", apiErr);
+    }
+
     this.saveTeamsForClass(className, formattedTeams);
     this.setTeamCapacity(className, capacity);
 
     // Update students in AdminService
-    const allStudents =await AdminService.getStudents();
+    const allStudents = await AdminService.getStudents();
     formattedTeams.forEach(t => {
       t.members.forEach(m => {
         const student = allStudents.find(s => s.rollNo === m.rollNo);
@@ -403,6 +446,11 @@ export const AdvisorService = {
     await AdminService.saveStudents(allStudents);
 
     notifyListeners();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
+      window.dispatchEvent(new CustomEvent('siet_data_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
     return true;
   },
 
@@ -468,6 +516,25 @@ export const AdvisorService = {
       targetTeam.leadStudent = `${newMember.name} (${newMember.rollNo})`;
     }
 
+    // 1. Persist to backend database via API
+    try {
+      await ApiClient.moveAdvisorStudent({
+        className,
+        studentRollNo,
+        targetTeamId: targetTeam.teamId || targetTeamId,
+      });
+
+      // Fetch fresh database teams state immediately to ensure full consistency
+      try {
+        const freshServerTeams = await ApiClient.getAdvisorTeams(className);
+        if (Array.isArray(freshServerTeams) && freshServerTeams.length > 0) {
+          localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(freshServerTeams));
+        }
+      } catch {}
+    } catch (apiErr) {
+      console.warn("Backend student transfer API call failed, continuing with local fallback:", apiErr);
+    }
+
     this.saveTeamsForClass(className, teams);
 
     // Update in AdminService
@@ -478,10 +545,58 @@ export const AdvisorService = {
       await AdminService.saveStudents(allStudents);
     }
 
+    // Sync student portal team cache
+    try {
+      const studentTeamRaw = localStorage.getItem('siet_student_team_v6');
+      if (studentTeamRaw) {
+        const sTeam = JSON.parse(studentTeamRaw);
+        if (sTeam && Array.isArray(sTeam.members)) {
+          const wasInSTeam = sTeam.members.some((m: any) => m.rollNo === studentRollNo);
+          if (wasInSTeam && sTeam.teamNo !== targetTeam.teamNo) {
+            sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== studentRollNo);
+            localStorage.setItem('siet_student_team_v6', JSON.stringify(sTeam));
+          } else if (!wasInSTeam && sTeam.teamNo === targetTeam.teamNo) {
+            sTeam.members.push(newMember);
+            localStorage.setItem('siet_student_team_v6', JSON.stringify(sTeam));
+          }
+        }
+      }
+    } catch {}
+
+    // Sync guide portal teams cache
+    try {
+      const guideTeamsRaw = localStorage.getItem('siet_guide_portal_teams_v6');
+      if (guideTeamsRaw) {
+        const gTeams = JSON.parse(guideTeamsRaw);
+        if (Array.isArray(gTeams)) {
+          gTeams.forEach((gt: any) => {
+            if (Array.isArray(gt.members)) {
+              gt.members = gt.members.filter((m: any) => m.rollNo !== studentRollNo);
+              if (gt.teamNo === targetTeam.teamNo || gt.teamId === targetTeam.teamId) {
+                gt.members.push({
+                  name: newMember.name,
+                  rollNo: newMember.rollNo,
+                  email: newMember.email,
+                  role: newMember.isLead ? 'Team Lead' : 'Team Member',
+                });
+              }
+            }
+          });
+          localStorage.setItem('siet_guide_portal_teams_v6', JSON.stringify(gTeams));
+        }
+      }
+    } catch {}
+
     notifyListeners();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
+      window.dispatchEvent(new CustomEvent('siet_data_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
+
     return { 
       success: true, 
-      message: `Successfully assigned ${student?.name || studentRollNo} to ${targetTeam.teamNo}.` 
+      message: `Successfully transferred ${student?.name || studentRollNo} to ${targetTeam.teamNo}.` 
     };
   },
 
@@ -489,15 +604,14 @@ export const AdvisorService = {
     className: string,
     teamId: string,
     guideName: string,
-    guideEmail?: string
+    guideEmail?: string,
+    advisorName?: string
   ): Promise<{ success: boolean; message: string }> {
     const teams = this.getTeamsForClass(className);
-    const team = teams.find(t => t.teamId === teamId);
-    if (!team) {
-      return { success: false, message: "Team not found." };
-    }
+    const team = teams.find(t => t.teamId === teamId || t.teamNo === teamId || (t as any).id === teamId);
+    const oldGuide = team ? team.guide : "Unassigned";
 
-    if (team.guide.toLowerCase() === guideName.toLowerCase()) {
+    if (team && team.guide.toLowerCase() === guideName.toLowerCase()) {
       return { success: false, message: "This guide is already assigned to this team." };
     }
 
@@ -509,26 +623,64 @@ export const AdvisorService = {
       };
     }
 
-    team.guide = guideName;
-    if (guideEmail) team.guideEmail = guideEmail;
+    // Call backend API for persistence
+    try {
+      const apiRes = await ApiClient.reassignAdvisorGuide({
+        className,
+        teamId: team?.teamId || teamId,
+        guideName,
+        guideEmail,
+      });
 
-    this.saveTeamsForClass(className, teams);
-
-    // Update students in AdminService
-    const allStudents = await AdminService.getStudents();
-    
-    team.members.forEach(m => {
-      const s = allStudents.find(x => x.rollNo === m.rollNo);
-      if (s) {
-        s.guide = guideName;
+      if (apiRes && apiRes.success === false) {
+        return { success: false, message: apiRes.message || "Failed to reassign guide on server." };
       }
-    });
-    await AdminService.saveStudents(allStudents);
+    } catch (err: any) {
+      console.warn("Backend reassign-guide error, updating local state:", err);
+    }
+
+    if (team) {
+      team.guide = guideName;
+      if (guideEmail) team.guideEmail = guideEmail;
+      this.saveTeamsForClass(className, teams);
+
+      // Update students in AdminService
+      try {
+        const allStudents = await AdminService.getStudents();
+        team.members.forEach(m => {
+          const s = allStudents.find(x => x.rollNo === m.rollNo);
+          if (s) {
+            s.guide = guideName;
+          }
+        });
+        await AdminService.saveStudents(allStudents);
+      } catch (e) {
+        console.warn("Could not sync admin students:", e);
+      }
+    }
+
+    // Record in Advisor History Log
+    try {
+      AdvisorHistoryService.addLog(
+        className,
+        "Guide Reassignment",
+        `${team?.teamNo || teamId} (${team?.title || 'Project Team'})`,
+        `Reassigned technical guide from ${oldGuide} to ${guideName}. Institutional quota verified.`,
+        advisorName || "Dr. R. Karthikeyan",
+        "Class Advisor"
+      );
+    } catch (e) {
+      console.warn("Failed to log guide reassignment to history:", e);
+    }
 
     notifyListeners();
+    window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
+    window.dispatchEvent(new CustomEvent('siet_data_updated'));
+    window.dispatchEvent(new Event('storage'));
+
     return { 
       success: true, 
-      message: `Guide ${guideName} successfully assigned to ${team.teamNo}.` 
+      message: `Guide ${guideName} successfully assigned to ${team ? team.teamNo : 'team'}.` 
     };
   },
 
@@ -631,24 +783,56 @@ export const AdvisorService = {
       members
     };
 
-    teams.push(newTeam);
+    // 1. Persist to backend database
+    let backendTeam: any = null;
+    try {
+      const res = await ApiClient.createAdvisorTeam({
+        className,
+        batch,
+        capacity,
+        teamNo: cleanNo,
+        title: teamData.title || "To be proposed by student team",
+        guide: teamData.guide,
+        guideEmail: teamData.guideEmail || `${teamData.guide.toLowerCase().replace(/[^a-z0-9]/g, '.')}@siet.ac.in`,
+        leadRollNo: teamData.leadRollNo || lead.rollNo,
+        memberRollNos: teamData.memberRollNos,
+      });
+      if (res && res.team) {
+        backendTeam = res.team;
+      }
+    } catch (err) {
+      console.warn("Backend team creation failed, continuing with local fallback:", err);
+    }
+
+    const finalTeam: ClassTeam = backendTeam || newTeam;
+    const existingIdx = teams.findIndex(t => t.teamId === finalTeam.teamId || t.teamNo === finalTeam.teamNo);
+    if (existingIdx >= 0) {
+      teams[existingIdx] = finalTeam;
+    } else {
+      teams.push(finalTeam);
+    }
     this.saveTeamsForClass(className, teams);
 
     // Update students in AdminService
     allStudents.forEach(s => {
       if (teamData.memberRollNos.includes(s.rollNo)) {
-        s.teamNo = newTeam.teamNo;
-        s.projectTitle = newTeam.title;
-        s.guide = newTeam.guide;
+        s.teamNo = finalTeam.teamNo;
+        s.projectTitle = finalTeam.title;
+        s.guide = finalTeam.guide;
       }
     });
     await AdminService.saveStudents(allStudents);
 
     notifyListeners();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
+      window.dispatchEvent(new CustomEvent('siet_data_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
     return {
       success: true,
-      message: `Team ${newTeam.teamNo} successfully formed and assigned to ${newTeam.guide}.`,
-      team: newTeam
+      message: `Team ${finalTeam.teamNo} successfully formed and assigned to ${finalTeam.guide}.`,
+      team: finalTeam
     };
   },
 
