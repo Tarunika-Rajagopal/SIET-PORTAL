@@ -144,6 +144,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         setStudentForManualTeam(enrolledStudent);
         setIsManualTeamOpen(true);
         onShowToast(`Student ${cleanName} enrolled. Please create a new team for this student.`);
+        await refreshData();
         return;
       }
 
@@ -167,6 +168,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       setNewStudentPassword('');
       setNewStudentTargetTeam('unassigned');
       setIsAddStudentOpen(false);
+      await refreshData();
       return;
     }
 
@@ -197,6 +199,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       setIsAddStudentOpen(false);
       setStudentForManualTeam(enrolledStudent);
       setIsManualTeamOpen(true);
+      await refreshData();
       return;
     }
 
@@ -223,6 +226,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     setNewStudentPassword('');
     setNewStudentTargetTeam('unassigned');
     setIsAddStudentOpen(false);
+    await refreshData();
   };
 
   // Handle Move / Assign Student Confirm

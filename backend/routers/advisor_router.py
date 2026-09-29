@@ -6,6 +6,7 @@ from database import get_db
 from auth import require_roles
 from models import User
 from services.advisor_service import AdvisorService
+from services.admin_service import AdminService
 from services.cache_service import cache_service
 from schemas import (
     CreateTeamRequest,
@@ -14,6 +15,7 @@ from schemas import (
     ReassignGuideRequest,
     UpdateTeamRequest,
     AdvisorHistoryLogRequest,
+    AddStudentRequest,
 )
 
 router = APIRouter(prefix="/api/v1/advisor", tags=["Advisor"])
@@ -21,6 +23,10 @@ router = APIRouter(prefix="/api/v1/advisor", tags=["Advisor"])
 
 def get_advisor_service(db: AsyncSession = Depends(get_db)) -> AdvisorService:
     return AdvisorService(db)
+
+
+def get_admin_service(db: AsyncSession = Depends(get_db)) -> AdminService:
+    return AdminService(db)
 
 
 @router.get("/available-guides")
@@ -83,6 +89,32 @@ async def get_students(
     data = await service.get_class_students(target_class, target_batch)
     await cache_service.set_json(cache_key, data, expire_seconds=60)
     return data
+
+
+@router.post("/students")
+async def add_student(
+    req: AddStudentRequest,
+    user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
+    admin_service: AdminService = Depends(get_admin_service),
+):
+    target_class = req.classSection or user.advisor_class or user.class_name or "CSE-B"
+    target_batch = req.batch or user.advisor_batch or user.batch or "2023-2027 (III Year)"
+    res = await admin_service.add_student(
+        name=req.name,
+        roll_no=req.rollNo,
+        email=req.email,
+        password=req.password or "student@123",
+        batch=target_batch,
+        class_section=target_class,
+        guide=req.guide or "Unassigned",
+    )
+    if not res.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=res.get("message", "Failed to enroll student")
+        )
+    await cache_service.invalidate_students()
+    return res
 
 
 @router.post("/teams")

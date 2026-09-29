@@ -313,13 +313,17 @@ export const AdminService = {
       guide: "Unassigned"
     };
 
-    try{
-      await ApiClient.addStudent(newStudent);
+    try {
+      const res = await ApiClient.addStudent(newStudent);
+      if (res && res.success === false) {
+        return { success: false, message: res.message || `Failed to enroll student ${student.name}.` };
+      }
       await queryClient.invalidateQueries({ queryKey: ['admin', 'students'] });
-    }
-    catch(e){
+      await queryClient.invalidateQueries({ queryKey: ['advisor', 'students'] });
+      await queryClient.invalidateQueries({ queryKey: ['advisor', 'teams'] });
+    } catch (e: any) {
       console.error(e);
-      return { success: false, message: `Failed to enroll student ${student.name}.` };
+      return { success: false, message: e?.message || `Failed to enroll student ${student.name}.` };
     }
 
     return { success: true, message: `Student ${student.name} enrolled successfully.` };
