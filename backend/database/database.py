@@ -40,7 +40,7 @@ def _create_engine():
         echo=False,
         pool_size=10,
         max_overflow=20,
-        pool_pre_ping=False,  # <-- Change from True to False (avoids extra remote round-trip per request)
+        pool_pre_ping=False,
         pool_recycle=180,     # Recycle before Supavisor idle timeout
         connect_args={
             "ssl": "require",
@@ -48,7 +48,13 @@ def _create_engine():
             "prepared_statement_cache_size": 0,
             "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
             "command_timeout": 30,
-    },
+            "server_settings": {
+                "application_name": "siet_portal_backend",
+                "tcp_keepalives_idle": "30",
+                "tcp_keepalives_interval": "10",
+                "tcp_keepalives_count": "5",
+            },
+        },
     )
 
 
@@ -68,7 +74,11 @@ class Base(DeclarativeBase):
 
 async def get_db():
     async with async_session() as session:
-        yield session
+        try:
+            yield session
+        except (OSError, ConnectionResetError):
+            await session.rollback()
+            raise
 
 
 async def check_db_connection() -> bool:

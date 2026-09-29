@@ -1,20 +1,29 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GuideProvider } from './context/GuideContext';
 import LoginPage from './pages/LoginPage';
-import StudentPortalPage from './pages/StudentPortalPage';
-import AdvisorPortalPage from './pages/AdvisorPortalPage';
-import HodPortalPage from './pages/HodPortalPage';
-import AdminPortalPage from './pages/AdminPortalPage';
-import SettingsPage from './pages/SettingsPage';
+
+// Lazy-loaded portals to dramatically reduce initial bundle size
+const StudentPortalPage = React.lazy(() => import('./pages/StudentPortalPage'));
+const AdvisorPortalPage = React.lazy(() => import('./pages/AdvisorPortalPage'));
+const HodPortalPage = React.lazy(() => import('./pages/HodPortalPage'));
+const AdminPortalPage = React.lazy(() => import('./pages/AdminPortalPage'));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 
 // Guide Portal components & layout
-import GuideLayout from './layouts/GuideLayout';
-import ApproveProject from './pages/guide/ApproveProject';
-import MyTeams from './pages/guide/MyTeams';
-import WeeklySubmissions from './pages/guide/WeeklySubmissions';
-import SubmissionHistory from './pages/guide/SubmissionHistory';
+const GuideLayout = React.lazy(() => import('./layouts/GuideLayout'));
+const ApproveProject = React.lazy(() => import('./pages/guide/ApproveProject'));
+const MyTeams = React.lazy(() => import('./pages/guide/MyTeams'));
+const WeeklySubmissions = React.lazy(() => import('./pages/guide/WeeklySubmissions'));
+const SubmissionHistory = React.lazy(() => import('./pages/guide/SubmissionHistory'));
+
+const PortalLoadingFallback: React.FC = () => (
+  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
+    <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4" />
+    <p className="text-sm font-medium text-slate-400 tracking-wide">Loading workspace...</p>
+  </div>
+);
 
 const RoleBasedHome: React.FC = () => {
   const { currentUser, activeRole } = useAuth();
@@ -60,7 +69,8 @@ export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <Suspense fallback={<PortalLoadingFallback />}>
+          <Routes>
           {/* Main Home / Login entrypoint */}
           <Route path="/" element={<RoleBasedHome />} />
           <Route path="/login" element={<LoginPage />} />
@@ -137,6 +147,7 @@ export const App: React.FC = () => {
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   );

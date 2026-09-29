@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Users, AlertCircle, CheckCircle2, ChevronDown, Check, UserMinus, Edit3, Sparkles } from 'lucide-react';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { AdminService, AdminStudent, AdminFaculty } from '../../services/adminService';
-import { useFaculties, useAdminStudents } from '../../hooks/useQueries';
+import { useAdvisorGuides, useAdminStudents } from '../../hooks/useQueries';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
 
 interface AdvisorEditTeamModalProps {
@@ -63,11 +63,7 @@ export const AdvisorEditTeamModal: React.FC<AdvisorEditTeamModalProps> = ({
 }, [isOpen, className, batch]);
 
   // Available faculty guides from TanStack Query
-  const { data: allFaculties = [] } = useFaculties();
-  const availableGuides = React.useMemo(
-    () => allFaculties.filter(f => f.role === 'Guide' || f.role === 'Advisor & Guide'),
-    [allFaculties]
-  );
+  const { data: availableGuides = [] } = useAdvisorGuides();
 
   // Load team data into state when modal opens
   useEffect(() => {

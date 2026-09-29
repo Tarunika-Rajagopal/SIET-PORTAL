@@ -26,6 +26,7 @@ from routers.admin_router import router as admin_router
 from routers.hod_router import router as hod_router
 from routers.advisor_router import router as advisor_router
 from routers.marks_router import router as marks_router
+from routers.job_router import router as job_router
 # Advisor portal bulk team creation supported
 
 
@@ -398,6 +399,7 @@ app.include_router(admin_router)
 app.include_router(hod_router)
 app.include_router(advisor_router)
 app.include_router(marks_router)
+app.include_router(job_router)
 
 
 @app.exception_handler(Exception)

@@ -3,7 +3,7 @@ import {
   BookOpen, X, AlertCircle, Check, ArrowRight, UserCheck, Shield, ChevronDown
 } from 'lucide-react';
 import { AdminService, AdminFaculty } from '../../services/adminService';
-import { useFaculties } from '../../hooks/useQueries';
+import { useAdvisorGuides } from '../../hooks/useQueries';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
 import { ApiClient } from '../../services/apiClient';
 
@@ -28,7 +28,7 @@ export const AdvisorGuideReassignModal: React.FC<AdvisorGuideReassignModalProps>
 }) => {
   const [selectedTeamId, setSelectedTeamId] = useState<string>('');
   const [selectedNewGuide, setSelectedNewGuide] = useState<string>('');
-  const { data: availableGuides = [] } = useFaculties();
+  const { data: availableGuides = [] } = useAdvisorGuides();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 

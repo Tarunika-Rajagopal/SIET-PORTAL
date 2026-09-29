@@ -536,5 +536,29 @@ export const ApiClient = {
         guide_email:guideEmail,
       }),
      })
+   },
+   async getJobStatus(jobId: string) {
+     return request<{
+       job_id: string;
+       job_type: string;
+       status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'RETRYING';
+       progress: number;
+       created_at: string;
+       started_at?: string;
+       completed_at?: string;
+       error?: string;
+       result?: any;
+     }>(`/jobs/${jobId}`);
+   },
+   async createExportJob(reportType: string = 'HOD_SUMMARY', format: string = 'csv') {
+     return request<{
+       success: boolean;
+       message: string;
+       job_id: string;
+       status: string;
+     }>('/jobs/export', {
+       method: 'POST',
+       body: JSON.stringify({ reportType, format }),
+     });
    }
 };

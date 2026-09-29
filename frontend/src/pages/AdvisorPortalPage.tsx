@@ -7,18 +7,16 @@ import AdvisorStudentsView from '../components/advisor/AdvisorStudentsView';
 import AdvisorHistoryView from '../components/advisor/AdvisorHistoryView';
 import { AdvisorService, ClassTeam } from '../services/advisorService';
 import { AdminStudent, AdminService, AdminFaculty } from '../services/adminService';
-import { useFaculties, useClassStudents } from '../hooks/useQueries';
+import { useClassStudents } from '../hooks/useQueries';
 import { Users, History } from 'lucide-react';
 
 export const AdvisorPortalPage: React.FC = () => {
   const { currentUser } = useAuth();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const { data: faculties = [] } = useFaculties();
-  const currentFaculty = faculties.find(f => f.email?.toLowerCase() === currentUser?.email?.toLowerCase());
-  const className = currentFaculty?.advisorClass || currentUser?.advisorClass || "CSE-B";
-  const batch = currentFaculty?.advisorBatch || currentUser?.advisorBatch || "2023-2027 (III Year)";
-  const advisorName = currentFaculty?.name || currentUser?.name || "Dr. R. Karthikeyan";
+  const className = currentUser?.advisorClass || "CSE-B";
+  const batch = currentUser?.advisorBatch || "2023-2027 (III Year)";
+  const advisorName = currentUser?.name || "Dr. R. Karthikeyan";
 
   // Navigation tab: 'students' | 'history'
   const [activeTab, setActiveTab] = useState<'students' | 'history'>('students');

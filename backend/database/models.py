@@ -164,9 +164,9 @@ class Student(Base):
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password = Column(String(255), default="student@123")
-    batch = Column(String(100), default="2023-2027 (III Year)")
-    class_section = Column(String(50), default="CSE-B")
-    team_no = Column(String(50), default="Unassigned")
+    batch = Column(String(100), default="2023-2027 (III Year)", index=True)
+    class_section = Column(String(50), default="CSE-B", index=True)
+    team_no = Column(String(50), default="Unassigned", index=True)
     project_title = Column(Text, default="")
     guide = Column(String(255), default="Unassigned")
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -180,20 +180,20 @@ class Team(Base):
 
     team_id = Column(Text, unique=True, nullable=False, index=True)
     team_no = Column(Text, nullable=False)
-    class_name = Column(Text, nullable=False)
-    batch = Column(Text, nullable=False)
+    class_name = Column(Text, nullable=False, index=True)
+    batch = Column(Text, nullable=False, index=True)
 
     project_title = Column(Text, default="")
 
     guide_name = Column(Text, nullable=True)
-    guide_email = Column(Text, nullable=True)
+    guide_email = Column(Text, nullable=True, index=True)
     guide_designation = Column(Text, nullable=True)
     guide_department = Column(Text, nullable=True)
 
     domain = Column(Text, nullable=True)
 
     advisor_name = Column(Text, nullable=True)
-    advisor_email = Column(Text, nullable=True)
+    advisor_email = Column(Text, nullable=True, index=True)
 
     status = Column(
         SAEnum(
@@ -271,9 +271,9 @@ class TeamMember(Base):
     __tablename__ = "team_members"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False, index=True)
     student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
-    roll_no = Column(String(50), nullable=False)
+    roll_no = Column(String(50), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
     phone = Column(String(50), nullable=True)
@@ -289,8 +289,8 @@ class WeeklySubmission(Base):
     __tablename__ = "weekly_submissions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
-    week = Column(Integer, nullable=False)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False, index=True)
+    week = Column(Integer, nullable=False, index=True)
     title = Column(String(255), default="")
     due_date = Column(String(50), nullable=True)
     status = Column(SAEnum(SubmissionStatusEnum, name="submission_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=SubmissionStatusEnum.pending)
