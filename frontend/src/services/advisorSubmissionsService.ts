@@ -6,7 +6,7 @@ import { INITIAL_TEAMS } from '../data/guidePortalData.js';
 const GUIDE_TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
 
 /**
- * Returns strictly real student milestone submissions for Team 04.
+ * Returns strictly real student milestone submissions for the active student team.
  * Merges deliverables (abstract, problem statement, solution, tech stack, PPT, PDF, repos, etc.)
  * so that Guide, Advisor, and HOD portals view the exact same data.
  */
@@ -113,7 +113,19 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
     const rawG = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
     if (rawG) {
       const gTeams = JSON.parse(rawG);
-      const gt = gTeams.find((t: any) => t.teamId === studentTeam.id || t.id === studentTeam.id || t.teamNumber === 4);
+      const gt = gTeams.find((t: any) => {
+        const tId = (t.teamId || t.id || '').toLowerCase().trim();
+        const sId = (studentTeam.id || '').toLowerCase().trim();
+        const tNo = (t.teamNo || '').toLowerCase().trim();
+        const sNo = (studentTeam.teamNo || '').toLowerCase().trim();
+        const tNum = t.teamNumber != null ? Number(t.teamNumber) : parseInt(tNo.replace(/\D/g, ''), 10);
+        const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : parseInt(sNo.replace(/\D/g, ''), 10);
+
+        if (tId && sId && tId === sId) return true;
+        if (tNo && sNo && tNo === sNo) return true;
+        if (!isNaN(tNum) && !isNaN(sNum) && tNum === sNum) return true;
+        return false;
+      });
       if (gt && Array.isArray(gt.submissions)) {
         guideTeamSubs = gt.submissions;
       }
@@ -331,13 +343,15 @@ export const AdvisorSubmissionsService = {
   getTeamSubmissions(team: ClassTeam): WeeklySubmission[] {
     if (!team) return [];
 
-    // 1. Check live student deliverables from StudentService if this is the student team
     const studentTeam = StudentService.getTeam();
+    const tNum = team.teamNo ? parseInt(team.teamNo.replace(/\D/g, ''), 10) : null;
+    const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : (studentTeam.teamNo ? parseInt(studentTeam.teamNo.replace(/\D/g, ''), 10) : null);
+
     const isStudentTeam = Boolean(
-      (team.teamId && studentTeam.id && team.teamId.toLowerCase() === studentTeam.id.toLowerCase()) ||
-      (team.teamNo && studentTeam.teamNo && team.teamNo.toLowerCase() === studentTeam.teamNo.toLowerCase()) ||
-      (Array.isArray(team.members) && Array.isArray(studentTeam.members) && team.members.some(tm => studentTeam.members.some(sm => sm.rollNo === tm.rollNo))) ||
-      team.teamId === 'TEAM-CSE-Y3-B04' || team.teamNo === 'Team 04' || team.teamId === 'team-4' || team.teamId === 'team-1'
+      (team.teamId && studentTeam.id && team.teamId.toLowerCase().trim() === studentTeam.id.toLowerCase().trim()) ||
+      (team.teamNo && studentTeam.teamNo && team.teamNo.toLowerCase().trim() === studentTeam.teamNo.toLowerCase().trim()) ||
+      (tNum != null && sNum != null && !isNaN(tNum) && !isNaN(sNum) && tNum === sNum) ||
+      (Array.isArray(team.members) && Array.isArray(studentTeam.members) && team.members.some(tm => studentTeam.members.some(sm => sm.rollNo === tm.rollNo)))
     );
 
     if (isStudentTeam) {

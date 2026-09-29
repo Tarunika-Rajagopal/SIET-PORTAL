@@ -2,10 +2,33 @@ import { INITIAL_TEAMS } from '../data/guidePortalData.js';
 import { StudentService } from '../services/studentService';
 import { MarksService } from '../services/marksService';
 
+const isMatchingStudentTeam = (team, sTeam) => {
+  if (!team || !sTeam) return false;
+  const sId = (sTeam.id || sTeam.teamId || '').toLowerCase().trim();
+  const sNo = (sTeam.teamNo || '').toLowerCase().trim();
+  const sNum = sTeam.teamNumber != null ? Number(sTeam.teamNumber) : (sNo ? parseInt(sNo.replace(/\D/g, ''), 10) : null);
+
+  const tId = (team.teamId || team.id || '').toLowerCase().trim();
+  const tNo = (team.teamNo || '').toLowerCase().trim();
+  const tNum = team.teamNumber != null ? Number(team.teamNumber) : (tNo ? parseInt(tNo.replace(/\D/g, ''), 10) : null);
+
+  if (sId && tId && sId === tId) return true;
+  if (sNo && tNo && sNo === tNo) return true;
+  if (sNum != null && tNum != null && !Number.isNaN(sNum) && !Number.isNaN(tNum) && sNum === tNum) return true;
+
+  if (Array.isArray(sTeam.members) && Array.isArray(team.members)) {
+    const sRolls = new Set(sTeam.members.map(m => (m.rollNo || m.rollNumber || m.id || '').toLowerCase().trim()).filter(Boolean));
+    if (sRolls.size > 0 && team.members.some(m => sRolls.has((m.rollNo || m.rollNumber || m.id || '').toLowerCase().trim()))) {
+      return true;
+    }
+  }
+  return false;
+};
+
 /**
  * Ensures strictly real student submissions are visible to the guide:
  * 1. Non-student teams NEVER have mock submissions or mock titles.
- * 2. The real student team (Team 4) synchronizes strictly with actual submissions from StudentService.
+ * 2. The active student team synchronizes strictly with actual submissions from StudentService.
  */
 export const sanitizeAndSyncGuideTeams = (rawList) => {
   const source = Array.isArray(rawList) && rawList.length > 0 ? rawList : INITIAL_TEAMS;
@@ -15,9 +38,13 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
   const missing = INITIAL_TEAMS.filter(t => !existingIds.has(t.teamId));
   const combined = [...source, ...missing];
 
+  const sTeam = StudentService.getTeam();
+
   return combined.map(team => {
-    // 1. Teams other than the real student team (Team 4) MUST NEVER have mock submissions or mock titles
-    if (team.teamId !== 'TEAM-CSE-Y3-B04' && team.teamNumber !== 4) {
+    const isStudent = isMatchingStudentTeam(team, sTeam);
+
+    // 1. Teams other than the active student team: Strip mock placeholders, preserve real submissions
+    if (!isStudent) {
       const isMockTitle = (
         team.projectTitle === 'Wildfire Prediction Mesh Network' || 
         team.projectTitle === 'Automated Legal Document Summarizer' || 
@@ -44,9 +71,8 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
       };
     }
 
-    // 2. Real Student Team (Team 4): Synchronize strictly with real student submissions
+    // 2. Active Student Team: Synchronize strictly with real student submissions
     try {
-      const sTeam = StudentService.getTeam();
       const d0 = StudentService.getDeliverables('Week 0');
       const studentSubs = StudentService.getSubmissions() || [];
 

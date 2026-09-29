@@ -30,24 +30,22 @@ try {
     if (Array.isArray(guideTeams)) {
       let cleaned = false;
       guideTeams.forEach((t: any) => {
-        if (t.teamId !== 'TEAM-CSE-Y3-B04' && t.teamNumber !== 4) {
-          const isMockTitle = (
-            t.projectTitle === 'Wildfire Prediction Mesh Network' ||
-            t.projectTitle === 'Automated Legal Document Summarizer' ||
-            t.projectTitle === 'Autonomous Solar Panel Cleaning Drone'
-          );
-          if (isMockTitle) {
-            t.submissions = [];
-            t.projectTitle = '';
-            t.problemStatement = '';
-            t.proposedSolution = '';
-            t.technologiesUsed = [];
-            t.githubUrl = '';
-            t.liveDemoUrl = '';
-            t.abstract = '';
-            t.titleStatus = 'Pending';
-            cleaned = true;
-          }
+        const isMockTitle = (
+          t.projectTitle === 'Wildfire Prediction Mesh Network' ||
+          t.projectTitle === 'Automated Legal Document Summarizer' ||
+          t.projectTitle === 'Autonomous Solar Panel Cleaning Drone'
+        );
+        if (isMockTitle) {
+          t.submissions = [];
+          t.projectTitle = '';
+          t.problemStatement = '';
+          t.proposedSolution = '';
+          t.technologiesUsed = [];
+          t.githubUrl = '';
+          t.liveDemoUrl = '';
+          t.abstract = '';
+          t.titleStatus = 'Pending';
+          cleaned = true;
         }
       });
       if (cleaned) {
@@ -92,6 +90,7 @@ export interface StudentDeliverableState {
 
 export interface StudentTeamExtended extends Team {
   submittedTitle?: string;
+  teamNumber?: number;
   isTitleApproved: boolean;
   guideApprovalStatus: 'Approved' | 'Pending Review' | 'Pending' | 'Revision Required' | 'Rejected';
   rejectionReason?: string;

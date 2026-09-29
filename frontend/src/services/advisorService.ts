@@ -162,21 +162,47 @@ export const AdvisorService = {
           }
         });
 
-        // 2. Real-time synchronization for Team 04 with Student Portal data
+        // 2. Real-time synchronization for active student team with Student Portal data
         const studentTeam = StudentService.getTeam();
-        const d0 = StudentService.getDeliverables('Week 0');
-        const rawRealTitle = (d0?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
-        const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
+        let matchedActiveTeamId: string | null = null;
 
-        const team04 = teamList.find(t => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNo === 'Team 04');
-        if (team04) {
-          team04.title = cleanRealTitle;
-          if (cleanRealTitle) {
-            team04.status = (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved')
-              ? 'Active & Approved'
-              : 'Under Review';
-          } else {
-            team04.status = 'Pending';
+        if (studentTeam && (studentTeam.id || studentTeam.teamNo)) {
+          const sId = (studentTeam.id || '').toLowerCase().trim();
+          const sNo = (studentTeam.teamNo || '').toLowerCase().trim();
+          const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : (sNo ? parseInt(sNo.replace(/\D/g, ''), 10) : null);
+
+          const activeStudentTeam = teamList.find(t => {
+            const tId = (t.teamId || '').toLowerCase().trim();
+            const tNo = (t.teamNo || '').toLowerCase().trim();
+            const tNum = parseInt(tNo.replace(/\D/g, ''), 10);
+
+            if (sId && tId && sId === tId) return true;
+            if (sNo && tNo && sNo === tNo) return true;
+            if (sNum != null && !Number.isNaN(sNum) && !Number.isNaN(tNum) && sNum === tNum) return true;
+
+            if (Array.isArray(studentTeam.members) && Array.isArray(t.members)) {
+              const sRolls = new Set(studentTeam.members.map(m => (m.rollNo || '').toLowerCase().trim()).filter(Boolean));
+              if (sRolls.size > 0 && t.members.some(m => sRolls.has((m.rollNo || '').toLowerCase().trim()))) {
+                return true;
+              }
+            }
+            return false;
+          });
+
+          if (activeStudentTeam) {
+            matchedActiveTeamId = activeStudentTeam.teamId;
+            const d0 = StudentService.getDeliverables('Week 0');
+            const rawRealTitle = (d0?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
+            const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
+
+            activeStudentTeam.title = cleanRealTitle;
+            if (cleanRealTitle) {
+              activeStudentTeam.status = (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved')
+                ? 'Active & Approved'
+                : 'Under Review';
+            } else {
+              activeStudentTeam.status = 'Pending';
+            }
           }
         }
 
@@ -186,7 +212,7 @@ export const AdvisorService = {
           const guideTeams = JSON.parse(guideRaw);
           if (Array.isArray(guideTeams)) {
             teamList.forEach(t => {
-              if (t.teamId === 'TEAM-CSE-Y3-B04') return; // Team 04 already synchronized with student
+              if (matchedActiveTeamId && t.teamId === matchedActiveTeamId) return; // Active student team already synchronized with student
               const tNum = parseInt(String(t.teamNo || t.teamId).replace(/\D/g, ''), 10);
               const gt = guideTeams.find((g: any) => 
                 (g.teamId && g.teamId.toLowerCase() === t.teamId.toLowerCase()) || 

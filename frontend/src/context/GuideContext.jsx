@@ -34,7 +34,34 @@ export const GuideProvider = ({ children }) => {
 
   const normalizeName = (n) => (n || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
   const isTargetTeam = (team, teamId) => team?.teamId === teamId;
-  const isStudentPortalTeam = (team) => team?.teamId === 'TEAM-CSE-Y3-B04' || team?.teamNumber === 4;
+  const isStudentPortalTeam = (team) => {
+    if (!team) return false;
+    try {
+      const studentTeam = StudentService.getTeam();
+      if (!studentTeam) return false;
+      const sId = (studentTeam.id || studentTeam.teamId || '').toLowerCase().trim();
+      const sNo = (studentTeam.teamNo || '').toLowerCase().trim();
+      const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : (sNo ? parseInt(sNo.replace(/\D/g, ''), 10) : null);
+
+      const tId = (team.teamId || team.id || '').toLowerCase().trim();
+      const tNo = (team.teamNo || '').toLowerCase().trim();
+      const tNum = team.teamNumber != null ? Number(team.teamNumber) : (tNo ? parseInt(tNo.replace(/\D/g, ''), 10) : null);
+
+      if (sId && tId && sId === tId) return true;
+      if (sNo && tNo && sNo === tNo) return true;
+      if (sNum != null && tNum != null && !Number.isNaN(sNum) && !Number.isNaN(tNum) && sNum === tNum) return true;
+
+      if (Array.isArray(studentTeam.members) && Array.isArray(team.members)) {
+        const sRolls = new Set(studentTeam.members.map(m => (m.rollNo || m.rollNumber || m.id || '').toLowerCase().trim()).filter(Boolean));
+        if (sRolls.size > 0 && team.members.some(m => sRolls.has((m.rollNo || m.rollNumber || m.id || '').toLowerCase().trim()))) {
+          return true;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  };
 
   const [backendMetrics, setBackendMetrics] = useState(null);
   const [backendTeamIds, setBackendTeamIds] = useState(null);
@@ -801,7 +828,7 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
-      // Synchronize to StudentService
+      // Synchronize to StudentService if this is the active student team
       if (isStudentPortalTeam(updatedTeam)) {
         try {
           const studentSubs = StudentService.getSubmissions();
@@ -811,18 +838,21 @@ export const GuideProvider = ({ children }) => {
             item.comments = reason.trim();
             StudentService.saveSubmissions(studentSubs);
           }
-
-          // Call backend review endpoint
-          ApiClient.getGuidePendingSubmissions().then(pSubs => {
-            const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
-            if (match && (match.id || match.submissionId)) {
-              ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
-            }
-          }).catch(() => {});
         } catch (e) {
           console.error('Error synchronizing revision request:', e);
         }
       }
+
+      // Call backend review endpoint for all teams
+      ApiClient.getGuidePendingSubmissions().then(pSubs => {
+        const match = pSubs.find(x => 
+          Number(x.weekNumber || x.week) === Number(weekNumber) &&
+          (x.teamId === updatedTeam.teamId || x.team_id === updatedTeam.id || x.teamNo === updatedTeam.teamNo || x.teamId === updatedTeam.id)
+        );
+        if (match && (match.id || match.submissionId)) {
+          ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
+        }
+      }).catch(() => {});
 
       const newActivity = {
         id: 'act-' + Date.now(),
@@ -886,6 +916,7 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
+      // Synchronize to StudentService if this is the active student team
       if (isStudentPortalTeam(updatedTeam)) {
         try {
           const studentSubs = StudentService.getSubmissions();
@@ -895,18 +926,21 @@ export const GuideProvider = ({ children }) => {
             item.comments = reason.trim();
             StudentService.saveSubmissions(studentSubs);
           }
-
-          // Call backend review endpoint
-          ApiClient.getGuidePendingSubmissions().then(pSubs => {
-            const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
-            if (match && (match.id || match.submissionId)) {
-              ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REJECTED', reason.trim()).catch(() => {});
-            }
-          }).catch(() => {});
         } catch (e) {
           console.error('Error synchronizing rejection:', e);
         }
       }
+
+      // Call backend review endpoint for all teams
+      ApiClient.getGuidePendingSubmissions().then(pSubs => {
+        const match = pSubs.find(x => 
+          Number(x.weekNumber || x.week) === Number(weekNumber) &&
+          (x.teamId === updatedTeam.teamId || x.team_id === updatedTeam.id || x.teamNo === updatedTeam.teamNo || x.teamId === updatedTeam.id)
+        );
+        if (match && (match.id || match.submissionId)) {
+          ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REJECTED', reason.trim()).catch(() => {});
+        }
+      }).catch(() => {});
 
       const newActivity = {
         id: 'act-' + Date.now(),
