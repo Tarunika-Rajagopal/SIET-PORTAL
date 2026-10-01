@@ -25,6 +25,7 @@ try {
 
 const TEAM_STORAGE_KEY = "siet_student_team_v6";
 const SUBMISSIONS_STORAGE_KEY = "siet_student_submissions_v6";
+const GUIDE_TEAMS_STORAGE_KEY = "siet_guide_portal_teams_v6";
 
 export interface StudentDeliverableState {
   week: string;
@@ -208,6 +209,7 @@ export const StudentService = {
             }
           }
         }
+      }
     } catch (e) { }
 
     if (team.isTitleApproved) {
