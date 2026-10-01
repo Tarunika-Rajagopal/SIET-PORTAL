@@ -35,6 +35,7 @@ class TeamRepository:
     async def get_by_team_id_string(self, team_id_str: str) -> Optional[Team]:
         cleaned = team_id_str.strip()
         digits = "".join(c for c in cleaned if c.isdigit())
+        num = int(digits) if digits else None
         conds = [Team.team_id == cleaned, Team.team_no == cleaned]
         try:
             parsed_uuid = uuid.UUID(cleaned)
