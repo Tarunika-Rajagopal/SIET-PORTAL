@@ -24,7 +24,13 @@ async def get_weekly_submissions_summary(
     user: User = Depends(require_roles("hod", "admin")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.get_weekly_submissions_summary()
+    cache_key = "cache:hod:submissions:summary"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_weekly_submissions_summary()
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.delete("/weekly-submissions")
@@ -33,7 +39,12 @@ async def delete_weekly_submissions(
     user: User = Depends(require_roles("hod", "admin")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.delete_weekly_submissions(req.weeks, user.email)
+    res = await service.delete_weekly_submissions(req.weeks, user.email)
+    await cache_service.delete_prefix("cache:hod:")
+    await cache_service.delete_prefix("cache:student:")
+    await cache_service.delete_prefix("cache:guide:")
+    await cache_service.delete_prefix("cache:advisor:")
+    return res
 
 
 @router.delete("/weekly-submissions/{week}")
@@ -42,7 +53,12 @@ async def delete_single_week_submissions(
     user: User = Depends(require_roles("hod", "admin")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.delete_weekly_submissions([week], user.email)
+    res = await service.delete_weekly_submissions([week], user.email)
+    await cache_service.delete_prefix("cache:hod:")
+    await cache_service.delete_prefix("cache:student:")
+    await cache_service.delete_prefix("cache:guide:")
+    await cache_service.delete_prefix("cache:advisor:")
+    return res
 
 
 @router.get("/advisors")
@@ -52,7 +68,13 @@ async def get_advisors(
     user: User = Depends(require_roles("hod")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.get_advisors(batch, className)
+    cache_key = f"cache:hod:advisors:{batch}:{className}"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_advisors(batch, className)
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.get("/students")
@@ -62,7 +84,13 @@ async def get_students(
     user: User = Depends(require_roles("hod")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.get_students(batch, className)
+    cache_key = f"cache:hod:students:{batch}:{className}"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_students(batch, className)
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.get("/teams")
@@ -73,7 +101,15 @@ async def get_teams(
     user: User = Depends(require_roles("hod")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.get_teams(batch, className, search)
+    if search:
+        return await service.get_teams(batch, className, search)
+    cache_key = f"cache:hod:teams:{batch}:{className}"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_teams(batch, className, search)
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.get("/faculty-list")
@@ -81,7 +117,13 @@ async def get_faculty_list(
     user: User = Depends(require_roles("hod")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.get_faculty_list()
+    cache_key = "cache:hod:faculty_list"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_faculty_list()
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.get("/history")
@@ -98,7 +140,7 @@ async def log_history(
     user: User = Depends(require_roles("hod")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.log_history(
+    res = await service.log_history(
         req.actionType,
         req.target,
         req.details,
@@ -106,6 +148,8 @@ async def log_history(
         req.batch,
         req.performedBy or user.email,
     )
+    await cache_service.delete("cache:hod:history")
+    return res
 
 
 @router.get("/statistics")
@@ -113,7 +157,13 @@ async def get_statistics(
     user: User = Depends(require_roles("hod", "admin")),
     service: HODService = Depends(get_hod_service),
 ):
-    return await service.get_statistics()
+    cache_key = "cache:hod:statistics"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_statistics()
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.get("/filter-options")
@@ -128,8 +178,14 @@ async def get_filter_options(
 async def get_week_releases(
     service: HODService = Depends(get_hod_service),
 ):
+    cache_key = "cache:hod:week_releases"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
     releases = await service.get_week_releases()
-    return {"releases": releases}
+    data = {"releases": releases}
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.put("/week-releases/{week}")
@@ -142,8 +198,11 @@ async def update_week_release(
     # 1. Critical DB update runs immediately
     res = await service.update_week_release(week, req.released, user.name or user.email)
 
-    # 2. Invalidate relevant caches
-    await cache_service.delete_prefix("cache:")
+    # 2. Invalidate relevant caches in Redis
+    await cache_service.delete("cache:hod:week_releases")
+    await cache_service.delete("cache:student:week_releases")
+    await cache_service.delete_prefix("cache:student:")
+    await cache_service.delete_prefix("cache:hod:")
 
     # 3. Enqueue notification job to Redis queue without blocking response
     job_info = enqueue_job(
