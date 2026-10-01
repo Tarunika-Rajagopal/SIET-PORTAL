@@ -14,9 +14,9 @@ export const AdvisorPortalPage: React.FC = () => {
   const { currentUser } = useAuth();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const className = currentUser?.advisorClass || "CSE-B";
-  const batch = currentUser?.advisorBatch || "2023-2027 (III Year)";
-  const advisorName = currentUser?.name || "Dr. R. Karthikeyan";
+  const className = currentUser?.advisorClass || currentUser?.class || currentUser?.section || "";
+  const batch = currentUser?.advisorBatch || currentUser?.batch || "";
+  const advisorName = currentUser?.name || "Class Advisor";
 
   // Navigation tab: 'students' | 'history'
   const [activeTab, setActiveTab] = useState<'students' | 'history'>('students');

@@ -80,6 +80,28 @@ class HodHistoryActionEnum(str, enum.Enum):
     student_reassigned = "Student Reassigned"
 
 
+class AdvisorHistoryRoleEnum(str, enum.Enum):
+    class_advisor = "Class Advisor"
+    faculty_guide = "Faculty Guide"
+    hod = "Head of Department"
+    admin = "Admin"
+
+
+class AdvisorHistoryActionEnum(str, enum.Enum):
+    marks_evaluation = "Marks Evaluation"
+    student_transfer = "Student Transfer"
+    guide_reassignment = "Guide Reassignment"
+    student_enrollment = "Student Enrollment"
+    team_formation = "Team Formation"
+    team_modification = "Team Modification"
+    team_deletion = "Team Deletion"
+    project_approval = "Project Approval"
+    milestone_review = "Milestone Review"
+    notice_dispatched = "Notice Dispatched"
+    consultation_notice = "Consultation Notice"
+    department_governance = "Department Governance"
+
+
 # ── Models ─────────────────────────────────────────────────────────
 
 class User(Base):
@@ -164,8 +186,8 @@ class Student(Base):
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password = Column(String(255), default="student@123")
-    batch = Column(String(100), default="2023-2027 (III Year)", index=True)
-    class_section = Column(String(50), default="CSE-B", index=True)
+    batch = Column(String(100), default="", index=True)
+    class_section = Column(String(50), default="", index=True)
     team_no = Column(String(50), default="Unassigned", index=True)
     project_title = Column(Text, default="")
     guide = Column(String(255), default="Unassigned")
@@ -437,13 +459,29 @@ class AdvisorHistory(Base):
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     date = Column(Date, nullable=False)
     date_formatted = Column(String(100), nullable=False)
-    role = Column(String(50), default="Class Advisor")
+    role = Column(SAEnum(AdvisorHistoryRoleEnum, name="advisor_history_role", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=AdvisorHistoryRoleEnum.class_advisor)
     actor_name = Column(String(255), nullable=False)
-    action_type = Column(String(255), nullable=False)
+    action_type = Column(SAEnum(AdvisorHistoryActionEnum, name="advisor_history_action", create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     target = Column(String(255), nullable=False)
     details = Column(Text, nullable=False)
     class_section = Column(String(50), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    @validates("role")
+    def validate_role(self, key, value):
+        if isinstance(value, str):
+            for member in AdvisorHistoryRoleEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
+
+    @validates("action_type")
+    def validate_action_type(self, key, value):
+        if isinstance(value, str):
+            for member in AdvisorHistoryActionEnum:
+                if member.value.lower() == value.strip().lower() or member.name.lower() == value.strip().lower():
+                    return member
+        return value
 
 
 class HodHistory(Base):

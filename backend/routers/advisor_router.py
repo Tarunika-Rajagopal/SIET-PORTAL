@@ -18,6 +18,8 @@ from schemas import (
     AddStudentRequest,
 )
 
+from typing import Optional
+
 router = APIRouter(prefix="/api/v1/advisor", tags=["Advisor"])
 
 
@@ -45,11 +47,13 @@ async def get_available_guides(
 
 @router.get("/teams")
 async def get_teams(
-    className: str = "CSE-B",
+    className: Optional[str] = None,
     user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
-    target_class = className or user.advisor_class or user.class_name or "CSE-B"
+    target_class = (className or user.advisor_class or user.class_name or "").strip()
+    if not target_class:
+        return []
     user_role = (user.role or "").strip().lower()
     if user.advisor_class and user_role not in ["admin", "hod"]:
         if target_class.strip().upper() != user.advisor_class.strip().upper():
@@ -68,13 +72,15 @@ async def get_teams(
 
 @router.get("/students")
 async def get_students(
-    className: str = "CSE-B",
-    batch: str = "2023-2027 (III Year)",
+    className: Optional[str] = None,
+    batch: Optional[str] = None,
     user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
-    target_class = className or user.advisor_class or user.class_name or "CSE-B"
-    target_batch = batch or user.advisor_batch or user.batch or "2023-2027 (III Year)"
+    target_class = (className or user.advisor_class or user.class_name or "").strip()
+    target_batch = (batch or user.advisor_batch or user.batch or "").strip()
+    if not target_class:
+        return []
     user_role = (user.role or "").strip().lower()
     if user.advisor_class and user_role not in ["admin", "hod"]:
         if target_class.strip().upper() != user.advisor_class.strip().upper():
@@ -97,8 +103,8 @@ async def add_student(
     user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     admin_service: AdminService = Depends(get_admin_service),
 ):
-    target_class = req.classSection or user.advisor_class or user.class_name or "CSE-B"
-    target_batch = req.batch or user.advisor_batch or user.batch or "2023-2027 (III Year)"
+    target_class = req.classSection or user.advisor_class or user.class_name or ""
+    target_batch = req.batch or user.advisor_batch or user.batch or ""
     res = await admin_service.add_student(
         name=req.name,
         roll_no=req.rollNo,
@@ -123,7 +129,7 @@ async def create_team(
     user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
-    target_class = req.className or user.advisor_class or user.class_name or "CSE-B"
+    target_class = req.className or user.advisor_class or user.class_name or ""
     user_role = (user.role or "").strip().lower()
     if user.advisor_class and user_role not in ["admin", "hod"]:
         if target_class.strip().upper() != user.advisor_class.strip().upper():
@@ -153,7 +159,7 @@ async def create_teams_bulk(
     user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
-    target_class = req.className or user.advisor_class or user.class_name or "CSE-B"
+    target_class = req.className or user.advisor_class or user.class_name or ""
     user_role = (user.role or "").strip().lower()
     if user.advisor_class and user_role not in ["admin", "hod"]:
         if target_class.strip().upper() != user.advisor_class.strip().upper():
@@ -236,11 +242,13 @@ async def delete_team(
 
 @router.get("/history")
 async def get_history(
-    className: str = "CSE-B",
+    className: Optional[str] = None,
     user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
-    target_class = className or user.advisor_class or user.class_name or "CSE-B"
+    target_class = (className or user.advisor_class or user.class_name or "").strip()
+    if not target_class:
+        return []
     return await service.get_advisor_history(target_class)
 
 
@@ -250,7 +258,7 @@ async def log_history(
     user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
-    target_class = req.className or user.advisor_class or user.class_name or "CSE-B"
+    target_class = (req.className or user.advisor_class or user.class_name or "").strip()
     return await service.log_advisor_history(
         class_section=target_class,
         action_type=req.actionType,

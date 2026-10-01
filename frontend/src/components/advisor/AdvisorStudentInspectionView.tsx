@@ -72,7 +72,7 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
       (currentMarks.memberMarks && Object.keys(currentMarks.memberMarks).length > 0)
     ) && (
       currentMarks.gradedBy?.includes('Guide') ||
-      currentMarks.gradedBy === 'Dr. P. Manimegalai' ||
+      (team?.guide && currentMarks.gradedBy === team.guide) ||
       !currentMarks.gradedBy?.includes('Advisor')
     )
   );

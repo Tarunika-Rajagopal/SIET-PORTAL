@@ -164,8 +164,8 @@ export const StudentService = {
                 submittedTitle: matched.title || '',
                 isTitleApproved: matched.status === 'Approved' || matched.status === 'Active & Approved',
                 guideApprovalStatus: (matched.status === 'Approved' || matched.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
-                guideName: matched.guide || 'Dr. P. Manimegalai',
-                advisorName: currentUser.advisorName || 'Dr. R. Karthikeyan',
+                guideName: matched.guide || 'Unassigned',
+                advisorName: currentUser.advisorName || 'Class Advisor',
                 batch: matched.batch || '2023-2027 (III Year)',
                 section: matched.class || className,
                 status: 'In Progress',
@@ -1153,7 +1153,8 @@ export const StudentService = {
       try {
         const memberRollNos = team?.members?.map(m => m.rollNo) || [];
         MarksService.deleteWeeklyMarks(team.id, weekNumber, memberRollNos);
-        const advRaw = localStorage.getItem('siet_advisor_teams_CSE-B');
+        const targetSection = team?.section || 'CSE-B';
+        const advRaw = localStorage.getItem(`siet_advisor_teams_${targetSection}`);
         if (advRaw) {
           const advTeams = JSON.parse(advRaw);
           if (Array.isArray(advTeams)) {
@@ -1161,7 +1162,7 @@ export const StudentService = {
             if (advTeam) {
               advTeam.title = '';
               advTeam.status = 'Pending';
-              localStorage.setItem('siet_advisor_teams_CSE-B', JSON.stringify(advTeams));
+              localStorage.setItem(`siet_advisor_teams_${targetSection}`, JSON.stringify(advTeams));
             }
           }
         }

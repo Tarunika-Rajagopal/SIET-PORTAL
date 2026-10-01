@@ -50,7 +50,7 @@ export const AdvisorService = {
     };
   },
 
-  getTeamCapacity(className: string = "CSE-B"): number {
+  getTeamCapacity(className: string = ""): number {
     try {
       const stored = localStorage.getItem(`siet_team_capacity_${className}`);
       if (stored) {
@@ -61,7 +61,7 @@ export const AdvisorService = {
     return 4;
   },
 
-  setTeamCapacity(className: string = "CSE-B", capacity: number) {
+  setTeamCapacity(className: string = "", capacity: number) {
     try {
       const cap = Math.min(capacity, 4);
       localStorage.setItem(`siet_team_capacity_${className}`, String(cap));
@@ -69,88 +69,11 @@ export const AdvisorService = {
     } catch (e) {}
   },
 
-  getTeamsForClass(className: string = "CSE-B"): ClassTeam[] {
+  getTeamsForClass(className: string = ""): ClassTeam[] {
+    if (!className) return [];
+
     const isMockTitle = (str?: string) => 
       /autonomous crop disease|decentralized smart grid|edge-ai wearable|llm-powered/i.test(str || '');
-
-    const defaultTeams: ClassTeam[] = [
-      {
-        teamId: "TEAM-CSE-Y3-B04",
-        teamNo: "Team 04",
-        class: className,
-        batch: "2023-2027 (III Year)",
-        title: "",
-        guide: "Dr. P. Manimegalai",
-        guideEmail: "dr.manimegalai@siet.ac.in",
-        status: "Pending",
-        capacity: 4,
-        membersCount: 4,
-        leadStudent: "Tarunika Rajgopal (714023104112)",
-        members: [
-          { rollNo: "714023104112", name: "Tarunika Rajgopal", email: "tarunika.r@srishakthi.ac.in", isLead: true },
-          { rollNo: "714023104178", name: "Vigneshwaran M", email: "vigneshwaran.m@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104189", name: "Vishnu Priya S", email: "vishnupriya.s@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104066", name: "Kavitha R", email: "kavitha.r@srishakthi.ac.in", isLead: false }
-        ]
-      },
-      {
-        teamId: "TEAM-CSE-Y3-B05",
-        teamNo: "Team 05",
-        class: className,
-        batch: "2023-2027 (III Year)",
-        title: "",
-        guide: "Dr. A. Devipriya",
-        guideEmail: "dr.devipriya@siet.ac.in",
-        status: "Pending",
-        capacity: 4,
-        membersCount: 4,
-        leadStudent: "Harish Kumar K (714023104035)",
-        members: [
-          { rollNo: "714023104035", name: "Harish Kumar K", email: "harish.k@srishakthi.ac.in", isLead: true },
-          { rollNo: "714023104038", name: "Janani S", email: "janani.s@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104051", name: "Manoj V", email: "manoj.v@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104058", name: "Nithya R", email: "nithya.r@srishakthi.ac.in", isLead: false }
-        ]
-      },
-      {
-        teamId: "TEAM-CSE-Y3-B06",
-        teamNo: "Team 06",
-        class: className,
-        batch: "2023-2027 (III Year)",
-        title: "",
-        guide: "Dr. K. Vignesh",
-        guideEmail: "dr.vignesh@siet.ac.in",
-        status: "Pending",
-        capacity: 4,
-        membersCount: 4,
-        leadStudent: "Naveen Raj (714023104088)",
-        members: [
-          { rollNo: "714023104088", name: "Naveen Raj", email: "naveen.r@srishakthi.ac.in", isLead: true },
-          { rollNo: "714023104092", name: "Praveen S", email: "praveen.s@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104095", name: "Raja Vignesh", email: "raja.v@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104099", name: "Saranya K", email: "saranya.k@srishakthi.ac.in", isLead: false }
-        ]
-      },
-      {
-        teamId: "TEAM-CSE-Y3-B07",
-        teamNo: "Team 07",
-        class: className,
-        batch: "2023-2027 (III Year)",
-        title: "",
-        guide: "Dr. P. Manimegalai",
-        guideEmail: "dr.manimegalai@siet.ac.in",
-        status: "Pending",
-        capacity: 4,
-        membersCount: 4,
-        leadStudent: "Sneha M (714023104142)",
-        members: [
-          { rollNo: "714023104142", name: "Sneha M", email: "sneha.m@srishakthi.ac.in", isLead: true },
-          { rollNo: "714023104148", name: "Suresh P", email: "suresh.p@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104155", name: "Swetha V", email: "swetha.v@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104162", name: "Varun K", email: "varun.k@srishakthi.ac.in", isLead: false }
-        ]
-      }
-    ];
 
     const syncWithRealStudentAndGuide = (teamList: ClassTeam[]): ClassTeam[] => {
       try {
@@ -162,21 +85,23 @@ export const AdvisorService = {
           }
         });
 
-        // 2. Real-time synchronization for Team 04 with Student Portal data
+        // 2. Real-time synchronization for student team with Student Portal data
         const studentTeam = StudentService.getTeam();
         const d0 = StudentService.getDeliverables('Week 0');
         const rawRealTitle = (d0?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
         const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
 
-        const team04 = teamList.find(t => t.teamId === 'TEAM-CSE-Y3-B04' || t.teamNo === 'Team 04');
-        if (team04) {
-          team04.title = cleanRealTitle;
+        const matchedStudentTeam = teamList.find(t => 
+          (studentTeam.id && t.teamId === studentTeam.id) || 
+          (studentTeam.teamNo && t.teamNo === studentTeam.teamNo) ||
+          (Array.isArray(t.members) && Array.isArray(studentTeam.members) && t.members.some(tm => studentTeam.members.some(sm => sm.rollNo === tm.rollNo)))
+        );
+        if (matchedStudentTeam) {
           if (cleanRealTitle) {
-            team04.status = (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved')
+            matchedStudentTeam.title = cleanRealTitle;
+            matchedStudentTeam.status = (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved')
               ? 'Active & Approved'
               : 'Under Review';
-          } else {
-            team04.status = 'Pending';
           }
         }
 
@@ -186,7 +111,7 @@ export const AdvisorService = {
           const guideTeams = JSON.parse(guideRaw);
           if (Array.isArray(guideTeams)) {
             teamList.forEach(t => {
-              if (t.teamId === 'TEAM-CSE-Y3-B04') return; // Team 04 already synchronized with student
+              if (matchedStudentTeam && t.teamId === matchedStudentTeam.teamId) return;
               const tNum = parseInt(String(t.teamNo || t.teamId).replace(/\D/g, ''), 10);
               const gt = guideTeams.find((g: any) => 
                 (g.teamId && g.teamId.toLowerCase() === t.teamId.toLowerCase()) || 
@@ -216,25 +141,24 @@ export const AdvisorService = {
 
     try {
       const stored = localStorage.getItem(`siet_advisor_teams_${className}`);
-      let teamsToUse = defaultTeams;
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          teamsToUse = parsed;
+        if (Array.isArray(parsed)) {
+          const synced = syncWithRealStudentAndGuide(parsed);
+          return synced;
         }
       }
-      const synced = syncWithRealStudentAndGuide(teamsToUse);
-      localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(synced));
-      return synced;
     } catch (e) {
-      return syncWithRealStudentAndGuide(defaultTeams);
+      console.error('Failed to parse cached advisor teams', e);
     }
+    return [];
   },
 
-  async fetchTeamsForClass(className: string = "CSE-B"): Promise<ClassTeam[]> {
+  async fetchTeamsForClass(className: string = ""): Promise<ClassTeam[]> {
+    if (!className) return [];
     try {
       const serverTeams = await ApiClient.getAdvisorTeams(className);
-      if (Array.isArray(serverTeams) && serverTeams.length > 0) {
+      if (Array.isArray(serverTeams)) {
         localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(serverTeams));
         return serverTeams;
       }
@@ -253,12 +177,12 @@ export const AdvisorService = {
     }
   },
 
-  areTeamsCreated(className: string = "CSE-B"): boolean {
+  areTeamsCreated(className: string = ""): boolean {
     const teams = this.getTeamsForClass(className);
     return teams.length > 0;
   },
   
-  async getClassStudents(className: string = "CSE-B", batch: string = "2023-2027 (III Year)"): Promise<AdminStudent[]> {
+  async getClassStudents(className: string = "", batch: string = ""): Promise<AdminStudent[]> {
     try {
       const serverStudents = await ApiClient.getAdvisorStudents(className, batch);
       if (Array.isArray(serverStudents) && serverStudents.length > 0) {
@@ -335,8 +259,8 @@ export const AdvisorService = {
   },
 
   async addStudentToClass(
-    className: string = "CSE-B",
-    batch: string = "2023-2027 (III Year)",
+    className: string = "",
+    batch: string = "",
     name: string,
     rollNo: string,
     targetTeamId?: string,
@@ -366,7 +290,7 @@ export const AdvisorService = {
     return res;
   },
 
-  getGuideTeamCount(className: string = "CSE-B", guideName: string): number {
+  getGuideTeamCount(className: string = "", guideName: string): number {
     const teams = this.getTeamsForClass(className);
     return teams.filter(t => t.guide.toLowerCase() === guideName.toLowerCase()).length;
   },
@@ -664,7 +588,7 @@ export const AdvisorService = {
         "Guide Reassignment",
         `${team?.teamNo || teamId} (${team?.title || 'Project Team'})`,
         `Reassigned technical guide from ${oldGuide} to ${guideName}. Institutional quota verified.`,
-        advisorName || "Dr. R. Karthikeyan",
+        advisorName || "Class Advisor",
         "Class Advisor"
       );
     } catch (e) {
@@ -848,10 +772,10 @@ export const AdvisorService = {
     if (options.mode === 'existing' && options.targetTeamId) {
       return await this.moveStudent(className, studentRollNo, options.targetTeamId);
     }
-    return await this.addManualTeam(className, options.batch || "2023-2027 (III Year)", {
+    return await this.addManualTeam(className, options.batch || "", {
       teamNo: options.newTeamNo,
       title: options.projectTitle || "",
-      guide: options.guideName || 'Dr. P. Manimegalai',
+      guide: options.guideName || 'Unassigned',
       guideEmail: options.guideEmail,
       leadRollNo: studentRollNo,
       memberRollNos: [studentRollNo]

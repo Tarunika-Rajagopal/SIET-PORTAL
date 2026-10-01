@@ -566,12 +566,12 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                     const studentTeam = StudentService.getTeam();
                     if (studentTeam && studentTeam.members?.some((m: any) => m.rollNo === s.rollNo)) {
                       assignedTeam = {
-                        teamId: studentTeam.id || 'TEAM-CSE-Y3-B04',
-                        teamNo: studentTeam.teamNo || 'Team 04',
+                        teamId: studentTeam.id || s.teamNo || 'Unassigned',
+                        teamNo: studentTeam.teamNo || s.teamNo || 'Unassigned',
                         class: studentTeam.section || className,
                         batch: studentTeam.batch || batch,
                         title: studentTeam.projectTitle || studentTeam.submittedTitle || '',
-                        guide: studentTeam.guideName || s.guide || 'Dr. P. Manimegalai',
+                        guide: studentTeam.guideName || s.guide || 'Unassigned',
                         status: (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved') ? 'Approved' : 'Pending',
                         capacity: 4,
                         membersCount: studentTeam.members.length,

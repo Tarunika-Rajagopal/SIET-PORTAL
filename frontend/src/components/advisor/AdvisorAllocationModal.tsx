@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, CheckCircle2, UserCheck } from 'lucide-react';
 import { ClassTeam } from '../../services/advisorService';
 
+import { useAdvisorGuides } from '../../hooks/useQueries';
+
 interface AdvisorAllocationModalProps {
   isOpen: boolean;
   team: ClassTeam | null;
@@ -9,21 +11,14 @@ interface AdvisorAllocationModalProps {
   onAssign: (teamId: string, guideName: string) => void;
 }
 
-const AVAILABLE_GUIDES = [
-  "Dr. P. Manimegalai (Associate Professor)",
-  "Dr. A. Devipriya (Associate Professor)",
-  "Dr. K. Vignesh (Assistant Professor)",
-  "Dr. S. Kavitha (Assistant Professor)",
-  "Dr. M. Prakash (Associate Professor)"
-];
-
 export const AdvisorAllocationModal: React.FC<AdvisorAllocationModalProps> = ({
   isOpen,
   team,
   onClose,
   onAssign
 }) => {
-  const [selectedGuide, setSelectedGuide] = useState(AVAILABLE_GUIDES[0]);
+  const { data: availableGuides = [] } = useAdvisorGuides();
+  const [selectedGuide, setSelectedGuide] = useState('');
 
   if (!isOpen || !team) return null;
 
@@ -68,8 +63,11 @@ export const AdvisorAllocationModal: React.FC<AdvisorAllocationModalProps> = ({
               onChange={(e) => setSelectedGuide(e.target.value)}
               className="w-full px-3.5 py-2.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
             >
-              {AVAILABLE_GUIDES.map(g => (
-                <option key={g} value={g}>{g}</option>
+              <option value="">-- Choose Technical Guide --</option>
+              {availableGuides.map(g => (
+                <option key={g.id || g.name} value={g.name}>
+                  {g.name} {g.designation ? `(${g.designation})` : ''}
+                </option>
               ))}
             </select>
           </div>

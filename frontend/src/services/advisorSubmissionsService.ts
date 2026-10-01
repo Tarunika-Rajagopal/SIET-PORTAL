@@ -1,7 +1,6 @@
 import { WeeklySubmission } from '../types';
 import { ClassTeam } from './advisorService';
 import { StudentService } from './studentService';
-import { INITIAL_TEAMS } from '../data/guidePortalData.js';
 
 const GUIDE_TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
 
@@ -59,7 +58,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
       repoUrl: d0.repoUrl || '',
       demoUrl: d0.demoUrl || '',
       screenshotFile: d0.screenshotFile || '',
-      guideName: studentTeam.guideName || 'Dr. P. Manimegalai'
+      guideName: studentTeam.guideName || 'Unassigned'
     });
   }
 
@@ -101,7 +100,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
           repoUrl: dW.repoUrl || '',
           demoUrl: dW.demoUrl || '',
           screenshotFile: dW.screenshotFile || '',
-          guideName: studentTeam.guideName || 'Dr. P. Manimegalai'
+          guideName: studentTeam.guideName || 'Unassigned'
         });
       }
     }
@@ -113,7 +112,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
     const rawG = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
     if (rawG) {
       const gTeams = JSON.parse(rawG);
-      const gt = gTeams.find((t: any) => t.teamId === studentTeam.id || t.id === studentTeam.id || t.teamNumber === 4);
+      const gt = gTeams.find((t: any) => t.teamId === studentTeam.id || t.id === studentTeam.id || (studentTeam.teamNo && t.teamNo === studentTeam.teamNo));
       if (gt && Array.isArray(gt.submissions)) {
         guideTeamSubs = gt.submissions;
       }
@@ -154,7 +153,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
       repoUrl: sub.repoUrl || dWeek.repoUrl || (sub.week === 0 ? d0.repoUrl : '') || gSub?.githubUrl || '',
       demoUrl: sub.demoUrl || dWeek.demoUrl || (sub.week === 0 ? d0.demoUrl : '') || gSub?.liveDemoUrl || '',
       screenshotFile: sub.screenshotFile || dWeek.screenshotFile || (sub.week === 0 ? d0.screenshotFile : '') || (Array.isArray(gSub?.images) ? gSub.images[0] : gSub?.screenshotFile || ''),
-      guideName: sub.guideName || studentTeam.guideName || 'Dr. P. Manimegalai',
+      guideName: sub.guideName || studentTeam.guideName || 'Unassigned',
       comments: guideComments
     };
   });
@@ -230,7 +229,7 @@ function getGuideApprovedSubmissionsForTeam(team: ClassTeam): WeeklySubmission[]
     }
 
     if (guideTeams.length === 0) {
-      guideTeams = INITIAL_TEAMS as any[];
+      return [];
     }
 
     const teamNumber = getTeamNumberValue(team);
@@ -248,20 +247,6 @@ function getGuideApprovedSubmissionsForTeam(team: ClassTeam): WeeklySubmission[]
         (teamNumber !== null && gtNum !== null && gtNum === teamNumber)
       );
     });
-
-    if (!guideTeam) {
-      guideTeam = (INITIAL_TEAMS as any[]).find((gt: any) => {
-        const gtId = (gt.teamId || gt.id || '').trim().toLowerCase();
-        const gtNo = (gt.teamNo || (gt.teamNumber ? `Team ${String(gt.teamNumber).padStart(2, '0')}` : '')).trim().toLowerCase();
-        const gtNum = typeof gt.teamNumber === 'number' ? gt.teamNumber : (gt.teamNo ? parseInt(String(gt.teamNo).replace(/\D/g, ''), 10) : null);
-
-        return (
-          (gtId && normalizedTeamId && gtId === normalizedTeamId) ||
-          (gtNo && normalizedTeamNo && gtNo === normalizedTeamNo) ||
-          (teamNumber !== null && gtNum !== null && gtNum === teamNumber)
-        );
-      });
-    }
 
     if (!guideTeam) return [];
 
@@ -334,10 +319,11 @@ export const AdvisorSubmissionsService = {
     // 1. Check live student deliverables from StudentService if this is the student team
     const studentTeam = StudentService.getTeam();
     const isStudentTeam = Boolean(
-      (team.teamId && studentTeam.id && team.teamId.toLowerCase() === studentTeam.id.toLowerCase()) ||
-      (team.teamNo && studentTeam.teamNo && team.teamNo.toLowerCase() === studentTeam.teamNo.toLowerCase()) ||
-      (Array.isArray(team.members) && Array.isArray(studentTeam.members) && team.members.some(tm => studentTeam.members.some(sm => sm.rollNo === tm.rollNo))) ||
-      team.teamId === 'TEAM-CSE-Y3-B04' || team.teamNo === 'Team 04' || team.teamId === 'team-4' || team.teamId === 'team-1'
+      studentTeam && (
+        (team.teamId && studentTeam.id && team.teamId.toLowerCase() === studentTeam.id.toLowerCase()) ||
+        (team.teamNo && studentTeam.teamNo && team.teamNo.toLowerCase() === studentTeam.teamNo.toLowerCase()) ||
+        (Array.isArray(team.members) && Array.isArray(studentTeam.members) && team.members.some(tm => studentTeam.members.some(sm => sm.rollNo === tm.rollNo)))
+      )
     );
 
     if (isStudentTeam) {
@@ -378,7 +364,7 @@ export const AdvisorSubmissionsService = {
   /**
    * Generates and downloads real milestone files for PPT and PDF matching student portal format.
    */
-  downloadFile(fileName: string, fileType: 'ppt' | 'pdf', sub: WeeklySubmission, team: ClassTeam, advisorName: string = 'Dr. R. Karthikeyan') {
+  downloadFile(fileName: string, fileType: 'ppt' | 'pdf', sub: WeeklySubmission, team: ClassTeam, advisorName: string = 'Class Advisor') {
     const weekNum = sub.week;
     const weekTitle = sub.title;
     let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
