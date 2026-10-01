@@ -66,11 +66,36 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
     // Review 4 strictly checks week 4.
     const candidateWeeks = reviewIndex === 1 ? [1, 0] : [reviewIndex];
     const cleanRollNo = String(rollNo || '').trim();
+    const lowerRoll = cleanRollNo.toLowerCase();
     
     for (const w of candidateWeeks) {
       const rec = marksRecords[w];
-      if (rec && rec.memberMarks && rec.memberMarks[cleanRollNo] !== undefined && typeof rec.memberMarks[cleanRollNo] === 'number') {
+      if (!rec) continue;
+
+      // 1. Direct match
+      if (rec.memberMarks && rec.memberMarks[cleanRollNo] !== undefined && typeof rec.memberMarks[cleanRollNo] === 'number') {
         return rec.memberMarks[cleanRollNo];
+      }
+
+      // 2. Case-insensitive / trimmed match across memberMarks
+      if (rec.memberMarks) {
+        const matchedKey = Object.keys(rec.memberMarks).find(k => k.trim().toLowerCase() === lowerRoll);
+        if (matchedKey && typeof rec.memberMarks[matchedKey] === 'number') {
+          return rec.memberMarks[matchedKey];
+        }
+      }
+
+      // 3. Fallback to team average if this milestone was evaluated for the team
+      if (rec.teamAverage !== undefined && typeof rec.teamAverage === 'number' && rec.teamAverage > 0) {
+        return rec.teamAverage;
+      }
+
+      // 4. If any other team member has marks in this record, use calculated average of available marks
+      if (rec.memberMarks && Object.keys(rec.memberMarks).length > 0) {
+        const marksList = Object.values(rec.memberMarks).filter((v): v is number => typeof v === 'number');
+        if (marksList.length > 0) {
+          return Math.round(marksList.reduce((a, b) => a + b, 0) / marksList.length);
+        }
       }
     }
     return null;

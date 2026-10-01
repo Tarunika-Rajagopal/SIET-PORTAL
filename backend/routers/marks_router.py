@@ -42,6 +42,9 @@ async def get_weekly_marks(
     return await service.get_weekly_marks(team_id, week_number, user)
 
 
+from services.cache_service import cache_service
+
+
 @router.post("/{team_id}/weekly/{week_number}")
 async def save_weekly_marks(
     team_id: str,
@@ -50,13 +53,18 @@ async def save_weekly_marks(
     user: User = Depends(require_roles("advisor", "admin", "guide", "hod")),
     service: MarksService = Depends(get_marks_service),
 ):
-    return await service.save_weekly_marks(
+    res = await service.save_weekly_marks(
         team_id,
         week_number,
         req.memberMarks,
         req.remarks or "",
         req.gradedBy or user.name or "Head of Department",
     )
+    await cache_service.invalidate_team(team_id)
+    await cache_service.delete_by_pattern("cache:student:*")
+    await cache_service.delete_by_pattern("cache:advisor:*")
+    await cache_service.delete_by_pattern("cache:guide:*")
+    return res
 
 
 @router.delete("/{team_id}/weekly/{week_number}")
@@ -66,5 +74,10 @@ async def delete_weekly_marks(
     user: User = Depends(require_roles("advisor", "admin", "guide", "hod")),
     service: MarksService = Depends(get_marks_service),
 ):
-    return await service.delete_weekly_marks(team_id, week_number)
+    res = await service.delete_weekly_marks(team_id, week_number)
+    await cache_service.invalidate_team(team_id)
+    await cache_service.delete_by_pattern("cache:student:*")
+    await cache_service.delete_by_pattern("cache:advisor:*")
+    await cache_service.delete_by_pattern("cache:guide:*")
+    return res
 

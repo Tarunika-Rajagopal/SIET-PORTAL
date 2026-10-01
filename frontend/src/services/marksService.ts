@@ -185,6 +185,22 @@ export const MarksService = {
         }
         result[wNum].memberMarks = normalizedMarks;
       }
+
+      // Ensure all current member roll numbers are populated if milestone was evaluated
+      if (memberRollNos && memberRollNos.length > 0) {
+        if (!result[wNum].memberMarks) {
+          result[wNum].memberMarks = {};
+        }
+        const teamAvg = result[wNum].teamAverage || 0;
+        for (const rno of memberRollNos) {
+          const clean = String(rno).trim();
+          const lower = clean.toLowerCase();
+          const exists = Object.keys(result[wNum].memberMarks).some(k => k.trim().toLowerCase() === lower);
+          if (!exists && teamAvg > 0) {
+            result[wNum].memberMarks[clean] = teamAvg;
+          }
+        }
+      }
     }
 
     return result;

@@ -242,3 +242,51 @@ async def test_z5_advisor_removal_propagation_to_student():
             f"Expected advisorName to be cleared, got '{team_data.get('advisorName')}'"
         )
 
+
+@pytest.mark.asyncio
+async def test_z6_all_team_members_marks_visibility():
+    """Z6: Verify that marks are visible to ALL team members without leaving any member
+    as 'Unassigned' when the team or submission has been evaluated.
+    """
+    await setup_test_environment()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://localhost:8000") as ac:
+        adv_token = await get_token(ac, "dr.karthik@siet.ac.in", "faculty@123")
+        stu_token = await get_token(ac, "student@srishakthi.ac.in", "student@123")
+        stu_headers = {"Authorization": f"Bearer {stu_token}"}
+        adv_headers = {"Authorization": f"Bearer {adv_token}"}
+
+        # 1. Fetch student's team to find member roll numbers
+        team_res = await ac.get("/api/v1/student/team", headers=stu_headers)
+        assert team_res.status_code == 200
+        team_data = team_res.json()
+        team_id = team_data["id"]
+        members = team_data.get("members", [])
+        assert len(members) >= 2, "Team should have multiple members for testing"
+        member_rolls = [m["rollNo"] for m in members]
+
+        # 2. Advisor saves weekly marks for week 1 with an evaluation score
+        save_res = await ac.post(
+            f"/api/v1/marks/{team_id}/weekly/1",
+            json={
+                "memberMarks": {member_rolls[0]: 88.0},  # Partially assigned mark
+                "remarks": "Great work on project architecture",
+                "gradedBy": "Dr. R. Karthikeyan",
+            },
+            headers=adv_headers,
+        )
+        assert save_res.status_code == 200
+
+        # 3. Student fetches weekly marks -> EVERY member must have marks in memberMarks
+        marks_res = await ac.get(f"/api/v1/marks/{team_id}/weekly", headers=stu_headers)
+        assert marks_res.status_code == 200
+        weekly_data = marks_res.json()
+        assert "1" in weekly_data, "Week 1 marks should be present"
+        week1_members = weekly_data["1"].get("memberMarks", {})
+
+        # Verify all team members have a valid number score
+        for roll in member_rolls:
+            assert roll in week1_members, f"Member {roll} missing from memberMarks"
+            assert isinstance(week1_members[roll], (int, float)), f"Member {roll} score is not numeric"
+            assert week1_members[roll] > 0, f"Member {roll} mark should be greater than 0"
+

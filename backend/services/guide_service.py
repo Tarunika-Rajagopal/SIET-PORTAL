@@ -5,8 +5,9 @@ from typing import List, Dict, Any, Optional
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from models import User, Team, WeeklySubmission
+from models import User, Team, WeeklySubmission, TeamMember
 from schemas import ReviewSubmissionRequest
 from repositories.team_repository import TeamRepository
 from repositories.submission_repository import SubmissionRepository
@@ -223,13 +224,21 @@ class GuideService:
             s.score = avg_score
 
         # Persist individual marks to WeeklyMark in database
-        if req.memberMarks and team:
+        if team and (req.memberMarks or avg_score is not None):
+            final_member_marks = dict(req.memberMarks or {})
+            if not final_member_marks and avg_score is not None:
+                from models import TeamMember
+                res_m = await self.session.execute(select(TeamMember).where(TeamMember.team_id == team.id))
+                for tm in res_m.scalars().all():
+                    if tm.roll_no:
+                        final_member_marks[tm.roll_no.strip()] = float(avg_score)
+
             from services.marks_service import MarksService as DbMarksService
             marks_svc = DbMarksService(self.session)
             await marks_svc.save_weekly_marks(
                 str(team.id),
                 s.week,
-                req.memberMarks,
+                final_member_marks,
                 req.comments or s.comments or "",
                 req.gradedBy or user.name or "Faculty Guide",
             )
@@ -237,7 +246,7 @@ class GuideService:
                 await marks_svc.save_weekly_marks(
                     str(team.id),
                     0,
-                    req.memberMarks,
+                    final_member_marks,
                     req.comments or s.comments or "",
                     req.gradedBy or user.name or "Faculty Guide",
                 )

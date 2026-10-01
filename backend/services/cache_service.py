@@ -133,6 +133,10 @@ class CacheService:
 
         return len(keys_to_remove)
 
+    async def delete_by_pattern(self, pattern: str) -> int:
+        prefix = pattern.rstrip("*")
+        return await self.delete_prefix(prefix)
+
     # Convenience invalidation helpers
     async def invalidate_faculties(self):
         await self.delete_prefix("cache:admin:faculties")
@@ -145,6 +149,12 @@ class CacheService:
     async def invalidate_teams(self):
         await self.delete_prefix("cache:teams")
         await self.delete_prefix("cache:advisor:teams")
+
+    async def invalidate_team(self, team_id: Optional[str] = None):
+        await self.delete_prefix("cache:student:")
+        await self.delete_prefix("cache:advisor:teams")
+        await self.delete_prefix("cache:guide:teams")
+        await self.delete_prefix("cache:hod:teams")
 
 
 cache_service = CacheService()

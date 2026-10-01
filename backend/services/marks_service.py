@@ -5,8 +5,9 @@ from typing import Optional, Dict, Any
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from models import WeeklyMark, WeeklyMemberMark, Team, User
+from models import WeeklyMark, WeeklyMemberMark, Team, TeamMember, User
 from repositories.team_repository import TeamRepository
 from repositories.marks_repository import MarksRepository
 from repositories.submission_repository import SubmissionRepository
@@ -39,6 +40,43 @@ class MarksService:
             if not is_guide:
                 raise HTTPException(status_code=403, detail="You are not authorized to view marks for this team")
 
+    async def _get_team_members(self, team_id_uuid: uuid.UUID) -> list:
+        res = await self.session.execute(select(TeamMember).where(TeamMember.team_id == team_id_uuid))
+        return res.scalars().all()
+
+    @staticmethod
+    def _align_member_marks(wm_member_marks: list, wm_team_average: Optional[float], current_members: list) -> Dict[str, float]:
+        raw_marks: Dict[str, float] = {}
+        for mm in (wm_member_marks or []):
+            if mm.roll_no:
+                raw_marks[mm.roll_no.strip()] = float(mm.mark) if mm.mark is not None else 0.0
+
+        if not current_members:
+            return raw_marks
+
+        current_roll_nos = [m.roll_no.strip() for m in current_members if m.roll_no]
+        avg_val = float(wm_team_average) if wm_team_average is not None else 0.0
+
+        # Unmatched marks from old or reassigned member slots
+        unmatched_marks = [
+            mark for rno, mark in raw_marks.items()
+            if not any(rno.lower() == cr.lower() for cr in current_roll_nos)
+        ]
+
+        result_marks: Dict[str, float] = {}
+        for tm in current_members:
+            if not tm.roll_no:
+                continue
+            rno = tm.roll_no.strip()
+            matched_key = next((k for k in raw_marks.keys() if k.lower() == rno.lower()), None)
+            if matched_key is not None:
+                result_marks[rno] = raw_marks[matched_key]
+            else:
+                assigned = unmatched_marks.pop(0) if unmatched_marks else avg_val
+                result_marks[rno] = assigned
+
+        return result_marks
+
     async def get_all_marks(self) -> Dict[str, Dict[int, Any]]:
         rows = await self.marks_repo.list_all_marks()
         result: Dict[str, Dict[int, Any]] = {}
@@ -46,14 +84,18 @@ class MarksService:
         team_id_to_no = {str(t.id): t.team_no for t in teams}
         team_id_to_str_id = {str(t.id): t.team_id for t in teams}
 
+        # Cache team members
+        team_members_map: Dict[str, list] = {}
+        for t in teams:
+            team_members_map[str(t.id)] = await self._get_team_members(t.id)
+
         for wm in rows:
             t_uuid = str(wm.team_id)
             t_no = team_id_to_no.get(t_uuid, t_uuid)
             t_id_str = team_id_to_str_id.get(t_uuid, t_uuid)
+            current_members = team_members_map.get(t_uuid, [])
 
-            member_marks = {}
-            for mm in (wm.member_marks or []):
-                member_marks[mm.roll_no] = float(mm.mark) if mm.mark else 0
+            member_marks = self._align_member_marks(wm.member_marks or [], wm.team_average, current_members)
 
             entry = {
                 "teamId": t_no or t_id_str or t_uuid,
@@ -79,11 +121,10 @@ class MarksService:
         self.check_team_access(team, user)
 
         rows = await self.marks_repo.list_by_team(team.id)
+        current_members = await self._get_team_members(team.id)
         result = {}
         for wm in rows:
-            member_marks = {}
-            for mm in (wm.member_marks or []):
-                member_marks[mm.roll_no] = float(mm.mark) if mm.mark else 0
+            member_marks = self._align_member_marks(wm.member_marks or [], wm.team_average, current_members)
             result[wm.week_number] = {
                 "teamId": str(wm.team_id),
                 "weekNumber": wm.week_number,
@@ -103,9 +144,8 @@ class MarksService:
         if not row:
             raise HTTPException(status_code=404, detail="No marks found for this week")
 
-        member_marks = {}
-        for mm in (row.member_marks or []):
-            member_marks[mm.roll_no] = float(mm.mark) if mm.mark else 0
+        current_members = await self._get_team_members(team.id)
+        member_marks = self._align_member_marks(row.member_marks or [], row.team_average, current_members)
 
         return {
             "teamId": str(row.team_id),
@@ -129,7 +169,30 @@ class MarksService:
 
         existing = await self.marks_repo.get_weekly_mark(team.id, week_number)
         marks_vals = [v for v in member_marks.values() if isinstance(v, (int, float))]
-        avg = round(sum(marks_vals) / len(marks_vals), 1) if marks_vals else 0
+        if marks_vals:
+            avg = round(sum(marks_vals) / len(marks_vals), 1)
+        else:
+            sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
+            if sub and sub.score is not None:
+                avg = float(sub.score)
+            elif existing and existing.team_average:
+                avg = float(existing.team_average)
+            else:
+                avg = 0.0
+
+        # Align marks to current team members so none are omitted
+        current_members = await self._get_team_members(team.id)
+        normalized_member_marks: Dict[str, float] = {}
+        for rno, mark in member_marks.items():
+            if isinstance(mark, (int, float)):
+                normalized_member_marks[str(rno).strip()] = float(mark)
+
+        for tm in current_members:
+            if not tm.roll_no:
+                continue
+            rno = tm.roll_no.strip()
+            if not any(k.lower() == rno.lower() for k in normalized_member_marks.keys()):
+                normalized_member_marks[rno] = avg
 
         if existing:
             existing.team_average = avg
@@ -139,7 +202,7 @@ class MarksService:
             if existing.member_marks:
                 await self.marks_repo.delete_member_marks(list(existing.member_marks))
                 await self.session.flush()
-            for rno, mark in member_marks.items():
+            for rno, mark in normalized_member_marks.items():
                 await self.marks_repo.add_member_mark(
                     WeeklyMemberMark(
                         id=uuid.uuid4(),
@@ -169,7 +232,7 @@ class MarksService:
             )
             await self.marks_repo.create_weekly_mark(wm)
             await self.session.flush()
-            for rno, mark in member_marks.items():
+            for rno, mark in normalized_member_marks.items():
                 await self.marks_repo.add_member_mark(
                     WeeklyMemberMark(
                         id=uuid.uuid4(),
