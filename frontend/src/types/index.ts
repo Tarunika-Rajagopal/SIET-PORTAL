@@ -15,6 +15,7 @@ export interface User {
   batch?: string;
   class?: string;
   section?: string;
+  classSection?: string;
   yearSemester?: string;
   teamId?: string;
   teamNo?: string;

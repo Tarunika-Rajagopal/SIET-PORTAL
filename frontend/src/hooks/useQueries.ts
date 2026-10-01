@@ -46,10 +46,11 @@ export function useAdminStudents() {
 /**
  * Hook for class teams in advisor portal.
  */
-export function useClassTeams(className: string = 'CSE-B') {
+export function useClassTeams(className: string = '') {
   return useQuery<ClassTeam[]>({
     queryKey: QUERY_KEYS.advisorTeams(className),
-    queryFn: () => AdvisorService.fetchTeamsForClass(className),
+    queryFn: () => className ? AdvisorService.fetchTeamsForClass(className) : Promise.resolve([]),
+    enabled: Boolean(className),
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -57,10 +58,11 @@ export function useClassTeams(className: string = 'CSE-B') {
 /**
  * Hook for class students in advisor portal.
  */
-export function useClassStudents(className: string = 'CSE-B', batch: string = 'ALL') {
+export function useClassStudents(className: string = '', batch: string = 'ALL') {
   return useQuery<AdminStudent[]>({
     queryKey: QUERY_KEYS.advisorStudents(className, batch),
-    queryFn: () => AdvisorService.getClassStudents(className, batch),
+    queryFn: () => className ? AdvisorService.getClassStudents(className, batch) : Promise.resolve([]),
+    enabled: Boolean(className),
     staleTime: 1000 * 60 * 5,
   });
 }

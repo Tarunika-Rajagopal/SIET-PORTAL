@@ -63,33 +63,53 @@ function normalizeLog(log: any): AdvisorHistoryLog {
 }
 
 export const AdvisorHistoryService = {
+  getStorageKey(className: string = ''): string {
+    return `siet_advisor_history_${className}`;
+  },
+
   /**
    * Fetch history from the backend (authoritative source).
-   * Updates the in-memory cache and notifies listeners.
-   * Returns empty array if the backend is unreachable.
+   * Updates the in-memory cache, syncs to localStorage, and notifies listeners.
    */
-  async fetchHistory(className: string = 'CSE-B'): Promise<AdvisorHistoryLog[]> {
+  async fetchHistory(className: string = ''): Promise<AdvisorHistoryLog[]> {
+    if (!className) return [];
     try {
       const serverLogs = await ApiClient.getAdvisorHistory(className);
       const normalized = Array.isArray(serverLogs)
         ? serverLogs.map(normalizeLog)
         : [];
       memoryCache.set(className, normalized);
+      try {
+        localStorage.setItem(this.getStorageKey(className), JSON.stringify(normalized));
+      } catch (e) {}
       notifyListeners();
       return normalized;
     } catch (e) {
       console.warn('Failed to fetch advisor history from backend:', e);
-      // Return whatever is in memory cache, or empty array
-      return memoryCache.get(className) || [];
+      return this.getHistory(className);
     }
   },
 
   /**
-   * Get history from the in-memory cache (synchronous).
-   * Use this for immediate rendering; call fetchHistory() to refresh from backend.
+   * Get history from the in-memory cache, falling back to localStorage.
    */
-  getHistory(className: string = 'CSE-B'): AdvisorHistoryLog[] {
-    return memoryCache.get(className) || [];
+  getHistory(className: string = ''): AdvisorHistoryLog[] {
+    if (!className) return [];
+    if (memoryCache.has(className)) {
+      return memoryCache.get(className) || [];
+    }
+    const key = this.getStorageKey(className);
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed: AdvisorHistoryLog[] = JSON.parse(stored);
+        const normalized = parsed.map(normalizeLog);
+        memoryCache.set(className, normalized);
+        return normalized;
+      }
+    } catch (e) {}
+
+    return [];
   },
 
   /**
@@ -97,7 +117,7 @@ export const AdvisorHistoryService = {
    * Persists to the backend first, then updates the in-memory cache.
    */
   addLog(
-    className: string = 'CSE-B',
+    className: string = '',
     actionType: AdvisorHistoryLog['actionType'],
     target: string,
     details: string,
@@ -184,8 +204,8 @@ export const AdvisorHistoryService = {
     actionType: AdvisorHistoryLog['actionType'],
     target: string,
     details: string,
-    guideName: string = 'Faculty Guide',
-    classSection: string = 'CSE-B'
+    guideName: string = '',
+    classSection: string = ''
   ): AdvisorHistoryLog {
     return this.addLog(classSection, actionType, target, details, guideName, 'Faculty Guide');
   },

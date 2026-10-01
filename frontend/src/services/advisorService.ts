@@ -50,7 +50,7 @@ export const AdvisorService = {
     };
   },
 
-  getTeamCapacity(className: string = "CSE-B"): number {
+  getTeamCapacity(className: string = ""): number {
     try {
       const stored = localStorage.getItem(`siet_team_capacity_${className}`);
       if (stored) {
@@ -61,7 +61,7 @@ export const AdvisorService = {
     return 4;
   },
 
-  setTeamCapacity(className: string = "CSE-B", capacity: number) {
+  setTeamCapacity(className: string = "", capacity: number) {
     try {
       const cap = Math.min(capacity, 4);
       localStorage.setItem(`siet_team_capacity_${className}`, String(cap));
@@ -69,12 +69,11 @@ export const AdvisorService = {
     } catch (e) {}
   },
 
-  getTeamsForClass(className: string = "CSE-B"): ClassTeam[] {
+  getTeamsForClass(className: string = ""): ClassTeam[] {
+    if (!className) return [];
+
     const isMockTitle = (str?: string) => 
       /autonomous crop disease|decentralized smart grid|edge-ai wearable|llm-powered/i.test(str || '');
-
-    const defaultTeams: ClassTeam[] = [];
-
 
     const syncWithRealStudentAndGuide = (teamList: ClassTeam[]): ClassTeam[] => {
       try {
@@ -166,25 +165,24 @@ export const AdvisorService = {
 
     try {
       const stored = localStorage.getItem(`siet_advisor_teams_${className}`);
-      let teamsToUse = defaultTeams;
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          teamsToUse = parsed;
+        if (Array.isArray(parsed)) {
+          const synced = syncWithRealStudentAndGuide(parsed);
+          return synced;
         }
       }
-      const synced = syncWithRealStudentAndGuide(teamsToUse);
-      localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(synced));
-      return synced;
     } catch (e) {
-      return syncWithRealStudentAndGuide(defaultTeams);
+      console.error('Failed to parse cached advisor teams', e);
     }
+    return [];
   },
 
-  async fetchTeamsForClass(className: string = "CSE-B"): Promise<ClassTeam[]> {
+  async fetchTeamsForClass(className: string = ""): Promise<ClassTeam[]> {
+    if (!className) return [];
     try {
       const serverTeams = await ApiClient.getAdvisorTeams(className);
-      if (Array.isArray(serverTeams) && serverTeams.length > 0) {
+      if (Array.isArray(serverTeams)) {
         localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(serverTeams));
         return serverTeams;
       }
@@ -203,12 +201,12 @@ export const AdvisorService = {
     }
   },
 
-  areTeamsCreated(className: string = "CSE-B"): boolean {
+  areTeamsCreated(className: string = ""): boolean {
     const teams = this.getTeamsForClass(className);
     return teams.length > 0;
   },
   
-  async getClassStudents(className: string = "CSE-B", batch: string = "2023-2027 (III Year)"): Promise<AdminStudent[]> {
+  async getClassStudents(className: string = "", batch: string = ""): Promise<AdminStudent[]> {
     try {
       const serverStudents = await ApiClient.getAdvisorStudents(className, batch);
       if (Array.isArray(serverStudents) && serverStudents.length > 0) {
@@ -285,8 +283,8 @@ export const AdvisorService = {
   },
 
   async addStudentToClass(
-    className: string = "CSE-B",
-    batch: string = "2023-2027 (III Year)",
+    className: string = "",
+    batch: string = "",
     name: string,
     rollNo: string,
     targetTeamId?: string,
@@ -316,7 +314,7 @@ export const AdvisorService = {
     return res;
   },
 
-  getGuideTeamCount(className: string = "CSE-B", guideName: string): number {
+  getGuideTeamCount(className: string = "", guideName: string): number {
     const teams = this.getTeamsForClass(className);
     return teams.filter(t => t.guide.toLowerCase() === guideName.toLowerCase()).length;
   },
@@ -614,7 +612,7 @@ export const AdvisorService = {
         "Guide Reassignment",
         `${team?.teamNo || teamId} (${team?.title || 'Project Team'})`,
         `Reassigned technical guide from ${oldGuide} to ${guideName}. Institutional quota verified.`,
-        advisorName || "Dr. R. Karthikeyan",
+        advisorName || "Class Advisor",
         "Class Advisor"
       );
     } catch (e) {
@@ -798,10 +796,10 @@ export const AdvisorService = {
     if (options.mode === 'existing' && options.targetTeamId) {
       return await this.moveStudent(className, studentRollNo, options.targetTeamId);
     }
-    return await this.addManualTeam(className, options.batch || "2023-2027 (III Year)", {
+    return await this.addManualTeam(className, options.batch || "", {
       teamNo: options.newTeamNo,
       title: options.projectTitle || "",
-      guide: options.guideName || 'Dr. P. Manimegalai',
+      guide: options.guideName || 'Unassigned',
       guideEmail: options.guideEmail,
       leadRollNo: studentRollNo,
       memberRollNos: [studentRollNo]

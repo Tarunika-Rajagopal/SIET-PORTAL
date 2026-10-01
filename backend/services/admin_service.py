@@ -258,36 +258,64 @@ class AdminService:
         class_section: str,
         guide: Optional[str],
     ) -> Dict[str, Any]:
-        existing = await self.student_repo.get_by_roll_no(roll_no)
-        if existing:
-            return {"success": False, "message": f"Student {roll_no} already exists"}
+        clean_name = (name or "").strip()
+        clean_roll = (roll_no or "").strip()
+        clean_email = (email or "").strip().lower()
+
+        existing_s = await self.student_repo.get_by_roll_no(clean_roll)
+        if existing_s:
+            return {"success": False, "message": f"Student with roll number '{clean_roll}' already exists"}
+
+        existing_s_email = await self.student_repo.get_by_email(clean_email)
+        if existing_s_email:
+            return {"success": False, "message": f"Student with email '{clean_email}' already exists"}
+
+        existing_u_email = await self.user_repo.get_by_email(clean_email)
+        if existing_u_email:
+            return {"success": False, "message": f"User account with email '{clean_email}' already exists"}
+
+        existing_u_roll = await self.user_repo.get_by_roll_no(clean_roll)
+        if existing_u_roll:
+            return {"success": False, "message": f"User account with roll number '{clean_roll}' already exists"}
+
         sid = uuid.uuid4()
+        uid = uuid.uuid4()
         pwd_hash = hash_password(password or "student@123")
-        s = Student(
-            id=sid,
-            roll_no=roll_no,
-            name=name,
-            email=email,
-            password=pwd_hash,
-            batch=batch,
-            class_section=class_section,
-            guide=guide or "Unassigned",
-        )
-        await self.student_repo.create(s)
+
         u = User(
-            id=uuid.uuid4(),
-            email=email,
+            id=uid,
+            email=clean_email,
             password=pwd_hash,
-            name=name,
-            roll_no=roll_no,
+            name=clean_name,
+            roll_no=clean_roll,
             department="Computer Science and Engineering",
             role="student",
             class_name=class_section,
             batch=batch,
         )
         await self.user_repo.create(u)
-        await self.session.commit()
-        return {"success": True, "message": f"Student {name} enrolled", "rollNo": roll_no}
+        await self.session.flush()
+
+        s = Student(
+            id=sid,
+            user_id=uid,
+            roll_no=clean_roll,
+            name=clean_name,
+            email=clean_email,
+            password=pwd_hash,
+            batch=batch,
+            class_section=class_section,
+            guide=guide or "Unassigned",
+        )
+        await self.student_repo.create(s)
+
+        try:
+            await self.session.commit()
+        except Exception as exc:
+            await self.session.rollback()
+            return {"success": False, "message": f"Database commit error: {str(exc)}"}
+
+        return {"success": True, "message": f"Student {clean_name} enrolled", "rollNo": clean_roll}
 
     async def delete_student(self, roll_no: str) -> Dict[str, Any]:
         s = await self.student_repo.get_by_roll_no(roll_no)
@@ -315,35 +343,36 @@ class AdminService:
                 continue
 
             sid = uuid.uuid4()
+            uid = uuid.uuid4()
 
             raw_pwd = st.password or "student@123"
             pwd_hash = hash_password(raw_pwd)
 
+            u = User(
+                id=uid,
+                email=st.email.strip().lower(),
+                password=pwd_hash,
+                name=st.name.strip(),
+                roll_no=st.rollNo.strip(),
+                department="Computer Science and Engineering",
+                role="student",
+                class_name=st.classSection or "CSE-B",
+                batch=st.batch or "2023-2027 (III Year)",
+            )
+            await self.user_repo.create(u)
+            await self.session.flush()
+
             s = Student(
                 id=sid,
-                roll_no=st.rollNo,
-                name=st.name,
-                email=st.email,
+                user_id=uid,
+                roll_no=st.rollNo.strip(),
+                name=st.name.strip(),
+                email=st.email.strip().lower(),
                 password=pwd_hash,
                 batch=st.batch or "2023-2027 (III Year)",
                 class_section=st.classSection or "CSE-B",
             )
-
             await self.student_repo.create(s)
-
-            u = User(
-            id=uuid.uuid4(),
-            email=st.email,
-            password=pwd_hash,
-            name=st.name,
-            roll_no=st.rollNo,
-            department="Computer Science and Engineering",
-            role="student",
-            class_name=st.classSection or "CSE-B",
-            batch=st.batch or "2023-2027 (III Year)",
-            )
-
-            await self.user_repo.create(u)
 
             added += 1
 

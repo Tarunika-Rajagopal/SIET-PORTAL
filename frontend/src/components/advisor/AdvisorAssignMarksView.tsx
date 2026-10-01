@@ -95,7 +95,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
       (existingMarks.memberMarks && Object.keys(existingMarks.memberMarks).length > 0)
     ) && (
       existingMarks.gradedBy?.includes('Guide') ||
-      existingMarks.gradedBy === 'Dr. P. Manimegalai' ||
+      (activeTeam?.guide && existingMarks.gradedBy === activeTeam.guide) ||
       !existingMarks.gradedBy?.includes('Advisor')
     )
   );

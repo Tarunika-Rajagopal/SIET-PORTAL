@@ -135,12 +135,79 @@ export const StudentService = {
         // Ensure cached team belongs to the authenticated student
         const isMatch = currentUser && (
           (currentUser.teamId && parsed.id === currentUser.teamId) ||
-          (currentUser.teamNo && parsed.teamNo === currentUser.teamNo)
+          (currentUser.teamNo && parsed.teamNo === currentUser.teamNo) ||
+          (Array.isArray(parsed.members) && currentUser.rollNo && parsed.members.some((m: any) => m.rollNo === currentUser.rollNo))
         );
         if (isMatch) {
           team = parsed;
         }
       }
+    } catch (e) { }
+
+    // Check if the current user belongs to another class team in advisor records
+    try {
+      if (currentUser && team?.members && !team.members.some((m: any) =>
+        (currentUser.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === currentUser.rollNo.trim().toLowerCase()) ||
+        (currentUser.email && m.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
+      )) {
+        const className = currentUser.class || 'CSE-B';
+        const advRaw = localStorage.getItem(`siet_advisor_teams_${className}`);
+        if (advRaw) {
+          const advTeams = JSON.parse(advRaw);
+          if (Array.isArray(advTeams)) {
+            const matched = advTeams.find((t: any) => Array.isArray(t.members) && t.members.some((m: any) =>
+              (currentUser.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === currentUser.rollNo.trim().toLowerCase()) ||
+              (currentUser.email && m.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
+            ));
+            if (matched) {
+              team = {
+                id: matched.teamId,
+                teamNo: matched.teamNo,
+                projectTitle: matched.title || '',
+                submittedTitle: matched.title || '',
+                isTitleApproved: matched.status === 'Approved' || matched.status === 'Active & Approved',
+                guideApprovalStatus: (matched.status === 'Approved' || matched.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
+                guideName: matched.guide || 'Unassigned',
+                advisorName: currentUser.advisorName || 'Class Advisor',
+                batch: matched.batch || '2023-2027 (III Year)',
+                section: matched.class || className,
+                status: 'In Progress',
+                progress: 0,
+                members: matched.members.map((m: any) => ({
+                  rollNo: m.rollNo,
+                  name: m.name,
+                  email: m.email,
+                  role: m.isLead ? 'Team Lead' : 'Team Member'
+                }))
+              };
+            }
+          }
+        }
+      }
+    } catch (e) { }
+
+    // Check if Guide has approved title or submission 1 without calling this.isSubmission1Approved()
+    if (team.isTitleApproved || team.guideApprovalStatus === 'Approved') {
+      return team;
+    }
+
+    try {
+      const rawGuide = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
+      if (rawGuide) {
+        const guideTeams = JSON.parse(rawGuide);
+        const gt = guideTeams.find((t: any) => t.teamId === team.id || t.id === team.id || t.teamNo === team.teamNo);
+        if (gt) {
+          if (gt.titleStatus === 'Approved' || gt.titleLocked === true) {
+            team.isTitleApproved = true;
+            team.guideApprovalStatus = 'Approved';
+          } else if (gt.submissions && gt.submissions[0]) {
+            const s0 = gt.submissions[0];
+            if (s0.evaluationStatus === 'Approved' || s0.status === 'Approved') {
+              team.isTitleApproved = true;
+              team.guideApprovalStatus = 'Approved';
+            }
+          }
+        }
     } catch (e) { }
 
     if (team.isTitleApproved) {
@@ -890,6 +957,19 @@ export const StudentService = {
       try {
         const memberRollNos = team?.members?.map(m => m.rollNo) || [];
         MarksService.deleteWeeklyMarks(team.id, weekNumber, memberRollNos);
+        const targetSection = team?.section || 'CSE-B';
+        const advRaw = localStorage.getItem(`siet_advisor_teams_${targetSection}`);
+        if (advRaw) {
+          const advTeams = JSON.parse(advRaw);
+          if (Array.isArray(advTeams)) {
+            const advTeam = advTeams.find((t: any) => t.teamId === team.id || t.teamNo === team.teamNo);
+            if (advTeam) {
+              advTeam.title = '';
+              advTeam.status = 'Pending';
+              localStorage.setItem(`siet_advisor_teams_${targetSection}`, JSON.stringify(advTeams));
+            }
+          }
+        }
       } catch (e) { }
 
       // 5. Asynchronous call to backend to delete submission

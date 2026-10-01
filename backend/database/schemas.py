@@ -71,16 +71,16 @@ class AddStudentRequest(BaseModel):
     rollNo: str
     email: str
     password: Optional[str] = "student@123"
-    batch: Optional[str] = "2023-2027 (III Year)"
-    classSection: Optional[str] = "CSE-B"
+    batch: Optional[str] = ""
+    classSection: Optional[str] = ""
     guide: Optional[str] = "Unassigned"
 class ImportStudentItem(BaseModel):
     name: str
     rollNo: str
     email: str
     password: Optional[str] = "student@123"
-    batch: Optional[str] = "2023-2027 (III Year)"
-    classSection: Optional[str] = "CSE-B"
+    batch: Optional[str] = ""
+    classSection: Optional[str] = ""
 
 class ImportStudentsRequest(BaseModel):
     students: List[ImportStudentItem]
@@ -96,8 +96,8 @@ class ReassignRequest(BaseModel):
     email_one: str
 # ── Advisor ───────────────────────────────────────────────────
 class CreateTeamRequest(BaseModel):
-    className: str = "CSE-B"
-    batch: str = "2023-2027 (III Year)"
+    className: str
+    batch: Optional[str] = ""
     capacity: int = 4
     teamNo: str
     title: Optional[str] = ""
@@ -116,25 +116,25 @@ class BulkCreateTeamItem(BaseModel):
     members: Optional[List[Dict[str, Any]]] = []
 
 class BulkCreateTeamsRequest(BaseModel):
-    className: str = "CSE-B"
-    batch: str = "2023-2027 (III Year)"
+    className: str
+    batch: Optional[str] = ""
     capacity: int = 4
     teams: List[BulkCreateTeamItem]
 
 class MoveStudentRequest(BaseModel):
-    className: str = "CSE-B"
+    className: str
     studentRollNo: str
     targetTeamId: str
 
 class ReassignGuideRequest(BaseModel):
-    className: str = "CSE-B"
+    className: str
     teamId: str
     guideName: str
     guideEmail: Optional[str] = ""
 
 class UpdateTeamRequest(BaseModel):
-    className: str = "CSE-B"
-    batch: str = "2023-2027 (III Year)"
+    className: str
+    batch: Optional[str] = ""
     teamNo: Optional[str] = None
     guide: Optional[str] = None
     guideEmail: Optional[str] = None
@@ -143,7 +143,7 @@ class UpdateTeamRequest(BaseModel):
     title: Optional[str] = None
 
 class AdvisorHistoryLogRequest(BaseModel):
-    className: str = "CSE-B"
+    className: str
     actionType: str
     target: str
     details: str

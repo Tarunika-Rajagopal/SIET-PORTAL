@@ -78,13 +78,17 @@ class AdvisorService:
             for f in rows
         ]
 
-    async def get_teams_for_class(self, class_name: str = "CSE-B") -> List[Dict[str, Any]]:
+    async def get_teams_for_class(self, class_name: str = "") -> List[Dict[str, Any]]:
+        if not class_name:
+            return []
         rows = await self.team_repo.list_by_class(class_name)
         return [_ser_team(t) for t in rows]
 
     async def get_class_students(
-        self, class_name: str = "CSE-B", batch: str = "2023-2027 (III Year)"
+        self, class_name: str = "", batch: str = ""
     ) -> List[Dict[str, Any]]:
+        if not class_name:
+            return []
         rows = await self.student_repo.list_by_class_section(class_name)
         if batch and batch.strip().upper() != "ALL":
             target_norm = batch.strip().lower()
@@ -126,8 +130,10 @@ class AdvisorService:
         lead_roll_no: str,
         member_roll_nos: List[str],
     ) -> Dict[str, Any]:
-        code_no = team_no.replace("Team ", "B").replace(" ", "")
-        team_id_str = f"TEAM-CSE-Y3-{code_no}"
+        clean_class = class_name.replace(" ", "").upper()
+        digits = "".join(c for c in team_no if c.isdigit())
+        code_no = f"T{digits.zfill(2)}" if digits else team_no.replace(" ", "")
+        team_id_str = f"TEAM-{clean_class}-{code_no}"
 
         # Check if team already exists by team_id or team_no
         existing_team = await self.team_repo.get_by_team_id_string(team_id_str)
@@ -462,7 +468,9 @@ class AdvisorService:
         await self.session.commit()
         return {"success": True, "message": f"Team {team_no} deleted"}
 
-    async def get_advisor_history(self, class_section: str = "CSE-B") -> List[Dict[str, Any]]:
+    async def get_advisor_history(self, class_section: str = "") -> List[Dict[str, Any]]:
+        if not class_section:
+            return []
         audit_repo = AuditRepository(self.session)
         logs = await audit_repo.list_advisor_history(class_section)
         return [
@@ -471,10 +479,10 @@ class AdvisorService:
                 "timestamp": log.timestamp.isoformat() if log.timestamp else "",
                 "date": log.date.isoformat() if log.date else "",
                 "dateFormatted": log.date_formatted,
-                "role": log.role or "Class Advisor",
+                "role": log.role.value if hasattr(log.role, "value") else (str(log.role) if log.role else "Class Advisor"),
                 "actorName": log.actor_name or "Class Advisor",
                 "advisorName": log.actor_name or "Class Advisor",
-                "actionType": log.action_type,
+                "actionType": log.action_type.value if hasattr(log.action_type, "value") else str(log.action_type),
                 "target": log.target,
                 "details": log.details,
                 "classSection": log.class_section,
@@ -513,10 +521,10 @@ class AdvisorService:
             "timestamp": entry.timestamp.isoformat(),
             "date": entry.date.isoformat(),
             "dateFormatted": entry.date_formatted,
-            "role": entry.role,
+            "role": entry.role.value if hasattr(entry.role, "value") else str(entry.role),
             "actorName": entry.actor_name,
             "advisorName": entry.actor_name,
-            "actionType": entry.action_type,
+            "actionType": entry.action_type.value if hasattr(entry.action_type, "value") else str(entry.action_type),
             "target": entry.target,
             "details": entry.details,
             "classSection": entry.class_section,

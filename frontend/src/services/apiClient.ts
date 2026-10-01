@@ -1,6 +1,7 @@
 import { AdminStudent } from './adminService';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const PRIMARY_API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+const FALLBACK_API_BASE_URL = 'http://localhost:8000/api/v1';
 
 function getToken(): string | null {
   try {
@@ -40,15 +41,22 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
     let response: Response;
     try {
-      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      response = await fetch(`${PRIMARY_API_BASE_URL}${endpoint}`, {
         ...options,
         headers,
       });
     } catch (fetchErr: any) {
-      if (fetchErr.name === 'TypeError' && fetchErr.message?.includes('fetch')) {
-        throw new Error('Cannot connect to backend server at localhost:8000. Is the server running?');
+      try {
+        response = await fetch(`${FALLBACK_API_BASE_URL}${endpoint}`, {
+          ...options,
+          headers,
+        });
+      } catch (fallbackErr: any) {
+        if (fetchErr.name === 'TypeError' || fallbackErr.name === 'TypeError') {
+          throw new Error('Cannot connect to backend server at localhost:8000 (or 127.0.0.1:8000). Is the server running?');
+        }
+        throw fetchErr;
       }
-      throw fetchErr;
     }
 
     if (!response.ok) {
@@ -266,14 +274,14 @@ export const ApiClient = {
   },
 
   // Advisor Endpoints
-  async getAdvisorStudents(className: string = "CSE-B", batch?: string): Promise<AdminStudent[]> {
+  async getAdvisorStudents(className: string = "", batch?: string): Promise<AdminStudent[]> {
     const params = new URLSearchParams();
     if (className) params.append('className', className);
     if (batch && batch !== 'ALL') params.append('batch', batch);
     return request<AdminStudent[]>(`/advisor/students?${params.toString()}`);
   },
 
-  async getAdvisorTeams(className: string = "CSE-B"): Promise<any[]> {
+  async getAdvisorTeams(className: string = ""): Promise<any[]> {
     const params = new URLSearchParams();
     if (className) params.append('className', className);
     return request<any[]>(`/advisor/teams?${params.toString()}`);
@@ -343,7 +351,7 @@ export const ApiClient = {
     });
   },
 
-  async getAdvisorHistory(className: string = "CSE-B"): Promise<any[]> {
+  async getAdvisorHistory(className: string = ""): Promise<any[]> {
     const params = new URLSearchParams();
     if (className) params.append('className', className);
     return request<any[]>(`/advisor/history?${params.toString()}`);

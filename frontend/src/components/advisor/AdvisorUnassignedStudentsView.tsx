@@ -89,7 +89,7 @@ export const AdvisorUnassignedStudentsView: React.FC<AdvisorUnassignedStudentsVi
                       {student.name}
                     </td>
                     <td className="py-3.5 px-3 text-gray-600">
-                      {student.batch || '2023-2027'} &bull; {student.classSection || 'CSE-B'}
+                      {[student.batch, student.classSection].filter(Boolean).join(' • ') || '—'}
                     </td>
                     <td className="py-3.5 px-3 whitespace-nowrap">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-amber-300 bg-amber-50 text-amber-800">

@@ -154,7 +154,7 @@ async def get_students(
 @router.post("/students")
 async def add_student(
     req: AddStudentRequest,
-    user: User = Depends(require_roles("admin")),
+    user: User = Depends(require_roles("admin", "advisor", "advisor & guide", "hod")),
     service: AdminService = Depends(get_admin_service),
 ):
     res = await service.add_student(
@@ -166,6 +166,11 @@ async def add_student(
         req.classSection or "CSE-B",
         req.guide or "Unassigned"
     )
+    if not res.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=res.get("message", "Failed to enroll student")
+        )
     await cache_service.invalidate_students()
     return res
 
@@ -173,7 +178,7 @@ async def add_student(
 @router.post("/students/import")
 async def import_students(
     req: ImportStudentsRequest,
-    user: User = Depends(require_roles("admin")),
+    user: User = Depends(require_roles("admin", "advisor", "advisor & guide", "hod")),
     service: AdminService = Depends(get_admin_service),
 ):
     res = await service.import_students(req.students)
@@ -184,10 +189,15 @@ async def import_students(
 @router.delete("/students/{roll_no}")
 async def delete_student(
     roll_no: str,
-    user: User = Depends(require_roles("admin")),
+    user: User = Depends(require_roles("admin", "advisor", "advisor & guide", "hod")),
     service: AdminService = Depends(get_admin_service),
 ):
     res = await service.delete_student(roll_no)
+    if not res.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=res.get("message", "Failed to delete student")
+        )
     await cache_service.invalidate_students()
     return res
 
