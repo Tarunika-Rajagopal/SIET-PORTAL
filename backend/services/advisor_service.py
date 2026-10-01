@@ -519,7 +519,7 @@ class AdvisorService:
 
         # Update User table if exists
         u_res = await self.session.execute(select(User).where(User.roll_no == roll))
-        u_obj = u_res.scalar_one_or_none()
+        u_obj = u_res.scalars().first()
         if u_obj:
             u_obj.team_id = ""
             u_obj.team_no = "Unassigned"

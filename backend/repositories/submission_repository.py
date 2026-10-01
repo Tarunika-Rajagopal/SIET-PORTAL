@@ -2,7 +2,7 @@
 import uuid
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, distinct, delete
+from sqlalchemy import select, func, distinct, delete, or_
 
 from models import WeeklySubmission, TeamMember, Team, GuideNotice
 
@@ -56,9 +56,24 @@ class SubmissionRepository:
     async def get_submission_counts(self, team_ids: List[uuid.UUID]) -> Dict[str, int]:
         if not team_ids:
             return {"total": 0, "pending": 0}
+
+        has_content_filter = or_(
+            func.coalesce(func.trim(WeeklySubmission.problem_statement), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.solution), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.technology_used), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.obstacles_faced), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.abstract), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.repo_url), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.demo_url), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.presentation_file), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.pdf_file), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.file_name), "") != "",
+            func.coalesce(func.trim(WeeklySubmission.screenshot_file), "") != "",
+        )
+
         q = select(
-            func.count().label("total"),
-            func.count().filter(WeeklySubmission.status == "Submitted").label("pending")
+            func.count().filter(has_content_filter).label("total"),
+            func.count().filter(WeeklySubmission.status == "Submitted", has_content_filter).label("pending")
         ).where(WeeklySubmission.team_id.in_(team_ids))
         res = await self.session.execute(q)
         row = res.one_or_none()
@@ -112,17 +127,12 @@ class SubmissionRepository:
         return weeks_summary
 
     async def _seed_initial_submissions(self) -> None:
-        """Seed initial realistic weekly submissions for existing teams."""
+        """There must be no mock data in the db"""
         teams = (await self.session.execute(select(Team))).scalars().all()
         if not teams:
             return
         
-        week_titles = {
-            1: "Problem Statement & Scope Formulation",
-            2: "Literature Survey & Related Works",
-            3: "Dataset Collection & Pipeline Prototype",
-            4: "System Implementation & Final Milestone",
-        }
+     
         for team in teams:
             for w in [1, 2, 3]:
                 # Omit week 3 for Team 05 so counts vary naturally (e.g. 17 vs 13)
@@ -132,13 +142,13 @@ class SubmissionRepository:
                     id=uuid.uuid4(),
                     team_id=team.id,
                     week=w,
-                    title=week_titles.get(w, f"Week {w} Deliverables"),
-                    status="Submitted",
-                    submission_date="18 Feb 2026",
+                    title="",
+                    status="Draft",
+                    submission_date="",
                     score=None,
                     max_score=100.0,
-                    project_title=team.project_title or "Intelligent Project Workspace",
-                    guide_name=team.guide_name or "Dr. P. Manimegalai",
+                    project_title=team.project_title or "",
+                    guide_name=team.guide_name or "",
                 )
                 self.session.add(ws)
         await self.session.commit()

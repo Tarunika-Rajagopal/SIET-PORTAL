@@ -13,7 +13,8 @@ export interface WeeklyMarksRecord {
 type MarksListener = () => void;
 const listeners: Set<MarksListener> = new Set();
 
-const STORAGE_KEY = 'siet_weekly_marks';
+// In-memory cache: teamId -> weekNumber -> record
+let cachedMarks: Record<string, Record<number, WeeklyMarksRecord>> = {};
 
 function notifyListeners() {
   listeners.forEach(fn => {
@@ -25,92 +26,114 @@ function notifyListeners() {
   });
 }
 
-let cachedMarks: Record<string, Record<number, WeeklyMarksRecord>> | null = null;
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY) cachedMarks = null;
-  });
-  window.addEventListener('siet_marks_updated', () => {
-    cachedMarks = null;
-  });
+function dispatchGlobalEvents() {
+  window.dispatchEvent(new Event('siet_marks_updated'));
+  window.dispatchEvent(new Event('siet_data_updated'));
 }
 
-function loadAllMarks(): Record<string, Record<number, WeeklyMarksRecord>> {
-  if (cachedMarks) return cachedMarks;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      // Purge any stale legacy default mock marks if present
-      if (
-        parsed &&
-        (
-          parsed["TEAM-CSE-Y3-B04"]?.[1]?.remarks?.includes("Thorough problem formulation") ||
-          parsed["team-1"]?.[1]?.remarks?.includes("Requirement specification") ||
-          parsed["team-2"]?.[1]?.remarks?.includes("Dataset collection protocol")
-        )
-      ) {
-        localStorage.removeItem(STORAGE_KEY);
-        cachedMarks = {};
-        return {};
-      }
-      cachedMarks = parsed;
-      return parsed;
-    }
-  } catch (e) {
-    console.error('Failed to load marks from localStorage', e);
-  }
-
-  // Initially, NO marks assigned should be shown
-  cachedMarks = {};
-  return {};
-}
-
-// Helper to resolve alias ids across team aliases (e.g. team-4, TEAM-CSE-Y3-B04, Team 04, etc.)
-const ALL_ALIAS_GROUPS: string[][] = [
-  ["TEAM-CSE-Y3-B04", "team-4", "Team 04", "Team 4", "04", "4"],
-  ["TEAM-CSE-Y3-B05", "team-5", "Team 05", "Team 5", "05", "5"],
-  ["TEAM-CSE-Y3-B06", "team-6", "Team 06", "Team 6", "06", "6"],
-  ["TEAM-CSE-Y3-B07", "team-7", "Team 07", "Team 7", "07", "7"],
-  ["TEAM-CSE-Y3-A02", "team-2", "Team 02", "Team 2", "02", "2"],
-  ["TEAM-CSE-Y3-C08", "team-8", "Team 08", "Team 8", "08", "8"],
-  ["TEAM-CSE-Y3-C09", "team-9", "Team 09", "Team 9", "09", "9"]
-];
-
+/**
+ * Generate generic team ID aliases for cross-format matching.
+ * E.g. "TEAM-CSE-Y3-B04" → ["team-4", "team-04", "Team 4", "Team 04", "4", "04"]
+ */
 function getAliasesForTeam(teamId: string): string[] {
-  const tLower = teamId.toLowerCase();
-  const group = ALL_ALIAS_GROUPS.find(g => g.some(a => a.toLowerCase() === tLower));
-  return group ? group : [teamId];
+  if (!teamId) return [];
+  const aliases = new Set<string>([teamId, teamId.toLowerCase()]);
+  const numMatch = teamId.match(/\d+$/) || teamId.match(/(\d+)/);
+  if (numMatch) {
+    const rawNum = numMatch[1] || numMatch[0];
+    const num = parseInt(rawNum, 10);
+    const padded = num < 10 ? `0${num}` : `${num}`;
+    aliases.add(`team-${num}`);
+    aliases.add(`team-${padded}`);
+    aliases.add(`Team ${num}`);
+    aliases.add(`Team ${padded}`);
+    aliases.add(`${num}`);
+    aliases.add(padded);
+  }
+  return Array.from(aliases);
 }
 
 export const MarksService = {
+  /**
+   * Fetch ALL marks from the backend (authoritative source).
+   * Updates in-memory cache and notifies listeners.
+   */
   async fetchAllMarks(): Promise<Record<string, Record<number, WeeklyMarksRecord>>> {
     try {
       const serverMarks = await ApiClient.getAllWeeklyMarks();
       if (serverMarks && typeof serverMarks === 'object' && Object.keys(serverMarks).length > 0) {
         cachedMarks = serverMarks;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverMarks));
         notifyListeners();
         return serverMarks;
       }
     } catch (e) {
       console.warn('Failed to fetch marks from backend:', e);
     }
-    return loadAllMarks();
+    return cachedMarks;
   },
 
+  /**
+   * Fetch marks for a specific team from the backend.
+   * Updates the in-memory cache for that team and notifies listeners.
+   */
+  async fetchTeamMarks(teamId: string): Promise<Record<number, WeeklyMarksRecord>> {
+    if (!teamId) return {};
+    try {
+      const serverTeamMarks = await ApiClient.getTeamWeeklyMarks(teamId);
+      if (serverTeamMarks && typeof serverTeamMarks === 'object') {
+        cachedMarks[teamId] = {};
+        for (const [wStr, rec] of Object.entries(serverTeamMarks)) {
+          const w = Number(wStr);
+          cachedMarks[teamId][w] = rec as WeeklyMarksRecord;
+        }
+        notifyListeners();
+        return serverTeamMarks;
+      }
+    } catch (e) {
+      console.warn(`Failed to fetch marks for team ${teamId} from backend:`, e);
+    }
+    return this.getAllTeamMarks(teamId);
+  },
+
+  /**
+   * Get all marks from the in-memory cache (synchronous).
+   * Call fetchAllMarks() to refresh from backend.
+   */
   getAllMarks(): Record<string, Record<number, WeeklyMarksRecord>> {
-    return loadAllMarks();
+    return cachedMarks;
   },
 
+  /**
+   * Get marks for a specific team from the in-memory cache (synchronous).
+   * Searches across team ID aliases and optional member roll numbers.
+   */
   getAllTeamMarks(teamId: string, memberRollNos?: string[]): Record<number, WeeklyMarksRecord> {
-    const all = loadAllMarks();
+    const all = cachedMarks;
     const result: Record<number, WeeklyMarksRecord> = {};
+
+    const mergeRecord = (w: number, rec: WeeklyMarksRecord) => {
+      if (!result[w]) {
+        // Deep copy to prevent mutating the cache when merging
+        result[w] = { ...rec, memberMarks: { ...rec.memberMarks } };
+      } else {
+        // Merge member marks from different records for the same week
+        if (rec.memberMarks) {
+          result[w].memberMarks = { ...result[w].memberMarks, ...rec.memberMarks };
+        }
+        if (rec.teamAverage > 0 && result[w].teamAverage === 0) {
+          result[w].teamAverage = rec.teamAverage;
+        }
+        if (rec.remarks && !result[w].remarks) {
+          result[w].remarks = rec.remarks;
+        }
+      }
+    };
 
     // 1. Direct key match
     if (all[teamId]) {
-      Object.assign(result, all[teamId]);
+      for (const [wStr, rec] of Object.entries(all[teamId])) {
+        mergeRecord(Number(wStr), rec);
+      }
     }
 
     // 2. All alias group keys
@@ -118,10 +141,7 @@ export const MarksService = {
     for (const a of aliases) {
       if (all[a]) {
         for (const [wStr, rec] of Object.entries(all[a])) {
-          const w = Number(wStr);
-          if (!result[w] || (rec.teamAverage > 0 && result[w].teamAverage === 0)) {
-            result[w] = rec;
-          }
+          mergeRecord(Number(wStr), rec);
         }
       }
     }
@@ -131,54 +151,71 @@ export const MarksService = {
     for (const [k, v] of Object.entries(all)) {
       if (k.toLowerCase() === lower && v) {
         for (const [wStr, rec] of Object.entries(v)) {
-          const w = Number(wStr);
-          if (!result[w] || (rec.teamAverage > 0 && result[w].teamAverage === 0)) {
-            result[w] = rec;
-          }
+          mergeRecord(Number(wStr), rec);
         }
       }
     }
 
     // 4. Member roll numbers match across all recorded marks
     if (memberRollNos && memberRollNos.length > 0) {
+      const cleanRolls = memberRollNos.map(r => String(r).trim().toLowerCase());
       for (const v of Object.values(all)) {
         if (!v) continue;
         for (const [wStr, rec] of Object.entries(v)) {
           const w = Number(wStr);
-          if (rec && rec.memberMarks && memberRollNos.some(r => r in rec.memberMarks)) {
-            if (!result[w] || (rec.teamAverage > 0 && result[w].teamAverage === 0)) {
-              result[w] = rec;
+          if (rec && rec.memberMarks) {
+            const hasMatch = Object.keys(rec.memberMarks).some(k => 
+              cleanRolls.includes(String(k).trim().toLowerCase())
+            );
+            if (hasMatch) {
+              mergeRecord(w, rec);
             }
           }
         }
       }
     }
 
+    // Also normalize keys in the result to ensure case-insensitive matching in getMemberReviewMark
+    for (const w of Object.keys(result)) {
+      const wNum = Number(w);
+      const normalizedMarks: Record<string, number> = {};
+      if (result[wNum].memberMarks) {
+        for (const [k, val] of Object.entries(result[wNum].memberMarks)) {
+           normalizedMarks[String(k).trim()] = val;
+        }
+        result[wNum].memberMarks = normalizedMarks;
+      }
+    }
+
     return result;
   },
 
+  /**
+   * Get the list of available weeks with marks for a team.
+   */
   getAvailableWeeks(teamId: string, memberRollNos?: string[]): number[] {
     const teamMarks = this.getAllTeamMarks(teamId, memberRollNos);
     return Object.keys(teamMarks).map(Number).sort((a, b) => a - b);
   },
 
+  /**
+   * Get marks for a specific team and week (synchronous, from cache).
+   */
   getWeeklyMarks(teamId: string, weekNumber: number, memberRollNos?: string[]): WeeklyMarksRecord | null {
     const allTeamMarks = this.getAllTeamMarks(teamId, memberRollNos);
-    if (allTeamMarks[weekNumber]) {
-      return allTeamMarks[weekNumber];
-    }
-    return null;
+    return allTeamMarks[weekNumber] || null;
   },
 
+  /**
+   * Save marks for a team/week. Persists to backend, then updates cache.
+   */
   saveWeeklyMarks(
     teamId: string,
     weekNumber: number,
     memberMarks: Record<string, number>,
     remarks: string = '',
-    gradedBy: string = 'Class Advisor'
+    gradedBy: string = 'Advisor'
   ): WeeklyMarksRecord {
-    const all = loadAllMarks();
-
     const marksValues = Object.values(memberMarks).filter(m => typeof m === 'number' && !isNaN(m));
     const sum = marksValues.reduce((acc, curr) => acc + curr, 0);
     const teamAverage = marksValues.length > 0 ? Math.round((sum / marksValues.length) * 10) / 10 : 0;
@@ -193,43 +230,35 @@ export const MarksService = {
       gradedBy
     };
 
-    // Save under primary teamId
-    if (!all[teamId]) all[teamId] = {};
-    all[teamId][weekNumber] = record;
-
-    // Synchronize to ALL known alias keys for this team
-    const aliases = getAliasesForTeam(teamId);
-    for (const a of aliases) {
-      if (!all[a]) all[a] = {};
-      all[a][weekNumber] = { ...record, teamId: a };
-    }
-
-    try {
-      cachedMarks = all;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-    } catch (e) {
-      console.error('Failed to save marks to localStorage', e);
-    }
-
-    // Persist to backend database
-    ApiClient.saveWeeklyMarks(teamId, weekNumber, memberMarks, remarks, gradedBy).catch(err => {
-      console.warn('Failed to persist marks to backend:', err);
-    });
+    // Optimistically update in-memory cache
+    if (!cachedMarks[teamId]) cachedMarks[teamId] = {};
+    cachedMarks[teamId][weekNumber] = record;
 
     notifyListeners();
-    // Dispatch global events for instant cross-portal reactive updates (HOD, Guide, Student)
-    window.dispatchEvent(new Event('siet_marks_updated'));
-    window.dispatchEvent(new Event('siet_data_updated'));
-    window.dispatchEvent(new Event('storage'));
+    dispatchGlobalEvents();
+
+    // Persist to backend (authoritative source)
+    ApiClient.saveWeeklyMarks(teamId, weekNumber, memberMarks, remarks, gradedBy)
+      .then(() => {
+        // Refresh from backend to get server-computed values
+        this.fetchTeamMarks(teamId).catch(() => {});
+      })
+      .catch(err => {
+        console.warn('Failed to persist marks to backend:', err);
+      });
+
     return record;
   },
 
+  /**
+   * Delete marks for a team (optionally for a specific week).
+   * Calls the backend DELETE endpoint when a specific week is given.
+   */
   deleteWeeklyMarks(teamId: string, weekNumber?: number, memberRollNos?: string[]): void {
-    const all = loadAllMarks();
     const aliases = getAliasesForTeam(teamId).map(a => a.toLowerCase());
     const targetTeamIdLower = teamId.toLowerCase();
 
-    for (const [key, weekMap] of Object.entries(all)) {
+    for (const [key, weekMap] of Object.entries(cachedMarks)) {
       if (!weekMap) continue;
       const keyLower = key.toLowerCase();
       const isTeamMatch = keyLower === targetTeamIdLower || aliases.includes(keyLower);
@@ -244,39 +273,46 @@ export const MarksService = {
           }
         }
         if (Object.keys(weekMap).length === 0) {
-          delete all[key];
+          delete cachedMarks[key];
         }
       } else {
         if (isTeamMatch) {
-          delete all[key];
+          delete cachedMarks[key];
         }
       }
     }
 
-    try {
-      cachedMarks = all;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-    } catch (e) {
-      console.error('Failed to delete marks from localStorage', e);
-    }
-
     notifyListeners();
-    window.dispatchEvent(new Event('siet_marks_updated'));
-    window.dispatchEvent(new Event('siet_data_updated'));
-    window.dispatchEvent(new Event('storage'));
+    dispatchGlobalEvents();
+
+    // Persist deletion to backend
+    if (weekNumber !== undefined) {
+      ApiClient.saveWeeklyMarks(teamId, weekNumber, {}, '', '')
+        .catch(err => console.warn('Failed to delete marks from backend:', err));
+    }
   },
 
+  /**
+   * Get team average for a specific week.
+   */
   getTeamAverage(teamId: string, weekNumber: number, memberRollNos?: string[]): number | null {
     const record = this.getWeeklyMarks(teamId, weekNumber, memberRollNos);
     return record ? record.teamAverage : null;
   },
 
+  /**
+   * Get a single member's mark for a specific week.
+   */
   getMemberMark(teamId: string, weekNumber: number, rollNo: string): number | null {
     const record = this.getWeeklyMarks(teamId, weekNumber, [rollNo]);
     if (!record || record.memberMarks[rollNo] === undefined) return null;
     return record.memberMarks[rollNo];
   },
 
+  /**
+   * Subscribe to marks changes for UI reactivity.
+   * Returns an unsubscribe function.
+   */
   subscribe(listener: MarksListener): () => void {
     listeners.add(listener);
     return () => {
@@ -285,8 +321,8 @@ export const MarksService = {
   }
 };
 
+// Background-fetch all marks from backend on module load
 if (typeof window !== 'undefined') {
-  // Background fetch all marks from backend database
   MarksService.fetchAllMarks().catch(() => {});
 }
 

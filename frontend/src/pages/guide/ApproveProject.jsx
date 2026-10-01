@@ -77,14 +77,20 @@ export const ApproveProject = () => {
       if (s.evaluationStatus === 'Approved' || s.status === 'Approved' || s.isLocked) {
         return false;
       }
-      const sWeek = s.weekNumber !== undefined ? s.weekNumber : (s.week !== undefined ? s.week : (s.submissionNumber ? s.submissionNumber - 1 : 0));
-      const sSubNum = s.submissionNumber || (sWeek + 1);
-      
-      // Check if marks already exist in MarksService
-      const mRecord = MarksService.getWeeklyMarks(team.teamId, sSubNum) || 
-                      MarksService.getWeeklyMarks(team.teamId, sWeek) ||
-                      (sWeek === 0 || sSubNum === 1 ? MarksService.getWeeklyMarks(team.teamId, 0) : null);
-      if (mRecord && (mRecord.teamAverage > 0 || (mRecord.memberMarks && Object.keys(mRecord.memberMarks).length > 0))) {
+      // Only actual submission status determines if it is pending approval
+      // Must have real deliverable content (not an empty placeholder)
+      const hasRealContent = Boolean(
+        s.hasContent !== undefined
+          ? s.hasContent
+          : (
+              s.submissionDate &&
+              (s.abstractSummary || s.problemStatement || s.proposedSolution || s.technologyUsed || s.obstaclesFaced || s.pptUrl || s.reportUrl || s.presentationFileName || s.pdfFile || s.githubUrl || s.liveDemoUrl || (s.images && s.images.length > 0)) &&
+              !String(s.pptUrl || '').includes('mock_ppt') &&
+              !String(s.presentationFileName || '').includes('mock_ppt')
+            )
+      );
+
+      if (!hasRealContent) {
         return false;
       }
 
@@ -100,18 +106,17 @@ export const ApproveProject = () => {
     });
 
     if (pending) {
-      const subNum = pending.submissionNumber || (pending.weekNumber !== undefined ? pending.weekNumber + 1 : (pending.week !== undefined ? pending.week + 1 : 1));
-      const weekNum = pending.weekNumber !== undefined ? pending.weekNumber : (pending.week !== undefined ? pending.week : (subNum - 1));
+      const weekNum = Number(pending.weekNumber !== undefined ? pending.weekNumber : (pending.week !== undefined ? pending.week : (pending.submissionNumber || 1)));
       return {
         ...pending,
         weekNumber: weekNum,
-        submissionNumber: subNum,
+        submissionNumber: weekNum,
         isCurrentWait: true
       };
     }
 
     // If title is pending or details submitted, but not approved
-    const titleMarks = MarksService.getWeeklyMarks(team.teamId, 1) || MarksService.getWeeklyMarks(team.teamId, 0);
+    const titleMarks = MarksService.getWeeklyMarks(team.teamId, 1);
     const hasTitleMarks = Boolean(titleMarks && (titleMarks.teamAverage > 0 || (titleMarks.memberMarks && Object.keys(titleMarks.memberMarks).length > 0)));
 
     if (!hasTitleMarks && team.titleStatus !== 'Approved' && (team.titleStatus === 'Pending' || hasAnyDetailSubmitted(team) || team.projectTitle)) {
@@ -222,12 +227,12 @@ export const ApproveProject = () => {
       }
     }
 
-    const subNumber = inspectedSub.submissionNumber || 
-                      (inspectedSub.weekNumber !== undefined ? inspectedSub.weekNumber + 1 : 
-                      (inspectedSub.week !== undefined ? inspectedSub.week + 1 : 1));
-    const weekNum = inspectedSub.weekNumber !== undefined 
-                      ? inspectedSub.weekNumber 
-                      : (inspectedSub.week !== undefined ? inspectedSub.week : (subNumber - 1));
+    const weekNum = Number(
+      inspectedSub.weekNumber !== undefined 
+        ? inspectedSub.weekNumber 
+        : (inspectedSub.week !== undefined ? inspectedSub.week : (inspectedSub.submissionNumber || 1))
+    );
+    const subNumber = Number(inspectedSub.submissionNumber || weekNum);
 
     // Convert to numerical dictionary and compute average
     const finalMemberMarks = {};
@@ -241,34 +246,7 @@ export const ApproveProject = () => {
       ? Math.round((totalMarks / members.length) * 10) / 10 
       : 0;
 
-    // 1. Save individual marks & calculated average to MarksService
-    MarksService.saveWeeklyMarks(
-      inspectedTeam.teamId,
-      subNumber,
-      finalMemberMarks,
-      guideRemarks.trim() || 'Satisfactory deliverables. Approved by Faculty Guide.',
-      facultyProfile?.name || 'Faculty Guide'
-    );
-    if (weekNum !== subNumber) {
-      MarksService.saveWeeklyMarks(
-        inspectedTeam.teamId,
-        weekNum,
-        finalMemberMarks,
-        guideRemarks.trim() || 'Satisfactory deliverables. Approved by Faculty Guide.',
-        facultyProfile?.name || 'Faculty Guide'
-      );
-    }
-    if (subNumber === 1 || weekNum === 0 || weekNum === 1) {
-      MarksService.saveWeeklyMarks(
-        inspectedTeam.teamId,
-        0,
-        finalMemberMarks,
-        guideRemarks.trim() || 'Satisfactory deliverables. Approved by Faculty Guide.',
-        facultyProfile?.name || 'Faculty Guide'
-      );
-    }
-
-    // 2. Mark submission as evaluated & approved in GuideContext
+    // 1. Mark submission as evaluated & approved in GuideContext (handles state, MarksService, and backend review)
     if (evaluateWeeklySubmission) {
       evaluateWeeklySubmission(
         inspectedTeam.teamId,
@@ -277,16 +255,24 @@ export const ApproveProject = () => {
         calculatedTeamAverage,
         finalMemberMarks
       );
+    } else {
+      MarksService.saveWeeklyMarks(
+        inspectedTeam.teamId,
+        weekNum,
+        finalMemberMarks,
+        guideRemarks.trim() || 'Satisfactory deliverables. Approved by Faculty Guide.',
+        facultyProfile?.name || 'Faculty Guide'
+      );
     }
-    if (approveTitle && (subNumber === 1 || weekNum === 0 || weekNum === 1)) {
+
+    if (approveTitle && weekNum === 1) {
       approveTitle(inspectedTeam.teamId);
     }
 
-    // 3. Immediately synchronize approval status to Student submissions list
+    // 2. Immediately synchronize approval status to Student submissions list
     try {
       const studentSubs = StudentService.getSubmissions() || [];
-      const targetWeek = subNumber - 1;
-      let sItem = studentSubs.find(s => s.week === targetWeek || s.week === weekNum);
+      let sItem = studentSubs.find(s => s.week === weekNum);
       if (sItem) {
         sItem.status = 'Approved';
         sItem.comments = guideRemarks.trim() || 'Approved by Faculty Guide.';
@@ -294,8 +280,8 @@ export const ApproveProject = () => {
       } else {
         studentSubs.push({
           week: weekNum,
-          title: `Submission ${subNumber} Deliverable Submission`,
-          dueDate: `Submission ${subNumber}`,
+          title: `Submission ${weekNum} Deliverable Submission`,
+          dueDate: `Submission ${weekNum}`,
           status: 'Approved',
           score: calculatedTeamAverage,
           comments: guideRemarks.trim() || 'Approved by Faculty Guide.',
@@ -305,9 +291,9 @@ export const ApproveProject = () => {
       StudentService.saveSubmissions(studentSubs);
     } catch (e) {}
 
-    // 4. Immediately synchronize approved title to Student and Advisor stores if Submission 1
+    // 3. Immediately synchronize approved title to Student and Advisor stores if Submission 1
     const approvedTitle = inspectedSub.projectTitle || inspectedTeam.projectTitle || inspectedTeam.title;
-    if (approvedTitle && subNumber === 1) {
+    if (approvedTitle && weekNum === 1) {
       try {
         const sTeam = StudentService.getTeam();
         sTeam.isTitleApproved = true;
@@ -316,14 +302,15 @@ export const ApproveProject = () => {
         sTeam.submittedTitle = approvedTitle;
         StudentService.saveTeam(sTeam);
 
-        const d1 = StudentService.getDeliverables('Submission 1');
+        const targetTeamId = inspectedTeam?.teamId || inspectedTeam?.id || inspectedTeam?.teamNo;
+        const d1 = StudentService.getDeliverables('Submission 1', targetTeamId);
         d1.isTitleApproved = true;
         d1.projectTitle = approvedTitle;
-        localStorage.setItem('siet_deliverable_v6_submission_1', JSON.stringify(d1));
+        StudentService.saveAllDeliverables('Submission 1', d1, targetTeamId);
       } catch (e) {}
     }
 
-    showToast(`Submission ${subNumber} for Team #${inspectedTeam.teamNumber} approved with average score (${calculatedTeamAverage}/100).`, 'success');
+    showToast(`Submission ${weekNum} for Team #${inspectedTeam.teamNumber} approved with average score (${calculatedTeamAverage}/100).`, 'success');
     setInspectModalOpen(false);
   };
 
@@ -335,13 +322,13 @@ export const ApproveProject = () => {
     }
 
     if (!inspectedTeam || !inspectedSub) return;
-    const weekNum = inspectedSub.weekNumber !== undefined ? inspectedSub.weekNumber : (inspectedSub.submissionNumber || 1);
+    const weekNum = Number(inspectedSub.weekNumber !== undefined ? inspectedSub.weekNumber : (inspectedSub.week !== undefined ? inspectedSub.week : (inspectedSub.submissionNumber || 1)));
 
     if (requestWeeklyRevision) {
       requestWeeklyRevision(inspectedTeam.teamId, weekNum, mandatoryReason.trim());
     }
 
-    showToast(`Revision requested for Submission ${inspectedSub.submissionNumber || weekNum}.`, 'warning');
+    showToast(`Revision requested for Submission ${weekNum}.`, 'warning');
     setInspectModalOpen(false);
   };
 
@@ -353,15 +340,15 @@ export const ApproveProject = () => {
     }
 
     if (!inspectedTeam || !inspectedSub) return;
-    const weekNum = inspectedSub.weekNumber !== undefined ? inspectedSub.weekNumber : (inspectedSub.submissionNumber || 1);
+    const weekNum = Number(inspectedSub.weekNumber !== undefined ? inspectedSub.weekNumber : (inspectedSub.week !== undefined ? inspectedSub.week : (inspectedSub.submissionNumber || 1)));
 
     if (rejectWeeklySubmission) {
       rejectWeeklySubmission(inspectedTeam.teamId, weekNum, mandatoryReason.trim());
-    } else if (rejectTitle) {
+    } else if (rejectTitle && weekNum === 1) {
       rejectTitle(inspectedTeam.teamId, mandatoryReason.trim());
     }
 
-    showToast(`Submission ${inspectedSub.submissionNumber || weekNum} rejected.`, 'error');
+    showToast(`Submission ${weekNum} rejected.`, 'error');
     setInspectModalOpen(false);
   };
 

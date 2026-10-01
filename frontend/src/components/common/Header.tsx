@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getUserInitials } from '../../services/authService';
 import { LogOut, User as UserIcon, Settings as SettingsIcon } from 'lucide-react';
 
 interface HeaderProps {
@@ -23,18 +24,9 @@ export const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const getInitials = (name?: string, fallback: string = 'TR') => {
-    if (!name) return fallback;
-    const cleaned = name.replace(/^(Dr\.|Mr\.|Mrs\.|Ms\.|Prof\.)\s+/i, '').trim();
-    const parts = cleaned.split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return fallback;
-    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  };
-
   const avatarInitials = currentUser?.initials && currentUser.initials !== 'US'
     ? currentUser.initials
-    : getInitials(currentUser?.name, activeRole === 'student' ? 'TR' : 'US');
+    : (currentUser?.name ? getUserInitials(currentUser.name) : (activeRole === 'student' ? 'ST' : 'US'));
 
   const isSettings = location.pathname === '/settings';
   const role = (activeRole || currentUser?.role || '').toLowerCase();

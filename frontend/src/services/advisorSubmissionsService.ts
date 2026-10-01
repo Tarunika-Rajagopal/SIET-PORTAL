@@ -5,13 +5,14 @@ import { StudentService } from './studentService';
 const GUIDE_TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
 
 /**
- * Returns strictly real student milestone submissions for Team 04.
+ * Returns strictly real student milestone submissions for the active student team.
  * Merges deliverables (abstract, problem statement, solution, tech stack, PPT, PDF, repos, etc.)
  * so that Guide, Advisor, and HOD portals view the exact same data.
  */
-export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmission[] {
+export function getCanonicalStudentSubmissions(teamTitle?: string, teamIdOverride?: string): WeeklySubmission[] {
   const studentTeam = StudentService.getTeam();
-  const d0 = StudentService.getDeliverables('Submission 1');
+  const effectiveTeamId = teamIdOverride || studentTeam.id;
+  const d0 = StudentService.getDeliverables('Submission 1', effectiveTeamId);
   const rawSubs = StudentService.getSubmissions() || [];
 
   const isGuideApproved = Boolean(
@@ -66,7 +67,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
   for (let w = 1; w < 4; w++) {
     const subNum = w + 1;
     if (!validSubs.some(s => s.week === w)) {
-      const dW = StudentService.getDeliverables(`Submission ${subNum}`);
+      const dW = StudentService.getDeliverables(`Submission ${subNum}`, effectiveTeamId);
       const hasActualSubmission = Boolean(
         dW.submittedFields?.technologyUsed ||
         dW.submittedFields?.obstaclesFaced ||
@@ -112,7 +113,19 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
     const rawG = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
     if (rawG) {
       const gTeams = JSON.parse(rawG);
-      const gt = gTeams.find((t: any) => t.teamId === studentTeam.id || t.id === studentTeam.id || (studentTeam.teamNo && t.teamNo === studentTeam.teamNo));
+      const gt = gTeams.find((t: any) => {
+        const tId = (t.teamId || t.id || '').toLowerCase().trim();
+        const sId = (studentTeam.id || '').toLowerCase().trim();
+        const tNo = (t.teamNo || '').toLowerCase().trim();
+        const sNo = (studentTeam.teamNo || '').toLowerCase().trim();
+        const tNum = t.teamNumber != null ? Number(t.teamNumber) : parseInt(tNo.replace(/\D/g, ''), 10);
+        const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : parseInt(sNo.replace(/\D/g, ''), 10);
+
+        if (tId && sId && tId === sId) return true;
+        if (tNo && sNo && tNo === sNo) return true;
+        if (!isNaN(tNum) && !isNaN(sNum) && tNum === sNum) return true;
+        return false;
+      });
       if (gt && Array.isArray(gt.submissions)) {
         guideTeamSubs = gt.submissions;
       }
@@ -121,7 +134,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
 
   // Merge full deliverable fields into each submission (capped to max 4 submissions)
   return validSubs.sort((a, b) => a.week - b.week).slice(0, 4).map(sub => {
-    const dWeek = StudentService.getDeliverables(sub.week === 0 ? 'Submission 1' : `Submission ${sub.week + 1}`);
+    const dWeek = StudentService.getDeliverables(sub.week === 0 ? 'Submission 1' : `Submission ${sub.week + 1}`, effectiveTeamId);
     const isWeek0 = sub.week === 0;
     const gSub = guideTeamSubs.find((gs: any) => (gs.weekNumber ?? gs.week) === sub.week);
     const isSubRejected = sub.status === 'Changes Requested' || sub.status === 'Rejected' || (isWeek0 && studentTeam.guideApprovalStatus === 'Rejected') || gSub?.evaluationStatus === 'Revision Required';
@@ -316,18 +329,21 @@ export const AdvisorSubmissionsService = {
   getTeamSubmissions(team: ClassTeam): WeeklySubmission[] {
     if (!team) return [];
 
-    // 1. Check live student deliverables from StudentService if this is the student team
     const studentTeam = StudentService.getTeam();
+    const tNum = team.teamNo ? parseInt(team.teamNo.replace(/\D/g, ''), 10) : null;
+    const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : (studentTeam.teamNo ? parseInt(studentTeam.teamNo.replace(/\D/g, ''), 10) : null);
+
     const isStudentTeam = Boolean(
       studentTeam && (
-        (team.teamId && studentTeam.id && team.teamId.toLowerCase() === studentTeam.id.toLowerCase()) ||
-        (team.teamNo && studentTeam.teamNo && team.teamNo.toLowerCase() === studentTeam.teamNo.toLowerCase()) ||
+        (team.teamId && studentTeam.id && team.teamId.toLowerCase().trim() === studentTeam.id.toLowerCase().trim()) ||
+        (team.teamNo && studentTeam.teamNo && team.teamNo.toLowerCase().trim() === studentTeam.teamNo.toLowerCase().trim()) ||
+        (tNum != null && sNum != null && !isNaN(tNum) && !isNaN(sNum) && tNum === sNum) ||
         (Array.isArray(team.members) && Array.isArray(studentTeam.members) && team.members.some(tm => studentTeam.members.some(sm => sm.rollNo === tm.rollNo)))
       )
     );
 
     if (isStudentTeam) {
-      const studentSubs = getCanonicalStudentSubmissions(team.title);
+      const studentSubs = getCanonicalStudentSubmissions(team.title, team.teamId || studentTeam.id);
       if (studentSubs.length > 0) {
         return studentSubs;
       }

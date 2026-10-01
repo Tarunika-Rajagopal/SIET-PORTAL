@@ -35,11 +35,10 @@ export const WeeklySubmissions = () => {
   const [notifyTargetTeam, setNotifyTargetTeam] = useState(null);
   const [notifyWeekNumber, setNotifyWeekNumber] = useState(currentAcademicWeek);
 
-  // Flatten all submissions with parent team info - strictly real student submissions only up to current week
+  // Flatten all submissions with parent team info - strictly real student submissions
   const allSubmissions = [];
   teams.forEach(team => {
     (team.submissions || []).forEach(sub => {
-      if (sub.weekNumber > currentAcademicWeek) return;
       const hasRealContent = Boolean(
         sub.submissionDate &&
         (sub.abstractSummary || sub.problemStatement || sub.proposedSolution || sub.pptUrl || sub.reportUrl || sub.presentationFileName || sub.pdfFile || sub.githubUrl || sub.liveDemoUrl || (sub.images && sub.images.length > 0)) &&
@@ -175,10 +174,10 @@ export const WeeklySubmissions = () => {
             onChange={(e) => setWeekFilter(e.target.value)}
             className="px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#111111] cursor-pointer"
           >
-            <option value="ALL">All Sprint Weeks (Up to Week {currentAcademicWeek})</option>
-            {Array.from({ length: currentAcademicWeek + 1 }, (_, i) => (
-              <option key={i} value={String(i)}>
-                Week {i}{i === currentAcademicWeek ? ' (Current Week)' : ''}
+            <option value="ALL">All Milestone Submissions</option>
+            {[1, 2, 3, 4].map((w) => (
+              <option key={w} value={String(w)}>
+                Submission {w} (Week {w})
               </option>
             ))}
           </select>

@@ -65,11 +65,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // data from a previous student's session persisting across logins
       localStorage.removeItem('siet_student_team_v6');
       localStorage.removeItem('siet_student_submissions_v6');
-      // Clear all deliverable keys
+      // Clear all deliverable and date keys
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('siet_deliverable_v6_')) {
+        if (key && (
+          key.startsWith('siet_deliverable_') ||
+          key.startsWith('siet_submission_date_') ||
+          key.startsWith('siet_student_')
+        )) {
           keysToRemove.push(key);
         }
       }

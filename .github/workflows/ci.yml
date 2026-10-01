@@ -1,0 +1,100 @@
+name: SIET Portal CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ─── 1. BACKEND TEST & LINT ──────────────────────────────────────────────
+  backend-ci:
+    name: Backend CI (FastAPI, Redis, PostgreSQL/SQLite)
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Verify Python Compilation
+        run: |
+          python -m py_compile $(git ls-files 'backend/*.py')
+
+      - name: Run Smoke Tests (Sanity, Health, Auth, Redis)
+        env:
+          USE_SQLITE: "true"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET_KEY: "test-secret-key-for-ci"
+        run: |
+          pytest backend/tests/test_smoke.py -v
+
+      - name: Run E2E Lifecycle Tests (Submission, Grading, Lockout, Title Approval)
+        env:
+          USE_SQLITE: "true"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET_KEY: "test-secret-key-for-ci"
+        run: |
+          pytest backend/tests/test_e2e_lifecycle.py -v
+
+      - name: Run Z-Tests (Zero-Regression, MultipleResultsFound, Redis Outage, RBAC Boundaries)
+        env:
+          USE_SQLITE: "true"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET_KEY: "test-secret-key-for-ci"
+        run: |
+          pytest backend/tests/test_z_regression.py -v
+
+      - name: Run Repository & Service Integration Tests
+        env:
+          USE_SQLITE: "true"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET_KEY: "test-secret-key-for-ci"
+        run: |
+          pytest backend/tests/test_repositories_services.py -v
+
+  # ─── 2. FRONTEND BUILD & TYPE CHECK ──────────────────────────────────────
+  frontend-ci:
+    name: Frontend CI (React, TypeScript, Vite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package.json
+
+      - name: Install Node Dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Run TypeScript & Vite Build
+        working-directory: ./frontend
+        run: npm run build

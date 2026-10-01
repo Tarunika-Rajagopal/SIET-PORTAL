@@ -49,8 +49,8 @@ export const StudentPortalPage: React.FC = () => {
             name: m.name || '',
             email: m.email || '',
             phone: m.phone || '',
-            role: m.role || 'Team Member',
-            isLead: m.isLead || false,
+            role: m.isLead ? 'Team Lead' : (m.role || 'Team Member'),
+            isLead: Boolean(m.isLead),
           })),
         };
         StudentService.saveTeam(mapped as any);
@@ -67,7 +67,7 @@ export const StudentPortalPage: React.FC = () => {
       setTeam(StudentService.getTeam());
     };
     const handleNavSubmission = (e: any) => {
-      if (e?.detail?.edit && StudentService.isCurrentUserTeamLead()) {
+      if (e?.detail?.edit && StudentService.isCurrentUserTeamLead(team)) {
         localStorage.setItem('siet_student_start_edit_mode', 'true');
       }
       if (e?.detail?.week !== undefined) {

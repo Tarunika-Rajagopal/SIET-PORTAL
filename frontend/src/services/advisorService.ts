@@ -85,23 +85,47 @@ export const AdvisorService = {
           }
         });
 
-        // 2. Real-time synchronization for student team with Student Portal data
+        // 2. Real-time synchronization for active student team with Student Portal data
         const studentTeam = StudentService.getTeam();
-        const d0 = StudentService.getDeliverables('Week 0');
-        const rawRealTitle = (d0?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
-        const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
+        let matchedActiveTeamId: string | null = null;
 
-        const matchedStudentTeam = teamList.find(t => 
-          (studentTeam.id && t.teamId === studentTeam.id) || 
-          (studentTeam.teamNo && t.teamNo === studentTeam.teamNo) ||
-          (Array.isArray(t.members) && Array.isArray(studentTeam.members) && t.members.some(tm => studentTeam.members.some(sm => sm.rollNo === tm.rollNo)))
-        );
-        if (matchedStudentTeam) {
-          if (cleanRealTitle) {
-            matchedStudentTeam.title = cleanRealTitle;
-            matchedStudentTeam.status = (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved')
-              ? 'Active & Approved'
-              : 'Under Review';
+        if (studentTeam && (studentTeam.id || studentTeam.teamNo)) {
+          const sId = (studentTeam.id || '').toLowerCase().trim();
+          const sNo = (studentTeam.teamNo || '').toLowerCase().trim();
+          const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : (sNo ? parseInt(sNo.replace(/\D/g, ''), 10) : null);
+
+          const activeStudentTeam = teamList.find(t => {
+            const tId = (t.teamId || '').toLowerCase().trim();
+            const tNo = (t.teamNo || '').toLowerCase().trim();
+            const tNum = parseInt(tNo.replace(/\D/g, ''), 10);
+
+            if (sId && tId && sId === tId) return true;
+            if (sNo && tNo && sNo === tNo) return true;
+            if (sNum != null && !Number.isNaN(sNum) && !Number.isNaN(tNum) && sNum === tNum) return true;
+
+            if (Array.isArray(studentTeam.members) && Array.isArray(t.members)) {
+              const sRolls = new Set(studentTeam.members.map(m => (m.rollNo || '').toLowerCase().trim()).filter(Boolean));
+              if (sRolls.size > 0 && t.members.some(m => sRolls.has((m.rollNo || '').toLowerCase().trim()))) {
+                return true;
+              }
+            }
+            return false;
+          });
+
+          if (activeStudentTeam) {
+            matchedActiveTeamId = activeStudentTeam.teamId;
+            const d0 = StudentService.getDeliverables('Week 0', activeStudentTeam.teamId || studentTeam.id);
+            const rawRealTitle = (d0?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
+            const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
+
+            activeStudentTeam.title = cleanRealTitle;
+            if (cleanRealTitle) {
+              activeStudentTeam.status = (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved')
+                ? 'Active & Approved'
+                : 'Under Review';
+            } else {
+              activeStudentTeam.status = 'Pending';
+            }
           }
         }
 
@@ -111,7 +135,7 @@ export const AdvisorService = {
           const guideTeams = JSON.parse(guideRaw);
           if (Array.isArray(guideTeams)) {
             teamList.forEach(t => {
-              if (matchedStudentTeam && t.teamId === matchedStudentTeam.teamId) return;
+              if (matchedActiveTeamId && t.teamId === matchedActiveTeamId) return; // Active student team already synchronized with student
               const tNum = parseInt(String(t.teamNo || t.teamId).replace(/\D/g, ''), 10);
               const gt = guideTeams.find((g: any) => 
                 (g.teamId && g.teamId.toLowerCase() === t.teamId.toLowerCase()) || 

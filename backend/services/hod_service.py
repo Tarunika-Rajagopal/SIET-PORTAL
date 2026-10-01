@@ -395,7 +395,7 @@ class HODService:
     async def get_week_releases(self) -> Dict[str, bool]:
         """Return release status for all 4 weekly submissions from database."""
         res = await self.session.execute(select(Setting).where(Setting.key == "week_release_status"))
-        setting = res.scalar_one_or_none()
+        setting = res.scalars().first()
         default_status = {"1": True, "2": True, "3": False, "4": False}
         if not setting:
             setting = Setting(key="week_release_status", value=default_status)
@@ -416,7 +416,7 @@ class HODService:
         res = await self.session.execute(
             select(Setting).where(Setting.key == "week_release_status").with_for_update()
         )
-        setting = res.scalar_one_or_none()
+        setting = res.scalars().first()
         default_status = {"1": True, "2": True, "3": False, "4": False}
         if not setting:
             setting = Setting(key="week_release_status", value=default_status)

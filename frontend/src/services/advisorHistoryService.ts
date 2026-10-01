@@ -29,6 +29,9 @@ export interface AdvisorHistoryLog {
 type HistoryListener = () => void;
 const listeners: Set<HistoryListener> = new Set();
 
+// In-memory cache keyed by className, populated from backend
+const memoryCache = new Map<string, AdvisorHistoryLog[]>();
+
 function notifyListeners() {
   listeners.forEach(fn => {
     try {
@@ -39,45 +42,80 @@ function notifyListeners() {
   });
 }
 
+/**
+ * Normalize a backend log record into the AdvisorHistoryLog shape.
+ * Handles missing fields gracefully for backwards compatibility.
+ */
+function normalizeLog(log: any): AdvisorHistoryLog {
+  return {
+    id: log.id || '',
+    timestamp: log.timestamp || '',
+    date: log.date || '',
+    dateFormatted: log.dateFormatted || '',
+    role: log.role || 'Class Advisor',
+    actorName: log.actorName || log.advisorName || 'Class Advisor',
+    advisorName: log.advisorName || log.actorName || 'Class Advisor',
+    actionType: log.actionType,
+    target: log.target || '',
+    details: log.details || '',
+    classSection: log.classSection || '',
+  };
+}
+
 export const AdvisorHistoryService = {
   getStorageKey(className: string = ''): string {
     return `siet_advisor_history_${className}`;
   },
 
+  /**
+   * Fetch history from the backend (authoritative source).
+   * Updates the in-memory cache, syncs to localStorage, and notifies listeners.
+   */
   async fetchHistory(className: string = ''): Promise<AdvisorHistoryLog[]> {
     if (!className) return [];
     try {
       const serverLogs = await ApiClient.getAdvisorHistory(className);
-      if (Array.isArray(serverLogs)) {
-        localStorage.setItem(this.getStorageKey(className), JSON.stringify(serverLogs));
-        notifyListeners();
-        return serverLogs;
-      }
+      const normalized = Array.isArray(serverLogs)
+        ? serverLogs.map(normalizeLog)
+        : [];
+      memoryCache.set(className, normalized);
+      try {
+        localStorage.setItem(this.getStorageKey(className), JSON.stringify(normalized));
+      } catch (e) {}
+      notifyListeners();
+      return normalized;
     } catch (e) {
       console.warn('Failed to fetch advisor history from backend:', e);
+      return this.getHistory(className);
     }
-    return this.getHistory(className);
   },
 
+  /**
+   * Get history from the in-memory cache, falling back to localStorage.
+   */
   getHistory(className: string = ''): AdvisorHistoryLog[] {
     if (!className) return [];
+    if (memoryCache.has(className)) {
+      return memoryCache.get(className) || [];
+    }
     const key = this.getStorageKey(className);
     try {
       const stored = localStorage.getItem(key);
       if (stored) {
         const parsed: AdvisorHistoryLog[] = JSON.parse(stored);
-        // Ensure role and actorName exist on legacy records
-        return parsed.map(log => ({
-          ...log,
-          role: log.role || 'Class Advisor',
-          actorName: log.actorName || log.advisorName || 'Class Advisor'
-        }));
+        const normalized = parsed.map(normalizeLog);
+        memoryCache.set(className, normalized);
+        return normalized;
       }
     } catch (e) {}
 
     return [];
   },
 
+  /**
+   * Add a new history log entry.
+   * Persists to the backend first, then updates the in-memory cache.
+   */
   addLog(
     className: string = '',
     actionType: AdvisorHistoryLog['actionType'],
@@ -86,7 +124,6 @@ export const AdvisorHistoryService = {
     actorName: string = 'Class Advisor',
     role: AdvisorHistoryLog['role'] = 'Class Advisor'
   ): AdvisorHistoryLog {
-    const list = this.getHistory(className);
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const dateFormatted = now.toLocaleDateString('en-GB', {
@@ -111,15 +148,13 @@ export const AdvisorHistoryService = {
       classSection: className
     };
 
-    list.unshift(newLog);
+    // Optimistically update in-memory cache
+    const current = memoryCache.get(className) || [];
+    current.unshift(newLog);
+    memoryCache.set(className, current);
+    notifyListeners();
 
-    try {
-      localStorage.setItem(this.getStorageKey(className), JSON.stringify(list));
-    } catch (e) {
-      console.error(e);
-    }
-
-    // Persist to backend
+    // Persist to backend (the authoritative source)
     ApiClient.logAdvisorHistory({
       className,
       actionType,
@@ -127,57 +162,44 @@ export const AdvisorHistoryService = {
       details,
       actorName,
       role
+    }).then(() => {
+      // Refresh from backend to get the server-generated ID
+      this.fetchHistory(className).catch(() => {});
     }).catch(err => {
       console.warn('Failed to persist advisor history log to backend:', err);
     });
 
-    notifyListeners();
     return newLog;
   },
 
-  getGuideHistory(guideName?: string): AdvisorHistoryLog[] {
-    const knownSections = ['CSE-A', 'CSE-B', 'CSE-C'];
-    const allLogs: AdvisorHistoryLog[] = [];
-    const seenIds = new Set<string>();
+  /**
+   * Get guide-specific history from the backend.
+   * Fetches advisor history and filters by role === 'Faculty Guide'.
+   * Optionally filters by guideName.
+   */
+  async getGuideHistory(guideName?: string, className?: string): Promise<AdvisorHistoryLog[]> {
+    // Fetch from backend for the given class section (or default)
+    const logs = await this.fetchHistory(className || 'CSE-B');
 
-    // 1. Fetch from dedicated guide store
-    try {
-      const guideStored = localStorage.getItem('siet_guide_action_history');
-      if (guideStored) {
-        const parsed: AdvisorHistoryLog[] = JSON.parse(guideStored);
-        parsed.forEach(log => {
-          if (!seenIds.has(log.id)) {
-            seenIds.add(log.id);
-            allLogs.push(log);
-          }
-        });
-      }
-    } catch (e) {}
+    // Filter to only Faculty Guide entries
+    let guideLogs = logs.filter(log => log.role === 'Faculty Guide');
 
-    // 2. Fetch from section stores where role === 'Faculty Guide'
-    knownSections.forEach(sec => {
-      const logs = this.getHistory(sec);
-      logs.forEach(log => {
-        if (log.role === 'Faculty Guide' && !seenIds.has(log.id)) {
-          seenIds.add(log.id);
-          allLogs.push(log);
-        }
-      });
-    });
-
-    // 3. Optional filter by guideName if specified
-    let result = allLogs;
+    // Optional filter by guideName
     if (guideName) {
       const target = guideName.toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
-      result = allLogs.filter(log => {
+      guideLogs = guideLogs.filter(log => {
         const actor = (log.actorName || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
         return !target || !actor || actor.includes(target) || target.includes(actor);
       });
     }
 
-    return result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return guideLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   },
 
+  /**
+   * Add a guide-specific history log.
+   * This is a convenience wrapper around addLog with role='Faculty Guide'.
+   */
   addGuideLog(
     actionType: AdvisorHistoryLog['actionType'],
     target: string,
@@ -185,21 +207,13 @@ export const AdvisorHistoryService = {
     guideName: string = '',
     classSection: string = ''
   ): AdvisorHistoryLog {
-    const log = this.addLog(classSection, actionType, target, details, guideName, 'Faculty Guide');
-
-    try {
-      const raw = localStorage.getItem('siet_guide_action_history');
-      const list: AdvisorHistoryLog[] = raw ? JSON.parse(raw) : [];
-      if (!list.some(x => x.id === log.id)) {
-        list.unshift(log);
-        localStorage.setItem('siet_guide_action_history', JSON.stringify(list));
-      }
-    } catch (e) {}
-
-    notifyListeners();
-    return log;
+    return this.addLog(classSection, actionType, target, details, guideName, 'Faculty Guide');
   },
 
+  /**
+   * Subscribe to history changes (e.g., for UI reactivity).
+   * Returns an unsubscribe function.
+   */
   subscribe(listener: HistoryListener): () => void {
     listeners.add(listener);
     return () => {

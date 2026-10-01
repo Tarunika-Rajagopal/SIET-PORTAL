@@ -251,7 +251,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
   useEffect(() => {
     const handleSync = () => {
-      setDeliverables(StudentService.getDeliverables(weekText));
+      setDeliverables(StudentService.getDeliverables(weekText, teamId));
       setSubmissions(StudentService.getSubmissions());
       setTeam(StudentService.getTeam());
       if (localStorage.getItem('siet_student_start_edit_mode') === 'true') {
@@ -270,10 +270,13 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   }, [teamId, weekText]);
 
   useEffect(() => {
-    setDeliverables(StudentService.getDeliverables(weekText));
+    setDeliverables(StudentService.getDeliverables(weekText, teamId));
     setBackendError(null);
+    const cleanTeamId = (teamId || team?.id || team?.teamNo || 'unknown').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+    const weekSlug = StudentService.normalizeWeekSlug(weekText);
+    const dateStorageKey = `siet_submission_date_${cleanTeamId}_${weekSlug}`;
     try {
-      const saved = localStorage.getItem(`siet_submission_date_${weekText}`);
+      const saved = localStorage.getItem(dateStorageKey);
       if (saved && saved <= todayDateStr) {
         setSubmissionDate(saved);
       } else {
@@ -285,7 +288,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         }
       }
     } catch (e) {}
-  }, [weekText, currentSubmissionNumber, submissions, todayDateStr]);
+  }, [weekText, currentSubmissionNumber, submissions, todayDateStr, teamId, team?.id, team?.teamNo]);
 
   // Retrieve saved milestone submission directly from the backend/database on load or week change
   useEffect(() => {
@@ -294,6 +297,10 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       try {
         const backendSub = await ApiClient.getStudentSubmissionByWeek(currentSubmissionNumber);
         if (!isMounted || !backendSub) return;
+
+        const cleanTeamId = (teamId || team?.id || team?.teamNo || 'unknown').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+        const weekSlug = StudentService.normalizeWeekSlug(weekText);
+        const dateStorageKey = `siet_submission_date_${cleanTeamId}_${weekSlug}`;
 
         // If backend has a saved record (has DB id, non-pending status, or populated deliverable content)
         if (
@@ -317,7 +324,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             demoUrl: backendSub.demoUrl,
             screenshotFile: backendSub.screenshotFile,
             submissionDate: backendSub.submissionDate,
-          });
+          }, teamId);
 
           if (!isMounted) return;
           setDeliverables(updated);
@@ -326,20 +333,19 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
           if (backendSub.submissionDate) {
             setSubmissionDate(backendSub.submissionDate);
             try {
-              localStorage.setItem(`siet_submission_date_${weekText}`, backendSub.submissionDate);
+              localStorage.setItem(dateStorageKey, backendSub.submissionDate);
             } catch (e) {}
           }
         } else {
           // Backend has NO saved record or it is Pending with empty fields:
           // Explicitly clear/reset form state to empty/default values so previous milestone state never persists
           if (!isMounted) return;
-          const key = `siet_deliverable_v6_${weekText.toLowerCase().replace(/\s+/g, '_')}`;
+          StudentService.clearDeliverables(weekText, teamId);
           try {
-            localStorage.removeItem(key);
-            localStorage.removeItem(`siet_submission_date_${weekText}`);
+            localStorage.removeItem(dateStorageKey);
           } catch (e) {}
 
-          const emptyState = StudentService.getDeliverables(weekText);
+          const emptyState = StudentService.getDeliverables(weekText, teamId);
           setDeliverables(emptyState);
           setProblemStatement('');
           setSolution('');
@@ -363,7 +369,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     return () => {
       isMounted = false;
     };
-  }, [currentSubmissionNumber, weekText, todayDateStr]);
+  }, [currentSubmissionNumber, weekText, todayDateStr, teamId, team?.id, team?.teamNo]);
 
   // Check if Class Advisor or Guide has already awarded marks for THIS specific milestone submission
   // Submission 1: check subNumber 1 or legacy 0
@@ -391,8 +397,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       return (tv && tv !== 'No Title Submitted' && tv !== 'Title Approval Pending') ? tv : '';
     }
     for (let sNum = currentSubmissionNumber - 1; sNum >= 1; sNum--) {
-      const d = StudentService.getDeliverables(`Submission ${sNum}`);
-      const dLeg = sNum === 1 ? StudentService.getDeliverables('Week 0') : null;
+      const d = StudentService.getDeliverables(`Submission ${sNum}`, teamId);
+      const dLeg = sNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
       const v = (d.projectTitle || dLeg?.projectTitle || '').trim();
       if (v && v !== 'No Title Submitted' && v !== 'Title Approval Pending') return v;
     }
@@ -419,8 +425,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     const resolveCarriedOverTitle = (currentVal: string): string => {
       if (currentVal && currentVal !== 'No Title Submitted' && currentVal !== 'Title Approval Pending') return currentVal;
       for (let subNum = currentSubmissionNumber - 1; subNum >= 1; subNum--) {
-        const d = StudentService.getDeliverables(`Submission ${subNum}`);
-        const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0') : null;
+        const d = StudentService.getDeliverables(`Submission ${subNum}`, teamId);
+        const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
         const val = (d.projectTitle || dLegacy?.projectTitle || '').trim();
         if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') return val;
       }
@@ -440,7 +446,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     setRepoUrl(deliverables.repoUrl || '');
     setDemoUrl(deliverables.demoUrl || '');
     setScreenshotName(deliverables.screenshotFile || '');
-  }, [deliverables, currentSubmissionNumber]);
+  }, [deliverables, currentSubmissionNumber, teamId]);
 
   // Project title locking rule:
   // Once project title is submitted and approved in a prior milestone, it is locked as read-only.
@@ -457,8 +463,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     for (let subNum = 1; subNum < currentSubmissionNumber; subNum++) {
       const isApproved = StudentService.isSubmissionApproved(subNum, teamId);
       if (isApproved) {
-        const d = StudentService.getDeliverables(`Submission ${subNum}`);
-        const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0') : null;
+        const d = StudentService.getDeliverables(`Submission ${subNum}`, teamId);
+        const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
         const val = (d.projectTitle || dLegacy?.projectTitle || team?.projectTitle || team?.submittedTitle || '').trim();
         if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') {
           return true;
@@ -467,8 +473,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     }
 
     for (let subNum = 1; subNum < currentSubmissionNumber; subNum++) {
-      const d = StudentService.getDeliverables(`Submission ${subNum}`);
-      const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0') : null;
+      const d = StudentService.getDeliverables(`Submission ${subNum}`, teamId);
+      const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
       const val = (d.projectTitle || dLegacy?.projectTitle || team?.projectTitle || team?.submittedTitle || '').trim();
       if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') {
         return true;
@@ -484,8 +490,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
     // Search previous milestones from most recent to earliest
     for (let subNum = currentSubmissionNumber - 1; subNum >= 1; subNum--) {
-      const d = StudentService.getDeliverables(`Submission ${subNum}`);
-      const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0') : null;
+      const d = StudentService.getDeliverables(`Submission ${subNum}`, teamId);
+      const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
       const val = (d.projectTitle || dLegacy?.projectTitle || '').trim();
       if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') return val;
     }

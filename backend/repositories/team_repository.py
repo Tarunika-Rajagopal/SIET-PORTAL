@@ -14,7 +14,7 @@ class TeamRepository:
 
     async def get_by_id(self, team_id: uuid.UUID) -> Optional[Team]:
         res = await self.session.execute(select(Team).where(Team.id == team_id))
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
     @staticmethod
     def _class_variants(raw: str) -> List[str]:
@@ -35,8 +35,6 @@ class TeamRepository:
     async def get_by_team_id_string(self, team_id_str: str) -> Optional[Team]:
         cleaned = team_id_str.strip()
         digits = "".join(c for c in cleaned if c.isdigit())
-        num = int(digits) if digits else None
-
         conds = [Team.team_id == cleaned, Team.team_no == cleaned]
         try:
             parsed_uuid = uuid.UUID(cleaned)
@@ -177,7 +175,7 @@ class TeamRepository:
                 TeamMember.roll_no == roll_no.strip(),
             )
         )
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
     async def list_members_by_team_id(self, team_id: uuid.UUID) -> List[TeamMember]:
         res = await self.session.execute(

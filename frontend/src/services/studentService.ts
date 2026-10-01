@@ -1,6 +1,5 @@
 import { Team, WeeklySubmission, ReviewScore, ChecklistState, Announcement, GuideNotice } from '../types';
 import { ApiClient } from './apiClient';
-import { INITIAL_TEAMS } from '../data/guidePortalData';
 import { MarksService } from './marksService';
 import { AuthService } from './authService';
 
@@ -22,39 +21,6 @@ try {
     }
   }
   keysToRemove.forEach(k => localStorage.removeItem(k));
-
-  // Purge any legacy mock submissions from v6 storage (only purge explicit mock titles)
-  const guideRaw = localStorage.getItem("siet_guide_portal_teams_v6");
-  if (guideRaw) {
-    const guideTeams = JSON.parse(guideRaw);
-    if (Array.isArray(guideTeams)) {
-      let cleaned = false;
-      guideTeams.forEach((t: any) => {
-        if (t.teamId !== 'TEAM-CSE-Y3-B04' && t.teamNumber !== 4) {
-          const isMockTitle = (
-            t.projectTitle === 'Wildfire Prediction Mesh Network' ||
-            t.projectTitle === 'Automated Legal Document Summarizer' ||
-            t.projectTitle === 'Autonomous Solar Panel Cleaning Drone'
-          );
-          if (isMockTitle) {
-            t.submissions = [];
-            t.projectTitle = '';
-            t.problemStatement = '';
-            t.proposedSolution = '';
-            t.technologiesUsed = [];
-            t.githubUrl = '';
-            t.liveDemoUrl = '';
-            t.abstract = '';
-            t.titleStatus = 'Pending';
-            cleaned = true;
-          }
-        }
-      });
-      if (cleaned) {
-        localStorage.setItem("siet_guide_portal_teams_v6", JSON.stringify(guideTeams));
-      }
-    }
-  }
 } catch (e) { }
 
 const TEAM_STORAGE_KEY = "siet_student_team_v6";
@@ -92,15 +58,41 @@ export interface StudentDeliverableState {
 
 export interface StudentTeamExtended extends Team {
   submittedTitle?: string;
+  teamNumber?: number;
   isTitleApproved: boolean;
   guideApprovalStatus: 'Approved' | 'Pending Review' | 'Pending' | 'Revision Required' | 'Rejected';
   rejectionReason?: string;
+}
+
+// Helper to scope team storage key dynamically to prevent cross-team contamination
+function getTeamStorageKey(teamId?: string): string {
+  const user = AuthService.getCurrentUser();
+  const rawId = (teamId || user?.teamId || user?.teamNo || '').trim();
+  const cleanId = rawId ? rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '_') : 'unassigned';
+  return `siet_student_team_v6_${cleanId}`;
+}
+
+// Helper to scope student submissions storage key dynamically to prevent cross-team contamination
+function getSubmissionsStorageKey(teamId?: string): string {
+  const user = AuthService.getCurrentUser();
+  const rawId = (teamId || user?.teamId || user?.teamNo || '').trim();
+  const cleanId = rawId ? rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '_') : 'unassigned';
+  return `siet_student_submissions_v6_${cleanId}`;
 }
 
 // Build a default team object from the authenticated user's profile instead of hardcoding Team 04.
 // This ensures the fallback always matches the logged-in student's actual team assignment.
 function buildDefaultTeamFromUser(): StudentTeamExtended {
   const user = AuthService.getCurrentUser();
+  const initialMembers = user && user.name && user.rollNo ? [{
+    rollNo: user.rollNo,
+    name: user.name,
+    email: user.email || '',
+    phone: '',
+    role: (user as any).isLead ? 'Team Lead' : 'Team Member',
+    isLead: Boolean((user as any).isLead),
+  }] : [];
+
   return {
     id: user?.teamId || '',
     teamNo: user?.teamNo || '',
@@ -114,7 +106,7 @@ function buildDefaultTeamFromUser(): StudentTeamExtended {
     section: user?.class || '',
     status: 'In Progress',
     progress: 0,
-    members: [],
+    members: initialMembers,
   };
 }
 
@@ -134,15 +126,27 @@ export const StudentService = {
   },
 
   getTeam(): StudentTeamExtended {
+    const currentUser = AuthService.getCurrentUser();
     let team: StudentTeamExtended = buildDefaultTeamFromUser();
     try {
-      const stored = localStorage.getItem(TEAM_STORAGE_KEY);
-      if (stored) team = JSON.parse(stored);
+      const scopedKey = getTeamStorageKey(currentUser?.teamId);
+      const stored = localStorage.getItem(scopedKey) || localStorage.getItem(TEAM_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Ensure cached team belongs to the authenticated student
+        const isMatch = currentUser && (
+          (currentUser.teamId && parsed.id === currentUser.teamId) ||
+          (currentUser.teamNo && parsed.teamNo === currentUser.teamNo) ||
+          (Array.isArray(parsed.members) && currentUser.rollNo && parsed.members.some((m: any) => m.rollNo === currentUser.rollNo))
+        );
+        if (isMatch) {
+          team = parsed;
+        }
+      }
     } catch (e) { }
 
     // Check if the current user belongs to another class team in advisor records
     try {
-      const currentUser = AuthService.getCurrentUser();
       if (currentUser && team?.members && !team.members.some((m: any) =>
         (currentUser.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === currentUser.rollNo.trim().toLowerCase()) ||
         (currentUser.email && m.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
@@ -211,7 +215,8 @@ export const StudentService = {
     if (team.isTitleApproved) {
       if (!team.projectTitle || team.projectTitle === 'No Title Submitted' || team.projectTitle === 'Title Approval Pending') {
         try {
-          const d1 = localStorage.getItem('siet_deliverable_v6_submission_1');
+          const d1Key = this.getDeliverableKey('Submission 1', team.id);
+          const d1 = localStorage.getItem(d1Key);
           if (d1) {
             const p1 = JSON.parse(d1);
             if (p1?.projectTitle && p1.projectTitle.trim()) {
@@ -242,7 +247,7 @@ export const StudentService = {
       const cached = localStorage.getItem('siet_week_release_status');
       if (cached) return JSON.parse(cached);
     } catch (e) { }
-    return { '1': true, '2': true, '3': false, '4': false };
+    return { '1': true };
   },
 
   isCurrentUserTeamLead(teamToCheck?: Team | StudentTeamExtended): boolean {
@@ -260,12 +265,7 @@ export const StudentService = {
     const userEmail = (user.email || '').trim().toLowerCase();
     const userName = (user.name || '').trim().toLowerCase();
 
-    // 1. Direct check on default lead email/roll
-    if (userEmail === 'student@srishakthi.ac.in' || userRoll === '714023104112') {
-      return true;
-    }
-
-    // 2. Check team level designated lead fields
+    // 1. Check team level designated lead fields
     if (team) {
       const leadRoll = ((team as any).lead_roll_no || (team as any).leadRollNo || '').trim().toLowerCase();
       const leadName = ((team as any).lead_student || (team as any).leadStudent || '').trim().toLowerCase();
@@ -328,6 +328,9 @@ export const StudentService = {
   },
 
   saveTeam(team: StudentTeamExtended): void {
+    if (!team) return;
+    const scopedKey = getTeamStorageKey(team.id);
+    localStorage.setItem(scopedKey, JSON.stringify(team));
     localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(team));
     window.dispatchEvent(new Event('siet_data_updated'));
   },
@@ -354,6 +357,7 @@ export const StudentService = {
             name: m.name,
             email: m.email,
             role: m.isLead ? 'Team Lead' : 'Team Member',
+            isLead: Boolean(m.isLead),
           })),
         };
         this.saveTeam(teamObj);
@@ -368,10 +372,9 @@ export const StudentService = {
   async fetchSubmissionsFromBackend(): Promise<WeeklySubmission[]> {
     try {
       const serverSubs = await ApiClient.getStudentSubmissions();
-      if (Array.isArray(serverSubs) && serverSubs.length > 0) {
-        localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(serverSubs));
+      if (Array.isArray(serverSubs)) {
+        this.saveSubmissions(serverSubs);
         window.dispatchEvent(new Event('siet_student_submissions_updated'));
-        window.dispatchEvent(new Event('siet_data_updated'));
         return serverSubs;
       }
     } catch (e) {
@@ -381,26 +384,24 @@ export const StudentService = {
   },
 
   getSubmissions(): WeeklySubmission[] {
+    const currentUser = AuthService.getCurrentUser();
+    const scopedKey = getSubmissionsStorageKey(currentUser?.teamId);
     try {
-      const stored = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
+      const stored = localStorage.getItem(scopedKey) || localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           let isGuideApproved = false;
           try {
-            const tRaw = localStorage.getItem(TEAM_STORAGE_KEY);
+            const teamKey = getTeamStorageKey(currentUser?.teamId);
+            const tRaw = localStorage.getItem(teamKey) || localStorage.getItem(TEAM_STORAGE_KEY);
             if (tRaw) {
               const parsedT = JSON.parse(tRaw);
               isGuideApproved = Boolean(parsedT?.isTitleApproved || parsedT?.guideApprovalStatus === 'Approved');
             }
           } catch (e) { }
 
-          return parsed.filter((sub: any) => {
-            if (!sub || typeof sub !== 'object') return false;
-            if (sub.presentationFile === 'mock_ppt_w0' || sub.presentationFile === 'Week0_Topic_Feasibility_Tarunika.pptx') return false;
-            if (sub.title === 'Topic Finalization & Feasibility Defense') return false;
-            return true;
-          }).map((sub: any) => {
+          return parsed.filter((sub: any) => Boolean(sub && typeof sub === 'object')).map((sub: any) => {
             if (sub.week === 0 && isGuideApproved && (sub.status === 'Submitted' || sub.status === 'Pending' || !sub.status)) {
               return { ...sub, status: 'Approved' as const };
             }
@@ -409,12 +410,16 @@ export const StudentService = {
         }
       }
     } catch (e) { }
-    localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(DEFAULT_COMPLETED_WEEKS));
     return DEFAULT_COMPLETED_WEEKS;
   },
 
-  saveSubmissions(submissions: WeeklySubmission[]): void {
-    localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(submissions));
+  saveSubmissions(submissions: WeeklySubmission[], teamIdOverride?: string): void {
+    const currentUser = AuthService.getCurrentUser();
+    const scopedKey = getSubmissionsStorageKey(teamIdOverride || currentUser?.teamId);
+    try {
+      localStorage.setItem(scopedKey, JSON.stringify(submissions));
+      localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(submissions));
+    } catch (e) {}
     window.dispatchEvent(new Event('siet_data_updated'));
   },
 
@@ -427,29 +432,16 @@ export const StudentService = {
     const isStudentTeam = Boolean(currentTeam?.id && (tId === currentTeam.id || tId === currentTeam.teamNo));
 
     if (isStudentTeam) {
+      if (currentTeam.isTitleApproved || currentTeam.guideApprovalStatus === 'Approved') return true;
       try {
-        const stored = localStorage.getItem(TEAM_STORAGE_KEY);
+        const scopedKey = getTeamStorageKey(tId);
+        const stored = localStorage.getItem(scopedKey) || localStorage.getItem(TEAM_STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
           if (parsed && (parsed.isTitleApproved || parsed.guideApprovalStatus === 'Approved')) return true;
         }
       } catch (e) { }
     }
-
-    try {
-      const rawGuide = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
-      if (rawGuide) {
-        const guideTeams = JSON.parse(rawGuide);
-        const gt = guideTeams.find((t: any) => t.teamId === tId || t.id === tId || t.teamNo === tId);
-        if (gt) {
-          if (gt.titleStatus === 'Approved' || gt.titleLocked === true) return true;
-          if (gt.submissions && gt.submissions[0]) {
-            const s0 = gt.submissions[0];
-            if (s0.evaluationStatus === 'Approved' || s0.status === 'Approved') return true;
-          }
-        }
-      }
-    } catch (e) { }
 
     const marks = MarksService.getWeeklyMarks(tId, 1);
     if (marks && (marks.teamAverage > 0 || (marks.memberMarks && Object.keys(marks.memberMarks).length > 0))) {
@@ -461,16 +453,9 @@ export const StudentService = {
     }
 
     if (isStudentTeam) {
-      try {
-        const sRaw = localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
-        if (sRaw) {
-          const parsedS = JSON.parse(sRaw);
-          if (Array.isArray(parsedS)) {
-            const s0 = parsedS.find((s: any) => s.week === 0);
-            if (s0 && s0.status === 'Approved') return true;
-          }
-        }
-      } catch (e) { }
+      const subs = this.getSubmissions();
+      const s0 = subs.find((s: any) => s.week === 0 || s.week === 1);
+      if (s0 && s0.status === 'Approved') return true;
     }
 
     return false;
@@ -485,18 +470,6 @@ export const StudentService = {
     const isStudentTeam = Boolean(currentTeam?.id && (tId === currentTeam.id || tId === currentTeam.teamNo));
     const weekIndex = subNumber - 1;
 
-    try {
-      const rawGuide = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
-      if (rawGuide) {
-        const guideTeams = JSON.parse(rawGuide);
-        const gt = guideTeams.find((t: any) => t.teamId === tId || t.id === tId || t.teamNo === tId);
-        if (gt && gt.submissions) {
-          const sub = gt.submissions.find((s: any) => s.weekNumber === weekIndex || s.submissionNumber === subNumber);
-          if (sub && (sub.evaluationStatus === 'Approved' || sub.status === 'Approved')) return true;
-        }
-      }
-    } catch (e) { }
-
     const marks = MarksService.getWeeklyMarks(tId, subNumber) ||
       MarksService.getWeeklyMarks(tId, weekIndex);
     if (marks && (marks.teamAverage > 0 || (marks.memberMarks && Object.keys(marks.memberMarks).length > 0))) {
@@ -505,7 +478,7 @@ export const StudentService = {
 
     if (isStudentTeam) {
       const subs = this.getSubmissions();
-      const sub = subs.find(s => s.week === weekIndex);
+      const sub = subs.find(s => s.week === weekIndex || s.week === subNumber);
       if (sub && sub.status === 'Approved') return true;
     }
 
@@ -521,28 +494,53 @@ export const StudentService = {
     return 4;
   },
 
-  getDeliverables(weekText: string): StudentDeliverableState {
-    const key = `siet_deliverable_v6_${weekText.replace(/\s+/g, '_').toLowerCase()}`;
+  normalizeWeekSlug(weekText: string): string {
+    const lower = (weekText || '').trim().toLowerCase();
+    if (lower === 'week 0' || lower === 'week_0' || lower === 'submission 1' || lower === 'submission_1') {
+      return 'submission_1';
+    }
+    if (lower === 'week 1' || lower === 'week_1' || lower === 'submission 2' || lower === 'submission_2') {
+      return 'submission_2';
+    }
+    if (lower === 'week 2' || lower === 'week_2' || lower === 'submission 3' || lower === 'submission_3') {
+      return 'submission_3';
+    }
+    if (lower === 'week 3' || lower === 'week_3' || lower === 'submission 4' || lower === 'submission_4') {
+      return 'submission_4';
+    }
+    if (lower.startsWith('week ')) {
+      const num = parseInt(lower.replace('week ', ''), 10);
+      if (!isNaN(num)) return `submission_${num + 1}`;
+    }
+    if (lower.startsWith('submission ')) {
+      const num = parseInt(lower.replace('submission ', ''), 10);
+      if (!isNaN(num)) return `submission_${num}`;
+    }
+    return lower.replace(/\s+/g, '_');
+  },
+
+  getDeliverableKey(weekText: string, teamIdOverride?: string): string {
+    const user = AuthService.getCurrentUser();
+    const rawId = (teamIdOverride || user?.teamId || user?.teamNo || '').trim();
+    const cleanId = rawId ? rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '_') : 'unassigned';
+    const weekSlug = this.normalizeWeekSlug(weekText);
+    return `siet_deliverable_v6_${cleanId}_${weekSlug}`;
+  },
+
+  clearDeliverables(weekText: string, teamIdOverride?: string): void {
+    const key = this.getDeliverableKey(weekText, teamIdOverride);
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {}
+  },
+
+  getDeliverables(weekText: string, teamIdOverride?: string): StudentDeliverableState {
+    const key = this.getDeliverableKey(weekText, teamIdOverride);
     let loadedState: StudentDeliverableState | null = null;
     try {
       const stored = localStorage.getItem(key);
       if (stored) {
         loadedState = JSON.parse(stored);
-      } else {
-        const wLower = weekText.toLowerCase();
-        if (wLower.includes('submission 1') || wLower === 'week 0' || wLower === 'week_0') {
-          const fallback = localStorage.getItem('siet_deliverable_v6_submission_1') || localStorage.getItem('siet_deliverable_v6_week_0');
-          if (fallback) loadedState = JSON.parse(fallback);
-        } else if (wLower.includes('submission 2') || wLower === 'week 1' || wLower === 'week_1') {
-          const fallback = localStorage.getItem('siet_deliverable_v6_submission_2') || localStorage.getItem('siet_deliverable_v6_week_1');
-          if (fallback) loadedState = JSON.parse(fallback);
-        } else if (wLower.includes('submission 3') || wLower === 'week 2' || wLower === 'week_2') {
-          const fallback = localStorage.getItem('siet_deliverable_v6_submission_3') || localStorage.getItem('siet_deliverable_v6_week_2');
-          if (fallback) loadedState = JSON.parse(fallback);
-        } else if (wLower.includes('submission 4') || wLower === 'week 3' || wLower === 'week_3') {
-          const fallback = localStorage.getItem('siet_deliverable_v6_submission_4') || localStorage.getItem('siet_deliverable_v6_week_3');
-          if (fallback) loadedState = JSON.parse(fallback);
-        }
       }
     } catch (e) { }
 
@@ -592,15 +590,15 @@ export const StudentService = {
       }
 
       const team = this.getTeam();
+      const currentTeamId = teamIdOverride || team?.id;
       let latestTitle = '';
 
       for (let sNum = 1; sNum < currentSubNum; sNum++) {
-        if (this.isSubmissionApproved(sNum)) {
-          const dPrevKey = `siet_deliverable_v6_submission_${sNum}`;
-          const dLegacyKey = sNum === 1 ? 'siet_deliverable_v6_week_0' : null;
+        if (this.isSubmissionApproved(sNum, currentTeamId)) {
+          const dPrevKey = this.getDeliverableKey(`Submission ${sNum}`, currentTeamId);
           let dPrev: any = null;
           try {
-            const rawPrev = localStorage.getItem(dPrevKey) || (dLegacyKey ? localStorage.getItem(dLegacyKey) : null);
+            const rawPrev = localStorage.getItem(dPrevKey);
             if (rawPrev) dPrev = JSON.parse(rawPrev);
           } catch (e) { }
 
@@ -638,10 +636,11 @@ export const StudentService = {
       demoUrl?: string;
       screenshotFile?: string;
       submissionDate?: string;
-    }
+    },
+    teamIdOverride?: string
   ): StudentDeliverableState {
-    const key = `siet_deliverable_v6_${weekText.replace(/\s+/g, '_').toLowerCase()}`;
-    const current = this.getDeliverables(weekText);
+    const key = this.getDeliverableKey(weekText, teamIdOverride);
+    const current = this.getDeliverables(weekText, teamIdOverride);
 
     if (data.projectTitle !== undefined) {
       current.projectTitle = data.projectTitle;
@@ -741,7 +740,7 @@ export const StudentService = {
           repoUrl: current.repoUrl,
           demoUrl: current.demoUrl,
           screenshotFile: current.screenshotFile,
-          guideName: this.getTeam().guideName || 'Dr. P. Manimegalai'
+          guideName: this.getTeam().guideName || ''
         };
         list.push(item);
       } else {
@@ -760,82 +759,6 @@ export const StudentService = {
         if (current.screenshotFile) item.screenshotFile = current.screenshotFile;
       }
       this.saveSubmissions(list);
-    } catch (e) {
-      console.error(e);
-    }
-
-    // 2. Synchronize directly into Guide Portal
-    try {
-      const rawTeams = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
-      let guideTeams = rawTeams ? JSON.parse(rawTeams) : [];
-      if (!Array.isArray(guideTeams) || guideTeams.length === 0) {
-        guideTeams = INITIAL_TEAMS;
-      }
-      const studentTeamId = this.getTeam()?.id || '';
-      let guideTeam = guideTeams.find((t: any) => t.teamId === studentTeamId || t.id === studentTeamId) || guideTeams[0];
-      if (guideTeam) {
-        if (current.projectTitle) guideTeam.projectTitle = current.projectTitle;
-        if (current.problemStatement) guideTeam.problemStatement = current.problemStatement;
-        if (current.solution) guideTeam.proposedSolution = current.solution;
-        if (current.technologyUsed) guideTeam.technologiesUsed = current.technologyUsed.split(',').map((s: string) => s.trim());
-        if (current.repoUrl) guideTeam.githubUrl = current.repoUrl;
-        if (current.demoUrl) guideTeam.liveDemoUrl = current.demoUrl;
-        if (current.abstract) guideTeam.abstract = current.abstract;
-
-        if (!guideTeam.submissions) guideTeam.submissions = [];
-        let sub = guideTeam.submissions.find((s: any) => s.weekNumber === weekNum || s.submissionNumber === submissionNum);
-        const isPdf = Boolean(current.presentationFile && current.presentationFile.toLowerCase().endsWith('.pdf'));
-        const isPpt = Boolean(current.presentationFile && (current.presentationFile.toLowerCase().endsWith('.ppt') || current.presentationFile.toLowerCase().endsWith('.pptx')));
-
-        if (!sub) {
-          sub = {
-            weekNumber: weekNum,
-            submissionNumber: submissionNum,
-            title: `Submission ${submissionNum}`,
-            submissionDate: data.submissionDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-            submissionStatus: 'Submitted On Time',
-            evaluationStatus: 'Pending',
-            isLocked: false,
-            guideRemarks: '',
-            abstractSummary: current.abstract || '',
-            problemStatement: current.problemStatement || '',
-            proposedSolution: current.solution || '',
-            technologiesUsed: current.technologyUsed ? current.technologyUsed.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-            githubUrl: current.repoUrl || '',
-            liveDemoUrl: current.demoUrl || '',
-            presentationFileName: current.presentationFile || '',
-            reportUrl: current.reportFile || (isPdf ? current.presentationFile : ''),
-            pdfFile: current.reportFile || (isPdf ? current.presentationFile : ''),
-            pptUrl: isPpt ? current.presentationFile : '',
-            images: current.screenshotFile ? [current.screenshotFile] : [],
-            problemsFaced: current.obstaclesFaced || '',
-            obstaclesFaced: current.obstaclesFaced || '',
-            nextWeekPlan: ''
-          };
-          guideTeam.submissions.push(sub);
-        } else {
-          sub.submissionStatus = 'Submitted On Time';
-          sub.evaluationStatus = 'Pending';
-          sub.submissionDate = data.submissionDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-          if (current.abstract) sub.abstractSummary = current.abstract;
-          if (current.problemStatement) sub.problemStatement = current.problemStatement;
-          if (current.solution) sub.proposedSolution = current.solution;
-          if (current.technologyUsed) sub.technologiesUsed = current.technologyUsed.split(',').map((s: string) => s.trim()).filter(Boolean);
-          if (current.obstaclesFaced) { sub.problemsFaced = current.obstaclesFaced; sub.obstaclesFaced = current.obstaclesFaced; }
-          if (current.reportFile) { sub.reportUrl = current.reportFile; sub.pdfFile = current.reportFile; }
-          if (current.presentationFile) {
-            sub.presentationFileName = current.presentationFile;
-            if (isPdf) { sub.reportUrl = current.presentationFile; sub.pdfFile = current.presentationFile; sub.pptUrl = ''; }
-            else { sub.pptUrl = current.presentationFile; }
-          }
-          if (current.repoUrl) sub.githubUrl = current.repoUrl;
-          if (current.demoUrl) sub.liveDemoUrl = current.demoUrl;
-          if (current.screenshotFile) sub.images = [current.screenshotFile];
-        }
-
-        guideTeam.latestSubmissionStatus = `Submission ${submissionNum} Deliverables Submitted for Review`;
-        localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
-      }
     } catch (e) {
       console.error(e);
     }
@@ -862,7 +785,7 @@ export const StudentService = {
     field: keyof StudentDeliverableState['submittedFields'],
     value: string
   ): StudentDeliverableState {
-    const key = `siet_deliverable_v6_${weekText.replace(/\s+/g, '_').toLowerCase()}`;
+    const key = this.getDeliverableKey(weekText);
     const current = this.getDeliverables(weekText);
 
     if (field === 'title') {
@@ -940,7 +863,7 @@ export const StudentService = {
           repoUrl: current.repoUrl,
           demoUrl: current.demoUrl,
           screenshotFile: current.screenshotFile,
-          guideName: this.getTeam().guideName || 'Dr. P. Manimegalai'
+          guideName: this.getTeam().guideName || ''
         };
         list.push(item);
       } else {
@@ -963,110 +886,16 @@ export const StudentService = {
       console.error('Error saving submission ledger:', e);
     }
 
-    // 2. Synchronize directly into Guide Portal storage (siet_guide_portal_teams_v6)
     try {
-      const rawTeams = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
-      let guideTeams = rawTeams ? JSON.parse(rawTeams) : [];
-      if (!Array.isArray(guideTeams) || guideTeams.length === 0) {
-        guideTeams = INITIAL_TEAMS;
+      const studentTeam = this.getTeam();
+      if (studentTeam.guideApprovalStatus === 'Rejected') {
+        studentTeam.guideApprovalStatus = 'Pending';
+        studentTeam.rejectionReason = '';
+        this.saveTeam(studentTeam);
       }
+    } catch (e) { }
 
-      const studentTeamId = this.getTeam()?.id || '';
-      let guideTeam = guideTeams.find((t: any) => t.teamId === studentTeamId || t.id === studentTeamId) || guideTeams[0];
-      if (guideTeam) {
-        if (current.projectTitle) {
-          guideTeam.projectTitle = current.projectTitle;
-        }
-        if (field === 'title' || guideTeam.titleStatus === 'Rejected') {
-          guideTeam.titleStatus = 'Pending';
-          guideTeam.titleLocked = false;
-          guideTeam.rejectionReason = '';
-          guideTeam.latestSubmissionStatus = `${field.toUpperCase()} Submitted – Pending Guide Review`;
-        }
-
-        try {
-          const studentTeam = this.getTeam();
-          if (studentTeam.guideApprovalStatus === 'Rejected') {
-            studentTeam.guideApprovalStatus = 'Pending';
-            studentTeam.rejectionReason = '';
-            this.saveTeam(studentTeam);
-          }
-        } catch (e) { }
-
-        if (current.problemStatement) guideTeam.problemStatement = current.problemStatement;
-        if (current.solution) guideTeam.proposedSolution = current.solution;
-        if (current.technologyUsed) guideTeam.technologiesUsed = current.technologyUsed.split(',').map((s: string) => s.trim());
-        if (current.repoUrl) guideTeam.githubUrl = current.repoUrl;
-        if (current.demoUrl) guideTeam.liveDemoUrl = current.demoUrl;
-        if (current.abstract) guideTeam.abstract = current.abstract;
-
-        if (!guideTeam.submissions) guideTeam.submissions = [];
-        let sub = guideTeam.submissions.find((s: any) => s.weekNumber === weekNum);
-
-        const isPdf = Boolean(current.presentationFile && current.presentationFile.toLowerCase().endsWith('.pdf'));
-        const isPpt = Boolean(current.presentationFile && (current.presentationFile.toLowerCase().endsWith('.ppt') || current.presentationFile.toLowerCase().endsWith('.pptx')));
-
-        if (!sub) {
-          sub = {
-            weekNumber: weekNum,
-            title: `Week ${weekNum}`,
-            submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-            submissionStatus: 'Submitted On Time',
-            evaluationStatus: 'Pending',
-            isLocked: false,
-            guideRemarks: '',
-            abstractSummary: current.abstract || '',
-            problemStatement: current.problemStatement || '',
-            proposedSolution: current.solution || '',
-            technologiesUsed: current.technologyUsed ? current.technologyUsed.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-            githubUrl: current.repoUrl || '',
-            liveDemoUrl: current.demoUrl || '',
-            presentationFileName: current.presentationFile || '',
-            reportUrl: current.reportFile || (isPdf ? current.presentationFile : ''),
-            pdfFile: current.reportFile || (isPdf ? current.presentationFile : ''),
-            pptUrl: isPpt ? current.presentationFile : '',
-            images: current.screenshotFile ? [current.screenshotFile] : [],
-            problemsFaced: current.obstaclesFaced || '',
-            obstaclesFaced: current.obstaclesFaced || '',
-            nextWeekPlan: ''
-          };
-          guideTeam.submissions.push(sub);
-        } else {
-          sub.submissionStatus = 'Submitted On Time';
-          sub.evaluationStatus = 'Pending';
-          sub.submissionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-          if (field === 'abstract') sub.abstractSummary = value;
-          if (field === 'problemStatement') sub.problemStatement = value;
-          if (field === 'solution') sub.proposedSolution = value;
-          if (field === 'technologyUsed') sub.technologiesUsed = value ? value.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-          if (field === 'obstaclesFaced') { sub.problemsFaced = value; sub.obstaclesFaced = value; }
-          if (field === 'report') {
-            sub.reportUrl = value;
-            sub.pdfFile = value;
-          }
-          if (field === 'presentation') {
-            sub.presentationFileName = value;
-            if (value.toLowerCase().endsWith('.pdf')) {
-              sub.reportUrl = value;
-              sub.pdfFile = value;
-              sub.pptUrl = '';
-            } else {
-              sub.pptUrl = value;
-            }
-          }
-          if (field === 'repoUrl') sub.githubUrl = value;
-          if (field === 'demoUrl') sub.liveDemoUrl = value;
-          if (field === 'screenshot') sub.images = value ? [value] : [];
-        }
-
-        guideTeam.latestSubmissionStatus = `Week ${weekNum} Deliverables Submitted for Review`;
-        localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
-      }
-    } catch (e) {
-      console.error('Error syncing guide team:', e);
-    }
-
-    // 3. Send asynchronous API call to Backend
+    // 2. Send asynchronous API call to Backend
     ApiClient.submitStudentDeliverables(weekNum, {
       problemStatement: current.problemStatement,
       solution: current.solution,
@@ -1116,8 +945,8 @@ export const StudentService = {
       this.saveSubmissions(list);
 
       // 2. Clear deliverable state for that week
-      const key = `siet_deliverable_v6_week_${weekNumber}`;
-      localStorage.removeItem(key);
+      this.clearDeliverables(`Week ${weekNumber}`, team.id);
+      this.clearDeliverables(`Submission ${weekNumber + 1}`, team.id);
 
       // 3. Reset title & status in student team
       team.projectTitle = '';
@@ -1126,30 +955,7 @@ export const StudentService = {
       team.guideApprovalStatus = 'Pending Review';
       this.saveTeam(team);
 
-      // 4. Reset Guide Portal storage so guide reflects clean unsubmitted state
-      try {
-        const rawTeams = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
-        let guideTeams = rawTeams ? JSON.parse(rawTeams) : [];
-        if (Array.isArray(guideTeams) && guideTeams.length > 0) {
-          const guideTeam = guideTeams.find((t: any) => t.teamId === team.id || t.id === team.id) || guideTeams[0];
-          if (guideTeam) {
-            guideTeam.submissions = (guideTeam.submissions || []).filter((s: any) => s.weekNumber !== weekNumber);
-            guideTeam.projectTitle = '';
-            guideTeam.titleStatus = 'Pending';
-            guideTeam.titleLocked = false;
-            guideTeam.latestSubmissionStatus = 'Awaiting Student Title Submission';
-            guideTeam.problemStatement = '';
-            guideTeam.proposedSolution = '';
-            guideTeam.technologiesUsed = [];
-            guideTeam.githubUrl = '';
-            guideTeam.liveDemoUrl = '';
-            guideTeam.abstract = '';
-            localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
-          }
-        }
-      } catch (e) { }
-
-      // 5. Reset Advisor Portal storage and marks across all portals so marks become unassigned
+      // 4. Reset marks across all portals so marks become unassigned
       try {
         const memberRollNos = team?.members?.map(m => m.rollNo) || [];
         MarksService.deleteWeeklyMarks(team.id, weekNumber, memberRollNos);
@@ -1168,10 +974,10 @@ export const StudentService = {
         }
       } catch (e) { }
 
-      // 6. Asynchronous call to backend to delete submission
+      // 5. Asynchronous call to backend to delete submission
       ApiClient.deleteStudentSubmission(weekNumber).catch(() => { });
 
-      // 7. Global event dispatch
+      // 6. Global event dispatch
       window.dispatchEvent(new Event('siet_data_updated'));
       window.dispatchEvent(new Event('siet_marks_updated'));
       window.dispatchEvent(new Event('storage'));
@@ -1204,28 +1010,6 @@ export const StudentService = {
     team.progress = 0;
     this.saveTeam(team);
 
-    // Reset guide portal
-    try {
-      const rawTeams = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
-      let guideTeams = rawTeams ? JSON.parse(rawTeams) : [];
-      if (Array.isArray(guideTeams)) {
-        guideTeams.forEach((t: any) => {
-          t.submissions = [];
-          t.projectTitle = '';
-          t.titleStatus = 'Pending';
-          t.titleLocked = false;
-          t.latestSubmissionStatus = 'Awaiting Student Title Submission';
-          t.problemStatement = '';
-          t.proposedSolution = '';
-          t.technologiesUsed = [];
-          t.githubUrl = '';
-          t.liveDemoUrl = '';
-          t.abstract = '';
-        });
-        localStorage.setItem(GUIDE_TEAMS_STORAGE_KEY, JSON.stringify(guideTeams));
-      }
-    } catch (e) { }
-
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
   },
@@ -1241,7 +1025,7 @@ export const StudentService = {
           dueDate: `Week ${weekNumber}`,
           status: 'Pending',
           guideNotice: notice,
-          guideName: this.getTeam().guideName || 'Dr. P. Manimegalai'
+          guideName: this.getTeam().guideName || ''
         };
         list.push(item);
       } else {

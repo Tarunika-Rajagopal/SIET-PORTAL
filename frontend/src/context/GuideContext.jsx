@@ -34,7 +34,34 @@ export const GuideProvider = ({ children }) => {
 
   const normalizeName = (n) => (n || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
   const isTargetTeam = (team, teamId) => team?.teamId === teamId;
-  const isStudentPortalTeam = (team) => team?.teamId === 'TEAM-CSE-Y3-B04' || team?.teamNumber === 4;
+  const isStudentPortalTeam = (team) => {
+    if (!team) return false;
+    try {
+      const studentTeam = StudentService.getTeam();
+      if (!studentTeam) return false;
+      const sId = (studentTeam.id || studentTeam.teamId || '').toLowerCase().trim();
+      const sNo = (studentTeam.teamNo || '').toLowerCase().trim();
+      const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : (sNo ? parseInt(sNo.replace(/\D/g, ''), 10) : null);
+
+      const tId = (team.teamId || team.id || '').toLowerCase().trim();
+      const tNo = (team.teamNo || '').toLowerCase().trim();
+      const tNum = team.teamNumber != null ? Number(team.teamNumber) : (tNo ? parseInt(tNo.replace(/\D/g, ''), 10) : null);
+
+      if (sId && tId && sId === tId) return true;
+      if (sNo && tNo && sNo === tNo) return true;
+      if (sNum != null && tNum != null && !Number.isNaN(sNum) && !Number.isNaN(tNum) && sNum === tNum) return true;
+
+      if (Array.isArray(studentTeam.members) && Array.isArray(team.members)) {
+        const sRolls = new Set(studentTeam.members.map(m => (m.rollNo || m.rollNumber || m.id || '').toLowerCase().trim()).filter(Boolean));
+        if (sRolls.size > 0 && team.members.some(m => sRolls.has((m.rollNo || m.rollNumber || m.id || '').toLowerCase().trim()))) {
+          return true;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  };
 
   const [backendMetrics, setBackendMetrics] = useState(null);
   const [backendTeamIds, setBackendTeamIds] = useState(null);
@@ -110,27 +137,39 @@ export const GuideProvider = ({ children }) => {
           const bWeek = bSub.weekNumber !== undefined ? bSub.weekNumber : bSub.week;
           const idx = merged.findIndex(fSub => {
             const fWeek = fSub.weekNumber !== undefined ? fSub.weekNumber : fSub.week;
-            const fSubNum = fSub.submissionNumber;
-            return fWeek === bWeek || fSubNum === bWeek;
+            return fWeek === bWeek;
           });
+
+          const bStatus = bSub.status || 'Pending';
+          const bEvalStatus = bSub.evaluationStatus || (bStatus === 'Submitted' ? 'Pending' : bStatus);
+          const isApproved = bStatus === 'Approved' || bEvalStatus === 'Approved';
+
+          const hasRealContent = bSub.hasContent !== undefined 
+            ? Boolean(bSub.hasContent) 
+            : Boolean(
+                bSub.abstractSummary || bSub.problemStatement || bSub.proposedSolution || 
+                bSub.technologyUsed || bSub.obstaclesFaced || bSub.pptUrl || bSub.reportUrl || 
+                bSub.presentationFileName || bSub.pdfFile || bSub.githubUrl || bSub.liveDemoUrl || 
+                (bSub.images && bSub.images.length > 0)
+              );
+
+          const formattedSub = {
+            ...(idx >= 0 ? merged[idx] : {}),
+            ...bSub,
+            hasContent: hasRealContent,
+            status: bStatus,
+            evaluationStatus: bEvalStatus,
+            submissionStatus: bSub.submissionStatus || bStatus,
+            isLocked: isApproved,
+            score: bSub.score !== undefined ? bSub.score : (isApproved && idx >= 0 ? merged[idx].score : null),
+            memberMarks: (bSub.memberMarks && Object.keys(bSub.memberMarks).length > 0) ? bSub.memberMarks : (isApproved && idx >= 0 ? (merged[idx].memberMarks || {}) : {}),
+            guideRemarks: bSub.comments || bSub.guideRemarks || (isApproved && idx >= 0 ? (merged[idx].guideRemarks || '') : '')
+          };
+
           if (idx >= 0) {
-            const isApproved = bSub.status === 'Approved' || 
-                               bSub.evaluationStatus === 'Approved' || 
-                               merged[idx].status === 'Approved' || 
-                               merged[idx].evaluationStatus === 'Approved';
-            merged[idx] = {
-              ...merged[idx],
-              ...bSub,
-              status: isApproved ? 'Approved' : (bSub.status || merged[idx].status),
-              evaluationStatus: isApproved ? 'Approved' : (bSub.evaluationStatus || merged[idx].evaluationStatus),
-              submissionStatus: isApproved ? 'Approved' : (bSub.submissionStatus || merged[idx].submissionStatus),
-              isLocked: isApproved ? true : (bSub.isLocked || merged[idx].isLocked),
-              score: bSub.score !== undefined && bSub.score !== null ? bSub.score : merged[idx].score,
-              memberMarks: (bSub.memberMarks && Object.keys(bSub.memberMarks).length > 0) ? bSub.memberMarks : merged[idx].memberMarks,
-              guideRemarks: bSub.comments || bSub.guideRemarks || merged[idx].guideRemarks
-            };
+            merged[idx] = formattedSub;
           } else {
-            merged.push(bSub);
+            merged.push(formattedSub);
           }
         });
         return merged;
@@ -462,10 +501,11 @@ export const GuideProvider = ({ children }) => {
           StudentService.saveSubmissions(updatedSubs);
 
           // Update Week 0 deliverable
-          const d0 = StudentService.getDeliverables('Week 0');
+          const targetTeamId = updatedTeam.teamId || updatedTeam.id || updatedTeam.teamNo;
+          const d0 = StudentService.getDeliverables('Week 0', targetTeamId);
           d0.isTitleApproved = true;
           if (updatedTeam.projectTitle) d0.projectTitle = updatedTeam.projectTitle;
-          localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
+          StudentService.saveAllDeliverables('Week 0', d0, targetTeamId);
         } catch (e) {
           console.error('Error synchronizing title approval:', e);
         }
@@ -538,10 +578,11 @@ export const GuideProvider = ({ children }) => {
           studentTeam.rejectionReason = reason.trim();
           StudentService.saveTeam(studentTeam);
 
-          const d0 = StudentService.getDeliverables('Week 0');
+          const targetTeamId = updatedTeam.teamId || updatedTeam.id || updatedTeam.teamNo;
+          const d0 = StudentService.getDeliverables('Week 0', targetTeamId);
           d0.isTitleApproved = false;
           d0.submittedFields.title = false;
-          localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
+          StudentService.saveAllDeliverables('Week 0', d0, targetTeamId);
         } catch (e) {
           console.error('Error synchronizing title rejection:', e);
         }
@@ -585,7 +626,7 @@ export const GuideProvider = ({ children }) => {
   const evaluateWeeklySubmission = async (teamId, weekNumber, remarks, score, memberMarks) => {
     const today = new Date().toISOString().split('T')[0];
     const weekNum = Number(weekNumber);
-    const subNum = weekNum + 1;
+    const subNum = weekNum;
 
     // Calculate score
     const markVals = Object.values(memberMarks || {}).map(Number).filter(v => !isNaN(v));
@@ -601,8 +642,7 @@ export const GuideProvider = ({ children }) => {
         const updatedSubmissions = (team.submissions || []).map(sub => {
           const isMatch = sub.weekNumber === weekNum || 
                           sub.week === weekNum || 
-                          sub.submissionNumber === weekNum ||
-                          sub.submissionNumber === subNum;
+                          sub.submissionNumber === weekNum;
           if (isMatch) {
             matched = true;
             return {
@@ -623,8 +663,8 @@ export const GuideProvider = ({ children }) => {
         if (!matched) {
           updatedSubmissions.push({
             weekNumber: weekNum,
-            submissionNumber: subNum,
-            title: `Submission ${subNum}`,
+            submissionNumber: weekNum,
+            title: `Submission ${weekNum}`,
             evaluationStatus: 'Approved',
             status: 'Approved',
             submissionStatus: 'Approved',
@@ -640,7 +680,7 @@ export const GuideProvider = ({ children }) => {
           ...team,
           submissions: updatedSubmissions,
           latestSubmissionStatus: `Week ${weekNum} Evaluated & Endorsed`,
-          ...(weekNum <= 1 ? { isTitleApproved: true, titleStatus: 'Approved', guideApprovalStatus: 'Approved' } : {})
+          ...(weekNum === 1 ? { isTitleApproved: true, titleStatus: 'Approved', guideApprovalStatus: 'Approved' } : {})
         };
         return updatedTeam;
       }
@@ -659,10 +699,7 @@ export const GuideProvider = ({ children }) => {
       if (isStudentPortalTeam(updatedTeam)) {
         try {
           const studentSubs = StudentService.getSubmissions() || [];
-          const targetWeek = weekNum >= 1 && !studentSubs.some(s => s.week === weekNum) 
-            ? weekNum - 1 
-            : weekNum;
-          let item = studentSubs.find(s => s.week === targetWeek || s.week === weekNum);
+          let item = studentSubs.find(s => s.week === weekNum);
           if (item) {
             item.status = 'Approved';
             item.comments = remarks || 'Endorsed. Satisfactory technical milestone deliverables.';
@@ -671,8 +708,8 @@ export const GuideProvider = ({ children }) => {
           } else {
             studentSubs.push({
               week: weekNum,
-              title: `Submission ${subNum} Deliverable Submission`,
-              dueDate: `Submission ${subNum}`,
+              title: `Submission ${weekNum} Deliverable Submission`,
+              dueDate: `Submission ${weekNum}`,
               status: 'Approved',
               score: calculatedAvg,
               comments: remarks || 'Endorsed. Satisfactory technical milestone deliverables.',
@@ -682,7 +719,7 @@ export const GuideProvider = ({ children }) => {
           }
           StudentService.saveSubmissions(studentSubs);
 
-          if (weekNum <= 1) {
+          if (weekNum === 1) {
             StudentService.updateApprovalStatus('Approved');
           }
         } catch (e) {
@@ -690,22 +727,16 @@ export const GuideProvider = ({ children }) => {
         }
       }
 
-      // 2. Synchronize to MarksService
+      // 2. Synchronize to MarksService (saves marks for weekNum and persists to backend via ApiClient.saveWeeklyMarks)
       try {
         if (memberMarks && Object.keys(memberMarks).length > 0) {
-          MarksService.saveWeeklyMarks(teamId, subNum, memberMarks, remarks, guideName);
-          if (weekNum !== subNum) {
-            MarksService.saveWeeklyMarks(teamId, weekNum, memberMarks, remarks, guideName);
-          }
-          if (weekNum <= 1 || subNum === 1) {
-            MarksService.saveWeeklyMarks(teamId, 0, memberMarks, remarks, guideName);
-          }
+          MarksService.saveWeeklyMarks(teamId, weekNum, memberMarks, remarks, guideName);
         }
       } catch (e) {
         console.error('Error saving marks in MarksService:', e);
       }
 
-      // 3. Persist to Backend API for all teams
+      // 3. Persist review status to Backend API for all teams
       try {
         await ApiClient.reviewTeamWeeklySubmission(
           teamId,
@@ -733,12 +764,6 @@ export const GuideProvider = ({ children }) => {
             );
           }
         });
-
-        if (memberMarks && Object.keys(memberMarks).length > 0) {
-          await ApiClient.saveWeeklyMarks(teamId, weekNum, memberMarks, remarks).catch(e => {
-            console.warn('[GuideContext] saveWeeklyMarks backend failed:', e);
-          });
-        }
       } catch (e) {
         console.error('Error calling backend review:', e);
       }
@@ -805,7 +830,7 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
-      // Synchronize to StudentService
+      // Synchronize to StudentService if this is the active student team
       if (isStudentPortalTeam(updatedTeam)) {
         try {
           const studentSubs = StudentService.getSubmissions();
@@ -815,18 +840,21 @@ export const GuideProvider = ({ children }) => {
             item.comments = reason.trim();
             StudentService.saveSubmissions(studentSubs);
           }
-
-          // Call backend review endpoint
-          ApiClient.getGuidePendingSubmissions().then(pSubs => {
-            const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
-            if (match && (match.id || match.submissionId)) {
-              ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
-            }
-          }).catch(() => {});
         } catch (e) {
           console.error('Error synchronizing revision request:', e);
         }
       }
+
+      // Call backend review endpoint for all teams
+      ApiClient.getGuidePendingSubmissions().then(pSubs => {
+        const match = pSubs.find(x => 
+          Number(x.weekNumber || x.week) === Number(weekNumber) &&
+          (x.teamId === updatedTeam.teamId || x.team_id === updatedTeam.id || x.teamNo === updatedTeam.teamNo || x.teamId === updatedTeam.id)
+        );
+        if (match && (match.id || match.submissionId)) {
+          ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REVISION_REQUESTED', reason.trim()).catch(() => {});
+        }
+      }).catch(() => {});
 
       const newActivity = {
         id: 'act-' + Date.now(),
@@ -890,6 +918,7 @@ export const GuideProvider = ({ children }) => {
     );
 
     if (updatedTeam) {
+      // Synchronize to StudentService if this is the active student team
       if (isStudentPortalTeam(updatedTeam)) {
         try {
           const studentSubs = StudentService.getSubmissions();
@@ -899,18 +928,21 @@ export const GuideProvider = ({ children }) => {
             item.comments = reason.trim();
             StudentService.saveSubmissions(studentSubs);
           }
-
-          // Call backend review endpoint
-          ApiClient.getGuidePendingSubmissions().then(pSubs => {
-            const match = pSubs.find(x => x.weekNumber === Number(weekNumber));
-            if (match && (match.id || match.submissionId)) {
-              ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REJECTED', reason.trim()).catch(() => {});
-            }
-          }).catch(() => {});
         } catch (e) {
           console.error('Error synchronizing rejection:', e);
         }
       }
+
+      // Call backend review endpoint for all teams
+      ApiClient.getGuidePendingSubmissions().then(pSubs => {
+        const match = pSubs.find(x => 
+          Number(x.weekNumber || x.week) === Number(weekNumber) &&
+          (x.teamId === updatedTeam.teamId || x.team_id === updatedTeam.id || x.teamNo === updatedTeam.teamNo || x.teamId === updatedTeam.id)
+        );
+        if (match && (match.id || match.submissionId)) {
+          ApiClient.reviewWeeklySubmission(match.id || match.submissionId, 'REJECTED', reason.trim()).catch(() => {});
+        }
+      }).catch(() => {});
 
       const newActivity = {
         id: 'act-' + Date.now(),

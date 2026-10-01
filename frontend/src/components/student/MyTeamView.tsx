@@ -3,7 +3,7 @@ import { StudentService, StudentTeamExtended } from '../../services/studentServi
 import { MarksService, WeeklyMarksRecord } from '../../services/marksService';
 import { getUserInitials } from '../../services/authService';
 import { formatProjectTitle } from '../../utils/titleUtils';
-import { Users, BookOpen, Compass, AlertTriangle, Award } from 'lucide-react';
+import { Users, BookOpen, Compass, AlertTriangle } from 'lucide-react';
 
 interface MyTeamViewProps {
   team: StudentTeamExtended;
@@ -16,27 +16,44 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
 
   useEffect(() => {
-    const loadMarks = () => {
+    let isMounted = true;
+
+    // Read from in-memory cache immediately (synchronous)
+    const refreshFromCache = () => {
+      if (!isMounted) return;
       setMarksRecords(MarksService.getAllTeamMarks(teamId, memberRollNos));
     };
-    loadMarks();
+    refreshFromCache();
 
-    window.addEventListener('siet_marks_updated', loadMarks);
-    window.addEventListener('siet_data_updated', loadMarks);
-    window.addEventListener('storage', loadMarks);
+    // Fetch authoritative marks from PostgreSQL via FastAPI
+    if (teamId) {
+      MarksService.fetchTeamMarks(teamId)
+        .then(() => {
+          // After fetch completes the cache is updated; read from cache
+          // to ensure consistent data source (not raw API response)
+          refreshFromCache();
+        })
+        .catch(() => {});
+    }
+
+    // Subscribe to MarksService cache updates (e.g., from fetchAllMarks, saveWeeklyMarks)
+    const unsubscribe = MarksService.subscribe(refreshFromCache);
 
     return () => {
-      window.removeEventListener('siet_marks_updated', loadMarks);
-      window.removeEventListener('siet_data_updated', loadMarks);
-      window.removeEventListener('storage', loadMarks);
+      isMounted = false;
+      unsubscribe();
     };
-  }, [teamId]);
+  }, [teamId, memberRollNos.length]);
 
   if (!team) return null;
 
-  const isTeamLead = (member: { rollNo?: string; name?: string; role?: string; isLeader?: boolean }) => {
-    if (member.isLeader) return true;
-    if (member.role && member.role.toLowerCase().includes('lead')) return true;
+  const isTeamLead = (member: any) => {
+    if (member?.isLead || member?.isLeader) return true;
+    if (member?.role && member.role.toLowerCase().includes('lead')) return true;
+    const leadRoll = ((team as any).lead_roll_no || (team as any).leadRollNo || '').trim().toLowerCase();
+    if (member?.rollNo && leadRoll && member.rollNo.trim().toLowerCase() === leadRoll) return true;
+    const leadName = ((team as any).lead_student || (team as any).leadStudent || '').trim().toLowerCase();
+    if (member?.name && leadName && member.name.trim().toLowerCase() === leadName) return true;
     return false;
   };
 
@@ -48,10 +65,12 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
     // Review 3 strictly checks week 3.
     // Review 4 strictly checks week 4.
     const candidateWeeks = reviewIndex === 1 ? [1, 0] : [reviewIndex];
+    const cleanRollNo = String(rollNo || '').trim();
+    
     for (const w of candidateWeeks) {
       const rec = marksRecords[w];
-      if (rec && rec.memberMarks && rec.memberMarks[rollNo] !== undefined && typeof rec.memberMarks[rollNo] === 'number') {
-        return rec.memberMarks[rollNo];
+      if (rec && rec.memberMarks && rec.memberMarks[cleanRollNo] !== undefined && typeof rec.memberMarks[cleanRollNo] === 'number') {
+        return rec.memberMarks[cleanRollNo];
       }
     }
     return null;
@@ -98,9 +117,11 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
             <h2 className="text-lg sm:text-xl font-serif font-bold text-[#111111] leading-snug">
               {(() => {
                 const isSub1Approved = StudentService.isSubmission1Approved(team.id);
-                const sub1Deliverables = isSub1Approved ? StudentService.getDeliverables('Submission 1') : null;
-                const displayTitle = (isSub1Approved && sub1Deliverables?.projectTitle) ? sub1Deliverables.projectTitle : team.projectTitle;
-                return formatProjectTitle(displayTitle, isSub1Approved ? 'Approved' : team.guideApprovalStatus, isSub1Approved || team.isTitleApproved);
+                const sub1Deliverables = (!team.projectTitle && isSub1Approved) ? StudentService.getDeliverables('Submission 1', team.id) : null;
+                const displayTitle = team.projectTitle || sub1Deliverables?.projectTitle || '';
+                const isApproved = team.isTitleApproved || isSub1Approved || team.guideApprovalStatus === 'Approved';
+                const status = isApproved ? 'Approved' : (team.guideApprovalStatus || 'Pending');
+                return formatProjectTitle(displayTitle, status, isApproved);
               })()}
             </h2>
           </div>
@@ -127,7 +148,7 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
               Project Guide
             </div>
             <h4 className="text-sm font-serif font-bold text-[#111111] mt-0.5">
-              {team.guideName}
+              {team.guideName || 'Not Assigned'}
             </h4>
           </div>
         </div>
@@ -142,7 +163,7 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
               Advisor
             </div>
             <h4 className="text-sm font-serif font-bold text-[#111111] mt-0.5">
-              {team.advisorName}
+              {team.advisorName || 'Not Assigned'}
             </h4>
           </div>
         </div>
@@ -164,7 +185,7 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
             id="teamMemberCountBadge"
             className="bg-[#EDE7DB] text-[#111111] font-bold text-xs px-3 py-1 rounded-full border border-[#D8CCBA] shadow-2xs"
           >
-            {team.members.length} Members
+            {team.members?.length || 0} Members
           </span>
         </div>
 
@@ -182,7 +203,14 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EAE2D5] font-medium bg-white">
-              {team.members.map((member, idx) => {
+              {(!team.members || team.members.length === 0) ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-xs text-slate-400 italic">
+                    No team members registered yet.
+                  </td>
+                </tr>
+              ) : (
+                team.members.map((member, idx) => {
                 const markR1 = getMemberReviewMark(member.rollNo, 1);
                 const markR2 = getMemberReviewMark(member.rollNo, 2);
                 const markR3 = getMemberReviewMark(member.rollNo, 3);
@@ -265,7 +293,7 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>
