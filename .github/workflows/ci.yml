@@ -43,7 +43,31 @@ jobs:
         run: |
           python -m py_compile $(git ls-files 'backend/*.py')
 
-      - name: Run Backend Tests
+      - name: Run Smoke Tests (Sanity, Health, Auth, Redis)
+        env:
+          USE_SQLITE: "true"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET_KEY: "test-secret-key-for-ci"
+        run: |
+          pytest backend/tests/test_smoke.py -v
+
+      - name: Run E2E Lifecycle Tests (Submission, Grading, Lockout, Title Approval)
+        env:
+          USE_SQLITE: "true"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET_KEY: "test-secret-key-for-ci"
+        run: |
+          pytest backend/tests/test_e2e_lifecycle.py -v
+
+      - name: Run Z-Tests (Zero-Regression, MultipleResultsFound, Redis Outage, RBAC Boundaries)
+        env:
+          USE_SQLITE: "true"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET_KEY: "test-secret-key-for-ci"
+        run: |
+          pytest backend/tests/test_z_regression.py -v
+
+      - name: Run Repository & Service Integration Tests
         env:
           USE_SQLITE: "true"
           REDIS_URL: "redis://localhost:6379/0"

@@ -27,10 +27,8 @@ from routers.hod_router import router as hod_router
 from routers.advisor_router import router as advisor_router
 from routers.marks_router import router as marks_router
 from routers.job_router import router as job_router
-# Advisor portal bulk team creation supported
-
-
-        
+# Seed service export for tests and maintenance
+from services.seed_service import seed_initial_data
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
