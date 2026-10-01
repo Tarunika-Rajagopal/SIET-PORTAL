@@ -22,7 +22,7 @@ from httpx import AsyncClient, ASGITransport
 from main import app
 from database import init_db, async_session
 from models import Team, TeamMember, Student
-from services.seed_service import seed_initial_data
+from tests.test_fixtures import seed_test_data as seed_initial_data
 from services.cache_service import cache_service
 
 
