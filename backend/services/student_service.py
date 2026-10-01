@@ -129,13 +129,13 @@ class StudentService:
         advisor_name = ""
         if team.class_name:
             from models import Faculty
-            from sqlalchemy import or_
+            from sqlalchemy import or_, cast, String
             adv_res = await self.session.execute(
                 select(Faculty).where(
                     Faculty.advisor_class.ilike(team.class_name.strip()),
                     or_(
-                        Faculty.role.ilike("%advisor%"),
-                        Faculty.role.ilike("%advisor & guide%")
+                        cast(Faculty.role, String).ilike("%advisor%"),
+                        cast(Faculty.role, String).ilike("%advisor & guide%")
                     )
                 )
             )
