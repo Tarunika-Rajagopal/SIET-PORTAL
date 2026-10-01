@@ -145,15 +145,19 @@ class AdminService:
         await self.session.commit()
         return {"success": True, "message": f"Faculty {f.name} updated"}
 
-    async def delete_faculty(self, faculty_email: str) -> Dict[str, Any]:
-        f = await self.faculty_repo.get_by_email(faculty_email)
+    async def delete_faculty(self, faculty_identifier: str) -> Dict[str, Any]:
+        cleaned = faculty_identifier.strip()
+        f = None
+        if "@" in cleaned:
+            f = await self.faculty_repo.get_by_email(cleaned)
+        else:
+            f = await self.faculty_repo.get_by_id(cleaned)
+            if not f:
+                f = await self.faculty_repo.get_by_email(cleaned)
         if not f:
             return {"success": False, "message": "Faculty not found"}
 
-        # Delete corresponding User record if present
-
         teams = await self.team_repo.list_by_guide_name(f.name)
-        
         for team in teams:
             team.guide_email = None
             team.guide_designation = None
@@ -169,8 +173,6 @@ class AdminService:
         u = await self.user_repo.get_by_email(f.email)
         if u:
             await self.user_repo.delete(u)
-        else:
-            return {"success": False, "message": "Error while deleting the User. Please try again later."}
 
         await self.faculty_repo.delete(f)
         await self.session.commit()

@@ -94,18 +94,31 @@ class StudentService:
         if not team:
             clauses = []
             if user.roll_no:
-                clauses.append(TeamMember.roll_no == user.roll_no)
+                clauses.append(TeamMember.roll_no == user.roll_no.strip())
             if user.email:
-                clauses.append(TeamMember.email == user.email)
+                clauses.append(TeamMember.email == user.email.strip())
             if clauses:
-                from sqlalchemy import or_
-                res = await self.session.execute(select(TeamMember).where(or_(*clauses)))
-                tm = res.scalar_one_or_none()
-                if tm and tm.team_id:
-                    if with_members:
-                        team = await self.team_repo.get_with_members(tm.team_id)
-                    else:
-                        team = await self.team_repo.get_by_id(tm.team_id)
+                from sqlalchemy import or_, desc
+                res = await self.session.execute(
+                    select(TeamMember)
+                    .where(or_(*clauses))
+                    .order_by(desc(TeamMember.created_at))
+                )
+                members = res.scalars().all()
+                for tm in members:
+                    if tm and tm.team_id:
+                        if with_members:
+                            team = await self.team_repo.get_with_members(tm.team_id)
+                        else:
+                            team = await self.team_repo.get_by_id(tm.team_id)
+                        if team:
+                            if not user.team_id:
+                                user.team_id = team.team_id or str(team.id)
+                                try:
+                                    await self.session.commit()
+                                except Exception:
+                                    await self.session.rollback()
+                            break
 
         if not team:
             raise HTTPException(404, "Student is not assigned to any team")
@@ -142,7 +155,7 @@ class StudentService:
     async def get_week_releases(self) -> dict:
         """Return release status for all 4 weekly submissions from database."""
         res = await self.session.execute(select(Setting).where(Setting.key == "week_release_status"))
-        setting = res.scalar_one_or_none()
+        setting = res.scalars().first()
         default_status = {"1": True, "2": True, "3": False, "4": False}
         if not setting or not isinstance(setting.value, dict):
             return default_status

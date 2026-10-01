@@ -127,17 +127,12 @@ class SubmissionRepository:
         return weeks_summary
 
     async def _seed_initial_submissions(self) -> None:
-        """Seed initial realistic weekly submissions for existing teams."""
+        """There must be no mock data in the db"""
         teams = (await self.session.execute(select(Team))).scalars().all()
         if not teams:
             return
         
-        week_titles = {
-            1: "Problem Statement & Scope Formulation",
-            2: "Literature Survey & Related Works",
-            3: "Dataset Collection & Pipeline Prototype",
-            4: "System Implementation & Final Milestone",
-        }
+     
         for team in teams:
             for w in [1, 2, 3]:
                 # Omit week 3 for Team 05 so counts vary naturally (e.g. 17 vs 13)
@@ -147,13 +142,13 @@ class SubmissionRepository:
                     id=uuid.uuid4(),
                     team_id=team.id,
                     week=w,
-                    title=week_titles.get(w, f"Week {w} Deliverables"),
+                    title="",
                     status="Draft",
-                    submission_date="18 Feb 2026",
+                    submission_date="",
                     score=None,
                     max_score=100.0,
-                    project_title=team.project_title or "Intelligent Project Workspace",
-                    guide_name=team.guide_name or "Dr. P. Manimegalai",
+                    project_title=team.project_title or "",
+                    guide_name=team.guide_name or "",
                 )
                 self.session.add(ws)
         await self.session.commit()

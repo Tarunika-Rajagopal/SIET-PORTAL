@@ -12,12 +12,11 @@ export interface HodHistoryRecord {
   performedBy: string;
 }
 
-const STORAGE_KEY = 'siet_hod_action_history_v1';
-
 type HistoryListener = () => void;
 const listeners: Set<HistoryListener> = new Set();
 
-const DEFAULT_HOD_HISTORY: HodHistoryRecord[] = [];
+// In-memory cache populated from backend
+let cachedHistory: HodHistoryRecord[] = [];
 
 function notify() {
   listeners.forEach(fn => {
@@ -29,47 +28,36 @@ function notify() {
   });
 }
 
-function loadHistory(): HodHistoryRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        // Purge any stale legacy mock history
-        const cleaned = parsed.filter(item => item && item.id !== 'HOD-ACT-001' && item.id !== 'HOD-ACT-002');
-        if (cleaned.length !== parsed.length) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-        }
-        return cleaned;
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load HOD action history:', e);
-  }
-  return DEFAULT_HOD_HISTORY;
-}
-
 export const HodHistoryService = {
+  /**
+   * Fetch history from the backend (authoritative source).
+   * Updates in-memory cache and notifies listeners.
+   */
   async fetchHistory(): Promise<HodHistoryRecord[]> {
     try {
       const serverLogs = await ApiClient.getHodHistory();
-      if (Array.isArray(serverLogs) && serverLogs.length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverLogs));
-        notify();
-        return serverLogs;
-      }
+      const normalized = Array.isArray(serverLogs) ? serverLogs : [];
+      cachedHistory = normalized;
+      notify();
+      return normalized;
     } catch (e) {
       console.warn('Failed to fetch HOD history from backend:', e);
+      return cachedHistory;
     }
-    return loadHistory();
   },
 
+  /**
+   * Get history from in-memory cache (synchronous).
+   * Call fetchHistory() to refresh from backend.
+   */
   getHistory(): HodHistoryRecord[] {
-    return loadHistory();
+    return cachedHistory;
   },
 
+  /**
+   * Log a new HOD action. Persists to backend, then refreshes cache.
+   */
   logAction(entry: Omit<HodHistoryRecord, 'id' | 'timestamp' | 'date'>): HodHistoryRecord {
-    const history = loadHistory();
     const now = new Date();
     const record: HodHistoryRecord = {
       ...entry,
@@ -78,14 +66,12 @@ export const HodHistoryService = {
       date: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     };
 
-    history.unshift(record);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
-    } catch (e) {
-      console.error('Failed to save HOD action history:', e);
-    }
+    // Optimistic in-memory update
+    cachedHistory.unshift(record);
+    notify();
+    window.dispatchEvent(new Event('siet_hod_history_updated'));
 
-    // Persist to backend
+    // Persist to backend (authoritative source)
     ApiClient.logHodHistory({
       actionType: entry.actionType,
       target: entry.target,
@@ -93,22 +79,27 @@ export const HodHistoryService = {
       classSection: entry.classSection,
       batch: entry.batch,
       performedBy: entry.performedBy
+    }).then(() => {
+      // Refresh from backend to get server-generated ID
+      this.fetchHistory().catch(() => {});
     }).catch(err => {
       console.warn('Failed to persist HOD history to backend:', err);
     });
 
-    notify();
-    window.dispatchEvent(new Event('siet_hod_history_updated'));
-    window.dispatchEvent(new Event('storage'));
     return record;
   },
 
+  /**
+   * Subscribe to history changes for UI reactivity.
+   * Returns an unsubscribe function.
+   */
   subscribe(listener: HistoryListener): () => void {
     listeners.add(listener);
     return () => listeners.delete(listener);
   }
 };
 
+// Background-fetch from backend on module load
 if (typeof window !== 'undefined') {
   HodHistoryService.fetchHistory().catch(() => {});
 }

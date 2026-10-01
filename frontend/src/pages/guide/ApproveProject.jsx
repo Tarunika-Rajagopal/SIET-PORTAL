@@ -302,10 +302,11 @@ export const ApproveProject = () => {
         sTeam.submittedTitle = approvedTitle;
         StudentService.saveTeam(sTeam);
 
-        const d1 = StudentService.getDeliverables('Submission 1');
+        const targetTeamId = inspectedTeam?.teamId || inspectedTeam?.id || inspectedTeam?.teamNo;
+        const d1 = StudentService.getDeliverables('Submission 1', targetTeamId);
         d1.isTitleApproved = true;
         d1.projectTitle = approvedTitle;
-        localStorage.setItem('siet_deliverable_v6_submission_1', JSON.stringify(d1));
+        StudentService.saveAllDeliverables('Submission 1', d1, targetTeamId);
       } catch (e) {}
     }
 

@@ -73,84 +73,8 @@ export const AdvisorService = {
     const isMockTitle = (str?: string) => 
       /autonomous crop disease|decentralized smart grid|edge-ai wearable|llm-powered/i.test(str || '');
 
-    const defaultTeams: ClassTeam[] = [
-      {
-        teamId: "TEAM-CSE-Y3-B04",
-        teamNo: "Team 04",
-        class: className,
-        batch: "2023-2027 (III Year)",
-        title: "",
-        guide: "Dr. P. Manimegalai",
-        guideEmail: "dr.manimegalai@siet.ac.in",
-        status: "Pending",
-        capacity: 4,
-        membersCount: 4,
-        leadStudent: "Tarunika Rajgopal (714023104112)",
-        members: [
-          { rollNo: "714023104112", name: "Tarunika Rajgopal", email: "tarunika.r@srishakthi.ac.in", isLead: true },
-          { rollNo: "714023104178", name: "Vigneshwaran M", email: "vigneshwaran.m@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104189", name: "Vishnu Priya S", email: "vishnupriya.s@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104066", name: "Kavitha R", email: "kavitha.r@srishakthi.ac.in", isLead: false }
-        ]
-      },
-      {
-        teamId: "TEAM-CSE-Y3-B05",
-        teamNo: "Team 05",
-        class: className,
-        batch: "2023-2027 (III Year)",
-        title: "",
-        guide: "Dr. A. Devipriya",
-        guideEmail: "dr.devipriya@siet.ac.in",
-        status: "Pending",
-        capacity: 4,
-        membersCount: 4,
-        leadStudent: "Harish Kumar K (714023104035)",
-        members: [
-          { rollNo: "714023104035", name: "Harish Kumar K", email: "harish.k@srishakthi.ac.in", isLead: true },
-          { rollNo: "714023104038", name: "Janani S", email: "janani.s@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104051", name: "Manoj V", email: "manoj.v@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104058", name: "Nithya R", email: "nithya.r@srishakthi.ac.in", isLead: false }
-        ]
-      },
-      {
-        teamId: "TEAM-CSE-Y3-B06",
-        teamNo: "Team 06",
-        class: className,
-        batch: "2023-2027 (III Year)",
-        title: "",
-        guide: "Dr. K. Vignesh",
-        guideEmail: "dr.vignesh@siet.ac.in",
-        status: "Pending",
-        capacity: 4,
-        membersCount: 4,
-        leadStudent: "Naveen Raj (714023104088)",
-        members: [
-          { rollNo: "714023104088", name: "Naveen Raj", email: "naveen.r@srishakthi.ac.in", isLead: true },
-          { rollNo: "714023104092", name: "Praveen S", email: "praveen.s@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104095", name: "Raja Vignesh", email: "raja.v@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104099", name: "Saranya K", email: "saranya.k@srishakthi.ac.in", isLead: false }
-        ]
-      },
-      {
-        teamId: "TEAM-CSE-Y3-B07",
-        teamNo: "Team 07",
-        class: className,
-        batch: "2023-2027 (III Year)",
-        title: "",
-        guide: "Dr. P. Manimegalai",
-        guideEmail: "dr.manimegalai@siet.ac.in",
-        status: "Pending",
-        capacity: 4,
-        membersCount: 4,
-        leadStudent: "Sneha M (714023104142)",
-        members: [
-          { rollNo: "714023104142", name: "Sneha M", email: "sneha.m@srishakthi.ac.in", isLead: true },
-          { rollNo: "714023104148", name: "Suresh P", email: "suresh.p@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104155", name: "Swetha V", email: "swetha.v@srishakthi.ac.in", isLead: false },
-          { rollNo: "714023104162", name: "Varun K", email: "varun.k@srishakthi.ac.in", isLead: false }
-        ]
-      }
-    ];
+    const defaultTeams: ClassTeam[] = [];
+
 
     const syncWithRealStudentAndGuide = (teamList: ClassTeam[]): ClassTeam[] => {
       try {
@@ -191,7 +115,7 @@ export const AdvisorService = {
 
           if (activeStudentTeam) {
             matchedActiveTeamId = activeStudentTeam.teamId;
-            const d0 = StudentService.getDeliverables('Week 0');
+            const d0 = StudentService.getDeliverables('Week 0', activeStudentTeam.teamId || studentTeam.id);
             const rawRealTitle = (d0?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
             const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
 

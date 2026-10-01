@@ -32,22 +32,6 @@ export function formatProjectTitle(
     if (!isDummy) {
       return cleanTitle;
     }
-    try {
-      const d1 = localStorage.getItem('siet_deliverable_v6_submission_1');
-      if (d1) {
-        const p1 = JSON.parse(d1);
-        if (p1?.projectTitle && p1.projectTitle.trim() && !p1.projectTitle.toLowerCase().includes('capstone')) {
-          return p1.projectTitle.trim();
-        }
-      }
-      const d0 = localStorage.getItem('siet_deliverable_v6_week_0');
-      if (d0) {
-        const p0 = JSON.parse(d0);
-        if (p0?.projectTitle && p0.projectTitle.trim() && !p0.projectTitle.toLowerCase().includes('capstone')) {
-          return p0.projectTitle.trim();
-        }
-      }
-    } catch (e) {}
   }
 
   if (isDummy) {

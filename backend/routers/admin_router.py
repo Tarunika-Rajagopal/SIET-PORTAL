@@ -81,6 +81,17 @@ async def delete_faculty(
     return res
 
 
+@router.delete("/faculties/{faculty_id}")
+async def delete_faculty_by_id(
+    faculty_id: str,
+    user: User = Depends(require_roles("admin")),
+    service: AdminService = Depends(get_admin_service),
+):
+    res = await service.delete_faculty(faculty_id)
+    await cache_service.invalidate_faculties()
+    return res
+
+
 @router.post("/faculties/{faculty_id}/assign-guide")
 async def assign_guide(
     faculty_id: str,

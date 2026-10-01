@@ -1,5 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { StudentService } from '../../services/studentService';
+import { getUserInitials } from '../../services/authService';
 import { X, Mail, Phone, BookOpen, Shield } from 'lucide-react';
 
 interface ProfileModalProps {
@@ -11,6 +13,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const { currentUser, activeRole } = useAuth();
 
   if (!isOpen || !currentUser) return null;
+
+  const studentTeam = activeRole === 'student' ? StudentService.getTeam() : null;
+  const projectTitle = currentUser.projectTitle || studentTeam?.projectTitle || 'Pending Project Title Submission';
+  const guideName = currentUser.guideName || studentTeam?.guideName || 'Not Assigned';
+  const advisorName = currentUser.advisorName || studentTeam?.advisorName || 'Not Assigned';
+  const initials = currentUser.initials && currentUser.initials !== 'US'
+    ? currentUser.initials
+    : getUserInitials(currentUser.name);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
@@ -27,7 +37,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-xl bg-[#F8F5EE] text-[#111111] font-serif font-bold text-2xl flex items-center justify-center shadow-subtle border border-[#D8CCBA]">
-              {currentUser.initials || 'SI'}
+              {initials}
             </div>
             <div>
               <h3 className="text-xl font-serif font-bold text-[#F8F5EE]">{currentUser.name}</h3>
@@ -84,16 +94,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 <span className="font-serif">Project Assignment</span>
               </div>
               <p className="text-[#292725] font-semibold leading-relaxed">
-                {currentUser.projectTitle || 'Autonomous Crop Disease Segmentation & Yield Advisory Drone System'}
+                {projectTitle}
               </p>
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#D8CCBA] text-[11px]">
                 <div>
                   <span className="text-[#75695A]">Project Guide:</span>
-                  <p className="font-bold text-[#111111]">{currentUser.guideName || 'Dr. P. Manimegalai'}</p>
+                  <p className="font-bold text-[#111111]">{guideName}</p>
                 </div>
                 <div>
                   <span className="text-[#75695A]">Class Advisor:</span>
-                  <p className="font-bold text-[#111111]">{currentUser.advisorName || 'Dr. R. Karthikeyan'}</p>
+                  <p className="font-bold text-[#111111]">{advisorName}</p>
                 </div>
               </div>
             </div>

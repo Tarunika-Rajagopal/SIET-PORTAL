@@ -501,10 +501,11 @@ export const GuideProvider = ({ children }) => {
           StudentService.saveSubmissions(updatedSubs);
 
           // Update Week 0 deliverable
-          const d0 = StudentService.getDeliverables('Week 0');
+          const targetTeamId = updatedTeam.teamId || updatedTeam.id || updatedTeam.teamNo;
+          const d0 = StudentService.getDeliverables('Week 0', targetTeamId);
           d0.isTitleApproved = true;
           if (updatedTeam.projectTitle) d0.projectTitle = updatedTeam.projectTitle;
-          localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
+          StudentService.saveAllDeliverables('Week 0', d0, targetTeamId);
         } catch (e) {
           console.error('Error synchronizing title approval:', e);
         }
@@ -577,10 +578,11 @@ export const GuideProvider = ({ children }) => {
           studentTeam.rejectionReason = reason.trim();
           StudentService.saveTeam(studentTeam);
 
-          const d0 = StudentService.getDeliverables('Week 0');
+          const targetTeamId = updatedTeam.teamId || updatedTeam.id || updatedTeam.teamNo;
+          const d0 = StudentService.getDeliverables('Week 0', targetTeamId);
           d0.isTitleApproved = false;
           d0.submittedFields.title = false;
-          localStorage.setItem('siet_deliverable_v6_week_0', JSON.stringify(d0));
+          StudentService.saveAllDeliverables('Week 0', d0, targetTeamId);
         } catch (e) {
           console.error('Error synchronizing title rejection:', e);
         }

@@ -73,7 +73,7 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
 
     // 2. Active Student Team: Synchronize strictly with real student submissions
     try {
-      const d0 = StudentService.getDeliverables('Week 0');
+      const d0 = StudentService.getDeliverables('Week 0', sTeam.id);
       const studentSubs = StudentService.getSubmissions() || [];
 
       // Filter out any legacy mock submissions
@@ -88,7 +88,7 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
       for (let w = 1; w < 4; w++) {
         const subNum = w + 1;
         if (!validSubs.some(s => s.week === w)) {
-          const dW = StudentService.getDeliverables(`Submission ${subNum}`);
+          const dW = StudentService.getDeliverables(`Submission ${subNum}`, sTeam.id);
           const hasActualSubmission = Boolean(
             dW.submittedFields?.technologyUsed ||
             dW.submittedFields?.obstaclesFaced ||
@@ -167,7 +167,7 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
 
       const mappedSubmissions = validSubs.map(sub => {
         const subNum = sub.week + 1;
-        const dWeek = StudentService.getDeliverables(`Submission ${subNum}`);
+        const dWeek = StudentService.getDeliverables(`Submission ${subNum}`, sTeam.id);
         const isPdf = Boolean(sub.pdfFile || (sub.presentationFile && sub.presentationFile.toLowerCase().endsWith('.pdf')) || (dWeek.reportFile && dWeek.reportFile.toLowerCase().endsWith('.pdf')));
         const isPpt = Boolean(sub.presentationFile && (sub.presentationFile.toLowerCase().endsWith('.ppt') || sub.presentationFile.toLowerCase().endsWith('.pptx')) || (dWeek.presentationFile && (dWeek.presentationFile.toLowerCase().endsWith('.ppt') || dWeek.presentationFile.toLowerCase().endsWith('.pptx'))));
         const isWeek0 = sub.week === 0;

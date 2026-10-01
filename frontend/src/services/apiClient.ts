@@ -1,4 +1,3 @@
-import {faculty} from '../types';
 import { AdminStudent } from './adminService';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';

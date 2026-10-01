@@ -14,7 +14,7 @@ class TeamRepository:
 
     async def get_by_id(self, team_id: uuid.UUID) -> Optional[Team]:
         res = await self.session.execute(select(Team).where(Team.id == team_id))
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
     async def get_by_team_id_string(self, team_id_str: str) -> Optional[Team]:
         cleaned = team_id_str.strip()
@@ -25,7 +25,7 @@ class TeamRepository:
                     or_(Team.id == parsed_uuid, Team.team_id == cleaned, Team.team_no == cleaned)
                 )
             )
-            found = res.scalar_one_or_none()
+            found = res.scalars().first()
             if found:
                 return found
         except (ValueError, TypeError):
@@ -36,7 +36,7 @@ class TeamRepository:
                 or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned)
             )
         )
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
     async def get_with_members(self, team_identifier: uuid.UUID | str) -> Optional[Team]:
         q = select(Team).options(selectinload(Team.members))
@@ -50,7 +50,7 @@ class TeamRepository:
             except (ValueError, TypeError):
                 q = q.where(or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned))
         res = await self.session.execute(q)
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
     async def get_with_members_and_submissions(self, team_identifier: uuid.UUID | str) -> Optional[Team]:
         q = select(Team).options(
@@ -67,7 +67,7 @@ class TeamRepository:
             except (ValueError, TypeError):
                 q = q.where(or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned))
         res = await self.session.execute(q)
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
     async def list_by_class(self, class_name: str, batch: Optional[str] = None) -> List[Team]:
         q = select(Team).options(selectinload(Team.members)).where(Team.class_name == class_name)
@@ -136,7 +136,7 @@ class TeamRepository:
                 TeamMember.roll_no == roll_no.strip(),
             )
         )
-        return res.scalar_one_or_none()
+        return res.scalars().first()
 
     async def list_members_by_team_id(self, team_id: uuid.UUID) -> List[TeamMember]:
         res = await self.session.execute(

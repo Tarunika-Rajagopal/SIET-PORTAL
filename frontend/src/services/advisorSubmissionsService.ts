@@ -1,7 +1,6 @@
 import { WeeklySubmission } from '../types';
 import { ClassTeam } from './advisorService';
 import { StudentService } from './studentService';
-import { INITIAL_TEAMS } from '../data/guidePortalData.js';
 
 const GUIDE_TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
 
@@ -10,9 +9,10 @@ const GUIDE_TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
  * Merges deliverables (abstract, problem statement, solution, tech stack, PPT, PDF, repos, etc.)
  * so that Guide, Advisor, and HOD portals view the exact same data.
  */
-export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmission[] {
+export function getCanonicalStudentSubmissions(teamTitle?: string, teamIdOverride?: string): WeeklySubmission[] {
   const studentTeam = StudentService.getTeam();
-  const d0 = StudentService.getDeliverables('Submission 1');
+  const effectiveTeamId = teamIdOverride || studentTeam.id;
+  const d0 = StudentService.getDeliverables('Submission 1', effectiveTeamId);
   const rawSubs = StudentService.getSubmissions() || [];
 
   const isGuideApproved = Boolean(
@@ -67,7 +67,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
   for (let w = 1; w < 4; w++) {
     const subNum = w + 1;
     if (!validSubs.some(s => s.week === w)) {
-      const dW = StudentService.getDeliverables(`Submission ${subNum}`);
+      const dW = StudentService.getDeliverables(`Submission ${subNum}`, effectiveTeamId);
       const hasActualSubmission = Boolean(
         dW.submittedFields?.technologyUsed ||
         dW.submittedFields?.obstaclesFaced ||
@@ -134,7 +134,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string): WeeklySubmis
 
   // Merge full deliverable fields into each submission (capped to max 4 submissions)
   return validSubs.sort((a, b) => a.week - b.week).slice(0, 4).map(sub => {
-    const dWeek = StudentService.getDeliverables(sub.week === 0 ? 'Submission 1' : `Submission ${sub.week + 1}`);
+    const dWeek = StudentService.getDeliverables(sub.week === 0 ? 'Submission 1' : `Submission ${sub.week + 1}`, effectiveTeamId);
     const isWeek0 = sub.week === 0;
     const gSub = guideTeamSubs.find((gs: any) => (gs.weekNumber ?? gs.week) === sub.week);
     const isSubRejected = sub.status === 'Changes Requested' || sub.status === 'Rejected' || (isWeek0 && studentTeam.guideApprovalStatus === 'Rejected') || gSub?.evaluationStatus === 'Revision Required';
@@ -242,7 +242,7 @@ function getGuideApprovedSubmissionsForTeam(team: ClassTeam): WeeklySubmission[]
     }
 
     if (guideTeams.length === 0) {
-      guideTeams = INITIAL_TEAMS as any[];
+      guideTeams = [];
     }
 
     const teamNumber = getTeamNumberValue(team);
@@ -260,20 +260,6 @@ function getGuideApprovedSubmissionsForTeam(team: ClassTeam): WeeklySubmission[]
         (teamNumber !== null && gtNum !== null && gtNum === teamNumber)
       );
     });
-
-    if (!guideTeam) {
-      guideTeam = (INITIAL_TEAMS as any[]).find((gt: any) => {
-        const gtId = (gt.teamId || gt.id || '').trim().toLowerCase();
-        const gtNo = (gt.teamNo || (gt.teamNumber ? `Team ${String(gt.teamNumber).padStart(2, '0')}` : '')).trim().toLowerCase();
-        const gtNum = typeof gt.teamNumber === 'number' ? gt.teamNumber : (gt.teamNo ? parseInt(String(gt.teamNo).replace(/\D/g, ''), 10) : null);
-
-        return (
-          (gtId && normalizedTeamId && gtId === normalizedTeamId) ||
-          (gtNo && normalizedTeamNo && gtNo === normalizedTeamNo) ||
-          (teamNumber !== null && gtNum !== null && gtNum === teamNumber)
-        );
-      });
-    }
 
     if (!guideTeam) return [];
 
@@ -355,7 +341,7 @@ export const AdvisorSubmissionsService = {
     );
 
     if (isStudentTeam) {
-      const studentSubs = getCanonicalStudentSubmissions(team.title);
+      const studentSubs = getCanonicalStudentSubmissions(team.title, team.teamId || studentTeam.id);
       if (studentSubs.length > 0) {
         return studentSubs;
       }
