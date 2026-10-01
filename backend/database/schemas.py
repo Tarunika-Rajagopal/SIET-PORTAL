@@ -125,6 +125,12 @@ class MoveStudentRequest(BaseModel):
     className: str
     studentRollNo: str
     targetTeamId: str
+    replaceStudentRollNo: Optional[str] = None
+    exchangeAction: Optional[str] = None
+
+class UnassignStudentRequest(BaseModel):
+    className: str
+    studentRollNo: str
 
 class ReassignGuideRequest(BaseModel):
     className: str

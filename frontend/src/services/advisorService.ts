@@ -215,28 +215,7 @@ export const AdvisorService = {
           guide: assignedTeam.guide
         };
       } else {
-        // If not in any team members list, check if student.teamNo was set to a valid team in this class
         if (student.teamNo && student.teamNo !== 'Unassigned') {
-          const matchingTeam = teams.find(t => t.teamNo.toLowerCase() === student.teamNo.toLowerCase());
-          if (matchingTeam) {
-            const currentCap = matchingTeam.capacity || this.getTeamCapacity(className);
-            if (matchingTeam.members.length < currentCap) {
-              matchingTeam.members.push({
-                rollNo: student.rollNo,
-                name: student.name,
-                email: student.email,
-                isLead: matchingTeam.members.length === 0
-              });
-              matchingTeam.membersCount = matchingTeam.members.length;
-              this.saveTeamsForClass(className, teams);
-              return {
-                ...student,
-                teamNo: matchingTeam.teamNo,
-                projectTitle: matchingTeam.title,
-                guide: matchingTeam.guide
-              };
-            }
-          }
           student.teamNo = 'Unassigned';
           student.projectTitle = '';
           student.guide = 'Unassigned';
@@ -380,15 +359,112 @@ export const AdvisorService = {
   async assignStudentToTeam(
     className: string,
     studentRollNo: string,
-    targetTeamId: string
+    targetTeamId: string,
+    optionsOrName?: any,
+    studentEmail?: string,
+    replaceRoll?: string,
+    exchangeAct?: 'swap' | 'unassign'
   ): Promise<{ success: boolean; message: string }> {
-    return this.moveStudent(className, studentRollNo, targetTeamId);
+    let options: { replaceStudentRollNo?: string; exchangeAction?: 'swap' | 'unassign' } | undefined;
+    if (typeof optionsOrName === 'object' && optionsOrName !== null) {
+      options = optionsOrName;
+    } else if (replaceRoll) {
+      options = { replaceStudentRollNo: replaceRoll, exchangeAction: exchangeAct };
+    }
+    return this.moveStudent(className, studentRollNo, targetTeamId, options);
+  },
+
+  async unassignStudent(
+    className: string,
+    studentRollNo: string
+  ): Promise<{ success: boolean; message: string }> {
+    const teams = this.getTeamsForClass(className);
+    const sourceTeam = teams.find(t => t.members.some(m => m.rollNo === studentRollNo));
+    if (sourceTeam) {
+      const removedMember = sourceTeam.members.find(m => m.rollNo === studentRollNo);
+      sourceTeam.members = sourceTeam.members.filter(m => m.rollNo !== studentRollNo);
+      sourceTeam.membersCount = sourceTeam.members.length;
+      if (removedMember?.isLead && sourceTeam.members.length > 0) {
+        sourceTeam.members[0].isLead = true;
+        sourceTeam.leadStudent = `${sourceTeam.members[0].name} (${sourceTeam.members[0].rollNo})`;
+      } else if (sourceTeam.members.length === 0) {
+        sourceTeam.leadStudent = 'Unassigned';
+      }
+      this.saveTeamsForClass(className, teams);
+    }
+
+    const allStudents = await AdminService.getStudents();
+    const student = allStudents.find(s => s.rollNo === studentRollNo);
+    if (student) {
+      student.teamNo = 'Unassigned';
+      student.guide = 'Unassigned';
+      student.projectTitle = '';
+      await AdminService.saveStudents(allStudents);
+    }
+
+    // Student portal team cache sync
+    try {
+      const studentTeamRaw = localStorage.getItem('siet_student_team_v6');
+      if (studentTeamRaw) {
+        const sTeam = JSON.parse(studentTeamRaw);
+        if (sTeam && Array.isArray(sTeam.members)) {
+          sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== studentRollNo);
+          if (sTeam.leadRollNo === studentRollNo) {
+            sTeam.teamNo = 'Unassigned';
+            sTeam.status = 'Unassigned';
+            sTeam.submittedTitle = '';
+            sTeam.projectTitle = '';
+            sTeam.guideName = 'Unassigned';
+          }
+          localStorage.setItem('siet_student_team_v6', JSON.stringify(sTeam));
+        }
+      }
+    } catch {}
+
+    // Guide portal teams cache sync
+    try {
+      const guideTeamsRaw = localStorage.getItem('siet_guide_portal_teams_v6');
+      if (guideTeamsRaw) {
+        const gTeams = JSON.parse(guideTeamsRaw);
+        if (Array.isArray(gTeams)) {
+          gTeams.forEach((gt: any) => {
+            if (Array.isArray(gt.members)) {
+              gt.members = gt.members.filter((m: any) => m.rollNo !== studentRollNo);
+            }
+          });
+          localStorage.setItem('siet_guide_portal_teams_v6', JSON.stringify(gTeams));
+        }
+      }
+    } catch {}
+
+    // Call backend API
+    try {
+      await ApiClient.unassignAdvisorStudent({
+        className,
+        studentRollNo,
+      });
+      // Fetch fresh server state
+      try {
+        const freshServerTeams = await ApiClient.getAdvisorTeams(className);
+        if (Array.isArray(freshServerTeams)) {
+          localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(freshServerTeams));
+        }
+      } catch {}
+    } catch (err) {
+      console.warn("Backend unassign student API error:", err);
+    }
+
+    return { success: true, message: `Student ${student?.name || studentRollNo} unassigned from team.` };
   },
 
   async moveStudent(
     className: string,
     studentRollNo: string,
-    targetTeamId: string
+    targetTeamId: string,
+    options?: {
+      replaceStudentRollNo?: string;
+      exchangeAction?: 'swap' | 'unassign';
+    }
   ): Promise<{ success: boolean; message: string }> {
     const teams = this.getTeamsForClass(className);
     const targetTeam = teams.find(t => t.teamId === targetTeamId || t.teamNo === targetTeamId);
@@ -397,12 +473,8 @@ export const AdvisorService = {
     }
 
     const currentCap = targetTeam.capacity || this.getTeamCapacity(className);
-    if (targetTeam.members.length >= currentCap) {
-      return { 
-        success: false, 
-        message: `Target team is at maximum capacity (${targetTeam.members.length}/${currentCap} members). Cannot assign student.` 
-      };
-    }
+    const allStudents = await AdminService.getStudents();
+    const student = allStudents.find(s => s.rollNo === studentRollNo);
 
     // Locate source team if any
     const sourceTeam = teams.find(t => t.members.some(m => m.rollNo === studentRollNo));
@@ -410,10 +482,75 @@ export const AdvisorService = {
       return { success: false, message: "Student is already in this team." };
     }
 
-    const allStudents = await AdminService.getStudents();
-    const student =await allStudents.find(s => s.rollNo === studentRollNo);
+    // Handle replacement student from target team if specified
+    if (options?.replaceStudentRollNo) {
+      const repRoll = options.replaceStudentRollNo.trim();
+      const repIdx = targetTeam.members.findIndex(m => m.rollNo === repRoll);
+      if (repIdx >= 0) {
+        const [repMember] = targetTeam.members.splice(repIdx, 1);
+        targetTeam.membersCount = targetTeam.members.length;
 
-    // If student was in a source team, remove them from source team
+        // If removed member was lead, assign lead to next member if present
+        if (repMember.isLead && targetTeam.members.length > 0) {
+          targetTeam.members[0].isLead = true;
+          targetTeam.leadStudent = `${targetTeam.members[0].name} (${targetTeam.members[0].rollNo})`;
+        } else if (targetTeam.members.length === 0) {
+          targetTeam.leadStudent = 'Unassigned';
+        }
+
+        const repStudentObj = allStudents.find(s => s.rollNo === repRoll);
+
+        if (options.exchangeAction === 'swap' && sourceTeam) {
+          // Swap: Place removed member into source team
+          const isLead = sourceTeam.members.length === 0;
+          const swappedMember: TeamMemberRecord = {
+            ...repMember,
+            isLead,
+          };
+          sourceTeam.members.push(swappedMember);
+          sourceTeam.membersCount = sourceTeam.members.length;
+          if (isLead) {
+            sourceTeam.leadStudent = `${swappedMember.name} (${swappedMember.rollNo})`;
+          }
+          if (repStudentObj) {
+            repStudentObj.teamNo = sourceTeam.teamNo;
+            repStudentObj.projectTitle = sourceTeam.title;
+            repStudentObj.guide = sourceTeam.guide;
+          }
+        } else {
+          // Unassign: Removed member becomes Unassigned
+          if (repStudentObj) {
+            repStudentObj.teamNo = 'Unassigned';
+            repStudentObj.projectTitle = '';
+            repStudentObj.guide = 'Unassigned';
+          }
+          // Sync student portal team storage if matching
+          try {
+            const rawStudentTeam = localStorage.getItem('siet_student_team_v6');
+            if (rawStudentTeam) {
+              const parsed = JSON.parse(rawStudentTeam);
+              if (parsed.leadRollNo === repRoll || (Array.isArray(parsed.members) && parsed.members.some((m: any) => m.rollNo === repRoll))) {
+                parsed.teamNo = 'Unassigned';
+                parsed.status = 'Unassigned';
+                parsed.submittedTitle = '';
+                parsed.projectTitle = '';
+                parsed.guideName = 'Unassigned';
+                localStorage.setItem('siet_student_team_v6', JSON.stringify(parsed));
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+
+    if (targetTeam.members.length >= currentCap) {
+      return { 
+        success: false, 
+        message: `Target team is at maximum capacity (${targetTeam.members.length}/${currentCap} members). Cannot assign student.` 
+      };
+    }
+
+    // If moving student was in a source team, remove them from source team
     if (sourceTeam) {
       const studentMember = sourceTeam.members.find(m => m.rollNo === studentRollNo);
       sourceTeam.members = sourceTeam.members.filter(m => m.rollNo !== studentRollNo);
@@ -445,6 +582,8 @@ export const AdvisorService = {
         className,
         studentRollNo,
         targetTeamId: targetTeam.teamId || targetTeamId,
+        replaceStudentRollNo: options?.replaceStudentRollNo,
+        exchangeAction: options?.exchangeAction,
       });
 
       // Fetch fresh database teams state immediately to ensure full consistency
@@ -465,8 +604,8 @@ export const AdvisorService = {
       student.teamNo = targetTeam.teamNo;
       student.projectTitle = targetTeam.title;
       student.guide = targetTeam.guide;
-      await AdminService.saveStudents(allStudents);
     }
+    await AdminService.saveStudents(allStudents);
 
     // Sync student portal team cache
     try {
@@ -474,14 +613,42 @@ export const AdvisorService = {
       if (studentTeamRaw) {
         const sTeam = JSON.parse(studentTeamRaw);
         if (sTeam && Array.isArray(sTeam.members)) {
+          // 1. Moving student
           const wasInSTeam = sTeam.members.some((m: any) => m.rollNo === studentRollNo);
           if (wasInSTeam && sTeam.teamNo !== targetTeam.teamNo) {
             sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== studentRollNo);
-            localStorage.setItem('siet_student_team_v6', JSON.stringify(sTeam));
           } else if (!wasInSTeam && sTeam.teamNo === targetTeam.teamNo) {
             sTeam.members.push(newMember);
-            localStorage.setItem('siet_student_team_v6', JSON.stringify(sTeam));
           }
+
+          // 2. Replaced student if specified
+          if (options?.replaceStudentRollNo) {
+            const repRoll = options.replaceStudentRollNo;
+            if (options.exchangeAction === 'swap' && sourceTeam) {
+              if (sTeam.teamNo === targetTeam.teamNo) {
+                sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== repRoll);
+              } else if (sTeam.teamNo === sourceTeam.teamNo) {
+                const repObj = allStudents.find(s => s.rollNo === repRoll);
+                sTeam.members.push({
+                  rollNo: repRoll,
+                  name: repObj ? repObj.name : `Student (${repRoll})`,
+                  email: repObj ? repObj.email : `${repRoll}@srishakthi.ac.in`,
+                  isLead: false,
+                });
+              }
+            } else {
+              // Unassign
+              if (sTeam.teamNo === targetTeam.teamNo) {
+                sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== repRoll);
+              }
+              if (sTeam.leadRollNo === repRoll) {
+                sTeam.teamNo = 'Unassigned';
+                sTeam.status = 'Unassigned';
+              }
+            }
+          }
+
+          localStorage.setItem('siet_student_team_v6', JSON.stringify(sTeam));
         }
       }
     } catch {}
@@ -494,6 +661,7 @@ export const AdvisorService = {
         if (Array.isArray(gTeams)) {
           gTeams.forEach((gt: any) => {
             if (Array.isArray(gt.members)) {
+              // 1. Moving student
               gt.members = gt.members.filter((m: any) => m.rollNo !== studentRollNo);
               if (gt.teamNo === targetTeam.teamNo || gt.teamId === targetTeam.teamId) {
                 gt.members.push({
@@ -502,6 +670,23 @@ export const AdvisorService = {
                   email: newMember.email,
                   role: newMember.isLead ? 'Team Lead' : 'Team Member',
                 });
+              }
+
+              // 2. Replaced student
+              if (options?.replaceStudentRollNo) {
+                const repRoll = options.replaceStudentRollNo;
+                if (gt.teamNo === targetTeam.teamNo || gt.teamId === targetTeam.teamId) {
+                  gt.members = gt.members.filter((m: any) => m.rollNo !== repRoll);
+                }
+                if (options.exchangeAction === 'swap' && sourceTeam && (gt.teamNo === sourceTeam.teamNo || gt.teamId === sourceTeam.teamId)) {
+                  const repObj = allStudents.find(s => s.rollNo === repRoll);
+                  gt.members.push({
+                    name: repObj ? repObj.name : `Student (${repRoll})`,
+                    rollNo: repRoll,
+                    email: repObj ? repObj.email : `${repRoll}@srishakthi.ac.in`,
+                    role: 'Team Member',
+                  });
+                }
               }
             }
           });
@@ -913,31 +1098,102 @@ export const AdvisorService = {
     };
   },
 
-  async deleteTeam(className: string, teamId: string): Promise<{ success: boolean; message: string }> {
+  async deleteTeam(className: string, teamId: string, advisorName?: string): Promise<{ success: boolean; message: string }> {
     let teams = this.getTeamsForClass(className);
-    const targetTeam = teams.find(t => t.teamId === teamId);
+    const targetTeam = teams.find(t => t.teamId === teamId || t.teamNo === teamId || (t as any).id === teamId);
     if (!targetTeam) {
       return { success: false, message: "Team not found." };
     }
 
-    const memberRolls = targetTeam.members.map(m => m.rollNo);
+    const memberRolls = (targetTeam.members || []).map(m => m.rollNo);
 
-    // Filter out deleted team
-    teams = teams.filter(t => t.teamId !== teamId);
+    // Call backend API if possible
+    try {
+      await ApiClient.deleteAdvisorTeam(targetTeam.teamId || teamId);
+    } catch (apiErr: any) {
+      console.warn("Backend delete team warning, syncing local state:", apiErr);
+    }
+
+    // Filter out deleted team from class
+    teams = teams.filter(t => t.teamId !== targetTeam.teamId && t.teamNo !== targetTeam.teamNo);
     this.saveTeamsForClass(className, teams);
 
     // Reset student assignments in AdminService to Unassigned
-    const allStudents = await AdminService.getStudents();
-    allStudents.forEach(s => {
-      if (memberRolls.includes(s.rollNo)) {
-        s.teamNo = "Unassigned";
-        s.projectTitle = "";
-        s.guide = "";
+    try {
+      const allStudents = await AdminService.getStudents();
+      allStudents.forEach(s => {
+        if (memberRolls.includes(s.rollNo)) {
+          s.teamNo = "Unassigned";
+          s.projectTitle = "";
+          s.guide = "Unassigned";
+        }
+      });
+      await AdminService.saveStudents(allStudents);
+    } catch (e) {
+      console.warn("Could not sync admin students:", e);
+    }
+
+    // Sync student portal active team storage if matching
+    try {
+      const rawStudentTeam = localStorage.getItem('siet_student_team_v6');
+      if (rawStudentTeam) {
+        const parsed = JSON.parse(rawStudentTeam);
+        if (
+          parsed.id === targetTeam.teamId ||
+          parsed.teamNo === targetTeam.teamNo ||
+          memberRolls.includes(parsed.leadRollNo) ||
+          (Array.isArray(parsed.members) && parsed.members.some((m: any) => memberRolls.includes(m.rollNo)))
+        ) {
+          parsed.teamNo = 'Unassigned';
+          parsed.status = 'Unassigned';
+          parsed.submittedTitle = '';
+          parsed.projectTitle = '';
+          parsed.guideName = 'Unassigned';
+          parsed.isTitleApproved = false;
+          localStorage.setItem('siet_student_team_v6', JSON.stringify(parsed));
+        }
       }
-    });
-    await AdminService.saveStudents(allStudents);
+    } catch (e) {
+      console.warn("Could not sync student team storage:", e);
+    }
+
+    // Sync guide portal cache to remove dissolved team
+    try {
+      const rawGuide = localStorage.getItem('siet_guide_portal_teams_v6');
+      if (rawGuide) {
+        let gTeams = JSON.parse(rawGuide);
+        if (Array.isArray(gTeams)) {
+          gTeams = gTeams.filter((gt: any) =>
+            gt.teamId !== targetTeam.teamId &&
+            gt.teamNo !== targetTeam.teamNo &&
+            gt.id !== targetTeam.teamId
+          );
+          localStorage.setItem('siet_guide_portal_teams_v6', JSON.stringify(gTeams));
+        }
+      }
+    } catch (e) {
+      console.warn("Could not sync guide portal storage:", e);
+    }
+
+    // Record in Advisor History Log
+    try {
+      AdvisorHistoryService.addLog(
+        className,
+        "Team Deletion",
+        targetTeam.teamNo,
+        `Dissolved ${targetTeam.teamNo} ("${targetTeam.title || 'Untitled Project'}"). ${memberRolls.length} student(s) marked as Unassigned.`,
+        advisorName || "Class Advisor",
+        "Class Advisor"
+      );
+    } catch (e) {
+      console.warn("Failed to log team deletion to history:", e);
+    }
 
     notifyListeners();
+    window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
+    window.dispatchEvent(new CustomEvent('siet_data_updated'));
+    window.dispatchEvent(new CustomEvent('siet_advisor_teams_updated'));
+
     return {
       success: true,
       message: `Team ${targetTeam.teamNo} was successfully deleted.`

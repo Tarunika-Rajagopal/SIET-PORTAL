@@ -266,7 +266,7 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-black text-slate-900">
-                  Manual Team Creation Wizard
+                  Allocate Team Manually
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-mint-100 text-mint-800 text-[10px] font-black uppercase">
                   Class {className}
