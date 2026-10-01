@@ -23,13 +23,18 @@ _MEMORY_CACHE: Dict[str, Tuple[str, float]] = {}
 class CacheService:
     def __init__(self):
         self.redis_client = None
-        self._redis_checked = False
+        self._last_redis_attempt = 0.0
         self._is_redis_available = False
 
     async def _init_redis(self):
-        if self._redis_checked:
+        if self._is_redis_available and self.redis_client:
             return
-        self._redis_checked = True
+
+        now = time.time()
+        # Cooldown of 15 seconds between failed connection attempts
+        if now - self._last_redis_attempt < 15.0:
+            return
+        self._last_redis_attempt = now
 
         redis_url = getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
         try:
@@ -37,20 +42,20 @@ class CacheService:
             client = aioredis.from_url(
                 redis_url,
                 decode_responses=True,
-                socket_connect_timeout=1.0,
-                socket_timeout=1.0,
+                socket_connect_timeout=5.0,
+                socket_timeout=3.0,
+                retry_on_timeout=True,
             )
             # Test connectivity
             await client.ping()
             self.redis_client = client
             self._is_redis_available = True
-            logger.info(f"[Cache] Connected to Redis at {redis_url}")
-            print(f"[Cache] Connected to Redis at {redis_url}")
+            logger.info(f"[Cache] Successfully connected to Redis at {redis_url}")
+            print(f"[Cache] Connected to Redis: {redis_url}")
         except Exception as e:
             self._is_redis_available = False
             self.redis_client = None
-            logger.info(f"[Cache] Redis not available ({e}). Using High-Speed In-Memory Cache.")
-            print("[Cache] Redis not available. Active mode: In-Memory TTL Cache.")
+            logger.warning(f"[Cache] Redis connection paused ({e}). Using In-Memory TTL Cache.")
 
     async def get_json(self, key: str) -> Optional[Any]:
         """Fetch and deserialize JSON from Redis or in-memory fallback."""
@@ -60,6 +65,7 @@ class CacheService:
             try:
                 raw = await self.redis_client.get(key)
                 if raw is not None:
+                    print(f"[Cache HIT] {key}")
                     return json.loads(raw)
             except Exception as e:
                 logger.warning(f"[Cache] Redis get error: {e}, falling back to memory")
@@ -69,9 +75,12 @@ class CacheService:
         if entry:
             val_str, exp_time = entry
             if time.time() < exp_time:
+                print(f"[Cache HIT (Memory)] {key}")
                 return json.loads(val_str)
             else:
                 _MEMORY_CACHE.pop(key, None)
+
+        print(f"[Cache MISS] {key}")
         return None
 
     async def set_json(self, key: str, value: Any, expire_seconds: int = 60) -> bool:

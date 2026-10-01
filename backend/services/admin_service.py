@@ -5,7 +5,8 @@ from typing import Optional, List, Dict, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User, Faculty, Student, AuditLog
+from sqlalchemy import update, or_
+from models import User, Faculty, Student, AuditLog, Team
 from auth.auth import hash_password
 from repositories.faculty_repository import FacultyRepository
 from repositories.user_repository import UserRepository
@@ -218,17 +219,77 @@ class AdminService:
         f.advisor_batch = batch
         f.advisor_class = className
         f.status = "Active"
+
+        # Synchronize all teams in this class section
+        await self.session.execute(
+            update(Team)
+            .where(Team.class_name.ilike(className.strip()))
+            .values(advisor_name=f.name, advisor_email=f.email)
+        )
+        # Synchronize student user records in this class section
+        await self.session.execute(
+            update(User)
+            .where(User.class_name.ilike(className.strip()), User.role == "student")
+            .values(advisor_name=f.name)
+        )
+
         await self.session.commit()
+        from services.cache_service import cache_service
+        await cache_service.invalidate_faculties()
+        await cache_service.delete_prefix("cache:student:")
+        await cache_service.delete_prefix("cache:teams:")
+        await cache_service.delete_prefix("cache:advisor:")
+        await cache_service.delete_prefix("cache:hod:")
         return {"success": True, "message": f"{f.name} assigned as Advisor for {className}"}
 
     async def remove_advisor(self, faculty_id: str) -> Dict[str, Any]:
-        f = await self.faculty_repo.get_by_id(faculty_id)
+        f = None
+        try:
+            f = await self.faculty_repo.get_by_id(uuid.UUID(faculty_id))
+        except Exception:
+            pass
+        if not f:
+            f = await self.faculty_repo.get_by_email(faculty_id)
         if not f:
             return {"success": False, "message": "Faculty not found"}
+
+        old_class = f.advisor_class
+        old_name = f.name
         f.role = "Guide" if (f.teams_count or 0) > 0 else "None"
         f.advisor_batch = None
         f.advisor_class = None
+
+        # Synchronize teams and students so student portal no longer displays removed advisor
+        if old_class:
+            await self.session.execute(
+                update(Team)
+                .where(Team.class_name.ilike(old_class.strip()))
+                .values(advisor_name="", advisor_email="")
+            )
+            await self.session.execute(
+                update(User)
+                .where(User.class_name.ilike(old_class.strip()), User.role == "student")
+                .values(advisor_name="")
+            )
+        else:
+            await self.session.execute(
+                update(Team)
+                .where(or_(Team.advisor_email == f.email, Team.advisor_name == old_name))
+                .values(advisor_name="", advisor_email="")
+            )
+            await self.session.execute(
+                update(User)
+                .where(User.advisor_name == old_name)
+                .values(advisor_name="")
+            )
+
         await self.session.commit()
+        from services.cache_service import cache_service
+        await cache_service.invalidate_faculties()
+        await cache_service.delete_prefix("cache:student:")
+        await cache_service.delete_prefix("cache:teams:")
+        await cache_service.delete_prefix("cache:advisor:")
+        await cache_service.delete_prefix("cache:hod:")
         return {"success": True, "message": f"Advisor role removed from {f.name}"}
 
     # ── Students ────────────────────────────────────────────────────
@@ -426,20 +487,56 @@ class AdminService:
     
     async def reassign(
         self,
-        currentEmail:str
-    ) -> Dict[str,Any]:
-        result = await self.faculty_repo.get_by_email(currentEmail);
+        currentEmail: str
+    ) -> Dict[str, Any]:
+        result = await self.faculty_repo.get_by_email(currentEmail)
+        if not result:
+            return {"message": "Faculty not found"}
+
+        old_class = result.advisor_class
+        old_name = result.name
 
         if result.role == "Advisor":
             result.role = "None"
         if result.role == "Advisor & Guide":
             result.role = "Guide"
 
-        
         result.advisor_class = None
-        result.advisor_batch = None 
+        result.advisor_batch = None
+
+        # Synchronize teams and students so student portal no longer displays removed advisor
+        if old_class:
+            await self.session.execute(
+                update(Team)
+                .where(Team.class_name.ilike(old_class.strip()))
+                .values(advisor_name="", advisor_email="")
+            )
+            await self.session.execute(
+                update(User)
+                .where(User.class_name.ilike(old_class.strip()), User.role == "student")
+                .values(advisor_name="")
+            )
+        else:
+            await self.session.execute(
+                update(Team)
+                .where(or_(Team.advisor_email == currentEmail, Team.advisor_name == old_name))
+                .values(advisor_name="", advisor_email="")
+            )
+            await self.session.execute(
+                update(User)
+                .where(User.advisor_name == old_name)
+                .values(advisor_name="")
+            )
+
         await self.session.commit()
-        return {"message":"Removed as an advisor "}
+        from services.cache_service import cache_service
+        await cache_service.invalidate_faculties()
+        await cache_service.delete_prefix("cache:student:")
+        await cache_service.delete_prefix("cache:teams:")
+        await cache_service.delete_prefix("cache:advisor:")
+        await cache_service.delete_prefix("cache:hod:")
+
+        return {"message": "Removed as an advisor"}
 
     async def delete_guide(
         self,

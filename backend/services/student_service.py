@@ -126,7 +126,44 @@ class StudentService:
 
     async def get_team(self, user: User) -> dict:
         team = await self._find_team(user, with_members=True)
-        return self._format_team(team)
+        advisor_name = ""
+        if team.class_name:
+            from models import Faculty
+            from sqlalchemy import or_
+            adv_res = await self.session.execute(
+                select(Faculty).where(
+                    Faculty.advisor_class.ilike(team.class_name.strip()),
+                    or_(
+                        Faculty.role.ilike("%advisor%"),
+                        Faculty.role.ilike("%advisor & guide%")
+                    )
+                )
+            )
+            adv = adv_res.scalars().first()
+            if adv:
+                advisor_name = adv.name or ""
+                if team.advisor_name != advisor_name:
+                    team.advisor_name = advisor_name
+                    team.advisor_email = adv.email
+                    try:
+                        await self.session.commit()
+                    except Exception:
+                        await self.session.rollback()
+            else:
+                # No active advisor assigned to this class section
+                if team.advisor_name:
+                    team.advisor_name = ""
+                    team.advisor_email = ""
+                    try:
+                        await self.session.commit()
+                    except Exception:
+                        await self.session.rollback()
+        else:
+            advisor_name = team.advisor_name or ""
+
+        formatted = self._format_team(team)
+        formatted["advisorName"] = advisor_name
+        return formatted
 
     async def get_submissions(self, user: User) -> List[dict]:
         team = await self._find_team(user, with_members=False)

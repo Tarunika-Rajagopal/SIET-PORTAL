@@ -169,7 +169,7 @@ export const StudentService = {
                 isTitleApproved: matched.status === 'Approved' || matched.status === 'Active & Approved',
                 guideApprovalStatus: (matched.status === 'Approved' || matched.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
                 guideName: matched.guide || 'Unassigned',
-                advisorName: currentUser.advisorName || 'Class Advisor',
+                advisorName: currentUser.advisorName || '',
                 batch: matched.batch || '2023-2027 (III Year)',
                 section: matched.class || className,
                 status: 'In Progress',

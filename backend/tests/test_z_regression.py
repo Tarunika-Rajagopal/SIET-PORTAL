@@ -206,3 +206,39 @@ async def test_z4_payload_and_injection_safety():
             json={"invalid_field": 123},
         )
         assert invalid_body_res.status_code == 422, "Malformed body should return 422"
+
+
+@pytest.mark.asyncio
+async def test_z5_advisor_removal_propagation_to_student():
+    """Z5: Verify that when Admin removes or reassigns an advisor, the student portal
+    immediately reflects 'advisorName': '' ('Not Assigned') across DB and Cache.
+    """
+    await setup_test_environment()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://localhost:8000") as ac:
+        admin_token = await get_token(ac, "admin@siet.ac.in", "admin@123")
+        stu_token = await get_token(ac, "student@srishakthi.ac.in", "student@123")
+
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        stu_headers = {"Authorization": f"Bearer {stu_token}"}
+
+        # 1. Initially student has advisor
+        initial_team = await ac.get("/api/v1/student/team", headers=stu_headers)
+        assert initial_team.status_code == 200
+
+        # 2. Admin removes advisor (Dr. Karthikeyan)
+        reassign_res = await ac.post(
+            "/api/v1/admin/reassign",
+            json={"email_one": "dr.karthik@siet.ac.in"},
+            headers=admin_headers,
+        )
+        assert reassign_res.status_code == 200
+
+        # 3. Student immediately fetches team -> advisorName MUST be empty ('Not Assigned')
+        updated_team = await ac.get("/api/v1/student/team", headers=stu_headers)
+        assert updated_team.status_code == 200
+        team_data = updated_team.json()
+        assert team_data.get("advisorName") in ("", None), (
+            f"Expected advisorName to be cleared, got '{team_data.get('advisorName')}'"
+        )
+
