@@ -16,26 +16,41 @@ class TeamRepository:
         res = await self.session.execute(select(Team).where(Team.id == team_id))
         return res.scalars().first()
 
+    @staticmethod
+    def _class_variants(raw: str) -> List[str]:
+        raw = (raw or "").strip()
+        if not raw:
+            return []
+        v = {raw, raw.upper()}
+        clean = raw.replace(" ", "").replace("-", "").upper()
+        v.add(clean)
+        if clean.startswith("IV"):
+            clean = clean[2:]
+            v.add(clean)
+        if clean and clean[-1].isalpha():
+            sec = clean[-1]
+            v.update([f"CSE-{sec}", f"CSE {sec}", f"IV CSE-{sec}", f"IV CSE {sec}", sec])
+        return list(v)
+
     async def get_by_team_id_string(self, team_id_str: str) -> Optional[Team]:
         cleaned = team_id_str.strip()
+        digits = "".join(c for c in cleaned if c.isdigit())
+        num = int(digits) if digits else None
+        conds = [Team.team_id == cleaned, Team.team_no == cleaned]
         try:
             parsed_uuid = uuid.UUID(cleaned)
-            res = await self.session.execute(
-                select(Team).where(
-                    or_(Team.id == parsed_uuid, Team.team_id == cleaned, Team.team_no == cleaned)
-                )
-            )
-            found = res.scalars().first()
-            if found:
-                return found
+            conds.append(Team.id == parsed_uuid)
         except (ValueError, TypeError):
-            pass
+            conds.append(cast(Team.id, String) == cleaned)
 
-        res = await self.session.execute(
-            select(Team).where(
-                or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned)
-            )
-        )
+        if num is not None:
+            conds.extend([
+                Team.team_no == f"Team {num:02d}",
+                Team.team_no == f"Team {num}",
+                Team.team_id.ilike(f"%{digits}%"),
+            ])
+
+        res = await self.session.execute(select(Team).where(or_(*conds)))
         return res.scalars().first()
 
     async def get_with_members(self, team_identifier: uuid.UUID | str) -> Optional[Team]:
@@ -43,12 +58,24 @@ class TeamRepository:
         if isinstance(team_identifier, uuid.UUID):
             q = q.where(Team.id == team_identifier)
         else:
-            cleaned = team_identifier.strip()
+            cleaned = str(team_identifier).strip()
+            digits = "".join(c for c in cleaned if c.isdigit())
+            num = int(digits) if digits else None
+
+            conds = [Team.team_id == cleaned, Team.team_no == cleaned]
             try:
                 parsed_uuid = uuid.UUID(cleaned)
-                q = q.where(or_(Team.id == parsed_uuid, Team.team_id == cleaned, Team.team_no == cleaned))
+                conds.append(Team.id == parsed_uuid)
             except (ValueError, TypeError):
-                q = q.where(or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned))
+                conds.append(cast(Team.id, String) == cleaned)
+
+            if num is not None:
+                conds.extend([
+                    Team.team_no == f"Team {num:02d}",
+                    Team.team_no == f"Team {num}",
+                    Team.team_id.ilike(f"%{digits}%"),
+                ])
+            q = q.where(or_(*conds))
         res = await self.session.execute(q)
         return res.scalars().first()
 
@@ -60,17 +87,30 @@ class TeamRepository:
         if isinstance(team_identifier, uuid.UUID):
             q = q.where(Team.id == team_identifier)
         else:
-            cleaned = team_identifier.strip()
+            cleaned = str(team_identifier).strip()
+            digits = "".join(c for c in cleaned if c.isdigit())
+            num = int(digits) if digits else None
+
+            conds = [Team.team_id == cleaned, Team.team_no == cleaned]
             try:
                 parsed_uuid = uuid.UUID(cleaned)
-                q = q.where(or_(Team.id == parsed_uuid, Team.team_id == cleaned, Team.team_no == cleaned))
+                conds.append(Team.id == parsed_uuid)
             except (ValueError, TypeError):
-                q = q.where(or_(Team.team_id == cleaned, Team.team_no == cleaned, cast(Team.id, String) == cleaned))
+                conds.append(cast(Team.id, String) == cleaned)
+
+            if num is not None:
+                conds.extend([
+                    Team.team_no == f"Team {num:02d}",
+                    Team.team_no == f"Team {num}",
+                    Team.team_id.ilike(f"%{digits}%"),
+                ])
+            q = q.where(or_(*conds))
         res = await self.session.execute(q)
         return res.scalars().first()
 
     async def list_by_class(self, class_name: str, batch: Optional[str] = None) -> List[Team]:
-        q = select(Team).options(selectinload(Team.members)).where(Team.class_name == class_name)
+        variants = self._class_variants(class_name)
+        q = select(Team).options(selectinload(Team.members)).where(Team.class_name.in_(variants))
         if batch and batch != "ALL":
             q = q.where(Team.batch == batch)
         res = await self.session.execute(q.order_by(Team.team_no))

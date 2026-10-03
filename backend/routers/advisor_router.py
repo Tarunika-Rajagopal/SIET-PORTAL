@@ -12,6 +12,7 @@ from schemas import (
     CreateTeamRequest,
     BulkCreateTeamsRequest,
     MoveStudentRequest,
+    UnassignStudentRequest,
     ReassignGuideRequest,
     UpdateTeamRequest,
     AdvisorHistoryLogRequest,
@@ -188,6 +189,23 @@ async def move_student(
         req.className,
         req.studentRollNo,
         req.targetTeamId,
+        req.replaceStudentRollNo,
+        req.exchangeAction,
+    )
+    await cache_service.invalidate_teams()
+    await cache_service.invalidate_students()
+    return result
+
+
+@router.post("/unassign-student")
+async def unassign_student(
+    req: UnassignStudentRequest,
+    user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
+    service: AdvisorService = Depends(get_advisor_service),
+):
+    result = await service.unassign_student(
+        req.className,
+        req.studentRollNo,
     )
     await cache_service.invalidate_teams()
     await cache_service.invalidate_students()
@@ -231,7 +249,7 @@ async def update_team(
 @router.delete("/teams/{team_id}")
 async def delete_team(
     team_id: str,
-    user: User = Depends(require_roles("advisor")),
+    user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
     result = await service.delete_team(team_id)

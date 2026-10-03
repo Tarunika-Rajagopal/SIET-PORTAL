@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Search, RefreshCw, Plus, MoveRight, UserPlus, Sparkles, 
-  CheckCircle2, AlertCircle, X, Check, ChevronRight, ChevronDown, Settings,
+  CheckCircle2, AlertCircle, X, Check, ChevronRight, ChevronDown,
   School, FileText, FileCode, Github, ExternalLink, Download, XCircle, Award, Eye, Clock,
-  ArrowRightLeft, ArrowRight, BookOpen
+  ArrowRightLeft, ArrowRight, BookOpen, Trash2
 } from 'lucide-react';
 import { AdminService, AdminStudent } from '../../services/adminService';
 import { AdvisorService, ClassTeam, TeamMemberRecord } from '../../services/advisorService';
@@ -15,7 +15,9 @@ import { WeeklySubmission } from '../../types';
 import AdvisorCreateTeamModal from './AdvisorCreateTeamModal';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
 import AdvisorGuideReassignModal from './AdvisorGuideReassignModal';
+import AdvisorDeleteTeamModal from './AdvisorDeleteTeamModal';
 import { useClassStudents, useClassTeams, invalidateStudentsQuery, invalidateTeamsQuery } from '../../hooks/useQueries';
+import { queryClient, QUERY_KEYS } from '../../lib/queryClient';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
 interface AdvisorStudentsViewProps {
@@ -56,6 +58,9 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [studentForManualTeam, setStudentForManualTeam] = useState<AdminStudent | null>(null);
   const [isReassignGuideOpen, setIsReassignGuideOpen] = useState<boolean>(false);
   const [teamForGuideReassign, setTeamForGuideReassign] = useState<ClassTeam | null>(null);
+  const [isDeleteTeamOpen, setIsDeleteTeamOpen] = useState<boolean>(false);
+  const [teamToDelete, setTeamToDelete] = useState<ClassTeam | null>(null);
+  const [isTeamManagementOpen, setIsTeamManagementOpen] = useState<boolean>(false);
 
   // Add student form state (NO placeholders)
   const [newStudentName, setNewStudentName] = useState<string>('');
@@ -72,10 +77,14 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [targetTeamId, setTargetTeamId] = useState<string>('');
   const [moveError, setMoveError] = useState<string>('');
   const [fullTeamSelected, setFullTeamSelected] = useState<ClassTeam | null>(null);
+  const [studentToReplace, setStudentToReplace] = useState<TeamMemberRecord | null>(null);
+  const [exchangeAction, setExchangeAction] = useState<'swap' | 'unassign'>('unassign');
   const [isMovingStudent, setIsMovingStudent] = useState<boolean>(false);
   const [teamSearchFilter, setTeamSearchFilter] = useState<string>('');
 
   const refreshData = async () => {
+    invalidateStudentsQuery();
+    invalidateTeamsQuery();
     await Promise.all([refetchStudents(), refetchTeams()]);
   };
 
@@ -244,28 +253,142 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
     const currentTeamNo = studentToMove.teamNo || 'Unassigned';
     const isTransfer = currentTeamNo !== 'Unassigned' && currentTeamNo.trim() !== '';
-    const res = await AdvisorService.assignStudentToTeam(className, studentToMove.rollNo, targetTeamId);
+    const isReplacing = Boolean(fullTeamSelected && studentToReplace);
+
+    const res = await AdvisorService.assignStudentToTeam(
+      className,
+      studentToMove.rollNo,
+      targetTeamId,
+      isReplacing
+        ? {
+            replaceStudentRollNo: studentToReplace?.rollNo,
+            exchangeAction: exchangeAction || 'unassign',
+          }
+        : undefined
+    );
+
     if (!res.success) {
       setMoveError(res.message);
       setIsMovingStudent(false);
       return;
     }
 
+    let historyLogMsg = isTransfer
+      ? `Transferred student from ${currentTeamNo} to ${targetTeam.teamNo} (Guide: ${targetTeam.guide}).`
+      : `Reallocated student to ${targetTeam.teamNo} (Guide: ${targetTeam.guide}).`;
+
+    if (isReplacing && studentToReplace) {
+      if (exchangeAction === 'swap' && isTransfer) {
+        historyLogMsg = `Exchanged ${studentToMove.name} (${currentTeamNo} -> ${targetTeam.teamNo}) with ${studentToReplace.name} (${targetTeam.teamNo} -> ${currentTeamNo}).`;
+      } else {
+        historyLogMsg = `Moved ${studentToMove.name} to ${targetTeam.teamNo}, replacing ${studentToReplace.name} who is now Unassigned.`;
+      }
+    }
+
     AdvisorHistoryService.addLog(
       className,
       'Student Transfer',
       `${studentToMove.name} (${studentToMove.rollNo})`,
-      isTransfer
-        ? `Transferred student from ${currentTeamNo} to ${targetTeam.teamNo} (Guide: ${targetTeam.guide}).`
-        : `Reallocated student to ${targetTeam.teamNo} (Guide: ${targetTeam.guide}).`,
+      historyLogMsg,
       advisorName,
       'Class Advisor'
     );
 
-    onShowToast(`${studentToMove.name} successfully ${isTransfer ? 'transferred' : 'allocated'} to ${targetTeam.teamNo}.`);
+    onShowToast(
+      isReplacing && studentToReplace
+        ? (exchangeAction === 'swap' && isTransfer
+            ? `Successfully exchanged ${studentToMove.name} and ${studentToReplace.name} between teams.`
+            : `${studentToMove.name} moved to ${targetTeam.teamNo}. ${studentToReplace.name} is now Unassigned.`)
+        : `${studentToMove.name} successfully ${isTransfer ? 'transferred' : 'allocated'} to ${targetTeam.teamNo}.`
+    );
+
+    // Optimistically update React Query cache immediately for zero-lag table update
+    queryClient.setQueryData<AdminStudent[]>(
+      QUERY_KEYS.advisorStudents(className, batch),
+      (old = []) => {
+        return old.map(st => {
+          if (st.rollNo === studentToMove.rollNo) {
+            return {
+              ...st,
+              teamNo: targetTeam.teamNo,
+              guide: targetTeam.guide,
+              projectTitle: targetTeam.title || '',
+            };
+          }
+          if (isReplacing && studentToReplace && st.rollNo === studentToReplace.rollNo) {
+            if (exchangeAction === 'swap' && isTransfer) {
+              const srcTeam = teams.find(t => t.teamNo.toLowerCase() === currentTeamNo.toLowerCase());
+              return {
+                ...st,
+                teamNo: currentTeamNo,
+                guide: srcTeam?.guide || 'Unassigned',
+                projectTitle: srcTeam?.title || '',
+              };
+            } else {
+              return {
+                ...st,
+                teamNo: 'Unassigned',
+                guide: 'Unassigned',
+                projectTitle: '',
+              };
+            }
+          }
+          return st;
+        });
+      }
+    );
+
+    queryClient.setQueryData<ClassTeam[]>(
+      QUERY_KEYS.advisorTeams(className),
+      (old = []) => {
+        return old.map(t => {
+          let updatedMembers = [...(t.members || [])];
+          if (t.teamId === targetTeam.teamId || t.teamNo === targetTeam.teamNo) {
+            if (isReplacing && studentToReplace) {
+              updatedMembers = updatedMembers.filter(m => m.rollNo !== studentToReplace.rollNo);
+            }
+            if (!updatedMembers.some(m => m.rollNo === studentToMove.rollNo)) {
+              updatedMembers.push({
+                rollNo: studentToMove.rollNo,
+                name: studentToMove.name,
+                email: studentToMove.email,
+                isLead: updatedMembers.length === 0,
+              });
+            }
+            return {
+              ...t,
+              members: updatedMembers,
+              membersCount: updatedMembers.length,
+            };
+          }
+          if (isTransfer && t.teamNo.toLowerCase() === currentTeamNo.toLowerCase()) {
+            updatedMembers = updatedMembers.filter(m => m.rollNo !== studentToMove.rollNo);
+            if (isReplacing && studentToReplace && exchangeAction === 'swap') {
+              if (!updatedMembers.some(m => m.rollNo === studentToReplace.rollNo)) {
+                updatedMembers.push({
+                  rollNo: studentToReplace.rollNo,
+                  name: studentToReplace.name,
+                  email: studentToReplace.email,
+                  isLead: updatedMembers.length === 0,
+                });
+              }
+            }
+            return {
+              ...t,
+              members: updatedMembers,
+              membersCount: updatedMembers.length,
+            };
+          }
+          return t;
+        });
+      }
+    );
+
     setStudentToMove(null);
     setTargetTeamId('');
     setFullTeamSelected(null);
+    setStudentToReplace(null);
+    setExchangeAction('unassign');
     setTeamSearchFilter('');
     setIsMovingStudent(false);
     await refreshData();
@@ -309,7 +432,12 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   // Live metrics that update automatically whenever data changes
   const totalStrength = students.length;
   const assignedTeamsCount = teams.length;
-  const unassignedStudentsCount = students.filter(s => !s.teamNo || s.teamNo === 'Unassigned').length;
+  const unassignedStudentsCount = students.filter(s => {
+    if (teams.length > 0) {
+      return !teams.some(t => t.members && t.members.some(m => m.rollNo === s.rollNo));
+    }
+    return !s.teamNo || s.teamNo === 'Unassigned';
+  }).length;
 
   return (
     <div className="space-y-5 animate-fadeIn font-sans">
@@ -384,10 +512,12 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
           {!isManageMode && (
             <button
               type="button"
-              onClick={() => setIsManageMode(true)}
-              className="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 border border-[#E2E8E4]"
+              onClick={() => {
+                setIsManageMode(true);
+                setIsTeamManagementOpen(false);
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center shadow-2xs cursor-pointer bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 border border-[#E2E8E4]"
             >
-              <Settings size={14} />
               <span>Manage</span>
             </button>
           )}
@@ -396,138 +526,121 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
       {/* 2.1. Management Panel when Manage mode is active */}
       {isManageMode && (
-        <div className="bg-white rounded-3xl p-6 shadow-card border border-mint-200 bg-gradient-to-b from-mint-50/40 via-white to-white space-y-4 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8E4] pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-mint-500 text-white flex items-center justify-center font-bold shadow-xs">
-                <Settings size={18} />
-              </div>
+        <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-card border border-mint-200 bg-gradient-to-b from-mint-50/40 via-white to-white space-y-3 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Options in the horizontal space on the left */}
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 flex-1">
+              {/* Option 1: Team Management */}
+              <button
+                type="button"
+                onClick={() => setIsTeamManagementOpen((prev) => !prev)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:translate-y-0 border ${
+                  isTeamManagementOpen
+                    ? 'bg-slate-200 text-slate-900 border-slate-300 ring-2 ring-slate-400/20'
+                    : 'bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 hover:text-slate-900 border-[#E2E8E4]'
+                }`}
+              >
+                <Users size={15} className={isTeamManagementOpen ? 'text-slate-800' : 'text-slate-600'} />
+                <span>Team Management</span>
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-200 ${
+                    isTeamManagementOpen ? 'rotate-180 text-slate-800' : 'text-slate-500'
+                  }`}
+                />
+              </button>
+
+              {/* Option 2: Reassign Guide */}
+              <button
+                type="button"
+                onClick={() => {
+                  setTeamForGuideReassign(null);
+                  setIsReassignGuideOpen(true);
+                }}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:translate-y-0 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 hover:text-slate-900 border border-[#E2E8E4]"
+              >
+                <BookOpen size={15} className="text-slate-600" />
+                <span>Reassign Guide</span>
+              </button>
+
+              {/* Option 3: Add Student */}
+              <button
+                type="button"
+                onClick={() => {
+                  setNewStudentName('');
+                  setNewStudentRoll('');
+                  setNewStudentEmail('');
+                  setNewStudentPassword('');
+                  setAddStudentError('');
+                  setIsAddStudentOpen(true);
+                }}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:translate-y-0 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 hover:text-slate-900 border border-[#E2E8E4]"
+              >
+                <UserPlus size={15} className="text-slate-600" />
+                <span>Add Student</span>
+              </button>
             </div>
 
+            {/* Exit Manage Mode on the right */}
             <button
               type="button"
-              onClick={() => setIsManageMode(false)}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 transition cursor-pointer self-start sm:self-center"
+              onClick={() => {
+                setIsManageMode(false);
+                setIsTeamManagementOpen(false);
+              }}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-200 transition cursor-pointer shrink-0"
             >
               Exit Manage Mode
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-            {/* Setting 1: Team Formation & Allocation */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
-                  <Users size={16} />
-                </div>
-                <div>
-                  <span className="font-extrabold text-slate-900 text-xs block">
-                    Team Formation &amp; Allocation
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E2E8E4]/60">
-                <span className="text-[11px] font-bold text-slate-600">
-                  Status: <strong className="text-mint-800">{areTeamsCreated ? 'Configured' : 'Not Formed'}</strong>
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStudentForManualTeam(null);
-                      setIsManualTeamOpen(true);
-                    }}
-                    className="px-3 py-1.5 bg-mint-500 hover:bg-mint-600 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs flex items-center gap-1"
-                  >
-                    <Sparkles size={13} />
-                    <span>Manual Team Wizard</span>
-                  </button>
-                  {areTeamsCreated ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsCreateTeamOpen(true)}
-                      className="px-3.5 py-1.5 bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 rounded-xl text-xs font-extrabold transition cursor-pointer"
-                    >
-                      Re-shuffle Teams
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsCreateTeamOpen(true)}
-                      className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs"
-                    >
-                      Auto-Generate
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Setting 2: Student Enrollment */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-200 text-slate-800 flex items-center justify-center shrink-0">
-                  <UserPlus size={16} />
-                </div>
-                <div>
-                  <span className="font-extrabold text-slate-900 text-xs block">
-                    Student Enrollment &amp; Registration
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-[#E2E8E4]/60">
-                <span className="text-[11px] font-bold text-slate-600">
-                  Enrolled: <strong className="text-slate-900">{students.length} Candidates</strong>
-                </span>
+          {/* Sub-options when Team Management is clicked */}
+          {isTeamManagementOpen && (
+            <div className="p-3.5 rounded-2xl bg-white/70 border border-[#E2E8E4] shadow-2xs animate-fadeIn mt-1">
+              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5">
+                {/* 1. Allocate Team Manually */}
                 <button
                   type="button"
                   onClick={() => {
-                    setNewStudentName('');
-                    setNewStudentRoll('');
-                    setAddStudentError('');
-                    setIsAddStudentOpen(true);
+                    setStudentForManualTeam(null);
+                    setIsManualTeamOpen(true);
                   }}
-                  className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs flex items-center gap-1"
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 hover:text-slate-900 border border-[#E2E8E4] shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <Plus size={13} />
-                  <span>Add Student</span>
+                  <Sparkles size={14} className="text-slate-600" />
+                  <span>Allocate Team Manually</span>
                 </button>
-              </div>
-            </div>
 
-            {/* Setting 3: Faculty Guide Reassignment */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-[#E2E8E4] flex flex-col justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
-                  <BookOpen size={16} />
-                </div>
-                <div>
-                  <span className="font-extrabold text-slate-900 text-xs block">
-                    Faculty Guide Reassignment
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-[#E2E8E4]/60">
-                <span className="text-[11px] font-bold text-slate-600">
-                  Assigned: <strong className="text-purple-900">{teams.filter(t => t.guide && t.guide !== 'Unassigned').length} / {teams.length} Teams</strong>
-                </span>
+                {/* 2. Auto Team Allocation */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setTeamForGuideReassign(null);
-                    setIsReassignGuideOpen(true);
-                  }}
-                  className="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-xs flex items-center gap-1"
+                  onClick={() => setIsCreateTeamOpen(true)}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs transition-all duration-200 cursor-pointer flex items-center gap-2 bg-[#EFF3F1] hover:bg-[#E2E8E4] text-slate-700 hover:text-slate-900 border border-[#E2E8E4] shadow-2xs hover:shadow-xs hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <BookOpen size={13} />
-                  <span>Reassign Guide</span>
+                  <RefreshCw size={14} className="text-slate-600" />
+                  <span>Auto Team Allocation</span>
+                </button>
+
+                {/* 3. Delete Team */}
+                <button
+                  type="button"
+                  disabled={teams.length === 0}
+                  onClick={() => {
+                    setTeamToDelete(null);
+                    setIsDeleteTeamOpen(true);
+                  }}
+                  className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all duration-200 flex items-center gap-2 shadow-2xs ${
+                    teams.length === 0
+                      ? 'text-slate-400 bg-slate-100 border border-slate-200 cursor-not-allowed'
+                      : 'bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 border border-rose-200 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer'
+                  }`}
+                >
+                  <Trash2 size={14} className={teams.length === 0 ? 'text-slate-400' : 'text-rose-600'} />
+                  <span>Delete Team</span>
                 </button>
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -553,16 +666,13 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 </tr>
               ) : (
                 filteredStudents.map((s) => {
-                  const hasTeam = s.teamNo && s.teamNo !== 'Unassigned';
                   const isExpanded = expandedStudentRoll === s.rollNo;
 
-                  // Find assigned team for student - prioritize actual membership roster!
+                  // Authoritative assignment: student is assigned if and only if they are present in a team's members roster
                   let assignedTeam = teams.find(t => 
                     t.members && t.members.some(m => m.rollNo === s.rollNo)
-                  ) || teams.find(t => 
-                    hasTeam && t.teamNo && t.teamNo.toLowerCase() === s.teamNo.toLowerCase()
                   );
-                  if (!assignedTeam) {
+                  if (!assignedTeam && teams.length === 0) {
                     const studentTeam = StudentService.getTeam();
                     if (studentTeam && studentTeam.members?.some((m: any) => m.rollNo === s.rollNo)) {
                       assignedTeam = {
@@ -585,6 +695,10 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                       };
                     }
                   }
+
+                  const hasTeam = assignedTeam != null || (teams.length === 0 && Boolean(s.teamNo && s.teamNo !== 'Unassigned'));
+                  const displayTeamNo = assignedTeam ? assignedTeam.teamNo : (hasTeam ? s.teamNo : 'Unassigned');
+                  const displayGuide = assignedTeam ? assignedTeam.guide : (hasTeam ? s.guide : 'Unassigned');
 
                   // Retrieve submissions and recorded marks for this team
                   const teamSubmissions: WeeklySubmission[] = assignedTeam 
@@ -625,13 +739,9 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
                         {/* Assigned Team */}
                         <td className="p-4 whitespace-nowrap">
-                          {assignedTeam ? (
+                          {hasTeam ? (
                             <span className="px-2.5 py-1 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-[11px]">
-                              {assignedTeam.teamNo}
-                            </span>
-                          ) : hasTeam ? (
-                            <span className="px-2.5 py-1 rounded-lg bg-mint-100 text-mint-900 border border-mint-200 font-extrabold text-[11px]">
-                              {s.teamNo}
+                              {displayTeamNo}
                             </span>
                           ) : (
                             <span className="text-slate-400 font-semibold italic text-[11px]">
@@ -642,43 +752,65 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
                         {/* Technical Guide */}
                         <td className="p-4 text-slate-700 whitespace-nowrap">
-                          <span className="font-bold">{assignedTeam?.guide || s.guide || 'Unassigned'}</span>
+                          <span className="font-bold">{displayGuide}</span>
                         </td>
 
-                        {/* Manage Actions (Move / Assign) */}
+                        {/* Manage Actions (Move / Assign / Unassign) */}
                         {isManageMode && (
                           <td className="p-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">
-                              {!hasTeam && (
+                              {!hasTeam ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setStudentForManualTeam(s);
+                                      setIsManualTeamOpen(true);
+                                    }}
+                                    title="Allocate Team"
+                                    className="px-2.5 py-1.5 bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Sparkles size={12} />
+                                    <span>Allocate Team</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setStudentToMove(s);
+                                      setTargetTeamId('');
+                                      setMoveError('');
+                                      setFullTeamSelected(null);
+                                      setStudentToReplace(null);
+                                      setExchangeAction('unassign');
+                                      setTeamSearchFilter('');
+                                    }}
+                                    title="Reallocate student to a team"
+                                    className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                                  >
+                                    <UserPlus size={13} />
+                                    <span>Reallocate</span>
+                                  </button>
+                                </>
+                              ) : (
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setStudentForManualTeam(s);
-                                    setIsManualTeamOpen(true);
+                                    setStudentToMove(s);
+                                    setTargetTeamId('');
+                                    setMoveError('');
+                                    setFullTeamSelected(null);
+                                    setStudentToReplace(null);
+                                    setExchangeAction('unassign');
+                                    setTeamSearchFilter('');
                                   }}
-                                  title="Form Team via Wizard"
-                                  className="px-2.5 py-1.5 bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                                  title="Transfer student to another team"
+                                  className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer"
                                 >
-                                  <Sparkles size={12} />
-                                  <span>Wizard</span>
+                                  <ArrowRightLeft size={13} />
+                                  <span>Transfer</span>
                                 </button>
                               )}
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setStudentToMove(s);
-                                  setTargetTeamId('');
-                                  setMoveError('');
-                                  setFullTeamSelected(null);
-                                  setTeamSearchFilter('');
-                                }}
-                                title={hasTeam ? 'Transfer student to another team' : 'Reallocate student to a team'}
-                                className="px-3 py-1.5 bg-white hover:bg-mint-50 text-mint-800 hover:text-mint-900 border border-mint-300 rounded-xl font-extrabold text-xs transition shadow-2xs flex items-center gap-1.5 ml-auto cursor-pointer"
-                              >
-                                {hasTeam ? <ArrowRightLeft size={13} /> : <UserPlus size={13} />}
-                                <span>{hasTeam ? 'Transfer' : 'Reallocate'}</span>
-                              </button>
                             </div>
                           </td>
                         )}
@@ -726,18 +858,20 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                   <div className="text-[11px] text-slate-500 font-bold flex items-center gap-2">
                                     <span>Assigned Guide: <strong className="text-slate-800">{assignedTeam?.guide || s.guide || 'Unassigned'}</strong></span>
                                     {isManageMode && assignedTeam && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setTeamForGuideReassign(assignedTeam);
-                                          setIsReassignGuideOpen(true);
-                                        }}
-                                        className="px-2 py-0.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-[10px] font-extrabold transition cursor-pointer flex items-center gap-1 shadow-2xs"
-                                      >
-                                        <BookOpen size={11} />
-                                        <span>Reassign Guide</span>
-                                      </button>
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setTeamForGuideReassign(assignedTeam);
+                                            setIsReassignGuideOpen(true);
+                                          }}
+                                          className="px-2 py-0.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-[10px] font-extrabold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                                        >
+                                          <BookOpen size={11} />
+                                          <span>Reassign Guide</span>
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                 </div>
@@ -1633,6 +1767,8 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 onClick={() => {
                   setStudentToMove(null);
                   setFullTeamSelected(null);
+                  setStudentToReplace(null);
+                  setExchangeAction('unassign');
                   setTeamSearchFilter('');
                 }}
                 className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
@@ -1741,10 +1877,14 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                             if (isCurrent) return;
                             if (isFull) {
                               setFullTeamSelected(t);
-                              setTargetTeamId('');
+                              setTargetTeamId(t.teamId);
+                              setStudentToReplace(null);
+                              setExchangeAction(studentToMove?.teamNo && studentToMove.teamNo !== 'Unassigned' ? 'swap' : 'unassign');
                             } else {
                               setFullTeamSelected(null);
                               setTargetTeamId(t.teamId);
+                              setStudentToReplace(null);
+                              setExchangeAction('unassign');
                             }
                           }}
                           className={`p-3 rounded-2xl border transition flex items-center justify-between gap-3 ${
@@ -1775,7 +1915,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                             }`}>
                               {currentCount} / {maxCap}
                             </span>
-                            {isFull && <span className="text-[9px] text-rose-600 block mt-0.5 font-bold">Team Full</span>}
+                            {isFull && <span className="text-[9px] text-rose-600 block mt-0.5 font-bold">Team Full (Click to replace)</span>}
                             {!isFull && !isCurrent && (
                               <span className="text-[9px] text-emerald-700 block mt-0.5 font-medium">
                                 {openSlots} open slot{openSlots > 1 ? 's' : ''}
@@ -1788,27 +1928,101 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                     })}
                 </div>
 
-                {/* If selected team is full */}
+                {/* If selected team is full: show member removal & swap/unassign options */}
                 {fullTeamSelected && (
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 animate-fadeIn">
-                    <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                  <div className="mt-3 p-4 bg-amber-50/90 border border-amber-200 rounded-2xl space-y-3 animate-fadeIn">
+                    <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
                       <AlertCircle size={15} className="shrink-0 text-amber-600" />
                       <span>{fullTeamSelected.teamNo} is at maximum capacity ({fullTeamSelected.members.length}/{fullTeamSelected.capacity || teamCapacity} members).</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const student = studentToMove;
-                        setStudentToMove(null);
-                        setFullTeamSelected(null);
-                        setStudentForManualTeam(student);
-                        setIsManualTeamOpen(true);
-                      }}
-                      className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
-                    >
-                      <Sparkles size={14} />
-                      <span>Create New Team for {studentToMove.name}</span>
-                    </button>
+                    <p className="text-[11px] text-amber-800">
+                      To add <strong>{studentToMove.name}</strong> to this team, please select which student to remove from <strong>{fullTeamSelected.teamNo}</strong>:
+                    </p>
+
+                    {/* Team member selection */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {fullTeamSelected.members.map((m) => {
+                        const isSelected = studentToReplace?.rollNo === m.rollNo;
+                        return (
+                          <button
+                            key={m.rollNo}
+                            type="button"
+                            onClick={() => setStudentToReplace(m)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                              isSelected
+                                ? 'bg-amber-100 border-amber-500 ring-2 ring-amber-400/50 shadow-2xs'
+                                : 'bg-white border-[#E2E8E4] hover:bg-amber-50/50'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="font-extrabold text-slate-800 text-xs truncate">{m.name}</div>
+                              <div className="text-[10px] font-mono text-slate-500">{m.rollNo}</div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase shrink-0 ${
+                              m.isLead ? 'bg-amber-200 text-amber-900' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {m.isLead ? 'Lead' : 'Member'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Once a member is selected to be removed: ask whether to exchange or keep unassigned */}
+                    {studentToReplace && (
+                      <div className="pt-2.5 border-t border-amber-200 space-y-2 animate-fadeIn">
+                        <div className="text-[11px] font-extrabold text-amber-950 uppercase tracking-wider">
+                          Action for removed student ({studentToReplace.name}):
+                        </div>
+
+                        {studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned' ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {/* Option A: Exchange Teams */}
+                            <div
+                              onClick={() => setExchangeAction('swap')}
+                              className={`p-3 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
+                                exchangeAction === 'swap'
+                                  ? 'bg-mint-50 border-mint-500 ring-2 ring-mint-400/50 text-mint-950 shadow-2xs'
+                                  : 'bg-white border-[#E2E8E4] hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 font-extrabold text-xs mb-1">
+                                <ArrowRightLeft size={13} className={exchangeAction === 'swap' ? 'text-mint-700' : 'text-slate-500'} />
+                                <span>Exchange Teams (Swap)</span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 leading-tight">
+                                {studentToReplace.name} moves to <strong>{studentToMove.teamNo}</strong> in exchange for {studentToMove.name}.
+                              </p>
+                            </div>
+
+                            {/* Option B: Keep Unassigned */}
+                            <div
+                              onClick={() => setExchangeAction('unassign')}
+                              className={`p-3 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
+                                exchangeAction === 'unassign'
+                                  ? 'bg-amber-100/90 border-amber-500 ring-2 ring-amber-400/50 text-amber-950 shadow-2xs'
+                                  : 'bg-white border-[#E2E8E4] hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 font-extrabold text-xs mb-1">
+                                <AlertCircle size={13} className={exchangeAction === 'unassign' ? 'text-amber-700' : 'text-slate-500'} />
+                                <span>Keep Student Unassigned</span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 leading-tight">
+                                {studentToReplace.name} is removed from {fullTeamSelected.teamNo} and becomes <strong>Unassigned</strong>.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 bg-amber-100/70 border border-amber-300 rounded-xl text-[11px] text-amber-950 font-bold flex items-center gap-2">
+                            <AlertCircle size={14} className="text-amber-700 shrink-0" />
+                            <span>
+                              {studentToMove.name} replaces <strong>{studentToReplace.name}</strong> in {fullTeamSelected.teamNo}. {studentToReplace.name} will become <strong>Unassigned</strong>.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1820,6 +2034,43 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 const target = teams.find(t => t.teamId === targetTeamId);
                 if (!target) return null;
                 const isTransfer = studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned';
+                const isReplacing = Boolean(fullTeamSelected && studentToReplace);
+
+                if (isReplacing && studentToReplace) {
+                  const isSwap = exchangeAction === 'swap' && isTransfer;
+                  return (
+                    <div className="p-3.5 bg-mint-50/70 rounded-2xl border border-mint-200 space-y-2 animate-fadeIn">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-mint-900 block">
+                        {isSwap ? 'Student Exchange (Swap) Summary' : 'Student Replacement Summary'}
+                      </span>
+                      <div className="space-y-1.5 text-xs font-bold text-slate-800">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-md bg-white border border-[#E2E8E4] text-[11px]">
+                            {studentToMove.name} ({studentToMove.teamNo || 'Unassigned'})
+                          </span>
+                          <ArrowRight size={13} className="text-mint-600 shrink-0" />
+                          <span className="px-2 py-0.5 rounded-md bg-mint-600 text-white text-[11px]">
+                            {target.teamNo}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-md bg-white border border-[#E2E8E4] text-[11px]">
+                            {studentToReplace.name} ({target.teamNo})
+                          </span>
+                          <ArrowRight size={13} className="text-mint-600 shrink-0" />
+                          <span className={`px-2 py-0.5 rounded-md text-[11px] ${
+                            isSwap ? 'bg-blue-600 text-white' : 'bg-amber-500 text-white'
+                          }`}>
+                            {isSwap ? studentToMove.teamNo : 'Unassigned'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-slate-600 pt-1 border-t border-mint-200">
+                        Assigned Technical Guide for {target.teamNo}: <strong className="text-slate-800">{target.guide}</strong>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div className="p-3.5 bg-mint-50/70 rounded-2xl border border-mint-200 space-y-2 animate-fadeIn">
@@ -1852,6 +2103,8 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 onClick={() => {
                   setStudentToMove(null);
                   setFullTeamSelected(null);
+                  setStudentToReplace(null);
+                  setExchangeAction('unassign');
                   setTeamSearchFilter('');
                 }}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-[#E2E8E4] rounded-xl hover:bg-slate-50 transition cursor-pointer"
@@ -1860,10 +2113,10 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
               </button>
               <button
                 type="button"
-                disabled={!targetTeamId || isMovingStudent}
+                disabled={!targetTeamId || isMovingStudent || (Boolean(fullTeamSelected) && !studentToReplace)}
                 onClick={handleConfirmMoveStudent}
                 className={`px-5 py-2 text-xs font-extrabold text-white rounded-xl shadow-sm transition flex items-center gap-1.5 ${
-                  targetTeamId && !isMovingStudent
+                  targetTeamId && !isMovingStudent && (!fullTeamSelected || Boolean(studentToReplace))
                     ? 'bg-mint-500 hover:bg-mint-600 cursor-pointer active:scale-95'
                     : 'bg-slate-300 cursor-not-allowed'
                 }`}
@@ -1872,6 +2125,15 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     <span>Processing Reallocation...</span>
+                  </>
+                ) : fullTeamSelected ? (
+                  <>
+                    <Check size={14} />
+                    <span>
+                      {exchangeAction === 'swap' && studentToMove.teamNo && studentToMove.teamNo !== 'Unassigned'
+                        ? 'Confirm Student Exchange'
+                        : 'Confirm Replacement'}
+                    </span>
                   </>
                 ) : (
                   <>
@@ -1931,6 +2193,23 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         advisorName={advisorName}
         teams={teams}
         initialTeam={teamForGuideReassign}
+        onSuccess={(msg) => {
+          refreshData();
+          onShowToast(msg);
+        }}
+      />
+
+      {/* POP-UP 7: Delete Team Modal */}
+      <AdvisorDeleteTeamModal
+        isOpen={isDeleteTeamOpen}
+        onClose={() => {
+          setIsDeleteTeamOpen(false);
+          setTeamToDelete(null);
+        }}
+        className={className}
+        advisorName={advisorName}
+        teams={teams}
+        initialTeam={teamToDelete}
         onSuccess={(msg) => {
           refreshData();
           onShowToast(msg);

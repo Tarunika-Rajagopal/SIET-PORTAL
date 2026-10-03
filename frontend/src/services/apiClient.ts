@@ -334,8 +334,20 @@ export const ApiClient = {
     className: string;
     studentRollNo: string;
     targetTeamId: string;
+    replaceStudentRollNo?: string;
+    exchangeAction?: 'swap' | 'unassign';
   }): Promise<{ success: boolean; message: string }> {
     return request<{ success: boolean; message: string }>('/advisor/move-student', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async unassignAdvisorStudent(data: {
+    className: string;
+    studentRollNo: string;
+  }): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>('/advisor/unassign-student', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -350,6 +362,12 @@ export const ApiClient = {
     return request<{ success: boolean; message: string; team?: any }>('/advisor/reassign-guide', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  async deleteAdvisorTeam(teamId: string): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/advisor/teams/${encodeURIComponent(teamId)}`, {
+      method: 'DELETE',
     });
   },
 

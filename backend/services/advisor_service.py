@@ -145,20 +145,34 @@ class AdvisorService:
         teams = await self.get_teams_for_class(class_name)
         team_map = {}
         for t in teams:
-            for m in t["members"]:
+            for m in t.get("members", []):
                 team_map[m["rollNo"]] = t
         result = []
         for s in rows:
             at = team_map.get(s.roll_no)
+            if at:
+                t_no = at["teamNo"]
+                p_title = at.get("title", "")
+                g_name = at.get("guide", "Unassigned")
+            elif teams:
+                # Teams exist for this class; any student not in a team member roster is definitively Unassigned
+                t_no = "Unassigned"
+                p_title = ""
+                g_name = "Unassigned"
+            else:
+                t_no = s.team_no or "Unassigned"
+                p_title = s.project_title or ""
+                g_name = s.guide or "Unassigned"
+
             result.append({
                 "rollNo": s.roll_no,
                 "name": s.name,
                 "email": s.email,
                 "batch": s.batch or batch,
                 "classSection": s.class_section or class_name,
-                "teamNo": at["teamNo"] if at else (s.team_no or "Unassigned"),
-                "projectTitle": at["title"] if at else (s.project_title or ""),
-                "guide": at["guide"] if at else (s.guide or "Unassigned"),
+                "teamNo": t_no,
+                "projectTitle": p_title,
+                "guide": g_name,
             })
         return result
 
@@ -309,19 +323,24 @@ class AdvisorService:
         }
 
     async def move_student(
-        self, class_name: str, student_roll_no: str, target_team_id: str
+        self,
+        class_name: str,
+        student_roll_no: str,
+        target_team_id: str,
+        replace_student_roll_no: Optional[str] = None,
+        exchange_action: Optional[str] = None,
     ) -> Dict[str, Any]:
         target = await self.team_repo.get_with_members(target_team_id)
         if not target:
+            target = await self.team_repo.get_by_team_id_string(target_team_id)
+        if not target:
             return {"success": False, "message": "Target team not found"}
-        cap = target.capacity or 4
-        current_target_count = len(target.members) if target.members is not None else (target.members_count or 0)
-        if current_target_count >= cap:
-            return {"success": False, "message": f"Team at capacity ({current_target_count}/{cap})"}
 
-        # Find all existing memberships for this student
+        clean_roll = student_roll_no.strip()
+
+        # Find all existing memberships for this moving student
         existing_res = await self.session.execute(
-            select(TeamMember).where(TeamMember.roll_no == student_roll_no.strip())
+            select(TeamMember).where(TeamMember.roll_no == clean_roll)
         )
         existing_tms = list(existing_res.scalars().all())
 
@@ -329,20 +348,201 @@ class AdvisorService:
             return {"success": False, "message": "Already in this team"}
 
         source_team_ids = {tm.team_id for tm in existing_tms if tm.team_id != target.id}
+        source_team = None
+        if source_team_ids:
+            first_sid = next(iter(source_team_ids))
+            source_team = await self.team_repo.get_with_members(first_sid)
 
-        # Remove existing memberships
+        # 1. Remove moving student from any previous teams first
         for tm in existing_tms:
             await self.session.delete(tm)
         await self.session.flush()
 
-        # Update affected source teams
+        # 2. Handle replacement if replacing a student from target team
+        replaced_student_name = ""
+        if replace_student_roll_no and replace_student_roll_no.strip():
+            rep_roll = replace_student_roll_no.strip()
+            rep_tms_res = await self.session.execute(
+                select(TeamMember).where(TeamMember.team_id == target.id, TeamMember.roll_no == rep_roll)
+            )
+            rep_tms = list(rep_tms_res.scalars().all())
+            for rtm in rep_tms:
+                await self.session.delete(rtm)
+            await self.session.flush()
+
+            rep_student = await self.student_repo.get_by_roll_no(rep_roll)
+            replaced_student_name = rep_student.name if rep_student else rep_roll
+
+            if exchange_action == "swap" and source_team:
+                rep_tm = TeamMember(
+                    id=uuid.uuid4(),
+                    team_id=source_team.id,
+                    student_id=(rep_student.id if rep_student else uuid.uuid4()),
+                    roll_no=rep_roll,
+                    name=replaced_student_name,
+                    email=rep_student.email if rep_student else f"{rep_roll}@srishakthi.ac.in",
+                    is_lead=False,
+                    member_role="Team Member",
+                )
+                await self.team_repo.add_member(rep_tm)
+                await self.session.flush()
+
+                if rep_student:
+                    rep_student.team_no = source_team.team_no
+                    rep_student.project_title = source_team.project_title
+                    rep_student.guide = source_team.guide_name
+                    rep_student.guide_email = source_team.guide_email
+
+                u_rep_res = await self.session.execute(select(User).where(User.roll_no == rep_roll))
+                u_rep = u_rep_res.scalar_one_or_none()
+                if u_rep:
+                    u_rep.team_id = source_team.team_id
+                    u_rep.team_no = source_team.team_no
+                    u_rep.project_title = source_team.project_title
+                    u_rep.guide_name = source_team.guide_name
+            else:
+                # Mark replaced student as Unassigned
+                if rep_student:
+                    rep_student.team_no = "Unassigned"
+                    rep_student.project_title = ""
+                    rep_student.guide = "Unassigned"
+                    rep_student.guide_email = ""
+                u_rep_res = await self.session.execute(select(User).where(User.roll_no == rep_roll))
+                u_rep = u_rep_res.scalar_one_or_none()
+                if u_rep:
+                    u_rep.team_id = ""
+                    u_rep.team_no = "Unassigned"
+                    u_rep.project_title = ""
+                    u_rep.guide_name = "Unassigned"
+
+        # 3. Update affected source teams with accurate members from DB
         for sid in source_team_ids:
             source = await self.team_repo.get_with_members(sid)
             if source:
-                remaining = [m for m in (source.members or []) if m.roll_no != student_roll_no]
+                rem_res = await self.session.execute(
+                    select(TeamMember).where(TeamMember.team_id == source.id)
+                )
+                remaining = list(rem_res.scalars().all())
                 source.members_count = len(remaining)
                 if remaining:
-                    if source.lead_roll_no == student_roll_no:
+                    if not any(m.is_lead for m in remaining):
+                        remaining[0].is_lead = True
+                        remaining[0].member_role = "Team Lead"
+                    lead_m = next((m for m in remaining if m.is_lead), remaining[0])
+                    source.lead_student = lead_m.name
+                    source.lead_roll_no = lead_m.roll_no
+                else:
+                    source.lead_student = "Unassigned"
+                    source.lead_roll_no = ""
+
+        # 4. Check target capacity after removing replaced student
+        fresh_target_members_res = await self.session.execute(
+            select(TeamMember).where(TeamMember.team_id == target.id)
+        )
+        current_target_members = list(fresh_target_members_res.scalars().all())
+        cap = target.capacity or 4
+        if len(current_target_members) >= cap:
+            return {"success": False, "message": f"Team at capacity ({len(current_target_members)}/{cap})"}
+
+        # 5. Add moving student to target team
+        s_obj = await self.student_repo.get_by_roll_no(clean_roll)
+        if not s_obj:
+            s_obj = Student(
+                id=uuid.uuid4(),
+                roll_no=clean_roll,
+                name=f"Student ({clean_roll})",
+                email=f"{clean_roll}@srishakthi.ac.in",
+                class_section=class_name,
+                team_no=target.team_no,
+            )
+            await self.student_repo.create(s_obj)
+            await self.session.flush()
+        else:
+            s_obj.team_no = target.team_no
+
+        name = s_obj.name
+        email = s_obj.email
+
+        is_first_member = len(current_target_members) == 0
+        tm_new = TeamMember(
+            id=uuid.uuid4(),
+            team_id=target.id,
+            student_id=(s_obj.id if s_obj else uuid.uuid4()),
+            roll_no=clean_roll,
+            name=name,
+            email=email,
+            is_lead=is_first_member,
+            member_role="Team Lead" if is_first_member else "Team Member",
+        )
+        await self.team_repo.add_member(tm_new)
+        target.members_count = len(current_target_members) + 1
+        if is_first_member:
+            target.lead_student = name
+            target.lead_roll_no = clean_roll
+        if s_obj:
+            s_obj.team_no = target.team_no
+            s_obj.project_title = target.project_title
+            s_obj.guide = target.guide_name
+
+        # Also synchronize user table if account exists
+        u_res = await self.session.execute(select(User).where(User.roll_no == clean_roll))
+        u_obj = u_res.scalar_one_or_none()
+        if u_obj:
+            u_obj.team_id = target.team_id
+            u_obj.team_no = target.team_no
+            u_obj.project_title = target.project_title
+            u_obj.guide_name = target.guide_name
+
+        action_msg = f"{name} moved to {target.team_no}"
+        if replaced_student_name:
+            if exchange_action == "swap" and source_team:
+                action_msg = f"{name} moved to {target.team_no} and swapped with {replaced_student_name} ({source_team.team_no})"
+            else:
+                action_msg = f"{name} moved to {target.team_no} (replaced {replaced_student_name} who is now Unassigned)"
+
+        try:
+            await self.log_advisor_history(
+                class_section=class_name,
+                action_type="Student Transfer",
+                target=f"{name} -> {target.team_no}",
+                details=action_msg,
+                actor_name="Class Advisor",
+                role="Class Advisor"
+            )
+        except Exception:
+            pass
+
+        await self.session.commit()
+        return {"success": True, "message": action_msg}
+
+    async def unassign_student(
+        self,
+        class_name: str,
+        student_roll_no: str,
+    ) -> Dict[str, Any]:
+        roll = student_roll_no.strip()
+        existing_res = await self.session.execute(
+            select(TeamMember).where(TeamMember.roll_no == roll)
+        )
+        existing_tms = list(existing_res.scalars().all())
+        source_team_ids = {tm.team_id for tm in existing_tms}
+
+        # Remove from team members table
+        for tm in existing_tms:
+            await self.session.delete(tm)
+        await self.session.flush()
+
+        # Update affected teams
+        for sid in source_team_ids:
+            source = await self.team_repo.get_with_members(sid)
+            if source:
+                rem_res = await self.session.execute(
+                    select(TeamMember).where(TeamMember.team_id == source.id)
+                )
+                remaining = list(rem_res.scalars().all())
+                source.members_count = len(remaining)
+                if remaining:
+                    if source.lead_roll_no == roll:
                         remaining[0].is_lead = True
                         remaining[0].member_role = "Team Lead"
                         source.lead_student = remaining[0].name
@@ -351,55 +551,39 @@ class AdvisorService:
                     source.lead_student = "Unassigned"
                     source.lead_roll_no = ""
 
-        s_obj = await self.student_repo.get_by_roll_no(student_roll_no)
-        if not s_obj:
-            s_obj = Student(
-                id=uuid.uuid4(),
-                roll_no=student_roll_no,
-                name=f"Student ({student_roll_no})",
-                email=f"{student_roll_no}@srishakthi.ac.in",
-                class_section=class_name,
-                team_no=target.team_no,
-            )
-            await self.student_repo.create(s_obj)
-            await self.session.flush()
-        else:
-            s_obj.team_no = target.team_no
-        name = s_obj.name
-        email = s_obj.email
-
-        is_first_member = current_target_count == 0
-        tm_new = TeamMember(
-            id=uuid.uuid4(),
-            team_id=target.id,
-            student_id=(s_obj.id if s_obj else uuid.uuid4()),
-            roll_no=student_roll_no,
-            name=name,
-            email=email,
-            is_lead=is_first_member,
-            member_role="Team Lead" if is_first_member else "Team Member",
-        )
-        await self.team_repo.add_member(tm_new)
-        target.members_count = current_target_count + 1
-        if is_first_member:
-            target.lead_student = name
-            target.lead_roll_no = student_roll_no
+        # Update Student table
+        s_obj = await self.student_repo.get_by_roll_no(roll)
+        student_name = roll
         if s_obj:
-            s_obj.team_no = target.team_no
-            s_obj.project_title = target.project_title
-            s_obj.guide = target.guide_name
+            student_name = s_obj.name
+            s_obj.team_no = "Unassigned"
+            s_obj.project_title = ""
+            s_obj.guide = "Unassigned"
+            s_obj.guide_email = ""
 
-        # Also synchronize user table if account exists
-        u_res = await self.session.execute(select(User).where(User.roll_no == student_roll_no))
+        # Update User table if exists
+        u_res = await self.session.execute(select(User).where(User.roll_no == roll))
         u_obj = u_res.scalars().first()
         if u_obj:
-            u_obj.team_id = target.team_id
-            u_obj.team_no = target.team_no
-            u_obj.project_title = target.project_title
-            u_obj.guide_name = target.guide_name
+            u_obj.team_id = ""
+            u_obj.team_no = "Unassigned"
+            u_obj.project_title = ""
+            u_obj.guide_name = "Unassigned"
+
+        try:
+            await self.log_advisor_history(
+                class_section=class_name,
+                action_type="Student Transfer",
+                target=f"{student_name} ({roll})",
+                details=f"{student_name} ({roll}) unassigned from team.",
+                actor_name="Class Advisor",
+                role="Class Advisor"
+            )
+        except Exception:
+            pass
 
         await self.session.commit()
-        return {"success": True, "message": f"{name} moved to {target.team_no}"}
+        return {"success": True, "message": f"{student_name} ({roll}) is now unassigned."}
 
     async def reassign_guide(
         self, class_name: str, team_id: str, guide_name: str, guide_email: str = ""
@@ -505,10 +689,28 @@ class AdvisorService:
         if not team:
             return {"success": False, "message": "Team not found"}
         team_no = team.team_no
+        class_name = team.class_name or ""
         members = await self.team_repo.list_members_by_team_id(team.id)
         for tm in members:
+            student = await self.student_repo.get_by_roll_no(tm.roll_no)
+            if student:
+                student.team_no = "Unassigned"
+                student.project_title = ""
+                student.guide = "Unassigned"
+                student.guide_email = ""
             await self.team_repo.remove_member(tm)
         await self.team_repo.delete(team)
+        try:
+            await self.log_advisor_history(
+                class_section=class_name,
+                action_type="Team Deletion",
+                target=team_no,
+                details=f"Team {team_no} dissolved. {len(members)} student(s) marked as Unassigned.",
+                advisor_name="Class Advisor",
+                role="Class Advisor",
+            )
+        except Exception:
+            pass
         await self.session.commit()
         return {"success": True, "message": f"Team {team_no} deleted"}
 

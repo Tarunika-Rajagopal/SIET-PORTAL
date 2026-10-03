@@ -31,19 +31,35 @@ class StudentRepository:
         res = await self.session.execute(select(Student).order_by(Student.roll_no))
         return list(res.scalars().all())
 
+    @staticmethod
+    def _class_variants(raw: str) -> List[str]:
+        raw = (raw or "").strip()
+        if not raw:
+            return []
+        v = {raw, raw.upper()}
+        clean = raw.replace(" ", "").replace("-", "").upper()
+        v.add(clean)
+        if clean.startswith("IV"):
+            clean = clean[2:]
+            v.add(clean)
+        if clean and clean[-1].isalpha():
+            sec = clean[-1]
+            v.update([f"CSE-{sec}", f"CSE {sec}", f"IV CSE-{sec}", f"IV CSE {sec}", sec])
+        return list(v)
+
     async def list_by_class_section(self, class_section: str) -> List[Student]:
+        variants = self._class_variants(class_section)
         res = await self.session.execute(
-            select(Student).where(Student.class_section == class_section).order_by(Student.roll_no)
+            select(Student).where(Student.class_section.in_(variants)).order_by(Student.roll_no)
         )
         return list(res.scalars().all())
 
     async def list_by_class_and_batch(self, class_section: str, batch: str) -> List[Student]:
-        res = await self.session.execute(
-            select(Student).where(
-                Student.class_section == class_section,
-                Student.batch == batch,
-            ).order_by(Student.roll_no)
-        )
+        variants = self._class_variants(class_section)
+        q = select(Student).where(Student.class_section.in_(variants))
+        if batch and batch.upper() != "ALL":
+            q = q.where(Student.batch == batch)
+        res = await self.session.execute(q.order_by(Student.roll_no))
         return list(res.scalars().all())
 
     async def create(self, student: Student) -> Student:
