@@ -714,7 +714,7 @@ class AdvisorService:
         await self.session.commit()
         return {"success": True, "message": f"Team {team_no} deleted"}
 
-    async def get_advisor_history(self, class_section: str = "") -> List[Dict[str, Any]]:
+    async def   get_advisor_history(self, class_section: str = "") -> List[Dict[str, Any]]:
         if not class_section:
             return []
         audit_repo = AuditRepository(self.session)

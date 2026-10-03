@@ -7,6 +7,8 @@ interface AdminReasonModalProps {
   title: string;
   subtitle: string;
   targetDescription: string;
+  rollNo?: string;
+  onConfirm?: (reason: string) => Promise<void>;
   confirmLabel?: string;
   isDanger?: boolean;
   onClose: () => void;
@@ -17,6 +19,8 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
   title,
   subtitle,
   targetDescription,
+  rollNo,
+  onConfirm,
   confirmLabel = "Confirm Action",
   isDanger = false,
   onClose
@@ -28,17 +32,24 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
   const [loading,setLoading] = useState<boolean>(false);
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     if (!reason.trim()) {
       setError('Please provide a reason to fulfill system audit compliance.');
       return;
     }
+    setLoading(true);
     try{
-       await AdminService.deleteStudent(targetDescription.split(' ')[2].slice(1,-1));
-
-    } catch(err){
-      console.error(err)
-      setError('Failed to delete student. Please try again.');
+      if (onConfirm) {
+        await onConfirm(reason.trim());
+      } else {
+        const targetRoll = rollNo || targetDescription.match(/\(([^)]+)\)/)?.[1] || '';
+        if (!targetRoll) {
+          throw new Error('Unable to identify student roll number.');
+        }
+        await AdminService.deleteStudent(targetRoll);
+      }
+    } catch(err: any){
+      console.error(err);
+      setError(err?.message || 'Failed to delete student. Please try again.');
       return;
     } finally{
       setLoading(false);

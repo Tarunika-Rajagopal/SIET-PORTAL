@@ -104,18 +104,7 @@ export const HodPortalPage: React.FC = () => {
             </button>
 
             {/* 4. Action History Tab */}
-            <button
-              id="tabHodHistory"
-              onClick={() => handleTabClick('history')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'history'
-                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-              }`}
-            >
-              <History size={16} />
-              <span>Action History</span>
-            </button>
+           
 
           </nav>
         </div>

@@ -4,14 +4,17 @@ Guide endpoints — matches frontend apiClient.ts:
   GET  /api/v1/guide/dashboard
   GET  /api/v1/guide/submissions/weekly
   POST /api/v1/guide/submissions/{submissionId}/review
+  GET  /api/v1/guide/history
+  POST /api/v1/guide/history
 """
+from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from models import User
 from auth import require_roles
-from schemas import ReviewSubmissionRequest
+from schemas import ReviewSubmissionRequest, GuideHistoryLogRequest
 from services.guide_service import GuideService
 from services.cache_service import cache_service
 
@@ -96,3 +99,31 @@ async def review_team_submission(
     await cache_service.delete_prefix("cache:advisor:")
     await cache_service.delete_prefix("cache:hod:")
     return res
+
+
+@router.get("/history")
+async def get_guide_history(
+    className: Optional[str] = None,
+    user: User = Depends(require_roles("guide", "advisor & guide", "admin")),
+    service: GuideService = Depends(get_guide_service),
+):
+    target_class = (className or user.class_name or "").strip()
+    return await service.get_guide_history(user, target_class)
+
+
+@router.post("/history")
+async def log_guide_history(
+    req: GuideHistoryLogRequest,
+    user: User = Depends(require_roles("guide", "advisor & guide", "admin")),
+    service: GuideService = Depends(get_guide_service),
+):
+    target_class = (req.className or user.class_name or "").strip()
+    return await service.log_guide_history(
+        user=user,
+        class_section=target_class,
+        action_type=req.actionType,
+        target=req.target,
+        details=req.details,
+        actor_name=req.actorName or user.name or "Faculty Guide",
+        role=req.role or "Faculty Guide",
+    )

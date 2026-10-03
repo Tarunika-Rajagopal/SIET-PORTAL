@@ -32,6 +32,17 @@ class AuditRepository:
         self.session.add(entry)
         return entry
 
+    async def list_guide_history(self, class_section: Optional[str] = None, limit: int = 100) -> List[AdvisorHistory]:
+        q = select(AdvisorHistory)
+        if class_section and class_section != "ALL":
+            q = q.where(AdvisorHistory.class_section == class_section)
+        res = await self.session.execute(q.order_by(AdvisorHistory.timestamp.desc()).limit(limit))
+        return list(res.scalars().all())
+
+    async def create_guide_history(self, entry: AdvisorHistory) -> AdvisorHistory:
+        self.session.add(entry)
+        return entry
+
     async def list_hod_history(self, limit: Optional[int] = None) -> List[HodHistory]:
         q = select(HodHistory).order_by(HodHistory.created_at.desc())
         if limit is not None:

@@ -44,6 +44,14 @@ class ReviewSubmissionRequest(BaseModel):
     memberMarks: Optional[Dict[str, float]] = None
     gradedBy: Optional[str] = None
 
+class GuideHistoryLogRequest(BaseModel):
+    className: Optional[str] = ""
+    actionType: str
+    target: str
+    details: str
+    actorName: Optional[str] = "Faculty Guide"
+    role: Optional[str] = "Faculty Guide"
+
 
 # ── Admin ─────────────────────────────────────────────────────
 class AddFacultyRequest(BaseModel):

@@ -226,6 +226,26 @@ export const ApiClient = {
     });
   },
 
+  async getGuideHistory(className: string = ""): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (className) params.append('className', className);
+    return request<any[]>(`/guide/history?${params.toString()}`);
+  },
+
+  async logGuideHistory(entry: {
+    className?: string;
+    actionType: string;
+    target: string;
+    details: string;
+    actorName?: string;
+    role?: string;
+  }): Promise<any> {
+    return request<any>('/guide/history', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    });
+  },
+
   async getAllWeeklyMarks(): Promise<Record<string, Record<number, any>>> {
     return request<Record<string, Record<number, any>>>('/marks/all');
   },
@@ -560,7 +580,7 @@ export const ApiClient = {
      return request<null>(`/admin/delete-guide`,{
       method:'POST',
       body:JSON.stringify({
-        guide_email:guideEmail,
+        email_one:guideEmail,
       }),
      })
    },

@@ -305,3 +305,86 @@ class GuideService:
 
         return await self.review_submission(str(s.id), req, user)
 
+    async def get_guide_history(self, user: User, class_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        from repositories.audit_repository import AuditRepository
+        from models import AdvisorHistoryRoleEnum
+        audit_repo = AuditRepository(self.session)
+        logs = await audit_repo.list_guide_history(class_name if class_name and class_name != "ALL" else None)
+        
+        guide_name = (user.name or "").lower().replace("dr.", "").replace("mr.", "").replace("mrs.", "").replace("ms.", "").replace("prof.", "").strip()
+        
+        guide_logs = []
+        for log in logs:
+            role_val = log.role.value if hasattr(log.role, "value") else str(log.role or "")
+            if role_val != AdvisorHistoryRoleEnum.faculty_guide.value and role_val != "Faculty Guide":
+                continue
+            
+            actor = (log.actor_name or "").lower().replace("dr.", "").replace("mr.", "").replace("mrs.", "").replace("ms.", "").replace("prof.", "").strip()
+            if guide_name and actor:
+                if not (guide_name in actor or actor in guide_name):
+                    continue
+            
+            guide_logs.append({
+                "id": str(log.id),
+                "timestamp": log.timestamp.isoformat() if log.timestamp else "",
+                "date": log.date.isoformat() if log.date else "",
+                "dateFormatted": log.date_formatted,
+                "role": role_val,
+                "actorName": log.actor_name or (user.name or "Faculty Guide"),
+                "advisorName": log.actor_name or (user.name or "Faculty Guide"),
+                "actionType": log.action_type.value if hasattr(log.action_type, "value") else str(log.action_type),
+                "target": log.target,
+                "details": log.details,
+                "classSection": log.class_section,
+            })
+        
+        return guide_logs
+
+    async def log_guide_history(
+        self,
+        user: User,
+        class_section: str,
+        action_type: str,
+        target: str,
+        details: str,
+        actor_name: Optional[str] = None,
+        role: str = "Faculty Guide",
+    ) -> Dict[str, Any]:
+        from datetime import timezone
+        from models import AdvisorHistory, AdvisorHistoryRoleEnum
+        from repositories.audit_repository import AuditRepository
+        
+        audit_repo = AuditRepository(self.session)
+        now = datetime.now(timezone.utc)
+        date_formatted = now.strftime("%d %b %Y, %I:%M %p")
+        
+        actual_actor = actor_name or user.name or "Faculty Guide"
+        
+        entry = AdvisorHistory(
+            id=uuid.uuid4(),
+            timestamp=now,
+            date=now.date(),
+            date_formatted=date_formatted,
+            role=AdvisorHistoryRoleEnum.faculty_guide if role == "Faculty Guide" else role,
+            actor_name=actual_actor,
+            action_type=action_type,
+            target=target,
+            details=details,
+            class_section=class_section or user.class_name or "CSE-B",
+        )
+        await audit_repo.create_guide_history(entry)
+        await self.session.commit()
+        return {
+            "id": str(entry.id),
+            "timestamp": entry.timestamp.isoformat(),
+            "date": entry.date.isoformat(),
+            "dateFormatted": entry.date_formatted,
+            "role": entry.role.value if hasattr(entry.role, "value") else str(entry.role),
+            "actorName": entry.actor_name,
+            "advisorName": entry.actor_name,
+            "actionType": entry.action_type.value if hasattr(entry.action_type, "value") else str(entry.action_type),
+            "target": entry.target,
+            "details": entry.details,
+            "classSection": entry.class_section,
+        }
+

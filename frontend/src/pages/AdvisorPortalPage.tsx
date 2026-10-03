@@ -57,18 +57,7 @@ export const AdvisorPortalPage: React.FC = () => {
             </button>
 
             {/* History Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('history')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'history'
-                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
-              }`}
-            >
-              <History size={16} />
-              <span>History</span>
-            </button>
+            
 
           </nav>
         </div>

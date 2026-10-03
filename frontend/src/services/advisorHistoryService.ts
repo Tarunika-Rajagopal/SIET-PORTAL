@@ -174,31 +174,43 @@ export const AdvisorHistoryService = {
 
   /**
    * Get guide-specific history from the backend.
-   * Fetches advisor history and filters by role === 'Faculty Guide'.
-   * Optionally filters by guideName.
+   * Calls ApiClient.getGuideHistory() directly for authentic guide evaluation history.
+   * Optionally filters by guideName and className.
    */
   async getGuideHistory(guideName?: string, className?: string): Promise<AdvisorHistoryLog[]> {
-    // Fetch from backend for the given class section (or default)
-    const logs = await this.fetchHistory(className || 'CSE-B');
+    try {
+      const serverLogs = await ApiClient.getGuideHistory(className || '');
+      let normalized = Array.isArray(serverLogs) ? serverLogs.map(normalizeLog) : [];
 
-    // Filter to only Faculty Guide entries
-    let guideLogs = logs.filter(log => log.role === 'Faculty Guide');
+      if (guideName) {
+        const target = guideName.toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
+        normalized = normalized.filter(log => {
+          const actor = (log.actorName || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
+          return !target || !actor || actor.includes(target) || target.includes(actor);
+        });
+      }
 
-    // Optional filter by guideName
-    if (guideName) {
-      const target = guideName.toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
-      guideLogs = guideLogs.filter(log => {
-        const actor = (log.actorName || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
-        return !target || !actor || actor.includes(target) || target.includes(actor);
-      });
+      return normalized.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    } catch (e) {
+      console.warn('Failed to fetch guide history from backend, falling back to cached logs:', e);
+      const logs = await this.fetchHistory(className || 'CSE-B');
+      let guideLogs = logs.filter(log => log.role === 'Faculty Guide');
+
+      if (guideName) {
+        const target = guideName.toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
+        guideLogs = guideLogs.filter(log => {
+          const actor = (log.actorName || '').toLowerCase().replace(/^(dr\.|mr\.|mrs\.|ms\.|prof\.)\s+/i, '').trim();
+          return !target || !actor || actor.includes(target) || target.includes(actor);
+        });
+      }
+
+      return guideLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }
-
-    return guideLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   },
 
   /**
    * Add a guide-specific history log.
-   * This is a convenience wrapper around addLog with role='Faculty Guide'.
+   * Persists to /guide/history backend endpoint and updates in-memory cache.
    */
   addGuideLog(
     actionType: AdvisorHistoryLog['actionType'],
@@ -207,7 +219,50 @@ export const AdvisorHistoryService = {
     guideName: string = '',
     classSection: string = ''
   ): AdvisorHistoryLog {
-    return this.addLog(classSection, actionType, target, details, guideName, 'Faculty Guide');
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const dateFormatted = now.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const newLog: AdvisorHistoryLog = {
+      id: `guide-log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      timestamp: now.toISOString(),
+      date: dateStr,
+      dateFormatted,
+      role: 'Faculty Guide',
+      actorName: guideName || 'Faculty Guide',
+      advisorName: guideName || 'Faculty Guide',
+      actionType,
+      target,
+      details,
+      classSection: classSection || 'CSE-B'
+    };
+
+    const targetClass = classSection || 'CSE-B';
+    const current = memoryCache.get(targetClass) || [];
+    current.unshift(newLog);
+    memoryCache.set(targetClass, current);
+    notifyListeners();
+
+    ApiClient.logGuideHistory({
+      className: classSection,
+      actionType,
+      target,
+      details,
+      actorName: guideName || 'Faculty Guide',
+      role: 'Faculty Guide'
+    }).then(() => {
+      this.fetchHistory(targetClass).catch(() => {});
+    }).catch(err => {
+      console.warn('Failed to persist guide history log to backend:', err);
+    });
+
+    return newLog;
   },
 
   /**

@@ -261,7 +261,7 @@ async def delete_team(
 @router.get("/history")
 async def get_history(
     className: Optional[str] = None,
-    user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod")),
+    user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "hod","guide")),
     service: AdvisorService = Depends(get_advisor_service),
 ):
     target_class = (className or user.advisor_class or user.class_name or "").strip()

@@ -68,21 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right: Settings Icon & User Profile Avatar Dropdown */}
           <div className="flex items-center gap-2.5 sm:gap-3">
-            {!shouldHideSettings && (
-              <button
-                id="headerSettingsButton"
-                onClick={() => navigate('/settings')}
-                className={`w-10 h-10 rounded-full flex items-center justify-center border transition focus:outline-none cursor-pointer ${
-                  isSettings
-                    ? 'bg-[#111111] text-[#F8F5EE] border-[#111111] shadow-xs'
-                    : 'bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] hover:text-[#111111] border-[#D8CCBA] shadow-2xs'
-                }`}
-                title="Settings"
-                aria-label="Settings"
-              >
-                <SettingsIcon size={18} className="transition-transform duration-200 hover:rotate-45" />
-              </button>
-            )}
+          
 
             <div className="relative">
               <button

@@ -273,9 +273,13 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
         title="Remove Student from Roster"
         subtitle="Mandatory reason required for audit trail tracking"
         targetDescription={studentToDelete ? `${studentToDelete.name} (${studentToDelete.rollNo}) • Class ${studentToDelete.classSection}` : ''}
+        rollNo={studentToDelete?.rollNo}
         confirmLabel="Remove Candidate"
         isDanger={true}
-        onClose={() => setDeleteModalOpen(false)}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setStudentToDelete(null);
+        }}
       />
 
     </div>
