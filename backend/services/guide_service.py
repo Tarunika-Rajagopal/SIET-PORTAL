@@ -242,17 +242,9 @@ class GuideService:
                 req.comments or s.comments or "",
                 req.gradedBy or user.name or "Faculty Guide",
             )
-            if s.week == 1:
-                await marks_svc.save_weekly_marks(
-                    str(team.id),
-                    0,
-                    final_member_marks,
-                    req.comments or s.comments or "",
-                    req.gradedBy or user.name or "Faculty Guide",
-                )
 
         # Update title approval and team status if milestone 1 is approved
-        if status_upper == "APPROVED" and (s.week == 1 or s.week == 0) and team:
+        if status_upper == "APPROVED" and s.week == 1 and team:
             team.is_title_approved = True
             team.guide_approval_status = "Approved"
             team.status = "Approved"

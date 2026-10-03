@@ -60,11 +60,11 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
   // Retrieve assigned mark for a member and review milestone
   // Review 1 = Submission 1, Review 2 = Submission 2, Review 3 = Submission 3, Review 4 = Submission 4
   const getMemberReviewMark = (rollNo: string, reviewIndex: number) => {
-    // Review 1 checks week 1 then fallback week 0.
+    // Review 1 strictly checks week 1.
     // Review 2 strictly checks week 2.
     // Review 3 strictly checks week 3.
     // Review 4 strictly checks week 4.
-    const candidateWeeks = reviewIndex === 1 ? [1, 0] : [reviewIndex];
+    const candidateWeeks = [reviewIndex];
     const cleanRollNo = String(rollNo || '').trim();
     const lowerRoll = cleanRollNo.toLowerCase();
     

@@ -16,13 +16,14 @@ class LoginResponse(BaseModel):
 
 # ── Student / Submissions ─────────────────────────────────────
 class SubmitDeliverablesRequest(BaseModel):
-    problemStatement: Optional[str] = ""
-    solution: Optional[str] = ""
-    technologyUsed: Optional[str] = ""
-    obstaclesFaced: Optional[str] = ""
-    abstract: Optional[str] = ""
-    repoUrl: Optional[str] = ""
-    demoUrl: Optional[str] = ""
+    projectTitle: Optional[str] = None
+    problemStatement: Optional[str] = None
+    solution: Optional[str] = None
+    technologyUsed: Optional[str] = None
+    obstaclesFaced: Optional[str] = None
+    abstract: Optional[str] = None
+    repoUrl: Optional[str] = None
+    demoUrl: Optional[str] = None
     isSubmit: bool = True
 
 

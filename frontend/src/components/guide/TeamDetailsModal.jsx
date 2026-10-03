@@ -39,7 +39,7 @@ export const TeamDetailsModal = ({
   const hasGithub = Boolean(team.githubUrl && team.githubUrl.trim());
   const hasDemo = Boolean(team.liveDemoUrl && team.liveDemoUrl.trim());
 
-  // Week 0 or latest deliverable files
+  // Week 1 or latest deliverable files
   const firstSub = team.submissions?.[0];
   const hasPpt = Boolean(firstSub?.pptUrl || firstSub?.presentationFileName);
   const hasReport = Boolean(firstSub?.reportUrl);

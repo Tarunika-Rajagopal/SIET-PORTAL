@@ -49,8 +49,8 @@ const sanitizeAndSyncGuideTeams = (rawList) => {
     try {
       const sTeamRaw = localStorageMock.getItem('siet_student_team_v6');
       const sTeam = sTeamRaw ? JSON.parse(sTeamRaw) : { id: 'TEAM-CSE-Y3-B04', guideApprovalStatus: 'Pending', isTitleApproved: false };
-      const d0Raw = localStorageMock.getItem('siet_deliverable_v6_week_0');
-      const d0 = d0Raw ? JSON.parse(d0Raw) : { week: 'Week 0', submittedFields: {} };
+      const d1Raw = localStorageMock.getItem('siet_deliverable_v6_submission_1');
+      const d1 = d1Raw ? JSON.parse(d1Raw) : { week: 'Submission 1', submittedFields: {} };
       const subsRaw = localStorageMock.getItem('siet_student_submissions_v6');
       const studentSubs = subsRaw ? JSON.parse(subsRaw) : [];
 
@@ -72,36 +72,36 @@ const sanitizeAndSyncGuideTeams = (rawList) => {
           evaluationStatus: sub.status === 'Approved' ? 'Evaluated' : (sub.status === 'Changes Requested' || sub.status === 'Rejected') ? 'Revision Required' : 'Pending',
           isLocked: sub.status === 'Approved',
           guideRemarks: sub.comments || '',
-          abstractSummary: sub.abstract || d0.abstract || '',
-          problemStatement: sub.problemStatement || d0.problemStatement || '',
-          proposedSolution: sub.solution || d0.solution || '',
-          technologiesUsed: sub.technologyUsed ? sub.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (d0.technologyUsed ? d0.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : []),
-          githubUrl: sub.repoUrl || d0.repoUrl || '',
-          liveDemoUrl: sub.demoUrl || d0.demoUrl || '',
+          abstractSummary: sub.abstract || d1.abstract || '',
+          problemStatement: sub.problemStatement || d1.problemStatement || '',
+          proposedSolution: sub.solution || d1.solution || '',
+          technologiesUsed: sub.technologyUsed ? sub.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (d1.technologyUsed ? d1.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : []),
+          githubUrl: sub.repoUrl || d1.repoUrl || '',
+          liveDemoUrl: sub.demoUrl || d1.demoUrl || '',
           presentationFileName: sub.presentationFile || '',
           reportUrl: sub.pdfFile || (isPdf ? sub.presentationFile : ''),
           pptUrl: isPpt ? sub.presentationFile : '',
           images: sub.screenshotFile ? [sub.screenshotFile] : [],
-          obstaclesFaced: sub.obstaclesFaced || d0.obstaclesFaced || '',
-          problemsFaced: sub.obstaclesFaced || d0.obstaclesFaced || '',
+          obstaclesFaced: sub.obstaclesFaced || d1.obstaclesFaced || '',
+          problemsFaced: sub.obstaclesFaced || d1.obstaclesFaced || '',
           nextWeekPlan: ''
         };
       });
 
       const hasStudentDetails = Boolean(
         sTeam.submittedTitle || 
-        d0.projectTitle || 
-        d0.problemStatement || 
-        d0.solution || 
-        d0.abstract || 
-        d0.repoUrl || 
-        d0.demoUrl || 
-        d0.presentationFile || 
-        d0.reportFile || 
+        d1.projectTitle || 
+        d1.problemStatement || 
+        d1.solution || 
+        d1.abstract || 
+        d1.repoUrl || 
+        d1.demoUrl || 
+        d1.presentationFile || 
+        d1.reportFile || 
         mappedSubmissions.length > 0
       );
 
-      const titleVal = sTeam.submittedTitle || d0.projectTitle || (mappedSubmissions[0]?.projectTitle) || '';
+      const titleVal = sTeam.submittedTitle || d1.projectTitle || (mappedSubmissions[0]?.projectTitle) || '';
       
       let currentTitleStatus = team.titleStatus;
       let currentRejectionReason = team.rejectionReason || '';
@@ -123,12 +123,12 @@ const sanitizeAndSyncGuideTeams = (rawList) => {
       return {
         ...team,
         projectTitle: titleVal,
-        problemStatement: d0.problemStatement || mappedSubmissions[0]?.problemStatement || '',
-        proposedSolution: d0.solution || mappedSubmissions[0]?.proposedSolution || '',
-        technologiesUsed: d0.technologyUsed ? d0.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (mappedSubmissions[0]?.technologiesUsed || []),
-        abstract: d0.abstract || mappedSubmissions[0]?.abstractSummary || '',
-        githubUrl: d0.repoUrl || mappedSubmissions[0]?.githubUrl || '',
-        liveDemoUrl: d0.demoUrl || mappedSubmissions[0]?.liveDemoUrl || '',
+        problemStatement: d1.problemStatement || mappedSubmissions[0]?.problemStatement || '',
+        proposedSolution: d1.solution || mappedSubmissions[0]?.proposedSolution || '',
+        technologiesUsed: d1.technologyUsed ? d1.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (mappedSubmissions[0]?.technologiesUsed || []),
+        abstract: d1.abstract || mappedSubmissions[0]?.abstractSummary || '',
+        githubUrl: d1.repoUrl || mappedSubmissions[0]?.githubUrl || '',
+        liveDemoUrl: d1.demoUrl || mappedSubmissions[0]?.liveDemoUrl || '',
         submissions: mappedSubmissions,
         titleStatus: currentTitleStatus,
         titleLocked: currentTitleStatus === 'Approved',
@@ -247,14 +247,14 @@ console.log('✓ Legacy Cache Purged: Fake mock submissions and titles are compl
 
 // Scenario 3: Real Student Submits Deliverables for Team 4
 console.log('\n3. Testing Real Student Submission for Team 4:');
-const realDeliverableWeek0 = {
-  week: 'Week 0',
+const realDeliverableWeek1 = {
+  week: 'Submission 1',
   projectTitle: 'Autonomous Crop Disease Detection Drone',
   problemStatement: 'Late detection of crop fungal blight causes severe agricultural losses',
   solution: 'Low altitude autonomous drone running quantized MobileNetV4 inference at 45 FPS',
   technologyUsed: 'Python, PyTorch, ROS2, Jetson Orin Nano, Next.js',
   abstract: 'End-to-end aerial crop inspection system with real-time telemetry.',
-  presentationFile: 'Autonomous_Crop_Drone_Week0_Defense.pptx',
+  presentationFile: 'Autonomous_Crop_Drone_Week1_Defense.pptx',
   reportFile: 'Autonomous_Crop_Drone_Technical_Report.pdf',
   repoUrl: 'https://github.com/tarunika/crop-drone',
   demoUrl: 'https://crop-drone-demo.siet.ac.in',
@@ -270,23 +270,23 @@ const realDeliverableWeek0 = {
     demoUrl: true
   }
 };
-localStorageMock.setItem('siet_deliverable_v6_week_0', JSON.stringify(realDeliverableWeek0));
+localStorageMock.setItem('siet_deliverable_v6_submission_1', JSON.stringify(realDeliverableWeek1));
 
 const realStudentSubmissions = [
   {
-    week: 0,
-    title: 'Week 0 Deliverable Submission',
+    week: 1,
+    title: 'Submission 1 Deliverable Submission',
     status: 'Submitted',
     submissionDate: '17 Sep 2026',
-    projectTitle: realDeliverableWeek0.projectTitle,
-    problemStatement: realDeliverableWeek0.problemStatement,
-    solution: realDeliverableWeek0.solution,
-    technologyUsed: realDeliverableWeek0.technologyUsed,
-    abstract: realDeliverableWeek0.abstract,
-    presentationFile: realDeliverableWeek0.presentationFile,
-    pdfFile: realDeliverableWeek0.reportFile,
-    repoUrl: realDeliverableWeek0.repoUrl,
-    demoUrl: realDeliverableWeek0.demoUrl
+    projectTitle: realDeliverableWeek1.projectTitle,
+    problemStatement: realDeliverableWeek1.problemStatement,
+    solution: realDeliverableWeek1.solution,
+    technologyUsed: realDeliverableWeek1.technologyUsed,
+    abstract: realDeliverableWeek1.abstract,
+    presentationFile: realDeliverableWeek1.presentationFile,
+    pdfFile: realDeliverableWeek1.reportFile,
+    repoUrl: realDeliverableWeek1.repoUrl,
+    demoUrl: realDeliverableWeek1.demoUrl
   }
 ];
 localStorageMock.setItem('siet_student_submissions_v6', JSON.stringify(realStudentSubmissions));
@@ -295,7 +295,7 @@ teams = sanitizeAndSyncGuideTeams(INITIAL_TEAMS);
 const team4 = teams.find(t => t.teamNumber === 4);
 
 console.assert(team4.submissions.length === 1, `Team 4 should have exactly 1 real submission, got ${team4.submissions.length}`);
-console.assert(team4.submissions[0].presentationFileName === 'Autonomous_Crop_Drone_Week0_Defense.pptx', 'Exact PPT deliverable preserved');
+console.assert(team4.submissions[0].presentationFileName === 'Autonomous_Crop_Drone_Week1_Defense.pptx', 'Exact PPT deliverable preserved');
 console.assert(team4.projectTitle === 'Autonomous Crop Disease Detection Drone', 'Exact student title preserved');
 console.assert(hasAnyDetailSubmitted(team4), 'Team 4 has submitted details');
 
@@ -324,13 +324,13 @@ console.assert(pendingApprove.length === 0, `Rejected team MUST NOT be visible i
 console.log('✓ Rejected State: Team 4 is hidden from Approve Submissions');
 
 // Student updates and resubmits
-realDeliverableWeek0.solution += ' Power consumption benchmarked at 9.2W under full GPU load.';
-localStorageMock.setItem('siet_deliverable_v6_week_0', JSON.stringify(realDeliverableWeek0));
+realDeliverableWeek1.solution += ' Power consumption benchmarked at 9.2W under full GPU load.';
+localStorageMock.setItem('siet_deliverable_v6_submission_1', JSON.stringify(realDeliverableWeek1));
 localStorageMock.setItem('siet_student_team_v6', JSON.stringify({
   id: 'TEAM-CSE-Y3-B04',
   guideApprovalStatus: 'Pending',
   rejectionReason: '',
-  submittedTitle: realDeliverableWeek0.projectTitle
+  submittedTitle: realDeliverableWeek1.projectTitle
 }));
 
 teams = sanitizeAndSyncGuideTeams(teams);

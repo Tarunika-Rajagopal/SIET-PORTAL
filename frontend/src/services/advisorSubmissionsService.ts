@@ -12,7 +12,7 @@ const GUIDE_TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
 export function getCanonicalStudentSubmissions(teamTitle?: string, teamIdOverride?: string): WeeklySubmission[] {
   const studentTeam = StudentService.getTeam();
   const effectiveTeamId = teamIdOverride || studentTeam.id;
-  const d0 = StudentService.getDeliverables('Submission 1', effectiveTeamId);
+  const d1 = StudentService.getDeliverables('Submission 1', effectiveTeamId);
   const rawSubs = StudentService.getSubmissions() || [];
 
   const isGuideApproved = Boolean(
@@ -27,45 +27,45 @@ export function getCanonicalStudentSubmissions(teamTitle?: string, teamIdOverrid
     return true;
   });
 
-  const hasD0 = Boolean(
-    d0.submittedFields?.title ||
-    d0.submittedFields?.presentation ||
-    d0.submittedFields?.report ||
-    d0.problemStatement ||
-    d0.solution ||
-    d0.abstract ||
+  const hasD1 = Boolean(
+    d1.submittedFields?.title ||
+    d1.submittedFields?.presentation ||
+    d1.submittedFields?.report ||
+    d1.problemStatement ||
+    d1.solution ||
+    d1.abstract ||
     studentTeam.submittedTitle ||
     studentTeam.projectTitle ||
-    d0.projectTitle
+    d1.projectTitle
   );
 
-  // If Week 0 is not yet in validSubs but student submitted Week 0 / Submission 1 deliverables, include it
-  if (!validSubs.some(s => s.week === 0) && hasD0) {
+  // If Week 1 is not yet in validSubs but student submitted Submission 1 deliverables, include it
+  if (!validSubs.some(s => s.week === 1) && hasD1) {
     validSubs.unshift({
-      week: 0,
+      week: 1,
       title: 'Submission 1 Deliverables & Proposal',
       dueDate: 'Submission 1',
       status: isGuideApproved ? 'Approved' : (studentTeam.guideApprovalStatus === 'Rejected' ? 'Changes Requested' : 'Submitted'),
       submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      projectTitle: d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
-      problemStatement: d0.problemStatement || '',
-      solution: d0.solution || '',
-      technologyUsed: d0.technologyUsed || '',
-      obstaclesFaced: d0.obstaclesFaced || '',
-      abstract: d0.abstract || '',
-      presentationFile: d0.presentationFile || '',
-      pdfFile: d0.reportFile || '',
-      fileName: d0.presentationFile || d0.reportFile || '',
-      repoUrl: d0.repoUrl || '',
-      demoUrl: d0.demoUrl || '',
-      screenshotFile: d0.screenshotFile || '',
+      projectTitle: d1.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
+      problemStatement: d1.problemStatement || '',
+      solution: d1.solution || '',
+      technologyUsed: d1.technologyUsed || '',
+      obstaclesFaced: d1.obstaclesFaced || '',
+      abstract: d1.abstract || '',
+      presentationFile: d1.presentationFile || '',
+      pdfFile: d1.reportFile || '',
+      fileName: d1.presentationFile || d1.reportFile || '',
+      repoUrl: d1.repoUrl || '',
+      demoUrl: d1.demoUrl || '',
+      screenshotFile: d1.screenshotFile || '',
       guideName: studentTeam.guideName || 'Unassigned'
     });
   }
 
-  // Check Submissions 2, 3, 4 (weeks 1, 2, 3) for real submitted deliverables
-  for (let w = 1; w < 4; w++) {
-    const subNum = w + 1;
+  // Check Submissions 2, 3, 4 (weeks 2, 3, 4) for real submitted deliverables
+  for (let w = 2; w <= 4; w++) {
+    const subNum = w;
     if (!validSubs.some(s => s.week === w)) {
       const dW = StudentService.getDeliverables(`Submission ${subNum}`, effectiveTeamId);
       const hasActualSubmission = Boolean(
@@ -89,7 +89,7 @@ export function getCanonicalStudentSubmissions(teamTitle?: string, teamIdOverrid
           dueDate: `Submission ${subNum}`,
           status: StudentService.isSubmissionApproved(subNum, studentTeam.id) ? 'Approved' : 'Submitted',
           submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          projectTitle: dW.projectTitle || d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
+          projectTitle: dW.projectTitle || d1.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
           problemStatement: dW.problemStatement || '',
           solution: dW.solution || '',
           technologyUsed: dW.technologyUsed || '',
@@ -134,38 +134,37 @@ export function getCanonicalStudentSubmissions(teamTitle?: string, teamIdOverrid
 
   // Merge full deliverable fields into each submission (capped to max 4 submissions)
   return validSubs.sort((a, b) => a.week - b.week).slice(0, 4).map(sub => {
-    const dWeek = StudentService.getDeliverables(sub.week === 0 ? 'Submission 1' : `Submission ${sub.week + 1}`, effectiveTeamId);
-    const isWeek0 = sub.week === 0;
+    const dWeek = StudentService.getDeliverables(`Submission ${sub.week}`, effectiveTeamId);
     const gSub = guideTeamSubs.find((gs: any) => (gs.weekNumber ?? gs.week) === sub.week);
-    const isSubRejected = sub.status === 'Changes Requested' || sub.status === 'Rejected' || (isWeek0 && studentTeam.guideApprovalStatus === 'Rejected') || gSub?.evaluationStatus === 'Revision Required';
+    const isSubRejected = sub.status === 'Changes Requested' || sub.status === 'Rejected' || (sub.week === 1 && studentTeam.guideApprovalStatus === 'Rejected') || gSub?.evaluationStatus === 'Revision Required';
     const isSubApproved = !isSubRejected && (
       sub.status === 'Approved' || 
-      (isWeek0 && isGuideApproved) || 
-      StudentService.isSubmissionApproved(sub.week + 1, studentTeam.id) ||
+      (sub.week === 1 && isGuideApproved) || 
+      StudentService.isSubmissionApproved(sub.week, studentTeam.id) ||
       gSub?.evaluationStatus === 'Approved' ||
       gSub?.status === 'Approved'
     );
 
-    const pFile = sub.presentationFile || dWeek.presentationFile || (sub.week === 0 ? d0.presentationFile : '') || gSub?.presentationFileName || '';
-    const rFile = sub.pdfFile || dWeek.reportFile || (sub.week === 0 ? d0.reportFile : '') || gSub?.reportUrl || gSub?.pdfFile || '';
+    const pFile = sub.presentationFile || dWeek.presentationFile || (sub.week === 1 ? d1.presentationFile : '') || gSub?.presentationFileName || '';
+    const rFile = sub.pdfFile || dWeek.reportFile || (sub.week === 1 ? d1.reportFile : '') || gSub?.reportUrl || gSub?.pdfFile || '';
     const fName = sub.fileName || pFile || rFile || '';
-    const guideComments = sub.comments || gSub?.guideRemarks || (isWeek0 && studentTeam.rejectionReason ? studentTeam.rejectionReason : '') || '';
+    const guideComments = sub.comments || gSub?.guideRemarks || (sub.week === 1 && studentTeam.rejectionReason ? studentTeam.rejectionReason : '') || '';
 
     return {
       ...sub,
       status: isSubRejected ? ('Changes Requested' as const) : isSubApproved ? ('Approved' as const) : ('Submitted' as const),
-      projectTitle: sub.projectTitle || dWeek.projectTitle || d0.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
-      problemStatement: sub.problemStatement || dWeek.problemStatement || (sub.week === 0 ? d0.problemStatement : '') || gSub?.problemStatement || '',
-      solution: sub.solution || dWeek.solution || (sub.week === 0 ? d0.solution : '') || gSub?.proposedSolution || '',
-      technologyUsed: sub.technologyUsed || dWeek.technologyUsed || (sub.week === 0 ? d0.technologyUsed : '') || (Array.isArray(gSub?.technologiesUsed) ? gSub.technologiesUsed.join(', ') : (gSub?.technologiesUsed || '')),
-      obstaclesFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (sub.week === 0 ? d0.obstaclesFaced : '') || gSub?.obstaclesFaced || gSub?.problemsFaced || '',
-      abstract: sub.abstract || dWeek.abstract || (sub.week === 0 ? d0.abstract : '') || gSub?.abstractSummary || gSub?.abstract || '',
+      projectTitle: sub.projectTitle || dWeek.projectTitle || d1.projectTitle || studentTeam.submittedTitle || studentTeam.projectTitle || teamTitle || '',
+      problemStatement: sub.problemStatement || dWeek.problemStatement || (sub.week === 1 ? d1.problemStatement : '') || gSub?.problemStatement || '',
+      solution: sub.solution || dWeek.solution || (sub.week === 1 ? d1.solution : '') || gSub?.proposedSolution || '',
+      technologyUsed: sub.technologyUsed || dWeek.technologyUsed || (sub.week === 1 ? d1.technologyUsed : '') || (Array.isArray(gSub?.technologiesUsed) ? gSub.technologiesUsed.join(', ') : (gSub?.technologiesUsed || '')),
+      obstaclesFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (sub.week === 1 ? d1.obstaclesFaced : '') || gSub?.obstaclesFaced || gSub?.problemsFaced || '',
+      abstract: sub.abstract || dWeek.abstract || (sub.week === 1 ? d1.abstract : '') || gSub?.abstractSummary || gSub?.abstract || '',
       presentationFile: pFile,
       pdfFile: rFile,
       fileName: fName,
-      repoUrl: sub.repoUrl || dWeek.repoUrl || (sub.week === 0 ? d0.repoUrl : '') || gSub?.githubUrl || '',
-      demoUrl: sub.demoUrl || dWeek.demoUrl || (sub.week === 0 ? d0.demoUrl : '') || gSub?.liveDemoUrl || '',
-      screenshotFile: sub.screenshotFile || dWeek.screenshotFile || (sub.week === 0 ? d0.screenshotFile : '') || (Array.isArray(gSub?.images) ? gSub.images[0] : gSub?.screenshotFile || ''),
+      repoUrl: sub.repoUrl || dWeek.repoUrl || (sub.week === 1 ? d1.repoUrl : '') || gSub?.githubUrl || '',
+      demoUrl: sub.demoUrl || dWeek.demoUrl || (sub.week === 1 ? d1.demoUrl : '') || gSub?.liveDemoUrl || '',
+      screenshotFile: sub.screenshotFile || dWeek.screenshotFile || (sub.week === 1 ? d1.screenshotFile : '') || (Array.isArray(gSub?.images) ? gSub.images[0] : gSub?.screenshotFile || ''),
       guideName: sub.guideName || studentTeam.guideName || 'Unassigned',
       comments: guideComments
     };
@@ -196,13 +195,13 @@ function mapGuideStatus(status?: string): WeeklySubmission['status'] {
 }
 
 function mapGuideSubmissionToWeeklySubmission(guideTeam: any, guideSubmission: any, team: ClassTeam): WeeklySubmission {
-  const week = Number(guideSubmission.weekNumber ?? guideSubmission.week ?? 0);
+  const week = Number(guideSubmission.weekNumber ?? guideSubmission.week ?? 1);
   const presentationFile = guideSubmission.presentationFileName || guideSubmission.pptUrl || guideSubmission.presentationFile || guideTeam.presentationFile || guideTeam.presentationFileName || '';
   const pdfFile = guideSubmission.pdfFile || guideSubmission.reportUrl || guideSubmission.reportFile || guideTeam.pdfFile || guideTeam.reportUrl || '';
 
   return {
     week,
-    title: guideSubmission.title || (week === 0 ? 'Project Initiation & Title Proposal' : `Milestone Week ${week}`),
+    title: guideSubmission.title || (week === 1 ? 'Submission 1: Project Initiation & Title Proposal' : `Milestone Week ${week}`),
     dueDate: guideSubmission.dueDate || `Week ${week}`,
     status: mapGuideStatus(guideSubmission.evaluationStatus || guideSubmission.submissionStatus || guideSubmission.status || guideTeam.titleStatus || 'Approved'),
     submissionDate: guideSubmission.submissionDate || guideTeam.titleApprovedDate || '',
@@ -283,9 +282,9 @@ function getGuideApprovedSubmissionsForTeam(team: ClassTeam): WeeklySubmission[]
           .filter((s: WeeklySubmission) => !isMockValue(s.presentationFile) && !isMockValue(s.fileName))
       : [];
 
-    // Ensure Week 0 submission exists if the team has approved project details but submissions list didn't have week 0
-    const hasWeek0 = mapped.some(s => s.week === 0);
-    if (!hasWeek0) {
+    // Ensure Week 1 submission exists if the team has approved project details but submissions list didn't have week 1
+    const hasWeek1 = mapped.some(s => s.week === 1);
+    if (!hasWeek1) {
       const hasApprovedProjectDetails = Boolean(
         guideTeam.projectTitle ||
         team.title ||
@@ -302,8 +301,8 @@ function getGuideApprovedSubmissionsForTeam(team: ClassTeam): WeeklySubmission[]
           mapGuideSubmissionToWeeklySubmission(
             guideTeam,
             {
-              weekNumber: 0,
-              title: 'Project Initiation & Title Proposal',
+              weekNumber: 1,
+              title: 'Submission 1: Project Initiation & Title Proposal',
               evaluationStatus: guideTeam.titleStatus || 'Approved',
               submissionDate: guideTeam.titleApprovedDate || ''
             },
@@ -328,6 +327,11 @@ export const AdvisorSubmissionsService = {
    */
   getTeamSubmissions(team: ClassTeam): WeeklySubmission[] {
     if (!team) return [];
+
+    // Prioritize authoritative backend-loaded submissions attached to the team
+    if ((team as any)?.submissions && Array.isArray((team as any).submissions) && (team as any).submissions.length > 0) {
+      return (team as any).submissions;
+    }
 
     const studentTeam = StudentService.getTeam();
     const tNum = team.teamNo ? parseInt(team.teamNo.replace(/\D/g, ''), 10) : null;

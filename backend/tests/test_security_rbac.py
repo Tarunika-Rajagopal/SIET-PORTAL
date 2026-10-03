@@ -136,6 +136,12 @@ async def test_security_and_rbac():
         assert r_student.status_code == 200
 
         # ─── 6. FACULTY PROVISIONING & USER RECORD CREATION ────────────
+        from sqlalchemy import delete
+        async with async_session() as db:
+            await db.execute(delete(User).where(User.email.in_(["test.provision@siet.ac.in", "orphan@srishakthi.ac.in"])))
+            await db.execute(delete(Faculty).where(Faculty.email == "test.provision@siet.ac.in"))
+            await db.commit()
+
         new_faculty_data = {
             "name": "Dr. Testing Provisioning",
             "email": "test.provision@siet.ac.in",
@@ -180,6 +186,7 @@ async def test_security_and_rbac():
         # Delete the test faculty and verify User cleanup
         del_fac = await ac.delete(f"/api/v1/admin/faculties/{faculty_id}", headers=headers["admin"])
         assert del_fac.status_code == 200
+        assert del_fac.json().get("success") is True, f"Delete faculty failed: {del_fac.json()}"
         async with async_session() as db:
             user_cleanup = (await db.execute(select(User).where(User.email == "test.provision@siet.ac.in"))).scalar_one_or_none()
             assert user_cleanup is None, "User record was not cleaned up upon faculty deletion!"

@@ -72,7 +72,7 @@ export interface WeeklySubmission {
   week: number;
   title: string;
   dueDate: string;
-  status: 'Submitted' | 'Pending' | 'Approved' | 'Changes Requested' | 'Rejected';
+  status: 'Submitted' | 'Pending' | 'Approved' | 'Changes Requested' | 'Rejected' | 'Revision Required';
   submissionDate?: string;
   fileName?: string;
   fileSize?: string;

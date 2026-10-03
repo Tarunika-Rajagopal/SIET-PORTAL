@@ -114,8 +114,8 @@ export const AdvisorService = {
 
           if (activeStudentTeam) {
             matchedActiveTeamId = activeStudentTeam.teamId;
-            const d0 = StudentService.getDeliverables('Week 0', activeStudentTeam.teamId || studentTeam.id);
-            const rawRealTitle = (d0?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
+            const d1 = StudentService.getDeliverables('Submission 1', activeStudentTeam.teamId || studentTeam.id);
+            const rawRealTitle = (d1?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
             const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
 
             activeStudentTeam.title = cleanRealTitle;

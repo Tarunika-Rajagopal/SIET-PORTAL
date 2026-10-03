@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { StudentService, StudentDeliverableState } from '../../services/studentService';
 import { MarksService } from '../../services/marksService';
 import { ApiClient } from '../../services/apiClient';
-import { FileText, Image, Upload, Bell, Clock, MapPin, AlertTriangle, Lock, Unlock, Check, Edit3, Send, RefreshCw } from 'lucide-react';
+import { Bell, Clock, MapPin, AlertTriangle, Lock, Unlock, Check, Edit3, Send, RefreshCw } from 'lucide-react';
 
 interface SubmissionViewProps {
   onSuccess?: (msg: string) => void;
@@ -16,25 +16,23 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   const teamId = team?.id || '';
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
 
-  // Determine active submission:
-  // If submission 1 is approved, automatically shift to submission 2, then 3, then 4
-  const getActiveSubmissionWeek = () => {
-    const activeSubNum = StudentService.getTeamActiveSubmissionNumber(teamId);
-    return Math.max(0, activeSubNum - 1);
-  };
-
-  const [currentWeekNumber, setCurrentWeekNumber] = useState<number>(() => {
+  // 1-based canonical week selection: 1, 2, 3, 4
+  const [currentSubmissionNumber, setCurrentSubmissionNumber] = useState<number>(() => {
     try {
       const targetW = localStorage.getItem('siet_student_target_week');
       if (targetW !== null) {
         localStorage.removeItem('siet_student_target_week');
         const parsed = parseInt(targetW, 10);
-        if (!isNaN(parsed)) return parsed;
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 4) return parsed;
+      }
+      const savedSelected = sessionStorage.getItem('siet_student_selected_week');
+      if (savedSelected !== null) {
+        const parsed = parseInt(savedSelected, 10);
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 4) return parsed;
       }
     } catch (e) {}
-    return getActiveSubmissionWeek();
+    return StudentService.getTeamActiveSubmissionNumber(teamId);
   });
-  const currentSubmissionNumber = currentWeekNumber + 1;
   const weekText = `Submission ${currentSubmissionNumber}`;
 
   // Backend-controlled weekly release status (Week 1..4 -> boolean)
@@ -122,7 +120,6 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('focus', handleFocus);
 
-    // Heartbeat poll every 3 seconds for bulletproof real-time sync
     const interval = setInterval(loadReleases, 3000);
 
     return () => {
@@ -136,14 +133,9 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
   const isCurrentWeekReleased = Boolean(weekReleases[currentSubmissionNumber]);
 
-  const [deliverables, setDeliverables] = useState<StudentDeliverableState>(() =>
-    StudentService.getDeliverables(weekText)
-  );
-
-  const [submissions, setSubmissions] = useState(() => StudentService.getSubmissions());
-  // Match strictly by backend's 1-based week number
+  const [submissions, setSubmissions] = useState<any[]>(() => StudentService.getSubmissions());
   const currentSub = submissions.find(s => s.week === currentSubmissionNumber);
-  const isRevisionRequired = currentSub?.status === 'Changes Requested' || currentSub?.status === 'Rejected';
+  const isRevisionRequired = currentSub?.status === 'Changes Requested' || currentSub?.status === 'Rejected' || currentSub?.status === 'Revision Required';
   const isTitleRejected = team?.guideApprovalStatus === 'Rejected';
 
   const isSubmission1Approved = StudentService.isSubmission1Approved(teamId);
@@ -155,27 +147,15 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     currentSub?.status === 'Approved'
   );
 
-  const hasMilestoneBeenSubmitted = Boolean(
-    (currentSub && currentSub.submissionDate && (currentSub.status === 'Submitted' || currentSub.status === 'Approved' || currentSub.status === 'Changes Requested')) ||
-    (currentSubmissionNumber === 1
-      ? Boolean(deliverables.submittedFields.title || deliverables.submittedFields.presentation || deliverables.submittedFields.report)
-      : Boolean(
-          deliverables.submittedFields.technologyUsed ||
-          deliverables.submittedFields.obstaclesFaced ||
-          deliverables.submittedFields.abstract ||
-          deliverables.submittedFields.presentation ||
-          deliverables.submittedFields.report ||
-          deliverables.submittedFields.repoUrl ||
-          deliverables.submittedFields.demoUrl ||
-          deliverables.submittedFields.screenshot
-        )
-    )
-  );
-  const hasSubmission = hasMilestoneBeenSubmitted;
-
-  // Status of submitted details
-  const currentStatus: 'Approved' | 'Requested Revision' | 'Pending' = 
-    isApproved ? 'Approved' : (isRevisionRequired || isTitleRejected) ? 'Requested Revision' : 'Pending';
+  // Deliverable fields state - Directly backed by backend
+  const [title, setTitle] = useState('');
+  const [problemStatement, setProblemStatement] = useState('');
+  const [solution, setSolution] = useState('');
+  const [technology, setTechnology] = useState('');
+  const [obstaclesFaced, setObstaclesFaced] = useState('');
+  const [abstract, setAbstract] = useState('');
+  const [repoUrl, setRepoUrl] = useState('');
+  const [demoUrl, setDemoUrl] = useState('');
 
   // Date selection logic: up to today's date
   const getTodayDateStr = () => {
@@ -189,11 +169,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   const todayDateStr = getTodayDateStr();
 
   const [submissionDate, setSubmissionDate] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem(`siet_submission_date_${weekText}`);
-      if (saved && saved <= todayDateStr) return saved;
-      if (currentSub?.submissionDate && currentSub.submissionDate <= todayDateStr) return currentSub.submissionDate;
-    } catch (e) {}
+    if (currentSub?.submissionDate && currentSub.submissionDate <= todayDateStr) return currentSub.submissionDate;
     return todayDateStr;
   });
 
@@ -208,9 +184,6 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       return;
     }
     setSubmissionDate(val);
-    try {
-      localStorage.setItem(`siet_submission_date_${weekText}`, val);
-    } catch (err) {}
   };
 
   // Edit submission state before evaluation
@@ -237,7 +210,9 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
 
     const handleNavSubmission = (e: any) => {
       if (e?.detail?.week !== undefined) {
-        setCurrentWeekNumber(e.detail.week);
+        const w = Number(e.detail.week);
+        const canonicalWeek = (w >= 1 && w <= 4) ? w : (w + 1 >= 1 && w + 1 <= 4) ? w + 1 : 1;
+        setCurrentSubmissionNumber(canonicalWeek);
       }
       if (e?.detail?.edit && StudentService.isCurrentUserTeamLead(team)) {
         setIsEditing(true);
@@ -249,118 +224,69 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     };
   }, [team]);
 
-  useEffect(() => {
-    const handleSync = () => {
-      setDeliverables(StudentService.getDeliverables(weekText, teamId));
-      setSubmissions(StudentService.getSubmissions());
-      setTeam(StudentService.getTeam());
-      if (localStorage.getItem('siet_student_start_edit_mode') === 'true') {
-        setIsEditing(true);
-        localStorage.removeItem('siet_student_start_edit_mode');
-      }
-    };
-    window.addEventListener('siet_marks_updated', handleSync);
-    window.addEventListener('siet_data_updated', handleSync);
-    window.addEventListener('storage', handleSync);
-    return () => {
-      window.removeEventListener('siet_marks_updated', handleSync);
-      window.removeEventListener('siet_data_updated', handleSync);
-      window.removeEventListener('storage', handleSync);
-    };
-  }, [teamId, weekText]);
-
-  useEffect(() => {
-    setDeliverables(StudentService.getDeliverables(weekText, teamId));
-    setBackendError(null);
-    const cleanTeamId = (teamId || team?.id || team?.teamNo || 'unknown').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-    const weekSlug = StudentService.normalizeWeekSlug(weekText);
-    const dateStorageKey = `siet_submission_date_${cleanTeamId}_${weekSlug}`;
-    try {
-      const saved = localStorage.getItem(dateStorageKey);
-      if (saved && saved <= todayDateStr) {
-        setSubmissionDate(saved);
-      } else {
-        const sub = submissions.find(s => s.week === currentSubmissionNumber);
-        if (sub?.submissionDate && sub.submissionDate <= todayDateStr) {
-          setSubmissionDate(sub.submissionDate);
-        } else {
-          setSubmissionDate(todayDateStr);
-        }
-      }
-    } catch (e) {}
-  }, [weekText, currentSubmissionNumber, submissions, todayDateStr, teamId, team?.id, team?.teamNo]);
-
   // Retrieve saved milestone submission directly from the backend/database on load or week change
+  // Database is the sole source of truth! No fallback to localStorage for deliverable contents.
   useEffect(() => {
     let isMounted = true;
     const fetchSavedSubmission = async () => {
       try {
-        const backendSub = await ApiClient.getStudentSubmissionByWeek(currentSubmissionNumber);
-        if (!isMounted || !backendSub) return;
+        const [backendSub, serverSubs, serverTeam, sub1] = await Promise.all([
+          ApiClient.getStudentSubmissionByWeek(currentSubmissionNumber).catch(() => null),
+          ApiClient.getStudentSubmissions().catch(() => []),
+          ApiClient.getStudentTeam().catch(() => null),
+          currentSubmissionNumber > 1 ? ApiClient.getStudentSubmissionByWeek(1).catch(() => null) : Promise.resolve(null)
+        ]);
+        if (!isMounted) return;
 
-        const cleanTeamId = (teamId || team?.id || team?.teamNo || 'unknown').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-        const weekSlug = StudentService.normalizeWeekSlug(weekText);
-        const dateStorageKey = `siet_submission_date_${cleanTeamId}_${weekSlug}`;
+        if (serverTeam) {
+          setTeam(serverTeam);
+        }
+        if (Array.isArray(serverSubs) && serverSubs.length > 0) {
+          setSubmissions(serverSubs);
+        }
 
-        // If backend has a saved record (has DB id, non-pending status, or populated deliverable content)
-        if (
-          backendSub.id ||
-          (backendSub.status && backendSub.status !== 'Pending') ||
-          backendSub.problemStatement ||
-          backendSub.technologyUsed ||
-          backendSub.solution ||
-          backendSub.obstaclesFaced
-        ) {
-          const updated = StudentService.saveAllDeliverables(weekText, {
-            projectTitle: backendSub.projectTitle,
-            problemStatement: backendSub.problemStatement,
-            solution: backendSub.solution,
-            technologyUsed: backendSub.technologyUsed,
-            obstaclesFaced: backendSub.obstaclesFaced,
-            abstract: backendSub.abstract,
-            presentationFile: backendSub.presentationFile,
-            reportFile: backendSub.pdfFile || backendSub.reportFile,
-            repoUrl: backendSub.repoUrl,
-            demoUrl: backendSub.demoUrl,
-            screenshotFile: backendSub.screenshotFile,
-            submissionDate: backendSub.submissionDate,
-          }, teamId);
+        // Canonical anchor values from Submission 1 or team
+        const anchorTitle = (sub1?.projectTitle || serverTeam?.projectTitle || team?.projectTitle || team?.submittedTitle || '').trim();
+        const anchorProblem = (sub1?.problemStatement || (serverTeam as any)?.problemStatement || (team as any)?.problemStatement || '').trim();
+        const anchorSolution = (sub1?.solution || (serverTeam as any)?.proposedSolution || (team as any)?.proposedSolution || '').trim();
 
-          if (!isMounted) return;
-          setDeliverables(updated);
-          setSubmissions(StudentService.getSubmissions());
-
+        if (backendSub) {
+          if (currentSubmissionNumber > 1) {
+            setProblemStatement(anchorProblem || backendSub.problemStatement || '');
+            setSolution(anchorSolution || backendSub.solution || '');
+            setTitle(anchorTitle || backendSub.projectTitle || '');
+          } else {
+            setProblemStatement(backendSub.problemStatement || '');
+            setSolution(backendSub.solution || '');
+            setTitle(backendSub.projectTitle || anchorTitle || '');
+          }
+          setTechnology(backendSub.technologyUsed || '');
+          setObstaclesFaced(backendSub.obstaclesFaced || '');
+          setAbstract(backendSub.abstract || '');
+          setRepoUrl(backendSub.repoUrl || '');
+          setDemoUrl(backendSub.demoUrl || '');
           if (backendSub.submissionDate) {
             setSubmissionDate(backendSub.submissionDate);
-            try {
-              localStorage.setItem(dateStorageKey, backendSub.submissionDate);
-            } catch (e) {}
           }
         } else {
-          // Backend has NO saved record or it is Pending with empty fields:
-          // Explicitly clear/reset form state to empty/default values so previous milestone state never persists
-          if (!isMounted) return;
-          StudentService.clearDeliverables(weekText, teamId);
-          try {
-            localStorage.removeItem(dateStorageKey);
-          } catch (e) {}
-
-          const emptyState = StudentService.getDeliverables(weekText, teamId);
-          setDeliverables(emptyState);
-          setProblemStatement('');
-          setSolution('');
+          // Fresh milestone without submission
+          if (currentSubmissionNumber > 1) {
+            setProblemStatement(anchorProblem);
+            setSolution(anchorSolution);
+            setTitle(anchorTitle);
+          } else {
+            setProblemStatement('');
+            setSolution('');
+            setTitle(anchorTitle);
+          }
           setTechnology('');
           setObstaclesFaced('');
           setAbstract('');
-          setPresentationFileName('');
-          setReportFileName('');
           setRepoUrl('');
           setDemoUrl('');
-          setScreenshotName('');
-          setSubmissionDate(todayDateStr);
         }
       } catch (err) {
-        console.warn('Could not fetch saved submission from backend, relying on cache:', err);
+        console.warn('Could not fetch saved submission from backend:', err);
       }
     };
 
@@ -369,138 +295,47 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     return () => {
       isMounted = false;
     };
-  }, [currentSubmissionNumber, weekText, todayDateStr, teamId, team?.id, team?.teamNo]);
+  }, [currentSubmissionNumber, teamId]);
 
-  // Check if Class Advisor or Guide has already awarded marks for THIS specific milestone submission
-  // Submission 1: check subNumber 1 or legacy 0
-  // Submission 2: strictly check subNumber 2
-  // Submission 3: strictly check subNumber 3
-  // Submission 4: strictly check subNumber 4
-  const marksRecord = MarksService.getWeeklyMarks(teamId, currentSubmissionNumber, memberRollNos) ||
-                      (currentSubmissionNumber === 1 ? MarksService.getWeeklyMarks(teamId, 0, memberRollNos) : null);
+  const hasMilestoneBeenSubmitted = Boolean(
+    (currentSub && (currentSub.status === 'Submitted' || currentSub.status === 'Approved' || isRevisionRequired)) ||
+    problemStatement ||
+    solution ||
+    technology ||
+    obstaclesFaced ||
+    abstract ||
+    repoUrl ||
+    demoUrl
+  );
+  const hasSubmission = hasMilestoneBeenSubmitted;
+
+  const currentStatus: 'Approved' | 'Requested Revision' | 'Pending' =
+    isApproved ? 'Approved' : (isRevisionRequired || isTitleRejected) ? 'Requested Revision' : 'Pending';
+
+  const marksRecord = MarksService.getWeeklyMarks(teamId, currentSubmissionNumber, memberRollNos);
   const isMarksAssigned = Boolean(
     marksRecord && (
       (marksRecord.teamAverage !== undefined && marksRecord.teamAverage > 0) ||
       (marksRecord.memberMarks && Object.keys(marksRecord.memberMarks).length > 0)
     )
   );
+  const isEvaluated = Boolean(
+    (currentSub?.score !== null && currentSub?.score !== undefined) ||
+    isMarksAssigned
+  );
 
-  // Submissions are evaluated if marks are assigned for THIS milestone
-  const isEvaluated = isMarksAssigned;
+  // Bug 1 Fix: Once evaluated or approved (and not requested revision), milestone is strictly locked
+  const isFinalLocked = Boolean(
+    (isApproved || isEvaluated) && !isRevisionRequired && !isTitleRejected
+  );
 
-  // Helper: get carried-over project title from team or previous submission (used for initial state)
-  const getInitialCarriedOver = (currentVal: string, field: 'title' | 'problemStatement' | 'solution'): string => {
-    if (field !== 'title') return currentVal || '';
-    if (currentVal && currentVal !== 'No Title Submitted' && currentVal !== 'Title Approval Pending') return currentVal;
-    if (currentSubmissionNumber <= 1) {
-      const tv = (team?.projectTitle || team?.submittedTitle || '').trim();
-      return (tv && tv !== 'No Title Submitted' && tv !== 'Title Approval Pending') ? tv : '';
+  // Bug 2 Fix: In submissions 2, 3, 4, project title, problem statement, and solution are anchored to Submission 1
+  const isCarriedOverLocked = (field: string): boolean => {
+    if (currentSubmissionNumber <= 1) return false;
+    if (field === 'title' || field === 'problemStatement' || field === 'solution') {
+      return true;
     }
-    for (let sNum = currentSubmissionNumber - 1; sNum >= 1; sNum--) {
-      const d = StudentService.getDeliverables(`Submission ${sNum}`, teamId);
-      const dLeg = sNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
-      const v = (d.projectTitle || dLeg?.projectTitle || '').trim();
-      if (v && v !== 'No Title Submitted' && v !== 'Title Approval Pending') return v;
-    }
-    const tv = (team?.projectTitle || team?.submittedTitle || '').trim();
-    if (tv && tv !== 'No Title Submitted' && tv !== 'Title Approval Pending') return tv;
-    return '';
-  };
-
-  // Field values state
-  const [title, setTitle] = useState(() => getInitialCarriedOver(deliverables.projectTitle || '', 'title'));
-  const [problemStatement, setProblemStatement] = useState(deliverables.problemStatement || '');
-  const [solution, setSolution] = useState(deliverables.solution || '');
-  const [technology, setTechnology] = useState(deliverables.technologyUsed || '');
-  const [obstaclesFaced, setObstaclesFaced] = useState(deliverables.obstaclesFaced || '');
-  const [abstract, setAbstract] = useState(deliverables.abstract || '');
-  const [presentationFileName, setPresentationFileName] = useState(deliverables.presentationFile || '');
-  const [reportFileName, setReportFileName] = useState(deliverables.reportFile || '');
-  const [repoUrl, setRepoUrl] = useState(deliverables.repoUrl || '');
-  const [demoUrl, setDemoUrl] = useState(deliverables.demoUrl || '');
-  const [screenshotName, setScreenshotName] = useState(deliverables.screenshotFile || '');
-
-  useEffect(() => {
-    // Only project title is shared across milestones; deliverables remain completely independent
-    const resolveCarriedOverTitle = (currentVal: string): string => {
-      if (currentVal && currentVal !== 'No Title Submitted' && currentVal !== 'Title Approval Pending') return currentVal;
-      for (let subNum = currentSubmissionNumber - 1; subNum >= 1; subNum--) {
-        const d = StudentService.getDeliverables(`Submission ${subNum}`, teamId);
-        const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
-        const val = (d.projectTitle || dLegacy?.projectTitle || '').trim();
-        if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') return val;
-      }
-      const teamVal = (team?.projectTitle || team?.submittedTitle || '').trim();
-      if (teamVal && teamVal !== 'No Title Submitted' && teamVal !== 'Title Approval Pending') return teamVal;
-      return '';
-    };
-
-    setTitle(resolveCarriedOverTitle(deliverables.projectTitle || ''));
-    setProblemStatement(deliverables.problemStatement || '');
-    setSolution(deliverables.solution || '');
-    setTechnology(deliverables.technologyUsed || '');
-    setObstaclesFaced(deliverables.obstaclesFaced || '');
-    setAbstract(deliverables.abstract || '');
-    setPresentationFileName(deliverables.presentationFile || '');
-    setReportFileName(deliverables.reportFile || '');
-    setRepoUrl(deliverables.repoUrl || '');
-    setDemoUrl(deliverables.demoUrl || '');
-    setScreenshotName(deliverables.screenshotFile || '');
-  }, [deliverables, currentSubmissionNumber, teamId]);
-
-  // Project title locking rule:
-  // Once project title is submitted and approved in a prior milestone, it is locked as read-only.
-  // Deliverables (problem statement, solution, etc.) are milestone-specific and NEVER locked by carryover.
-  const isCarriedOverLocked = (field: 'title' | 'problemStatement' | 'solution'): boolean => {
-    if (field !== 'title') {
-      return false; // Deliverables are never locked by carryover
-    }
-    if (currentSubmissionNumber <= 1) {
-      return false; // Submission 1 is always unlocked for proposal entry until submitted/evaluated
-    }
-
-    // Check all previous milestones (1 up to currentSubmissionNumber - 1)
-    for (let subNum = 1; subNum < currentSubmissionNumber; subNum++) {
-      const isApproved = StudentService.isSubmissionApproved(subNum, teamId);
-      if (isApproved) {
-        const d = StudentService.getDeliverables(`Submission ${subNum}`, teamId);
-        const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
-        const val = (d.projectTitle || dLegacy?.projectTitle || team?.projectTitle || team?.submittedTitle || '').trim();
-        if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') {
-          return true;
-        }
-      }
-    }
-
-    for (let subNum = 1; subNum < currentSubmissionNumber; subNum++) {
-      const d = StudentService.getDeliverables(`Submission ${subNum}`, teamId);
-      const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
-      const val = (d.projectTitle || dLegacy?.projectTitle || team?.projectTitle || team?.submittedTitle || '').trim();
-      if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') {
-        return true;
-      }
-    }
-
     return false;
-  };
-
-  // Returns the actual carried-over title from a previous milestone
-  const getCarriedOverValue = (field: 'title' | 'problemStatement' | 'solution'): string => {
-    if (field !== 'title' || currentSubmissionNumber <= 1) return '';
-
-    // Search previous milestones from most recent to earliest
-    for (let subNum = currentSubmissionNumber - 1; subNum >= 1; subNum--) {
-      const d = StudentService.getDeliverables(`Submission ${subNum}`, teamId);
-      const dLegacy = subNum === 1 ? StudentService.getDeliverables('Week 0', teamId) : null;
-      const val = (d.projectTitle || dLegacy?.projectTitle || '').trim();
-      if (val && val !== 'No Title Submitted' && val !== 'Title Approval Pending') return val;
-    }
-
-    // Fallback: check team-level data for title
-    const teamVal = (team?.projectTitle || team?.submittedTitle || '').trim();
-    if (teamVal && teamVal !== 'No Title Submitted' && teamVal !== 'Title Approval Pending') return teamVal;
-
-    return '';
   };
 
   const handleSaveAllChanges = async () => {
@@ -509,7 +344,13 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       return;
     }
 
-    // Role-based workflow validation: strictly block if HOD has not released this milestone
+    if (isFinalLocked) {
+      const msg = `Week ${currentSubmissionNumber} has already been evaluated and approved by your Faculty Guide. Modifications are not permitted.`;
+      setBackendError(msg);
+      alert(msg);
+      return;
+    }
+
     if (!isCurrentWeekReleased) {
       const msg = `Week ${currentSubmissionNumber} is locked by the Head of Department. Submissions cannot be accepted.`;
       setBackendError(msg);
@@ -521,9 +362,10 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     setBackendError(null);
 
     // Call real backend API: POST /api/v1/student/submissions/{week}
-    // Backend strictly enforces get_week_releases() and returns 403 Forbidden if locked
+    // Exactly ONE authoritative submission write!
     try {
-      await ApiClient.submitStudentDeliverables(currentSubmissionNumber, {
+      const savedSub = await ApiClient.submitStudentDeliverables(currentSubmissionNumber, {
+        projectTitle: title,
         problemStatement,
         solution,
         technologyUsed: technology,
@@ -533,112 +375,69 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         demoUrl,
         isSubmit: true
       });
+
+      if (savedSub) {
+        setProblemStatement(savedSub.problemStatement || '');
+        setSolution(savedSub.solution || '');
+        setTechnology(savedSub.technologyUsed || '');
+        setObstaclesFaced(savedSub.obstaclesFaced || '');
+        setAbstract(savedSub.abstract || '');
+        setRepoUrl(savedSub.repoUrl || '');
+        setDemoUrl(savedSub.demoUrl || '');
+        if (savedSub.projectTitle) {
+          setTitle(savedSub.projectTitle);
+        }
+        if (savedSub.submissionDate) {
+          setSubmissionDate(savedSub.submissionDate);
+        }
+      }
+
+      // Refresh submissions list from backend
+      try {
+        const freshSubs = await ApiClient.getStudentSubmissions();
+        if (Array.isArray(freshSubs)) {
+          setSubmissions(freshSubs);
+        }
+      } catch (subListErr) {
+        console.warn('Could not refresh submissions list:', subListErr);
+      }
+
+      setIsEditing(false);
+      setIsSubmitting(false);
+
+      if (onSuccess) {
+        onSuccess(`Milestone deliverables for ${weekText} submitted successfully.`);
+      }
     } catch (apiErr: any) {
       console.error('Backend submission rejected:', apiErr);
       const errMsg = apiErr.message || 'Submission rejected by server.';
       setBackendError(errMsg);
       alert(`Submission rejected: ${errMsg}`);
       setIsSubmitting(false);
-      return;
-    }
-
-    const updated = StudentService.saveAllDeliverables(weekText, {
-      projectTitle: title,
-      problemStatement,
-      solution,
-      technologyUsed: technology,
-      obstaclesFaced,
-      abstract,
-      presentationFile: presentationFileName,
-      reportFile: reportFileName,
-      repoUrl,
-      demoUrl,
-      screenshotFile: screenshotName,
-      submissionDate
-    });
-
-    try {
-      if (submissionDate) {
-        localStorage.setItem(`siet_submission_date_${weekText}`, submissionDate);
-      }
-    } catch (e) {}
-
-    // If this week was in revision/rejected state or in edit mode, update submission status
-    if (isRevisionRequired || isEditing) {
-      StudentService.updateSubmission(currentSubmissionNumber, `Updated deliverables for ${weekText}`);
-    }
-
-    setDeliverables(updated);
-    setSubmissions(StudentService.getSubmissions());
-    setIsEditing(false);
-    setIsSubmitting(false);
-
-    if (onSuccess) {
-      onSuccess(`Milestone deliverables for ${weekText} submitted successfully.`);
     }
   };
 
-  const handlePptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith('.ppt') && !file.name.endsWith('.pptx')) {
-      alert("Only PowerPoint presentations (.ppt or .pptx) are permitted.");
-      return;
-    }
-    setPresentationFileName(file.name);
+  const isFieldSubmitted = (field: string): boolean => {
+    if (!hasMilestoneBeenSubmitted) return false;
+    if (field === 'title') return Boolean(title && title.trim());
+    if (field === 'problemStatement') return Boolean(problemStatement && problemStatement.trim());
+    if (field === 'solution') return Boolean(solution && solution.trim());
+    if (field === 'technologyUsed') return Boolean(technology && technology.trim());
+    if (field === 'obstaclesFaced') return Boolean(obstaclesFaced && obstaclesFaced.trim());
+    if (field === 'abstract') return Boolean(abstract && abstract.trim());
+    if (field === 'repoUrl') return Boolean(repoUrl && repoUrl.trim());
+    if (field === 'demoUrl') return Boolean(demoUrl && demoUrl.trim());
+    return false;
   };
 
-  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      alert("Only PDF documents (.pdf) are permitted for the technical report.");
-      return;
-    }
-    setReportFileName(file.name);
-  };
-
-  const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setScreenshotName(file.name);
-  };
-
-  // Helper to check if a field was previously submitted
-  const isFieldSubmitted = (field: keyof StudentDeliverableState['submittedFields']): boolean => {
-    return Boolean(deliverables.submittedFields[field]);
-  };
-
-  // Input disabling logic
-  const isInputDisabled = (field: keyof StudentDeliverableState['submittedFields']): boolean => {
-    // 0. If this week has NOT been released by HOD, ALL fields are locked!
-    if (!isCurrentWeekReleased) {
-      return true;
-    }
-    // 0b. Only the designated Team Lead can edit or upload deliverables
-    if (!isTeamLead) {
-      return true;
-    }
-    // 1. Project Title is carried over & locked in Submissions 2, 3, 4 once established
-    if (field === 'title' && isCarriedOverLocked('title')) {
-      return true;
-    }
-    // 2. If user is in Edit Mode or Revision Required, ALL other details are unlocked!
-    if (isEditing || isRevisionRequired || isTitleRejected) {
-      return false;
-    }
-    // 3. If milestone is not submitted yet, ALL other details are completely unlocked!
-    if (!hasSubmission) {
-      return false;
-    }
-    // 4. If milestone is already evaluated (and not in edit mode), lock fields
-    if (isEvaluated) {
-      return true;
-    }
-    // 5. If submitted and not in edit mode, locked until user clicks "Edit Submission"
-    const submitted = isFieldSubmitted(field);
-    if (!submitted) return false;
-    return true;
+  const isInputDisabled = (field: string): boolean => {
+    if (!isCurrentWeekReleased) return true;
+    if (!isTeamLead) return true;
+    if (isCarriedOverLocked(field)) return true;
+    if (isFinalLocked) return true;
+    if (isEditing || isRevisionRequired || isTitleRejected) return false;
+    if (!hasSubmission) return false;
+    return isFieldSubmitted(field);
   };
 
   return (
@@ -656,7 +455,10 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                 id={`milestone-btn-${wNum}`}
                 type="button"
                 onClick={() => {
-                  setCurrentWeekNumber(wNum - 1);
+                  setCurrentSubmissionNumber(wNum);
+                  try {
+                    sessionStorage.setItem('siet_student_selected_week', String(wNum));
+                  } catch (e) {}
                   setIsEditing(false);
                   setBackendError(null);
                 }}
@@ -722,7 +524,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                 id="submissionDateInput"
                 value={submissionDate}
                 max={todayDateStr}
-                disabled={!isCurrentWeekReleased || !isTeamLead || (hasSubmission && !isEditing && !isRevisionRequired) || (isEvaluated && !isEditing)}
+                disabled={!isCurrentWeekReleased || !isTeamLead || isFinalLocked || (hasSubmission && !isEditing && !isRevisionRequired)}
                 onChange={(e) => handleDateChange(e.target.value)}
                 className="px-3 py-1.5 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] focus:outline-none focus:border-[#111111] disabled:bg-slate-100 disabled:text-slate-500 cursor-pointer disabled:cursor-default"
               />
@@ -754,8 +556,8 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
               </div>
             )}
 
-            {/* Edit Submission Button (Only available to designated Team Lead when week is released) */}
-            {isCurrentWeekReleased && isTeamLead && hasSubmission && (!isEvaluated || isEditing) && (
+            {/* Edit Submission Button (Only available to designated Team Lead when week is released and NOT final locked) */}
+            {isCurrentWeekReleased && isTeamLead && hasSubmission && !isFinalLocked && (
               <button
                 type="button"
                 onClick={() => setIsEditing(!isEditing)}
@@ -771,10 +573,16 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
               </button>
             )}
 
-            {isEvaluated && !isEditing && (
-              <div className="px-3 py-1.5 rounded-xl border border-[#D8CCBA] bg-[#EDE7DB] text-[#75695A] text-xs font-bold flex items-center gap-1.5 select-none" title="Evaluation completed.">
-                <Lock size={13} />
-                <span>Evaluated (Score: {marksRecord?.teamAverage}/100)</span>
+            {isFinalLocked && (
+              <div className="px-3.5 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs font-bold flex items-center gap-1.5 select-none shadow-xs" title="Milestone evaluated and approved by guide. Read-only.">
+                <Lock size={13} className="text-emerald-700" />
+                <span>
+                  {currentSub?.score !== null && currentSub?.score !== undefined
+                    ? `Evaluated & Approved (Score: ${currentSub.score}/100)`
+                    : marksRecord?.teamAverage !== undefined && marksRecord.teamAverage > 0
+                    ? `Evaluated & Approved (Score: ${marksRecord.teamAverage}/100)`
+                    : 'Milestone Approved (Read-Only)'}
+                </span>
               </div>
             )}
           </div>
@@ -878,7 +686,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             <label className="font-bold text-slate-800 block">Project Title</label>
             {isCarriedOverLocked('title') && (
               <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                <Lock size={10} /> Carried from Previous Submission (Read-only)
+                <Lock size={10} /> Carried from Submission 1 (Read-only)
               </span>
             )}
           </div>
@@ -898,7 +706,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             <label className="font-bold text-slate-800 block">Problem Statement</label>
             {isCarriedOverLocked('problemStatement') && (
               <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                <Lock size={10} /> Carried from Previous Submission (Read-only)
+                <Lock size={10} /> Carried from Submission 1 (Read-only)
               </span>
             )}
           </div>
@@ -917,7 +725,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
             <label className="font-bold text-slate-800 block">Proposed Solution &amp; Technical Approach</label>
             {isCarriedOverLocked('solution') && (
               <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                <Lock size={10} /> Carried from Previous Submission (Read-only)
+                <Lock size={10} /> Carried from Submission 1 (Read-only)
               </span>
             )}
           </div>
@@ -969,73 +777,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
           />
         </div>
 
-        {/* 7. Presentation File: PPT / PPTX only */}
-        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div>
-            <label className="font-bold text-slate-800">Presentation Deck (PowerPoint Only)</label>
-            <span className="text-[11px] text-slate-400 block mt-0.5">Strictly .ppt or .pptx format required</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {isInputDisabled('presentation') ? (
-              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
-                <FileText size={14} className="text-slate-500" />
-                <span>{presentationFileName || "Presentation File Uploaded"}</span>
-              </span>
-            ) : (
-              <div className="flex items-center gap-2.5">
-                <label className="cursor-pointer px-4 py-2.5 rounded-xl bg-white border-2 border-dashed border-mint-400 hover:border-mint-600 text-mint-900 font-extrabold text-xs transition flex items-center gap-2 shadow-xs hover:bg-mint-50/40 shrink-0">
-                  <Upload size={15} className="text-mint-600" />
-                  <span>{presentationFileName ? presentationFileName : "Choose Presentation (.ppt/.pptx)"}</span>
-                  <input
-                    type="file"
-                    accept=".ppt,.pptx"
-                    className="hidden"
-                    onChange={handlePptUpload}
-                  />
-                </label>
-              </div>
-            )}
-            {presentationFileName && isInputDisabled('presentation') && (
-              <span className="text-[11px] font-mono text-slate-500 font-bold">{presentationFileName}</span>
-            )}
-          </div>
-        </div>
-
-        {/* 8. Technical Project Report: PDF only */}
-        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <div>
-            <label className="font-bold text-slate-800">Technical Report Document (PDF Only)</label>
-            <span className="text-[11px] text-slate-400 block mt-0.5">Strictly .pdf format required</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {isInputDisabled('report') ? (
-              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
-                <FileText size={14} className="text-slate-500" />
-                <span>{reportFileName || deliverables.reportFile || "Technical Report Uploaded"}</span>
-              </span>
-            ) : (
-              <div className="flex items-center gap-2.5">
-                <label className="cursor-pointer px-4 py-2.5 rounded-xl bg-white border-2 border-dashed border-mint-400 hover:border-mint-600 text-mint-900 font-extrabold text-xs transition flex items-center gap-2 shadow-xs hover:bg-mint-50/40 shrink-0">
-                  <Upload size={15} className="text-mint-600" />
-                  <span>{reportFileName ? reportFileName : "Choose Technical Report (.pdf)"}</span>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    className="hidden"
-                    onChange={handlePdfUpload}
-                  />
-                </label>
-              </div>
-            )}
-            {reportFileName && isInputDisabled('report') && (
-              <span className="text-[11px] font-mono text-slate-500 font-bold">{reportFileName}</span>
-            )}
-          </div>
-        </div>
-
-        {/* 9. Repository Link (GitHub) */}
+        {/* 7. Repository Link (GitHub) */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <label className="font-bold text-slate-800 block">Source Code Repository URL</label>
           <input
@@ -1048,7 +790,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
           />
         </div>
 
-        {/* 10. Live Demo Link */}
+        {/* 8. Live Demo Link */}
         <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
           <label className="font-bold text-slate-800 block">Live Deployment / Demo URL</label>
           <input
@@ -1061,35 +803,6 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
           />
         </div>
 
-        {/* 11. Output Screenshot */}
-        <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#D8CCBA] space-y-2">
-          <label className="font-bold text-slate-800 block">Output Screenshot Upload</label>
-          <div className="flex items-center gap-3">
-            {isInputDisabled('screenshot') ? (
-              <span className="px-4 py-2 rounded-xl bg-slate-100 border border-[#D8CCBA] text-slate-700 font-bold text-xs flex items-center gap-2 cursor-default">
-                <Image size={14} className="text-slate-500" />
-                <span>{screenshotName || "Screenshot Uploaded"}</span>
-              </span>
-            ) : (
-              <div className="flex items-center gap-2.5">
-                <label className="cursor-pointer px-4 py-2.5 rounded-xl bg-white border-2 border-dashed border-mint-400 hover:border-mint-600 text-mint-900 font-extrabold text-xs transition flex items-center gap-2 shadow-xs hover:bg-mint-50/40 shrink-0">
-                  <Image size={15} className="text-mint-600" />
-                  <span>{screenshotName ? screenshotName : "Upload Screenshot Image (.png/.jpg)"}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleScreenshotUpload}
-                  />
-                </label>
-              </div>
-            )}
-            {screenshotName && isInputDisabled('screenshot') && (
-              <span className="text-[11px] font-mono text-slate-500 font-bold">{screenshotName}</span>
-            )}
-          </div>
-        </div>
-
         {/* 12. Final Milestone Action Footer */}
         {/* Always show footer when week is released OR locked */}
         {(!isEvaluated || isEditing || isRevisionRequired || !isCurrentWeekReleased || isCurrentWeekReleased) && (
@@ -1099,6 +812,13 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                 <span className="text-[#75695A] font-semibold flex items-center gap-1.5">
                   <Lock size={14} className="text-[#8A6A32]" />
                   <span>Submissions for Week {currentSubmissionNumber} are currently locked. Awaiting release by the Head of Department.</span>
+                </span>
+              ) : isFinalLocked ? (
+                <span className="text-emerald-900 font-bold flex items-center gap-1.5">
+                  <Check size={14} className="text-emerald-700" />
+                  <span>
+                    Week {currentSubmissionNumber} has been evaluated and approved by your Faculty Guide. All deliverables are locked in read-only mode.
+                  </span>
                 </span>
               ) : !isTeamLead ? (
                 <span className="text-[#75695A] font-semibold flex items-center gap-1.5">
@@ -1131,6 +851,14 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                   <Lock size={14} />
                   <span>Week {currentSubmissionNumber} Locked</span>
                 </button>
+              ) : isFinalLocked ? (
+                <div
+                  className="px-6 py-2.5 bg-emerald-100 text-emerald-900 font-extrabold text-xs rounded-xl border border-emerald-300 flex items-center justify-center gap-2 w-full sm:w-auto select-none"
+                  title="Milestone Approved & Evaluated"
+                >
+                  <Check size={14} className="text-emerald-700" />
+                  <span>Approved & Evaluated (Locked)</span>
+                </div>
               ) : isTeamLead ? (
                 !hasSubmission ? (
                   <button
@@ -1163,7 +891,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
                     <span>Update {weekText}</span>
                   </button>
                 ) : (
-                  /* Previously submitted and not in edit mode: show Re-Submit button */
+                  /* Previously submitted and not in edit mode: show Re-Submit button only if not locked */
                   <button
                     type="button"
                     id="btnResubmitMilestone"

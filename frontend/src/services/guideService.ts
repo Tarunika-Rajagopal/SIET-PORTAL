@@ -45,7 +45,7 @@ export const GuideService = {
           teamNo: team.teamNo,
           title: team.submittedTitle,
           proposedBy: "Tarunika Rajgopal (714023104112)",
-          submittedOn: "Week 0",
+          submittedOn: "Week 1",
           status: "Pending",
           category: "Project Title Proposal",
           description: "Initial Capstone Project Title Proposal submitted by student."

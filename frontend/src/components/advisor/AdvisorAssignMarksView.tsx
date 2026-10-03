@@ -85,9 +85,9 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
   const activeMemberRollsKey = activeTeam?.members.map(m => m.rollNo).join('|') || '';
 
   // Load existing marks for active team and week (1-indexed for milestones)
-  const activeSubNum = selectedWeek !== undefined ? selectedWeek + 1 : 1;
+  const activeSubNum = selectedWeek !== undefined ? selectedWeek : 1;
   const existingMarks = activeTeam 
-    ? (MarksService.getWeeklyMarks(activeTeam.teamId, activeSubNum) || (activeSubNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0) : null))
+    ? MarksService.getWeeklyMarks(activeTeam.teamId, activeSubNum)
     : null;
   const isMarksEnteredByGuide = Boolean(
     existingMarks && (
@@ -102,8 +102,8 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
 
   useEffect(() => {
     if (!activeTeam) return;
-    const subNum = selectedWeek !== undefined ? selectedWeek + 1 : 1;
-    const existing = MarksService.getWeeklyMarks(activeTeam.teamId, subNum) || (subNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0) : null);
+    const subNum = selectedWeek !== undefined ? selectedWeek : 1;
+    const existing = MarksService.getWeeklyMarks(activeTeam.teamId, subNum);
     const initialInputs: Record<string, string> = {};
     activeTeam.members.forEach(m => {
       if (existing && existing.memberMarks[m.rollNo] !== undefined) {
@@ -299,9 +299,9 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                   onChange={(e) => setSelectedWeek(Number(e.target.value))}
                   className="appearance-none pl-3.5 pr-8 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs cursor-pointer"
                 >
-                  {Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i).map((w) => (
+                  {[1, 2, 3, 4].filter(w => w <= Math.max(1, currentAcademicWeek)).map((w) => (
                     <option key={w} value={w}>
-                      {w === 0 ? 'Week 0: Project Initiation & Title Proposal' : `Week ${w} Milestone${w === currentAcademicWeek ? ' (Current)' : ''}`}
+                      {w === 1 ? 'Week 1: Project Initiation & Title Proposal' : `Week ${w} Milestone${w === currentAcademicWeek ? ' (Current)' : ''}`}
                     </option>
                   ))}
                 </select>
@@ -435,10 +435,10 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
 
           {/* Quick Week Pill Buttons (Only up to current academic week) */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i).map((w) => {
+            {[1, 2, 3, 4].filter(w => w <= Math.max(1, currentAcademicWeek)).map((w) => {
               const isCurrent = w === selectedWeek;
-              const subNum = w + 1;
-              const wMarks = MarksService.getWeeklyMarks(activeTeam.teamId, subNum) || (subNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0) : null);
+              const subNum = w;
+              const wMarks = MarksService.getWeeklyMarks(activeTeam.teamId, subNum);
 
               return (
                 <button

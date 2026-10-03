@@ -11,6 +11,7 @@ from repositories.team_repository import TeamRepository
 from repositories.student_repository import StudentRepository
 from repositories.faculty_repository import FacultyRepository
 from repositories.audit_repository import AuditRepository
+from repositories.submission_repository import SubmissionRepository
 
 def _ser_team(t: Team) -> Dict[str, Any]:
     members = []
@@ -58,6 +59,7 @@ class AdvisorService:
         self.team_repo = TeamRepository(session)
         self.student_repo = StudentRepository(session)
         self.faculty_repo = FacultyRepository(session)
+        self.sub_repo = SubmissionRepository(session)
 
     async def get_available_guides(self) -> List[Dict[str, Any]]:
         rows = await self.faculty_repo.list_all()
@@ -82,7 +84,49 @@ class AdvisorService:
         if not class_name:
             return []
         rows = await self.team_repo.list_by_class(class_name)
-        return [_ser_team(t) for t in rows]
+        team_ids = [t.id for t in rows]
+        subs = await self.sub_repo.list_by_teams(team_ids)
+        subs_by_team = {}
+        for s in subs:
+            subs_by_team.setdefault(s.team_id, []).append(s)
+
+        out = []
+        for t in rows:
+            st = _ser_team(t)
+            t_subs = subs_by_team.get(t.id, [])
+            st["submissions"] = [
+                {
+                    "id": str(s.id),
+                    "week": s.week,
+                    "weekNumber": s.week,
+                    "title": s.title or f"Week {s.week} Deliverables",
+                    "dueDate": s.due_date or "",
+                    "status": s.status.value if hasattr(s.status, "value") else (s.status or "Pending"),
+                    "submissionDate": s.submission_date or "",
+                    "score": float(s.score) if s.score is not None else None,
+                    "maxScore": float(s.max_score) if s.max_score is not None else 100.0,
+                    "projectTitle": s.project_title or t.project_title or "",
+                    "problemStatement": s.problem_statement or "",
+                    "solution": s.solution or "",
+                    "proposedSolution": s.solution or "",
+                    "technologyUsed": s.technology_used or "",
+                    "technologiesUsed": [x.strip() for x in (s.technology_used or "").split(",") if x.strip()],
+                    "obstaclesFaced": s.obstacles_faced or "",
+                    "problemsFaced": s.obstacles_faced or "",
+                    "abstract": s.abstract or "",
+                    "abstractSummary": s.abstract or "",
+                    "repoUrl": s.repo_url or "",
+                    "githubUrl": s.repo_url or "",
+                    "demoUrl": s.demo_url or "",
+                    "liveDemoUrl": s.demo_url or "",
+                    "guideName": s.guide_name or t.guide_name or "",
+                    "guideReviewDate": s.guide_review_date or "",
+                    "comments": s.comments or "",
+                }
+                for s in t_subs
+            ]
+            out.append(st)
+        return out
 
     async def get_class_students(
         self, class_name: str = "", batch: str = ""

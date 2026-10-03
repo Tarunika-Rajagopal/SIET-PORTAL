@@ -168,26 +168,59 @@ class StudentService:
     async def get_submissions(self, user: User) -> List[dict]:
         team = await self._find_team(user, with_members=False)
         rows = await self.sub_repo.list_by_team(team.id)
-        return [self._format_sub(s) for s in rows]
+        
+        # Identify Submission 1 anchor details for carryover to submissions 2, 3, 4
+        sub1 = next((s for s in rows if s.week == 1), None)
+        anchor_title = (sub1.project_title if sub1 and sub1.project_title else (team.project_title or team.submitted_title or "")).strip()
+        anchor_problem = (sub1.problem_statement if sub1 and sub1.problem_statement else (team.problem_statement or "")).strip()
+        anchor_solution = (sub1.solution if sub1 and sub1.solution else (team.proposed_solution or "")).strip()
+
+        out = []
+        for s in rows:
+            formatted = self._format_sub(s)
+            if s.week > 1:
+                formatted["projectTitle"] = anchor_title or formatted.get("projectTitle") or ""
+                formatted["problemStatement"] = anchor_problem or formatted.get("problemStatement") or ""
+                formatted["solution"] = anchor_solution or formatted.get("solution") or ""
+            else:
+                if not formatted.get("projectTitle"):
+                    formatted["projectTitle"] = anchor_title or team.project_title or team.submitted_title or ""
+            out.append(formatted)
+        return out
 
     async def get_submission_by_week(self, user: User, week: int) -> dict:
         team = await self._find_team(user, with_members=False)
         s = await self.sub_repo.get_by_team_and_week(team.id, week)
+
+        # For weeks 2, 3, 4: anchor project title, problem statement, and proposed solution from Submission 1
+        sub1 = await self.sub_repo.get_by_team_and_week(team.id, 1) if week > 1 else None
+        anchor_title = (sub1.project_title if sub1 and sub1.project_title else (team.project_title or team.submitted_title or "")).strip()
+        anchor_problem = (sub1.problem_statement if sub1 and sub1.problem_statement else (team.problem_statement or "")).strip()
+        anchor_solution = (sub1.solution if sub1 and sub1.solution else (team.proposed_solution or "")).strip()
+
         if not s:
             return {
                 "week": week,
                 "title": f"Week {week} Deliverables",
                 "status": "Pending",
-                "projectTitle": team.project_title or "",
-                "problemStatement": team.problem_statement or "",
-                "solution": team.proposed_solution or "",
+                "projectTitle": anchor_title if week > 1 else (team.project_title or team.submitted_title or ""),
+                "problemStatement": anchor_problem if week > 1 else "",
+                "solution": anchor_solution if week > 1 else "",
                 "technologyUsed": "",
                 "obstaclesFaced": "",
-                "abstract": team.abstract or "",
-                "repoUrl": team.repo_url or "",
-                "demoUrl": team.demo_url or "",
+                "abstract": "",
+                "repoUrl": "",
+                "demoUrl": "",
             }
-        return self._format_sub(s)
+        formatted = self._format_sub(s)
+        if week > 1:
+            formatted["projectTitle"] = anchor_title or formatted.get("projectTitle") or ""
+            formatted["problemStatement"] = anchor_problem or formatted.get("problemStatement") or ""
+            formatted["solution"] = anchor_solution or formatted.get("solution") or ""
+        else:
+            if not formatted.get("projectTitle"):
+                formatted["projectTitle"] = team.project_title or team.submitted_title or ""
+        return formatted
 
     async def get_week_releases(self) -> dict:
         """Return release status for all 4 weekly submissions from database."""
@@ -216,8 +249,45 @@ class StudentService:
         team = await self._find_team(user, with_members=False)
         s = await self.sub_repo.get_by_team_and_week(team.id, week)
 
+        # Rule 1: Immutability of evaluated & approved submissions
+        # If the milestone submission has already been approved by the guide or evaluated (score awarded),
+        # modifications are forbidden unless the guide has explicitly requested revisions / rejected it.
+        is_in_revision = (
+            (s and s.status in ("Changes Requested", "Revision Required", "Rejected")) or
+            (week == 1 and team.guide_approval_status in ("Revision Required", "Rejected"))
+        )
+        is_approved_or_evaluated = False
+        if s:
+            if s.status == "Approved" or s.score is not None:
+                is_approved_or_evaluated = True
+        if week == 1 and (team.is_title_approved or team.guide_approval_status == "Approved"):
+            is_approved_or_evaluated = True
+
+        if is_approved_or_evaluated and not is_in_revision:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Week {week} milestone has already been evaluated and approved by your Faculty Guide. Further modifications are not permitted."
+            )
+
         today = datetime.now().strftime("%d %b %Y")
         status = "Submitted" if req.isSubmit else "Draft"
+
+        # Rule 2: Anchor Project Title, Problem Statement, and Proposed Solution & Technical Approach
+        # Teams only have authority to modify these project details in Submission 1 before guide approval.
+        # For remaining submissions (weeks 2, 3, 4), they remain identical to Submission 1.
+        if week > 1:
+            sub1 = await self.sub_repo.get_by_team_and_week(team.id, 1)
+            anchor_title = (sub1.project_title if sub1 and sub1.project_title else (team.project_title or team.submitted_title or "")).strip()
+            anchor_problem = (sub1.problem_statement if sub1 and sub1.problem_statement else (team.problem_statement or "")).strip()
+            anchor_solution = (sub1.solution if sub1 and sub1.solution else (team.proposed_solution or "")).strip()
+            effective_title = anchor_title
+            effective_problem = anchor_problem
+            effective_solution = anchor_solution
+        else:
+            submitted_title = (req.projectTitle or "").strip() if req.projectTitle is not None else ""
+            effective_title = submitted_title or team.project_title or team.submitted_title or ""
+            effective_problem = req.problemStatement if req.problemStatement is not None else (team.problem_statement or "")
+            effective_solution = req.solution if req.solution is not None else (team.proposed_solution or "")
 
         if not s:
             s = WeeklySubmission(
@@ -227,41 +297,103 @@ class StudentService:
                 title=f"Week {week} Deliverables",
                 status=status,
                 submission_date=today,
-                problem_statement=req.problemStatement,
-                solution=req.solution,
-                technology_used=req.technologyUsed,
-                obstacles_faced=req.obstaclesFaced,
-                abstract=req.abstract,
-                repo_url=req.repoUrl,
-                demo_url=req.demoUrl,
-                project_title=team.project_title or "",
+                problem_statement=effective_problem,
+                solution=effective_solution,
+                technology_used=req.technologyUsed or "",
+                obstacles_faced=req.obstaclesFaced or "",
+                abstract=req.abstract or "",
+                repo_url=req.repoUrl or "",
+                demo_url=req.demoUrl or "",
+                project_title=effective_title,
                 guide_name=team.guide_name or "",
             )
             await self.sub_repo.create(s)
         else:
             s.status = status
             s.submission_date = today
-            if req.isSubmit:
+            if req.isSubmit and is_in_revision:
                 s.score = None
-            for attr, val in [
-                ("problem_statement", req.problemStatement),
-                ("solution", req.solution),
-                ("technology_used", req.technologyUsed),
-                ("obstacles_faced", req.obstaclesFaced),
-                ("abstract", req.abstract),
-                ("repo_url", req.repoUrl),
-                ("demo_url", req.demoUrl),
-            ]:
-                if val is not None:
+
+            s.project_title = effective_title
+
+            sent_fields = getattr(req, "model_fields_set", None) or getattr(req, "__fields_set__", None)
+            
+            # For week 1: allow problem_statement and solution updates
+            # For week > 1: enforce anchor values from Submission 1
+            if week > 1:
+                s.problem_statement = effective_problem
+                s.solution = effective_solution
+                field_map = [
+                    ("technology_used", "technologyUsed", req.technologyUsed),
+                    ("obstacles_faced", "obstaclesFaced", req.obstaclesFaced),
+                    ("abstract", "abstract", req.abstract),
+                    ("repo_url", "repoUrl", req.repoUrl),
+                    ("demo_url", "demoUrl", req.demoUrl),
+                ]
+            else:
+                field_map = [
+                    ("problem_statement", "problemStatement", req.problemStatement),
+                    ("solution", "solution", req.solution),
+                    ("technology_used", "technologyUsed", req.technologyUsed),
+                    ("obstacles_faced", "obstaclesFaced", req.obstaclesFaced),
+                    ("abstract", "abstract", req.abstract),
+                    ("repo_url", "repoUrl", req.repoUrl),
+                    ("demo_url", "demoUrl", req.demoUrl),
+                ]
+
+            for attr, field_name, val in field_map:
+                if sent_fields is not None:
+                    if field_name in sent_fields:
+                        setattr(s, attr, val or "")
+                elif val is not None:
                     setattr(s, attr, val)
 
+        # For Week 1 ONLY: synchronize project details to the Team record
+        if week == 1:
+            if effective_title:
+                team.project_title = effective_title
+                team.submitted_title = effective_title
+            if req.problemStatement is not None:
+                team.problem_statement = req.problemStatement
+            if req.solution is not None:
+                team.proposed_solution = req.solution
+            if req.abstract is not None:
+                team.abstract = req.abstract
+            if req.repoUrl is not None:
+                team.repo_url = req.repoUrl
+            if req.demoUrl is not None:
+                team.demo_url = req.demoUrl
+
+        team.last_modified = datetime.now()
+
         await self.session.commit()
-        return self._format_sub(s)
+        formatted = self._format_sub(s)
+        if week > 1:
+            formatted["projectTitle"] = effective_title
+            formatted["problemStatement"] = effective_problem
+            formatted["solution"] = effective_solution
+        elif not formatted.get("projectTitle"):
+            formatted["projectTitle"] = team.project_title or team.submitted_title or ""
+        return formatted
 
     async def delete_submission(self, user: User, week: int) -> dict:
         team = await self._find_team(user)
         s = await self.sub_repo.get_by_team_and_week(team.id, week)
         if s:
+            is_in_revision = (
+                s.status in ("Changes Requested", "Revision Required", "Rejected") or
+                (week == 1 and team.guide_approval_status in ("Revision Required", "Rejected"))
+            )
+            is_approved_or_evaluated = (
+                s.status == "Approved" or
+                s.score is not None or
+                (week == 1 and (team.is_title_approved or team.guide_approval_status == "Approved"))
+            )
+            if is_approved_or_evaluated and not is_in_revision:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Cannot delete milestone {week} because it has already been approved or evaluated."
+                )
             await self.sub_repo.delete(s)
             await self.session.commit()
         return {"success": True, "message": f"Week {week} submission deleted."}

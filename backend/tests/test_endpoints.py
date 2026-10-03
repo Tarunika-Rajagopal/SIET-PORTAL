@@ -18,10 +18,20 @@ async def test_all_endpoints():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://localhost:8000") as ac:
         # Initialize DB and seed
-        from database import init_db
+        from database import init_db, async_session
         from main import seed_initial_data
+        from tests.test_fixtures import seed_test_data
+        from sqlalchemy import select
+        from models import Team
         await init_db()
         await seed_initial_data()
+        await seed_test_data()
+        async with async_session() as s:
+            t = (await s.execute(select(Team).where(Team.team_id == "TEAM-CSE-Y3-B04"))).scalar_one_or_none()
+            if t:
+                t.guide_email = "dr.manimegalai@siet.ac.in"
+                t.guide_name = "Dr. P. Manimegalai"
+                await s.commit()
 
         # 1. Root & Health
         res = await ac.get("/health")

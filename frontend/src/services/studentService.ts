@@ -114,15 +114,15 @@ export const DEFAULT_COMPLETED_WEEKS: WeeklySubmission[] = [];
 
 export const StudentService = {
   getCurrentAcademicWeek(): number {
-    // Academic semester Week 0 began Sunday, September 13, 2026.
-    // Each Sunday rolls over to the next academic week automatically (Week 0, Week 1, Week 2, ...).
-    const semesterStart = new Date(2026, 8, 13); // September 13, 2026 (Month 8 is September in JS 0-indexed)
+    // Academic semester Week 1 began Sunday, September 13, 2026.
+    // Each Sunday rolls over to the next academic week automatically (Week 1, Week 2, Week 3, ...).
+    const semesterStart = new Date(2026, 8, 13); // September 13, 2026
     const now = new Date();
     const diffTime = now.getTime() - semesterStart.getTime();
-    if (diffTime < 0) return 0;
+    if (diffTime < 0) return 1;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const weekNumber = Math.floor(diffDays / 7);
-    return Math.max(0, Math.min(16, weekNumber));
+    const weekNumber = Math.floor(diffDays / 7) + 1;
+    return Math.max(1, Math.min(16, weekNumber));
   },
 
   getTeam(): StudentTeamExtended {
@@ -402,7 +402,7 @@ export const StudentService = {
           } catch (e) { }
 
           return parsed.filter((sub: any) => Boolean(sub && typeof sub === 'object')).map((sub: any) => {
-            if (sub.week === 0 && isGuideApproved && (sub.status === 'Submitted' || sub.status === 'Pending' || !sub.status)) {
+            if (sub.week === 1 && isGuideApproved && (sub.status === 'Submitted' || sub.status === 'Pending' || !sub.status)) {
               return { ...sub, status: 'Approved' as const };
             }
             return sub;
@@ -419,7 +419,7 @@ export const StudentService = {
     try {
       localStorage.setItem(scopedKey, JSON.stringify(submissions));
       localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(submissions));
-    } catch (e) {}
+    } catch (e) { }
     window.dispatchEvent(new Event('siet_data_updated'));
   },
 
@@ -447,15 +447,11 @@ export const StudentService = {
     if (marks && (marks.teamAverage > 0 || (marks.memberMarks && Object.keys(marks.memberMarks).length > 0))) {
       return true;
     }
-    const marks0 = MarksService.getWeeklyMarks(tId, 0);
-    if (marks0 && (marks0.teamAverage > 0 || (marks0.memberMarks && Object.keys(marks0.memberMarks).length > 0))) {
-      return true;
-    }
 
     if (isStudentTeam) {
       const subs = this.getSubmissions();
-      const s0 = subs.find((s: any) => s.week === 0 || s.week === 1);
-      if (s0 && s0.status === 'Approved') return true;
+      const s1 = subs.find((s: any) => s.week === 1);
+      if (s1 && s1.status === 'Approved') return true;
     }
 
     return false;
@@ -463,22 +459,20 @@ export const StudentService = {
 
   isSubmissionApproved(subNumber: number, teamId?: string): boolean {
     if (subNumber === 1) return this.isSubmission1Approved(teamId);
-    if (!teamId) return false;
+    if (!teamId || subNumber < 1 || subNumber > 4) return false;
 
     const tId = teamId.trim();
     const currentTeam = this.getTeam();
     const isStudentTeam = Boolean(currentTeam?.id && (tId === currentTeam.id || tId === currentTeam.teamNo));
-    const weekIndex = subNumber - 1;
 
-    const marks = MarksService.getWeeklyMarks(tId, subNumber) ||
-      MarksService.getWeeklyMarks(tId, weekIndex);
+    const marks = MarksService.getWeeklyMarks(tId, subNumber);
     if (marks && (marks.teamAverage > 0 || (marks.memberMarks && Object.keys(marks.memberMarks).length > 0))) {
       return true;
     }
 
     if (isStudentTeam) {
       const subs = this.getSubmissions();
-      const sub = subs.find(s => s.week === weekIndex || s.week === subNumber);
+      const sub = subs.find(s => s.week === subNumber);
       if (sub && sub.status === 'Approved') return true;
     }
 
@@ -496,27 +490,39 @@ export const StudentService = {
 
   normalizeWeekSlug(weekText: string): string {
     const lower = (weekText || '').trim().toLowerCase();
-    if (lower === 'week 0' || lower === 'week_0' || lower === 'submission 1' || lower === 'submission_1') {
+    // Explicitly reject Week 0 / Submission 0
+    if (lower === 'week 0' || lower === 'week_0' || lower === 'submission 0' || lower === 'submission_0') {
+      return '';
+    }
+
+    if (lower === 'week 1' || lower === 'week_1' || lower === 'submission 1' || lower === 'submission_1') {
       return 'submission_1';
     }
-    if (lower === 'week 1' || lower === 'week_1' || lower === 'submission 2' || lower === 'submission_2') {
+    if (lower === 'week 2' || lower === 'week_2' || lower === 'submission 2' || lower === 'submission_2') {
       return 'submission_2';
     }
-    if (lower === 'week 2' || lower === 'week_2' || lower === 'submission 3' || lower === 'submission_3') {
+    if (lower === 'week 3' || lower === 'week_3' || lower === 'submission 3' || lower === 'submission_3') {
       return 'submission_3';
     }
-    if (lower === 'week 3' || lower === 'week_3' || lower === 'submission 4' || lower === 'submission_4') {
+    if (lower === 'week 4' || lower === 'week_4' || lower === 'submission 4' || lower === 'submission_4') {
       return 'submission_4';
     }
-    if (lower.startsWith('week ')) {
-      const num = parseInt(lower.replace('week ', ''), 10);
-      if (!isNaN(num)) return `submission_${num + 1}`;
+
+    const match = lower.match(/(?:submission|week)[_\s-]*(\d+)/);
+    if (match) {
+      const parsedNum = parseInt(match[1], 10);
+      if (parsedNum >= 1 && parsedNum <= 4) {
+        return `submission_${parsedNum}`;
+      }
+      return '';
     }
-    if (lower.startsWith('submission ')) {
-      const num = parseInt(lower.replace('submission ', ''), 10);
-      if (!isNaN(num)) return `submission_${num}`;
+
+    const directNum = parseInt(lower, 10);
+    if (!isNaN(directNum) && directNum >= 1 && directNum <= 4) {
+      return `submission_${directNum}`;
     }
-    return lower.replace(/\s+/g, '_');
+
+    return '';
   },
 
   getDeliverableKey(weekText: string, teamIdOverride?: string): string {
@@ -531,7 +537,7 @@ export const StudentService = {
     const key = this.getDeliverableKey(weekText, teamIdOverride);
     try {
       localStorage.removeItem(key);
-    } catch (e) {}
+    } catch (e) { }
   },
 
   getDeliverables(weekText: string, teamIdOverride?: string): StudentDeliverableState {
@@ -586,7 +592,7 @@ export const StudentService = {
       let currentSubNum = 2;
       const match = weekText.match(/\d+/);
       if (match) {
-        currentSubNum = weekText.toLowerCase().includes('week') ? parseInt(match[0], 10) + 1 : parseInt(match[0], 10);
+        currentSubNum = parseInt(match[0], 10);
       }
 
       const team = this.getTeam();
@@ -702,30 +708,27 @@ export const StudentService = {
 
     localStorage.setItem(key, JSON.stringify(current));
 
-    let weekNum = 0;
-    let submissionNum = 1;
-    if (weekText.toLowerCase().includes('submission')) {
-      const match = weekText.match(/\d+/);
-      const subNum = match ? parseInt(match[0], 10) : 1;
-      submissionNum = subNum;
-      weekNum = Math.max(0, subNum - 1);
-    } else {
-      const match = weekText.match(/\d+/);
-      const w = match ? parseInt(match[0], 10) : 0;
-      submissionNum = w === 0 ? 1 : w + 1;
-      weekNum = w;
+    let subNum = 1;
+    const match = weekText.match(/\d+/);
+    if (match) {
+      const parsed = parseInt(match[0], 10);
+      if (parsed >= 1 && parsed <= 4) {
+        subNum = parsed;
+      }
     }
+    const weekNum = subNum;
+    const submissionNum = subNum;
 
     // 1. Synchronize to submissions ledger
     try {
       const list = this.getSubmissions();
-      let item = list.find(s => s.week === weekNum || s.week === submissionNum);
+      let item = list.find(s => s.week === weekNum);
       const subDate = data.submissionDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       if (!item) {
         item = {
           week: weekNum,
-          title: `Submission ${weekNum + 1} Deliverable Submission`,
-          dueDate: `Submission ${weekNum + 1}`,
+          title: `Submission ${submissionNum} Deliverable Submission`,
+          dueDate: `Submission ${submissionNum}`,
           status: 'Submitted',
           submissionDate: subDate,
           projectTitle: current.projectTitle || this.getTeam().projectTitle || '',
@@ -762,17 +765,6 @@ export const StudentService = {
     } catch (e) {
       console.error(e);
     }
-
-    ApiClient.submitStudentDeliverables(submissionNum, {
-      problemStatement: current.problemStatement,
-      solution: current.solution,
-      technologyUsed: current.technologyUsed,
-      obstaclesFaced: current.obstaclesFaced,
-      abstract: current.abstract,
-      repoUrl: current.repoUrl,
-      demoUrl: current.demoUrl,
-      isSubmit: true
-    }).catch(() => { });
 
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
@@ -829,15 +821,13 @@ export const StudentService = {
     current.submittedFields[field] = true;
     localStorage.setItem(key, JSON.stringify(current));
 
-    // Extract week index: Submission 1 -> 0, Submission 2 -> 1, Week 0 -> 0, Week 1 -> 1
-    let weekNum = 0;
-    if (weekText.toLowerCase().includes('submission')) {
-      const match = weekText.match(/\d+/);
-      const subNum = match ? parseInt(match[0], 10) : 1;
-      weekNum = Math.max(0, subNum - 1);
-    } else {
-      const match = weekText.match(/\d+/);
-      weekNum = match ? parseInt(match[0], 10) : 0;
+    let weekNum = 1;
+    const match = weekText.match(/\d+/);
+    if (match) {
+      const parsed = parseInt(match[0], 10);
+      if (parsed >= 1 && parsed <= 4) {
+        weekNum = parsed;
+      }
     }
 
     // 1. Synchronize to student's submissions ledger
@@ -847,8 +837,8 @@ export const StudentService = {
       if (!item) {
         item = {
           week: weekNum,
-          title: `Submission ${weekNum + 1} Deliverable Submission`,
-          dueDate: `Submission ${weekNum + 1}`,
+          title: `Submission ${weekNum} Deliverable Submission`,
+          dueDate: `Submission ${weekNum}`,
           status: 'Submitted',
           submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           projectTitle: current.projectTitle || this.getTeam().projectTitle || '',
@@ -895,21 +885,7 @@ export const StudentService = {
       }
     } catch (e) { }
 
-    // 2. Send asynchronous API call to Backend
-    ApiClient.submitStudentDeliverables(weekNum, {
-      problemStatement: current.problemStatement,
-      solution: current.solution,
-      technologyUsed: current.technologyUsed,
-      obstaclesFaced: current.obstaclesFaced,
-      abstract: current.abstract,
-      repoUrl: current.repoUrl,
-      demoUrl: current.demoUrl,
-      isSubmit: true
-    }).catch(err => {
-      console.error('Backend sync queued or offline:', err);
-    });
-
-    // 4. Dispatch global events for instant UI synchronization across tabs and pages
+    // Dispatch global events for instant UI synchronization across tabs and pages
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
 
@@ -926,11 +902,6 @@ export const StudentService = {
     item.comments = `Updated: ${updatedComments}`;
     this.saveSubmissions(list);
 
-    // Call backend
-    await ApiClient.submitStudentDeliverables(weekNumber, {
-      isSubmit: true
-    }).catch(() => { });
-
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
     return true;
@@ -946,7 +917,7 @@ export const StudentService = {
 
       // 2. Clear deliverable state for that week
       this.clearDeliverables(`Week ${weekNumber}`, team.id);
-      this.clearDeliverables(`Submission ${weekNumber + 1}`, team.id);
+      this.clearDeliverables(`Submission ${weekNumber}`, team.id);
 
       // 3. Reset title & status in student team
       team.projectTitle = '';

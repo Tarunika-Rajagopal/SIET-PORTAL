@@ -78,8 +78,24 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   const activeSubmissionIndex = getActiveSubmissionIndex();
   const activeSubmissionNumber = activeSubmissionIndex + 1;
 
+  // Identify Submission 1 details to anchor project title, problem statement, and proposed solution for submissions 2, 3, 4
+  const sub1 = submissions.find(s => s.week === 1);
+  const anchorTitle = (sub1?.projectTitle || team?.projectTitle || team?.submittedTitle || '').trim();
+  const anchorProblem = (sub1?.problemStatement || team?.problemStatement || '').trim();
+  const anchorSolution = (sub1?.solution || team?.proposedSolution || '').trim();
+
   // Display submissions list (show all student submissions, or fallback to active submission)
-  const displaySubmissions = [...submissions].sort((a, b) => a.week - b.week);
+  const displaySubmissions = [...submissions].sort((a, b) => a.week - b.week).map(s => {
+    if (s.week > 1) {
+      return {
+        ...s,
+        projectTitle: anchorTitle || s.projectTitle,
+        problemStatement: anchorProblem || s.problemStatement,
+        solution: anchorSolution || s.solution,
+      };
+    }
+    return s;
+  });
 
   const handleOpenDetail = (sub: WeeklySubmission) => {
     setActiveWeekSub(sub);
@@ -89,10 +105,10 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   const handleEditSubmission = (subWeek: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!isTeamLead) return;
-    const targetWeekIndex = subWeek >= 1 ? subWeek - 1 : subWeek;
+    const targetWeek = subWeek >= 1 && subWeek <= 4 ? subWeek : 1;
     localStorage.setItem('siet_student_start_edit_mode', 'true');
-    localStorage.setItem('siet_student_target_week', String(targetWeekIndex));
-    window.dispatchEvent(new CustomEvent('student_navigate_submission', { detail: { edit: true, week: targetWeekIndex } }));
+    localStorage.setItem('siet_student_target_week', String(targetWeek));
+    window.dispatchEvent(new CustomEvent('student_navigate_submission', { detail: { edit: true, week: targetWeek } }));
     if (onNavigateToSubmission) {
       onNavigateToSubmission();
     }
@@ -131,7 +147,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
       setResubmitModalOpen(false);
       if (detailModalOpen) setDetailModalOpen(false);
       if (onSuccess) {
-        const subNum = activeWeekSub.week === 0 ? 1 : activeWeekSub.week;
+        const subNum = activeWeekSub.week;
         onSuccess(`Submission ${subNum} milestone updated and submitted for Guide re-review.`);
       }
     } catch (err: any) {
@@ -276,20 +292,21 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
         ) : (
           <div className="divide-y divide-[#D8CCBA]">
             {displaySubmissions.map((sub) => {
-              const subNum = sub.week === 0 ? 1 : sub.week;
+              const subNum = sub.week;
               const isApproved = subNum === 1
                 ? (sub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved')
                 : (sub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, teamId));
-              const isRevisionRequired = !isApproved && (sub.status === 'Changes Requested' || sub.status === 'Rejected');
-              const marksRec = backendMarks[subNum] || (sub.week === 0 ? backendMarks[0] : null);
+              const isRevisionRequired = !isApproved && (sub.status === 'Changes Requested' || sub.status === 'Rejected' || sub.status === 'Revision Required');
+              const marksRec = backendMarks[subNum];
               const isMarksAssigned = Boolean(
-                isApproved && (
-                  (marksRec && (
-                    (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
-                    (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
-                  )) ||
-                  (sub.score != null && Number(sub.score) > 0)
-                )
+                (marksRec && (
+                  (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
+                  (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
+                )) ||
+                (sub.score != null && Number(sub.score) > 0)
+              );
+              const isFinalLocked = Boolean(
+                (isApproved || isMarksAssigned || sub.score != null) && !isRevisionRequired
               );
 
               return (
@@ -413,19 +430,25 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                         <RefreshCw size={13} />
                         <span>Update Milestone</span>
                       </button>
-                    ) : isMarksAssigned ? (
-                      /* If marks are assigned, edit submission does not show */
+                    ) : isFinalLocked ? (
+                      /* If milestone is approved or evaluated, show badge and do NOT show Edit Submission */
                       <span className="px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-black flex items-center gap-1.5 shadow-xs select-none">
                         <Award size={13} className="text-emerald-700" />
-                        <span>Score: {marksRec?.teamAverage ?? sub.score}/100</span>
+                        <span>
+                          {marksRec?.teamAverage != null
+                            ? `Score: ${marksRec.teamAverage}/100`
+                            : sub.score != null
+                            ? `Score: ${sub.score}/100`
+                            : 'Approved'}
+                        </span>
                       </span>
                     ) : isTeamLead ? (
-                      /* Only until marks are assigned, show Edit Submission for the designated Team Lead */
+                      /* Only until marks or approval are given, show Edit Submission for the designated Team Lead */
                       <button
                         type="button"
                         onClick={(e) => handleEditSubmission(sub.week, e)}
                         className="px-3 py-1.5 rounded-xl border border-[#D8CCBA] bg-[#EDE7DB] hover:bg-[#E2D9C8] text-[#111111] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0"
-                        title="Edit your submitted details before marks are assigned"
+                        title="Edit your submitted details before evaluation"
                       >
                         <Edit3 size={13} />
                         <span>Edit Submission</span>
@@ -454,20 +477,21 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
       {/* Comprehensive Submission Detail Modal (Screenshot sections removed as requested) */}
       {detailModalOpen && activeWeekSub && (() => {
-        const subNum = activeWeekSub.week === 0 ? 1 : activeWeekSub.week;
+        const subNum = activeWeekSub.week;
         const isModalApproved = subNum === 1
           ? (activeWeekSub.status === 'Approved' || team?.isTitleApproved || team?.guideApprovalStatus === 'Approved')
           : (activeWeekSub.status === 'Approved' || StudentService.isSubmissionApproved(subNum, teamId));
-        const isModalRevision = !isModalApproved && (activeWeekSub.status === 'Changes Requested' || activeWeekSub.status === 'Rejected');
-        const modalMarks = backendMarks[subNum] || (activeWeekSub.week === 0 ? backendMarks[0] : null);
+        const isModalRevision = !isModalApproved && (activeWeekSub.status === 'Changes Requested' || activeWeekSub.status === 'Rejected' || activeWeekSub.status === 'Revision Required');
+        const modalMarks = backendMarks[subNum];
         const isModalMarksAssigned = Boolean(
-          isModalApproved && (
-            (modalMarks && (
-              (modalMarks.teamAverage !== undefined && modalMarks.teamAverage > 0) ||
-              (modalMarks.memberMarks && Object.keys(modalMarks.memberMarks).length > 0)
-            )) ||
-            (activeWeekSub.score != null && Number(activeWeekSub.score) > 0)
-          )
+          (modalMarks && (
+            (modalMarks.teamAverage !== undefined && modalMarks.teamAverage > 0) ||
+            (modalMarks.memberMarks && Object.keys(modalMarks.memberMarks).length > 0)
+          )) ||
+          (activeWeekSub.score != null && Number(activeWeekSub.score) > 0)
+        );
+        const isModalFinalLocked = Boolean(
+          (isModalApproved || isModalMarksAssigned || activeWeekSub.score != null) && !isModalRevision
         );
 
         return (
@@ -613,95 +637,13 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     )}
                   </div>
 
-                  {/* Submission Files & External Artifacts Grid */}
+                  {/* Source Code & Deployment URLs */}
                   <div>
                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
-                      Submitted Files, Repositories &amp; Media
+                      Repository &amp; Live Deployment Links
                     </span>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-                      {/* Presentation PPT */}
-                      {activeWeekSub.fileName || activeWeekSub.presentationFile ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                              <FileText size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                                {activeWeekSub.fileName || activeWeekSub.presentationFile || `Week_${activeWeekSub.week}_Presentation.pptx`}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">{activeWeekSub.fileSize || '4.2 MB'} &bull; PowerPoint</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDownloadFile(activeWeekSub.fileName || activeWeekSub.presentationFile || `Week_${activeWeekSub.week}_Presentation.pptx`, 'ppt', activeWeekSub, e)}
-                            className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                          >
-                            <Download size={13} />
-                            <span>Download</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
-                              <FileText size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-700 block">Presentation Deck</span>
-                              <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>Not Submitted</span>
-                          </span>
-                        </div>
-                      )}
-
-                      {/* PDF Dossier */}
-                      {activeWeekSub.pdfFile ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#D8CCBA] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center shrink-0">
-                              <FileCode size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                                {activeWeekSub.pdfFile}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">PDF Technical Report</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDownloadFile(activeWeekSub.pdfFile || `Week_${activeWeekSub.week}_Report.pdf`, 'pdf', activeWeekSub, e)}
-                            className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                          >
-                            <Download size={13} />
-                            <span>Download PDF</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
-                              <FileCode size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-700 block">Technical Report</span>
-                              <span className="text-[10px] text-slate-400">PDF Document</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>Not Submitted</span>
-                          </span>
-                        </div>
-                      )}
 
                       {/* Source Code Repository */}
                       {activeWeekSub.repoUrl ? (
@@ -830,7 +772,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
 
               {/* Modal Footer */}
               <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-between bg-slate-50 shrink-0">
-                {!isModalMarksAssigned && isTeamLead ? (
+                {!isModalFinalLocked && isTeamLead ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -838,7 +780,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                       handleEditSubmission(activeWeekSub.week);
                     }}
                     className="px-4 py-2 bg-[#EDE7DB] hover:bg-[#E2D9C8] text-[#111111] border border-[#D8CCBA] text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                    title="Edit your submitted details before marks are assigned"
+                    title="Edit your submitted details before evaluation"
                   >
                     <Edit3 size={13} />
                     <span>Edit Submission</span>
@@ -872,7 +814,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                   <RefreshCw size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Update Submission {activeWeekSub.week === 0 ? 1 : activeWeekSub.week} Deliverable</h3>
+                  <h3 className="text-base font-extrabold text-slate-900">Update Submission {activeWeekSub.week} Deliverable</h3>
                   <p className="text-xs text-slate-500">Address guide feedback and submit updated milestone documentation</p>
                 </div>
               </div>

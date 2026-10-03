@@ -90,11 +90,6 @@ class SubmissionRepository:
 
     async def get_weeks_summary(self) -> List[Dict[str, Any]]:
         """Get submission metrics for weeks 1 through 4."""
-        # Check if DB has any weekly submissions; if empty, seed default submissions
-        total = (await self.session.execute(select(func.count()).select_from(WeeklySubmission))).scalar() or 0
-        if total == 0:
-            await self._seed_initial_submissions()
-
         weeks_summary = []
         for w in [1, 2, 3, 4]:
             # Count distinct students in teams with submissions for week w
@@ -125,33 +120,6 @@ class SubmissionRepository:
                 "status": status,
             })
         return weeks_summary
-
-    async def _seed_initial_submissions(self) -> None:
-        """There must be no mock data in the db"""
-        teams = (await self.session.execute(select(Team))).scalars().all()
-        if not teams:
-            return
-        
-     
-        for team in teams:
-            for w in [1, 2, 3]:
-                # Omit week 3 for Team 05 so counts vary naturally (e.g. 17 vs 13)
-                if w == 3 and team.team_no and str(team.team_no).endswith("05"):
-                    continue
-                ws = WeeklySubmission(
-                    id=uuid.uuid4(),
-                    team_id=team.id,
-                    week=w,
-                    title="",
-                    status="Draft",
-                    submission_date="",
-                    score=None,
-                    max_score=100.0,
-                    project_title=team.project_title or "",
-                    guide_name=team.guide_name or "",
-                )
-                self.session.add(ws)
-        await self.session.commit()
 
     async def delete_by_weeks(self, weeks: List[int]) -> int:
         """Delete all student submissions for the specified week numbers."""

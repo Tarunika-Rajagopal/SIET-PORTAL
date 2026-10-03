@@ -387,7 +387,7 @@ export const GuideProvider = ({ children }) => {
       const nextTeams = prevTeams.map(team => {
         if (isTargetTeam(team, teamId)) {
           let updatedSubmissions = (team.submissions || []).map(s => {
-            if (s.weekNumber === 0 || s.week === 0 || s.submissionNumber === 1) {
+            if (s.weekNumber === 1 || s.week === 1 || s.submissionNumber === 1) {
               return {
                 ...s,
                 evaluationStatus: 'Approved',
@@ -399,14 +399,14 @@ export const GuideProvider = ({ children }) => {
             return s;
           });
 
-          // Ensure Week 0 submission exists if proposal has details
-          const hasWeek0 = updatedSubmissions.some(s => s.weekNumber === 0 || s.week === 0);
-          if (!hasWeek0 && (team.projectTitle || team.problemStatement || team.proposedSolution || team.abstract)) {
+          // Ensure Week 1 submission exists if proposal has details
+          const hasWeek1 = updatedSubmissions.some(s => s.weekNumber === 1 || s.week === 1);
+          if (!hasWeek1 && (team.projectTitle || team.problemStatement || team.proposedSolution || team.abstract)) {
             updatedSubmissions.unshift({
-              weekNumber: 0,
-              week: 0,
+              weekNumber: 1,
+              week: 1,
               title: 'Project Initiation & Title Proposal',
-              dueDate: 'Week 0',
+              dueDate: 'Week 1',
               status: 'Approved',
               evaluationStatus: 'Approved',
               submissionStatus: 'Approved',
@@ -492,20 +492,25 @@ export const GuideProvider = ({ children }) => {
           }
           StudentService.saveTeam(studentTeam);
 
-          // Update student weekly submission 1 (week 0) to Approved
+          // Update student weekly submission 1 to Approved
           const studentSubs = StudentService.getSubmissions();
-          const updatedSubs = studentSubs.map(s => (s.week === 0 ? {
+          const updatedSubs = studentSubs.map(s => (s.week === 1 ? {
             ...s,
             status: 'Approved'
           } : s));
           StudentService.saveSubmissions(updatedSubs);
 
-          // Update Week 0 deliverable
+          // Update Submission 1 deliverable
           const targetTeamId = updatedTeam.teamId || updatedTeam.id || updatedTeam.teamNo;
-          const d0 = StudentService.getDeliverables('Week 0', targetTeamId);
-          d0.isTitleApproved = true;
-          if (updatedTeam.projectTitle) d0.projectTitle = updatedTeam.projectTitle;
-          StudentService.saveAllDeliverables('Week 0', d0, targetTeamId);
+          const d1 = StudentService.getDeliverables('Submission 1', targetTeamId);
+          d1.isTitleApproved = true;
+          if (updatedTeam.projectTitle) d1.projectTitle = updatedTeam.projectTitle;
+          const dKey = StudentService.getDeliverableKey('Submission 1', targetTeamId);
+          if (dKey) {
+            try {
+              localStorage.setItem(dKey, JSON.stringify(d1));
+            } catch (e) {}
+          }
         } catch (e) {
           console.error('Error synchronizing title approval:', e);
         }
@@ -579,10 +584,15 @@ export const GuideProvider = ({ children }) => {
           StudentService.saveTeam(studentTeam);
 
           const targetTeamId = updatedTeam.teamId || updatedTeam.id || updatedTeam.teamNo;
-          const d0 = StudentService.getDeliverables('Week 0', targetTeamId);
-          d0.isTitleApproved = false;
-          d0.submittedFields.title = false;
-          StudentService.saveAllDeliverables('Week 0', d0, targetTeamId);
+          const d1 = StudentService.getDeliverables('Submission 1', targetTeamId);
+          d1.isTitleApproved = false;
+          d1.submittedFields.title = false;
+          const dKey = StudentService.getDeliverableKey('Submission 1', targetTeamId);
+          if (dKey) {
+            try {
+              localStorage.setItem(dKey, JSON.stringify(d1));
+            } catch (e) {}
+          }
         } catch (e) {
           console.error('Error synchronizing title rejection:', e);
         }

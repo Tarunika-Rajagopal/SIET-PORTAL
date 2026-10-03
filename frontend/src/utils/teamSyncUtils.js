@@ -73,7 +73,7 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
 
     // 2. Active Student Team: Synchronize strictly with real student submissions
     try {
-      const d0 = StudentService.getDeliverables('Week 0', sTeam.id);
+      const d1 = StudentService.getDeliverables('Submission 1', sTeam.id);
       const studentSubs = StudentService.getSubmissions() || [];
 
       // Filter out any legacy mock submissions
@@ -84,9 +84,9 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
         return true;
       });
 
-      // Check Submissions 2, 3, 4 (weeks 1, 2, 3) for real submitted deliverables
-      for (let w = 1; w < 4; w++) {
-        const subNum = w + 1;
+      // Check Submissions 2, 3, 4 (weeks 2, 3, 4) for real submitted deliverables
+      for (let w = 2; w <= 4; w++) {
+        const subNum = w;
         if (!validSubs.some(s => s.week === w)) {
           const dW = StudentService.getDeliverables(`Submission ${subNum}`, sTeam.id);
           const hasActualSubmission = Boolean(
@@ -100,9 +100,7 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
             dW.submittedFields?.screenshot
           );
           if (hasActualSubmission) {
-            const subMarks = MarksService.getWeeklyMarks(sTeam.id || team.teamId, subNum) || 
-                             MarksService.getWeeklyMarks(sTeam.id || team.teamId, w) ||
-                             (subNum === 1 || w === 0 ? MarksService.getWeeklyMarks(sTeam.id || team.teamId, 0) : null);
+            const subMarks = MarksService.getWeeklyMarks(sTeam.id || team.teamId, subNum);
             const isApproved = StudentService.isSubmissionApproved(subNum, sTeam.id) || 
                                Boolean(subMarks && (subMarks.teamAverage > 0 || (subMarks.memberMarks && Object.keys(subMarks.memberMarks).length > 0)));
 
@@ -112,7 +110,7 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
               dueDate: `Submission ${subNum}`,
               status: isApproved ? 'Approved' : 'Submitted',
               submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-              projectTitle: dW.projectTitle || d0.projectTitle || sTeam.submittedTitle || sTeam.projectTitle || '',
+              projectTitle: dW.projectTitle || d1.projectTitle || sTeam.submittedTitle || sTeam.projectTitle || '',
               problemStatement: dW.problemStatement || '',
               solution: dW.solution || '',
               technologyUsed: dW.technologyUsed || '',
@@ -132,18 +130,18 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
 
       const hasStudentDetails = Boolean(
         sTeam.submittedTitle || 
-        d0.projectTitle || 
-        d0.problemStatement || 
-        d0.solution || 
-        d0.abstract || 
-        d0.repoUrl || 
-        d0.demoUrl || 
-        d0.presentationFile || 
-        d0.reportFile || 
+        d1.projectTitle || 
+        d1.problemStatement || 
+        d1.solution || 
+        d1.abstract || 
+        d1.repoUrl || 
+        d1.demoUrl || 
+        d1.presentationFile || 
+        d1.reportFile || 
         validSubs.length > 0
       );
 
-      const titleVal = sTeam.submittedTitle || d0.projectTitle || (validSubs[0]?.projectTitle) || '';
+      const titleVal = sTeam.submittedTitle || d1.projectTitle || (validSubs[0]?.projectTitle) || '';
       
       let currentTitleStatus = team.titleStatus;
       let currentRejectionReason = team.rejectionReason || '';
@@ -166,23 +164,20 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
       }
 
       const mappedSubmissions = validSubs.map(sub => {
-        const subNum = sub.week + 1;
+        const subNum = sub.week;
         const dWeek = StudentService.getDeliverables(`Submission ${subNum}`, sTeam.id);
         const isPdf = Boolean(sub.pdfFile || (sub.presentationFile && sub.presentationFile.toLowerCase().endsWith('.pdf')) || (dWeek.reportFile && dWeek.reportFile.toLowerCase().endsWith('.pdf')));
         const isPpt = Boolean(sub.presentationFile && (sub.presentationFile.toLowerCase().endsWith('.ppt') || sub.presentationFile.toLowerCase().endsWith('.pptx')) || (dWeek.presentationFile && (dWeek.presentationFile.toLowerCase().endsWith('.ppt') || dWeek.presentationFile.toLowerCase().endsWith('.pptx'))));
-        const isWeek0 = sub.week === 0;
 
-        const subMarks = MarksService.getWeeklyMarks(sTeam.id || team.teamId, subNum) || 
-                         MarksService.getWeeklyMarks(sTeam.id || team.teamId, sub.week) ||
-                         (isWeek0 || subNum === 1 ? MarksService.getWeeklyMarks(sTeam.id || team.teamId, 0) : null);
+        const subMarks = MarksService.getWeeklyMarks(sTeam.id || team.teamId, subNum);
         const hasMarks = Boolean(subMarks && (subMarks.teamAverage > 0 || (subMarks.memberMarks && Object.keys(subMarks.memberMarks).length > 0)));
 
-        const isSubApproved = isWeek0
+        const isSubApproved = sub.week === 1
           ? (currentTitleStatus === 'Approved' || sub.status === 'Approved' || hasMarks)
           : (sub.status === 'Approved' || sub.evaluationStatus === 'Approved' || StudentService.isSubmissionApproved(subNum, sTeam.id) || hasMarks);
 
-        const pFile = sub.presentationFile || dWeek.presentationFile || (isWeek0 ? d0.presentationFile : '') || '';
-        const rFile = sub.pdfFile || dWeek.reportFile || (isWeek0 ? d0.reportFile : '') || '';
+        const pFile = sub.presentationFile || dWeek.presentationFile || (sub.week === 1 ? d1.presentationFile : '') || '';
+        const rFile = sub.pdfFile || dWeek.reportFile || (sub.week === 1 ? d1.reportFile : '') || '';
         const evalStatus = isSubApproved ? 'Approved' : (sub.status === 'Changes Requested' || sub.status === 'Rejected') ? 'Revision Required' : 'Pending';
 
         return {
@@ -197,18 +192,18 @@ export const sanitizeAndSyncGuideTeams = (rawList) => {
           score: subMarks?.teamAverage ?? subMarks?.score ?? sub.score ?? undefined,
           memberMarks: subMarks?.memberMarks || sub.memberMarks || undefined,
           guideRemarks: subMarks?.remarks || sub.comments || sub.guideRemarks || '',
-          abstractSummary: sub.abstract || dWeek.abstract || (isWeek0 ? d0.abstract : '') || '',
-          problemStatement: sub.problemStatement || dWeek.problemStatement || d0.problemStatement || '',
-          proposedSolution: sub.solution || dWeek.solution || d0.solution || '',
-          technologiesUsed: sub.technologyUsed ? sub.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (dWeek.technologyUsed ? dWeek.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (d0.technologyUsed ? d0.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : [])),
-          githubUrl: sub.repoUrl || dWeek.repoUrl || (isWeek0 ? d0.repoUrl : '') || '',
-          liveDemoUrl: sub.demoUrl || dWeek.demoUrl || (isWeek0 ? d0.demoUrl : '') || '',
+          abstractSummary: sub.abstract || dWeek.abstract || (sub.week === 1 ? d1.abstract : '') || '',
+          problemStatement: sub.problemStatement || dWeek.problemStatement || (sub.week === 1 ? d1.problemStatement : '') || '',
+          proposedSolution: sub.solution || dWeek.solution || (sub.week === 1 ? d1.solution : '') || '',
+          technologiesUsed: sub.technologyUsed ? sub.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (dWeek.technologyUsed ? dWeek.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : (d1.technologyUsed ? d1.technologyUsed.split(',').map(s => s.trim()).filter(Boolean) : [])),
+          githubUrl: sub.repoUrl || dWeek.repoUrl || (sub.week === 1 ? d1.repoUrl : '') || '',
+          liveDemoUrl: sub.demoUrl || dWeek.demoUrl || (sub.week === 1 ? d1.demoUrl : '') || '',
           presentationFileName: pFile,
           reportUrl: rFile || (isPdf ? pFile : ''),
           pptUrl: isPpt ? pFile : '',
-          images: (sub.screenshotFile || dWeek.screenshotFile || (isWeek0 ? d0.screenshotFile : '')) ? [sub.screenshotFile || dWeek.screenshotFile || (isWeek0 ? d0.screenshotFile : '')] : [],
-          obstaclesFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (isWeek0 ? d0.obstaclesFaced : '') || '',
-          problemsFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (isWeek0 ? d0.obstaclesFaced : '') || '',
+          images: (sub.screenshotFile || dWeek.screenshotFile || (sub.week === 1 ? d1.screenshotFile : '')) ? [sub.screenshotFile || dWeek.screenshotFile || (sub.week === 1 ? d1.screenshotFile : '')] : [],
+          obstaclesFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (sub.week === 1 ? d1.obstaclesFaced : '') || '',
+          problemsFaced: sub.obstaclesFaced || dWeek.obstaclesFaced || (sub.week === 1 ? d1.obstaclesFaced : '') || '',
           nextWeekPlan: ''
         };
       });

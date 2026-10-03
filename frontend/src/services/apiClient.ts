@@ -133,6 +133,7 @@ export const ApiClient = {
   },
 
   async submitStudentDeliverables(weekNumber: number, deliverables: {
+    projectTitle?: string;
     problemStatement?: string;
     solution?: string;
     technologyUsed?: string;
@@ -145,6 +146,7 @@ export const ApiClient = {
     return request<any>(`/student/submissions/${weekNumber}`, {
       method: 'POST',
       body: JSON.stringify({
+        projectTitle: deliverables.projectTitle,
         problemStatement: deliverables.problemStatement,
         solution: deliverables.solution,
         technologyUsed: deliverables.technologyUsed,

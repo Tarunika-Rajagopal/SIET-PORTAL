@@ -28,11 +28,11 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
 }) => {
   const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
   const availableWeeks = React.useMemo(() => {
-    return Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i);
+    return [1, 2, 3, 4].filter(w => w <= Math.max(1, currentAcademicWeek));
   }, [currentAcademicWeek]);
 
   const [team, setTeam] = useState<ClassTeam>(initialTeam);
-  const [selectedWeek, setSelectedWeek] = useState<number>(() => Math.min(initialWeek, currentAcademicWeek));
+  const [selectedWeek, setSelectedWeek] = useState<number>(() => Math.max(1, Math.min(initialWeek, currentAcademicWeek)));
 
   // Marks modal state
   const [isMarksModalOpen, setIsMarksModalOpen] = useState<boolean>(false);
@@ -403,7 +403,7 @@ startxref
               >
                 {availableWeeks.map((w) => (
                   <option key={w} value={w}>
-                    {w === 0 ? 'Project Initiation & Title: Week 0' : `Milestone Sprint: Week ${w}`}{w === currentAcademicWeek ? ' (Current)' : ''}
+                    {w === 1 ? 'Project Initiation & Title: Week 1' : `Milestone Sprint: Week ${w}`}{w === currentAcademicWeek ? ' (Current)' : ''}
                   </option>
                 ))}
               </select>

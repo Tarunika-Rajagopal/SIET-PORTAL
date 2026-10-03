@@ -21,10 +21,18 @@ export const StudentPortalPage: React.FC = () => {
   // so each student dynamically receives their own team data.
   useEffect(() => {
     let cancelled = false;
-    ApiClient.getStudentTeam()
-      .then((backendTeam: any) => {
-        if (cancelled || !backendTeam) return;
-        // Map the backend response to the StudentTeamExtended shape and persist
+    Promise.all([
+      ApiClient.getStudentTeam().catch((err: any) => {
+        console.warn('Could not fetch team from backend, using cached/default:', err.message);
+        return null;
+      }),
+      ApiClient.getStudentSubmissions().catch((err: any) => {
+        console.warn('Could not fetch submissions from backend:', err.message);
+        return [];
+      }),
+    ]).then(([backendTeam, backendSubs]: [any, any]) => {
+      if (cancelled) return;
+      if (backendTeam) {
         const mapped = {
           id: backendTeam.teamId || backendTeam.id || '',
           teamNo: backendTeam.teamNo || '',
@@ -55,10 +63,11 @@ export const StudentPortalPage: React.FC = () => {
         };
         StudentService.saveTeam(mapped as any);
         setTeam(mapped as any);
-      })
-      .catch((err: any) => {
-        console.warn('Could not fetch team from backend, using cached/default:', err.message);
-      });
+      }
+      if (Array.isArray(backendSubs) && backendSubs.length > 0) {
+        StudentService.saveSubmissions(backendSubs);
+      }
+    });
     return () => { cancelled = true; };
   }, []);
 
