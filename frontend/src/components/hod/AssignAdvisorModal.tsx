@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserCheck, CheckCircle2, RefreshCw } from 'lucide-react';
-import { HodService } from '../../services/hodService';
+import { useHodFacultyList } from '../../hooks/useQueries';
 
 interface AssignAdvisorModalProps {
   isOpen: boolean;
@@ -15,32 +15,15 @@ export const AssignAdvisorModal: React.FC<AssignAdvisorModalProps> = ({
   onClose,
   onAssign
 }) => {
-  const [facultyList, setFacultyList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: rawFaculty, isLoading: loading } = useHodFacultyList(isOpen);
+  const facultyList = Array.isArray(rawFaculty) ? rawFaculty : [];
   const [selectedFaculty, setSelectedFaculty] = useState('');
 
   useEffect(() => {
-    if (!isOpen) return;
-    let isMounted = true;
-    setLoading(true);
-    HodService.fetchFacultyList().then(list => {
-      if (!isMounted) return;
-      if (Array.isArray(list) && list.length > 0) {
-        setFacultyList(list);
-        setSelectedFaculty(list[0]?.name || '');
-      } else {
-        setFacultyList([]);
-        setSelectedFaculty('');
-      }
-      setLoading(false);
-    }).catch(() => {
-      if (isMounted) setLoading(false);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen]);
+    if (facultyList.length > 0 && !selectedFaculty) {
+      setSelectedFaculty(facultyList[0]?.name || '');
+    }
+  }, [facultyList, selectedFaculty]);
 
   if (!isOpen) return null;
 

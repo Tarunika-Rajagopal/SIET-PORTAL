@@ -186,7 +186,7 @@ class HODService:
                 in_advisor = sq in (t.advisor_name or "").lower()
                 if not (in_title or in_team or in_members or in_guide or in_advisor):
                     continue
-            subs = await self.sub_repo.list_by_team(t.id)
+            subs = sorted(t.submissions or [], key=lambda s: s.week if s.week is not None else 0)
             team_dict["submissions"] = [
                 {
                     "id": str(s.id),
@@ -202,21 +202,6 @@ class HODService:
                     "score": float(s.score) if s.score is not None else None,
                     "maxScore": float(s.max_score) if s.max_score is not None else 100.0,
                     "projectTitle": s.project_title or t.project_title or "",
-                    "problemStatement": s.problem_statement or "",
-                    "solution": s.solution or "",
-                    "proposedSolution": s.solution or "",
-                    "technologyUsed": s.technology_used or "",
-                    "technologiesUsed": [x.strip() for x in (s.technology_used or "").split(",") if x.strip()],
-                    "obstaclesFaced": s.obstacles_faced or "",
-                    "problemsFaced": s.obstacles_faced or "",
-                    "abstract": s.abstract or "",
-                    "abstractSummary": s.abstract or "",
-                    "presentationFile": s.presentation_file or "",
-                    "pdfFile": s.pdf_file or "",
-                    "repoUrl": s.repo_url or "",
-                    "githubUrl": s.repo_url or "",
-                    "demoUrl": s.demo_url or "",
-                    "liveDemoUrl": s.demo_url or "",
                     "guideName": s.guide_name or t.guide_name or "",
                     "guideReviewDate": s.guide_review_date or "",
                 }
@@ -224,6 +209,57 @@ class HODService:
             ]
             result.append(team_dict)
         return result
+
+    async def get_submission_detail(self, team_id_or_str: str, week: int) -> Optional[Dict[str, Any]]:
+        """Return complete detailed submission with all deliverable text fields on demand."""
+        cleaned = str(team_id_or_str).strip()
+        team = await self.team_repo.get_by_team_id_string(cleaned)
+        if not team:
+            try:
+                parsed_uuid = uuid.UUID(cleaned)
+                team = await self.team_repo.get_by_id(parsed_uuid)
+            except (ValueError, TypeError):
+                pass
+        if not team:
+            return None
+
+        sub = await self.sub_repo.get_by_team_and_week(team.id, week)
+        if not sub:
+            return None
+
+        return {
+            "id": str(sub.id),
+            "teamId": team.team_id or str(team.id),
+            "week": sub.week,
+            "weekNumber": sub.week,
+            "title": sub.title or f"Week {sub.week}",
+            "dueDate": sub.due_date or "",
+            "status": sub.status.value if hasattr(sub.status, "value") else (sub.status or "Pending"),
+            "submissionDate": sub.submission_date or "",
+            "fileName": sub.file_name or "",
+            "fileSize": sub.file_size or "",
+            "comments": sub.comments or "",
+            "score": float(sub.score) if sub.score is not None else None,
+            "maxScore": float(sub.max_score) if sub.max_score is not None else 100.0,
+            "projectTitle": sub.project_title or team.project_title or "",
+            "problemStatement": sub.problem_statement or "",
+            "solution": sub.solution or "",
+            "proposedSolution": sub.solution or "",
+            "technologyUsed": sub.technology_used or "",
+            "technologiesUsed": [x.strip() for x in (sub.technology_used or "").split(",") if x.strip()],
+            "obstaclesFaced": sub.obstacles_faced or "",
+            "problemsFaced": sub.obstacles_faced or "",
+            "abstract": sub.abstract or "",
+            "abstractSummary": sub.abstract or "",
+            "presentationFile": sub.presentation_file or "",
+            "pdfFile": sub.pdf_file or "",
+            "repoUrl": sub.repo_url or "",
+            "githubUrl": sub.repo_url or "",
+            "demoUrl": sub.demo_url or "",
+            "liveDemoUrl": sub.demo_url or "",
+            "guideName": sub.guide_name or team.guide_name or "",
+            "guideReviewDate": sub.guide_review_date or "",
+        }
 
     async def get_faculty_list(self) -> List[Dict[str, Any]]:
         """Return real faculty members from database with real team counts and computed progress."""

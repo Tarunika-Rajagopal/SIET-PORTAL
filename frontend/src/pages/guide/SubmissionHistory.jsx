@@ -16,6 +16,7 @@ import {
 
 import { useGuide } from '../../context/GuideContext';
 import { AdvisorHistoryService } from '../../services/advisorHistoryService';
+import { useGuideHistory } from '../../hooks/useQueries';
 import GuideHistoryPdfModal from '../../components/guide/GuideHistoryPdfModal';
 
 export const SubmissionHistory = () => {
@@ -23,66 +24,23 @@ export const SubmissionHistory = () => {
 
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
-  // Guide Audit Logs State
-  const [guideLogs, setGuideLogs] = useState([]);
+  // TanStack Query hook for Guide Audit Logs
+  const { data: logsData, refetch: refetchHistory } = useGuideHistory(
+    facultyProfile?.name,
+    facultyProfile?.classSection
+  );
+  const guideLogs = Array.isArray(logsData) ? logsData : [];
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
 
-  /*
-   * Load Guide History
-   *
-   * IMPORTANT:
-   * getGuideHistory() is async, so we MUST await it.
-   */
   useEffect(() => {
-    let mounted = true;
-
-    const syncLogs = async () => {
-      try {
-        console.log('Loading guide history...');
-        console.log('Faculty:', facultyProfile?.name);
-
-        const result =
-          await AdvisorHistoryService.getGuideHistory(
-            facultyProfile?.name,
-            facultyProfile?.classSection
-          );
-
-        console.log('RESULT:', result);
-        console.log('IS ARRAY:', Array.isArray(result));
-        console.log('LENGTH:', Array.isArray(result) ? result.length : 'N/A');
-
-        if (mounted) {
-          setGuideLogs(
-            Array.isArray(result) ? result : []
-          );
-        }
-      } catch (error) {
-        console.error('Guide history error:', error);
-
-        if (mounted) {
-          setGuideLogs([]);
-        }
-      }
-    };
-
-    if (facultyProfile?.name) {
-      syncLogs();
-    } else {
-      setGuideLogs([]);
-    }
-
     const unsubscribe = AdvisorHistoryService.subscribe(() => {
-      if (mounted && facultyProfile?.name) {
-        syncLogs();
-      }
+      refetchHistory();
     });
-
     return () => {
-      mounted = false;
       unsubscribe();
     };
-  }, [facultyProfile?.name, facultyProfile?.classSection]);
+  }, [refetchHistory]);
 
   /*
    * Filter Guide Logs

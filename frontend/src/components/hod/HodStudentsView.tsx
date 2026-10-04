@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { HodService, HodTeamDetails } from '../../services/hodService';
+import { useHodFilterOptions, useHodTeams, useHodAdvisors, invalidateHodTeamsQuery } from '../../hooks/useQueries';
 import { MarksService } from '../../services/marksService';
 import { HodHistoryService } from '../../services/hodHistoryService';
 import { StudentService } from '../../services/studentService';
@@ -9,7 +10,7 @@ import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
   Search, UserCheck, CheckCircle2, RefreshCw, ChevronDown, ChevronUp, 
   Users, FolderGit2, FileText, Download, ExternalLink, Github, Award,
-  Edit3, Save, X, Clock, Eye
+  Edit3, Save, X, Clock, Eye, Loader2
 } from 'lucide-react';
 import { WeeklySubmission } from '../../types';
 
@@ -39,6 +40,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   // Modal inspection state
   const [activeModalTeam, setActiveModalTeam] = useState<HodTeamDetails | null>(null);
   const [activeModalSub, setActiveModalSub] = useState<WeeklySubmission | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Edit marks state inside modal
   const [isEditingMarks, setIsEditingMarks] = useState(false);
@@ -73,43 +75,51 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     else if (initialClass) setClassFilter(initialClass);
   }, [selectedBatch, selectedClass, initialBatch, initialClass]);
 
-  const [teams, setTeams] = useState<HodTeamDetails[]>([]);
-  const [advisors, setAdvisors] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [batchOptions, setBatchOptions] = useState<string[]>([]);
-  const [classOptions, setClassOptions] = useState<string[]>([]);
+  // Query hooks
+  const { data: filterOpts } = useHodFilterOptions();
+  const {
+    data: liveTeamsData,
+    isLoading: teamsLoading,
+    isError: isTeamsError,
+    refetch: refetchTeams
+  } = useHodTeams(batchFilter, classFilter, searchTerm);
 
-  const loadBackendData = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [liveTeams, liveAdvisors, filterOpts] = await Promise.all([
-        HodService.fetchTeams(batchFilter, classFilter, searchTerm),
-        HodService.fetchAdvisors(batchFilter, classFilter),
-        HodService.fetchFilterOptions()
-      ]);
-      setTeams(Array.isArray(liveTeams) ? liveTeams : []);
-      setAdvisors(Array.isArray(liveAdvisors) ? liveAdvisors : []);
-      if (filterOpts) {
-        if (Array.isArray(filterOpts.batches) && filterOpts.batches.length > 0) {
-          setBatchOptions(filterOpts.batches);
-        }
-        if (Array.isArray(filterOpts.classes) && filterOpts.classes.length > 0) {
-          setClassOptions(filterOpts.classes);
-        }
-      }
-    } catch (e: any) {
-      console.warn('Failed to fetch teams/advisors:', e);
-      setError('Unable to load student teams and advisors from database.');
-    } finally {
-      setLoading(false);
-    }
-  }, [batchFilter, classFilter, searchTerm]);
+  const {
+    data: liveAdvisorsData,
+    isLoading: advisorsLoading,
+    refetch: refetchAdvisors
+  } = useHodAdvisors(batchFilter, classFilter);
 
-  useEffect(() => {
-    loadBackendData();
-  }, [loadBackendData]);
+  const [detailedSubsByTeam, setDetailedSubsByTeam] = useState<Record<string, Record<number, WeeklySubmission>>>({});
+
+  // Merge liveTeamsData with any detailed submissions loaded in this session
+  const teams: HodTeamDetails[] = useMemo(() => {
+    const raw = Array.isArray(liveTeamsData) ? liveTeamsData : [];
+    if (Object.keys(detailedSubsByTeam).length === 0) return raw;
+    return raw.map(t => {
+      const teamDetails = detailedSubsByTeam[t.id];
+      if (!teamDetails || !t.submissions) return t;
+      return {
+        ...t,
+        submissions: t.submissions.map(s => {
+          const detail = teamDetails[s.week];
+          return detail ? { ...s, ...detail } : s;
+        })
+      };
+    });
+  }, [liveTeamsData, detailedSubsByTeam]);
+
+  const advisors = Array.isArray(liveAdvisorsData) ? liveAdvisorsData : [];
+  const loading = teamsLoading || advisorsLoading;
+  const error = isTeamsError ? 'Unable to load student teams and advisors from database.' : null;
+
+  const batchOptions = filterOpts?.batches?.length ? filterOpts.batches : [];
+  const classOptions = filterOpts?.classes?.length ? filterOpts.classes : [];
+
+  const handleRefresh = useCallback(() => {
+    refetchTeams();
+    refetchAdvisors();
+  }, [refetchTeams, refetchAdvisors]);
 
   const currentAdvisor = advisors.find(a => a.assignedClass === classFilter);
 
@@ -122,7 +132,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   };
 
   // Helper to open view submission modal
-  const handleOpenSubmissionModal = (team: HodTeamDetails, sub: WeeklySubmission) => {
+  const handleOpenSubmissionModal = async (team: HodTeamDetails, sub: WeeklySubmission) => {
     setActiveModalTeam(team);
     setActiveModalSub(sub);
     setIsEditingMarks(false);
@@ -138,6 +148,29 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     });
     setDraftMemberMarks(initialMarks);
     setDraftRemarks(wMarks?.remarks || '');
+
+    // On-demand fetch detailed submission deliverables if not already present
+    if (!sub.problemStatement && !sub.abstract && !sub.solution) {
+      try {
+        setLoadingDetail(true);
+        const detailedSub = await HodService.fetchTeamSubmission(team.id, sub.week);
+        if (detailedSub) {
+          setActiveModalSub(prev => (prev && prev.week === sub.week ? { ...prev, ...detailedSub } : prev));
+          // Cache in local teams list so subsequent opens of the same submission don't need network request
+          setDetailedSubsByTeam(prev => ({
+            ...prev,
+            [team.id]: {
+              ...(prev[team.id] || {}),
+              [sub.week]: detailedSub
+            }
+          }));
+        }
+      } catch (err) {
+        console.warn('Could not fetch detailed submission:', err);
+      } finally {
+        setLoadingDetail(false);
+      }
+    }
   };
 
   // Live auto-calculated average
@@ -254,6 +287,8 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     window.dispatchEvent(new Event('siet_marks_updated'));
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
+
+    invalidateHodTeamsQuery();
 
     setIsEditingMarks(false);
     setSaveSuccessMsg('Marks saved and synchronized successfully to Student, Advisor, and Guide portals.');
@@ -382,7 +417,7 @@ Generated for Academic Verification.`;
         {/* Refresh button */}
         <button
           type="button"
-          onClick={() => loadBackendData()}
+          onClick={handleRefresh}
           title="Refresh real data"
           className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
           aria-label="Refresh real data"
@@ -446,7 +481,7 @@ Generated for Academic Verification.`;
                       <p className="font-bold text-xs">{error}</p>
                       <button
                         type="button"
-                        onClick={loadBackendData}
+                        onClick={handleRefresh}
                         className="px-3 py-1 bg-white border border-rose-200 rounded-lg text-xs font-bold hover:bg-rose-50 cursor-pointer shadow-xs"
                       >
                         Retry Loading
@@ -737,6 +772,7 @@ Generated for Academic Verification.`;
                   setActiveModalTeam(null);
                   setActiveModalSub(null);
                   setIsEditingMarks(false);
+                  setLoadingDetail(false);
                 }}
                 className="text-[#75695A] hover:text-[#111111] p-1.5 rounded-xl hover:bg-[#EDE7DB] transition cursor-pointer"
                 aria-label="Close modal"
@@ -762,9 +798,16 @@ Generated for Academic Verification.`;
                   <span className="font-extrabold text-[#111111] uppercase tracking-wider text-xs">
                     Student Deliverables &amp; Artifacts Checklist
                   </span>
-                  <span className="text-[11px] text-[#75695A]">
-                    Items missing are marked in red as Not Submitted
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {loadingDetail && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 font-semibold animate-pulse">
+                        <Loader2 size={12} className="animate-spin" /> Loading details...
+                      </span>
+                    )}
+                    <span className="text-[11px] text-[#75695A]">
+                      Items missing are marked in red as Not Submitted
+                    </span>
+                  </div>
                 </div>
 
                 {/* 1. Project Title */}

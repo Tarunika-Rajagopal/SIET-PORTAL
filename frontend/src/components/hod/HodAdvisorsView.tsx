@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { HodService, HodAdvisor } from '../../services/hodService';
+import React, { useState } from 'react';
+import { HodAdvisor } from '../../services/hodService';
+import { useHodAdvisors, useHodFilterOptions } from '../../hooks/useQueries';
 import { Search, ArrowUpRight, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 
 interface HodAdvisorsViewProps {
@@ -10,48 +11,29 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
   const [batchFilter, setBatchFilter] = useState('ALL');
   const [classFilter, setClassFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [advisors, setAdvisors] = useState<HodAdvisor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [batchOptions, setBatchOptions] = useState<string[]>([
+  const { data: filterOpts } = useHodFilterOptions();
+  const {
+    data: advisorsData,
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: refetchAdvisors
+  } = useHodAdvisors(batchFilter, classFilter);
+
+  const advisors = advisorsData || [];
+  const errorMessage = isError ? ((queryError as any)?.message || 'Unable to connect to the backend server. Please try again.') : null;
+
+  const batchOptions = filterOpts?.batches?.length ? filterOpts.batches : [
     '2023-2027 (III Year)',
     '2024-2028 (II Year)',
     '2022-2026 (IV Year)'
-  ]);
-  const [classOptions, setClassOptions] = useState<string[]>([
+  ];
+  const classOptions = filterOpts?.classes?.length ? filterOpts.classes : [
     'CSE-A',
     'CSE-B',
     'CSE-C'
-  ]);
-
-  // Load real options from database
-  useEffect(() => {
-    HodService.fetchFilterOptions().then(opts => {
-      if (opts?.batches?.length) setBatchOptions(opts.batches);
-      if (opts?.classes?.length) setClassOptions(opts.classes);
-    });
-  }, []);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      const live = await HodService.fetchAdvisors(batchFilter, classFilter);
-      if (Array.isArray(live)) {
-        setAdvisors(live);
-      }
-    } catch (e: any) {
-      console.warn('Failed to fetch advisors:', e);
-      setErrorMessage(e.message || 'Unable to connect to the backend server. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [batchFilter, classFilter]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  ];
 
   const filteredAdvisors = advisors.filter(a => {
     if (!searchTerm.trim()) return true;
@@ -106,7 +88,7 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
         {/* Refresh Button */}
         <button
           type="button"
-          onClick={loadData}
+          onClick={() => refetchAdvisors()}
           title="Reload advisors from database"
           className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
           aria-label="Refresh data"
@@ -125,7 +107,7 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
           </div>
           <button
             type="button"
-            onClick={loadData}
+            onClick={() => refetchAdvisors()}
             className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition cursor-pointer"
           >
             Try Again

@@ -7,6 +7,7 @@ import { MarksService } from '../services/marksService';
 import { ApiClient } from '../services/apiClient';
 import { isTeamFullySubmitted, hasAnyDetailSubmitted } from '../utils/submissionUtils';
 import { sanitizeAndSyncGuideTeams } from '../utils/teamSyncUtils';
+import { useGuideDashboard, useGuideTeams, useGuideSubmissions, invalidateGuideDataQuery } from '../hooks/useQueries';
 
 const TEAMS_STORAGE_KEY = 'siet_guide_portal_teams_v6';
 const ACTIVITIES_STORAGE_KEY = 'siet_guide_portal_activities_v6';
@@ -89,25 +90,14 @@ export const GuideProvider = ({ children }) => {
     assignedTeamsCount: backendMetrics?.totalTeams !== undefined ? backendMetrics.totalTeams : assignedTeams.length
   }), [guideName, backendMetrics, assignedTeams.length]);
 
-  const fetchDashboard = useCallback(async () => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-    try {
-      const [data, guideTeams, weeklySubmissions] = await Promise.all([
-        ApiClient.getGuideDashboard().catch(e => {
-          console.warn('[GuideContext] Failed to load dashboard metrics:', e);
-          return null;
-        }),
-        ApiClient.getGuideTeams().catch(e => {
-          console.warn('[GuideContext] Failed to load guide teams:', e);
-          return null;
-        }),
-        ApiClient.getGuidePendingSubmissions().catch(e => {
-          console.warn('[GuideContext] Failed to load weekly submissions:', e);
-          return null;
-        })
-      ]);
+  // TanStack Query hooks for Guide data
+  const { data: dashboardData, refetch: refetchDashboard } = useGuideDashboard();
+  const { data: guideTeamsData, refetch: refetchTeams } = useGuideTeams();
+  const { data: weeklySubmissionsData, refetch: refetchSubmissions } = useGuideSubmissions();
 
+  const processBackendData = useCallback((data, guideTeams, weeklySubmissions) => {
+    if (!data && !guideTeams && !weeklySubmissions) return;
+    try {
       if (data) {
         setBackendMetrics({
           totalTeams: Number(data.totalTeams) || 0,
@@ -296,15 +286,29 @@ export const GuideProvider = ({ children }) => {
         );
       }
     } catch (err) {
-      console.warn('[GuideContext] Failed to load dashboard/teams from API, using fallback data:', err);
-    } finally {
-      isFetchingRef.current = false;
+      console.warn('[GuideContext] Failed to process dashboard/teams data:', err);
     }
   }, []);
 
+  // Synchronize data from TanStack Query
   useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+    if (dashboardData || guideTeamsData || weeklySubmissionsData) {
+      processBackendData(dashboardData, guideTeamsData, weeklySubmissionsData);
+    }
+  }, [dashboardData, guideTeamsData, weeklySubmissionsData, processBackendData]);
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const [d, t, s] = await Promise.all([
+        refetchDashboard(),
+        refetchTeams(),
+        refetchSubmissions()
+      ]);
+      processBackendData(d.data, t.data, s.data);
+    } catch (err) {
+      console.warn('[GuideContext] fetchDashboard error:', err);
+    }
+  }, [refetchDashboard, refetchTeams, refetchSubmissions, processBackendData]);
 
   const [activities, setActivities] = useState(() => {
     try {
@@ -544,6 +548,7 @@ export const GuideProvider = ({ children }) => {
       } catch (e) {}
 
       window.dispatchEvent(new Event('siet_data_updated'));
+      invalidateGuideDataQuery();
       showToast(`Team #${updatedTeam.teamNumber} title approved and scope locked.`, 'success');
     }
   };
@@ -626,6 +631,7 @@ export const GuideProvider = ({ children }) => {
       } catch (e) {}
 
       window.dispatchEvent(new Event('siet_data_updated'));
+      invalidateGuideDataQuery();
       showToast(`Feedback sent. Team #${updatedTeam.teamNumber} instructed to revise title.`, 'warning');
       return true;
     }
@@ -799,6 +805,7 @@ export const GuideProvider = ({ children }) => {
       } catch (e) {}
 
       window.dispatchEvent(new Event('siet_data_updated'));
+      invalidateGuideDataQuery();
       showToast(`Week ${weekNum} deliverables for Team #${updatedTeam.teamNumber} evaluated and locked.`, 'success');
       return true;
     }
@@ -886,6 +893,7 @@ export const GuideProvider = ({ children }) => {
       } catch (e) {}
 
       window.dispatchEvent(new Event('siet_data_updated'));
+      invalidateGuideDataQuery();
       showToast(`Revision requested for Week ${weekNumber} (Team #${updatedTeam.teamNumber}).`, 'warning');
       return true;
     }
@@ -974,6 +982,7 @@ export const GuideProvider = ({ children }) => {
       } catch (e) {}
 
       window.dispatchEvent(new Event('siet_data_updated'));
+      invalidateGuideDataQuery();
       showToast(`Submission rejected for Week ${weekNumber} (Team #${updatedTeam.teamNumber}).`, 'error');
       return true;
     }

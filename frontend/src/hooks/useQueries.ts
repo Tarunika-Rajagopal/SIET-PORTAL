@@ -2,10 +2,13 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { ApiClient } from '../services/apiClient';
 import { AdminFaculty, AdminStudent } from '../services/adminService';
 import { AdvisorService, ClassTeam } from '../services/advisorService';
+import { HodService, HodAdvisor, HodTeamDetails, HodFilterOptions } from '../services/hodService';
+import { HodHistoryService, HodHistoryRecord } from '../services/hodHistoryService';
+import { AdvisorHistoryService } from '../services/advisorHistoryService';
 import { queryClient, QUERY_KEYS } from '../lib/queryClient';
 
 // -------------------------------------------------------------
-// QUERY HOOKS
+// QUERY HOOKS (Admin & Advisor)
 // -------------------------------------------------------------
 
 /**
@@ -68,6 +71,136 @@ export function useClassStudents(className: string = '', batch: string = 'ALL') 
 }
 
 // -------------------------------------------------------------
+// QUERY HOOKS (HOD)
+// -------------------------------------------------------------
+
+/**
+ * Hook for HOD filter options (batches and classes).
+ */
+export function useHodFilterOptions() {
+  return useQuery<HodFilterOptions>({
+    queryKey: QUERY_KEYS.hodFilterOptions,
+    queryFn: () => HodService.fetchFilterOptions(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for HOD advisors list with batch and class filtering.
+ */
+export function useHodAdvisors(batch?: string, className?: string) {
+  return useQuery<HodAdvisor[]>({
+    queryKey: QUERY_KEYS.hodAdvisors(batch, className),
+    queryFn: () => HodService.fetchAdvisors(batch, className),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for HOD teams list with filters and search term.
+ */
+export function useHodTeams(batch?: string, className?: string, search?: string) {
+  return useQuery<HodTeamDetails[]>({
+    queryKey: QUERY_KEYS.hodTeams(batch, className, search),
+    queryFn: () => HodService.fetchTeams(batch, className, search),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for HOD faculty list (for advisor assignment modal).
+ */
+export function useHodFacultyList(enabled: boolean = true) {
+  return useQuery<any[]>({
+    queryKey: QUERY_KEYS.hodFacultyList,
+    queryFn: () => HodService.fetchFacultyList(),
+    enabled,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for HOD audit & action history.
+ */
+export function useHodHistory() {
+  return useQuery<HodHistoryRecord[]>({
+    queryKey: QUERY_KEYS.hodHistory,
+    queryFn: () => HodHistoryService.fetchHistory(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for HOD milestone week releases status.
+ */
+export function useHodWeekReleases() {
+  return useQuery<Record<string, boolean>>({
+    queryKey: QUERY_KEYS.hodWeekReleases,
+    queryFn: () => HodService.fetchWeekReleases(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for weekly submissions aggregate summary.
+ */
+export function useHodWeeklySummary() {
+  return useQuery<Array<{ week: number; studentCount: number; submissionCount: number; status: string }>>({
+    queryKey: QUERY_KEYS.hodWeeklySummary,
+    queryFn: () => ApiClient.getWeeklySubmissionsSummary(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// -------------------------------------------------------------
+// QUERY HOOKS (Guide)
+// -------------------------------------------------------------
+
+/**
+ * Hook for Guide dashboard summary metrics.
+ */
+export function useGuideDashboard() {
+  return useQuery<any>({
+    queryKey: QUERY_KEYS.guideDashboard,
+    queryFn: () => ApiClient.getGuideDashboard(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for Guide assigned teams.
+ */
+export function useGuideTeams() {
+  return useQuery<any[]>({
+    queryKey: QUERY_KEYS.guideTeams,
+    queryFn: () => ApiClient.getGuideTeams(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for Guide weekly pending submissions.
+ */
+export function useGuideSubmissions() {
+  return useQuery<any[]>({
+    queryKey: QUERY_KEYS.guideSubmissions,
+    queryFn: () => ApiClient.getGuidePendingSubmissions(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for Guide action history logs.
+ */
+export function useGuideHistory(faculty?: string, className?: string) {
+  return useQuery<any[]>({
+    queryKey: QUERY_KEYS.guideHistory(faculty, className),
+    queryFn: () => AdvisorHistoryService.getGuideHistory(faculty, className),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// -------------------------------------------------------------
 // INVALIDATION HELPERS
 // -------------------------------------------------------------
 
@@ -88,3 +221,37 @@ export function invalidateTeamsQuery(className?: string) {
     queryClient.invalidateQueries({ queryKey: ['advisor', 'teams'] });
   }
 }
+
+// HOD invalidation helpers
+export function invalidateHodTeamsQuery() {
+  queryClient.invalidateQueries({ queryKey: ['hod', 'teams'] });
+}
+
+export function invalidateHodAdvisorsQuery() {
+  queryClient.invalidateQueries({ queryKey: ['hod', 'advisors'] });
+}
+
+export function invalidateHodWeekReleasesQuery() {
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.hodWeekReleases });
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.hodWeeklySummary });
+}
+
+export function invalidateHodHistoryQuery() {
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.hodHistory });
+}
+
+export function invalidateHodFacultyListQuery() {
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.hodFacultyList });
+}
+
+// Guide invalidation helpers
+export function invalidateGuideDataQuery() {
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.guideDashboard });
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.guideTeams });
+  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.guideSubmissions });
+}
+
+export function invalidateGuideHistoryQuery() {
+  queryClient.invalidateQueries({ queryKey: ['guide', 'history'] });
+}
+

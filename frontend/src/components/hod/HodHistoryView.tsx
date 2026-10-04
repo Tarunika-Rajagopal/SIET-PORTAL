@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HodHistoryService, HodHistoryRecord } from '../../services/hodHistoryService';
-import { HodService } from '../../services/hodService';
+import { useHodHistory, useHodFilterOptions } from '../../hooks/useQueries';
 import { 
   History, Search, Calendar, Filter, Download, 
   CheckCircle2, AlertCircle, FileText, UserCheck, 
@@ -8,10 +8,14 @@ import {
 } from 'lucide-react';
 
 export const HodHistoryView: React.FC = () => {
-  const [history, setHistory] = useState<HodHistoryRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [batchOptions, setBatchOptions] = useState<string[]>([]);
-  const [classOptions, setClassOptions] = useState<string[]>([]);
+  const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useHodHistory();
+  const { data: filterOpts, isLoading: filterLoading } = useHodFilterOptions();
+
+  const history = historyData || [];
+  const loading = historyLoading || filterLoading;
+
+  const batchOptions = filterOpts?.batches?.length ? filterOpts.batches : [];
+  const classOptions = filterOpts?.classes?.length ? filterOpts.classes : [];
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,35 +24,9 @@ export const HodHistoryView: React.FC = () => {
   const [dateFilter, setDateFilter] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState('ALL');
 
-  const loadData = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const [records, filterOpts] = await Promise.all([
-        HodHistoryService.fetchHistory(),
-        HodService.fetchFilterOptions()
-      ]);
-      if (Array.isArray(records)) {
-        setHistory(records);
-      }
-      if (filterOpts) {
-        if (Array.isArray(filterOpts.batches) && filterOpts.batches.length > 0) {
-          setBatchOptions(filterOpts.batches);
-        }
-        if (Array.isArray(filterOpts.classes) && filterOpts.classes.length > 0) {
-          setClassOptions(filterOpts.classes);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to fetch HOD history:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadData();
     const handleSync = () => {
-      loadData();
+      refetchHistory();
     };
     const unsub = HodHistoryService.subscribe(handleSync);
     window.addEventListener('siet_hod_history_updated', handleSync);
@@ -58,7 +36,7 @@ export const HodHistoryView: React.FC = () => {
       window.removeEventListener('siet_hod_history_updated', handleSync);
       window.removeEventListener('storage', handleSync);
     };
-  }, [loadData]);
+  }, [refetchHistory]);
 
   // Filtered action records
   const filteredHistory = useMemo(() => {

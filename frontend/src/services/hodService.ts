@@ -169,6 +169,16 @@ export const HodService = {
     return cachedTeams;
   },
 
+  async fetchTeamSubmission(teamId: string, week: number): Promise<WeeklySubmission | null> {
+    try {
+      const data = await ApiClient.getHodTeamSubmission(teamId, week);
+      return data as WeeklySubmission;
+    } catch (e) {
+      console.warn(`[HodService] fetchTeamSubmission failed for team ${teamId} week ${week}:`, e);
+      return null;
+    }
+  },
+
   async fetchFacultyList(): Promise<any[]> {
     try {
       const data = await ApiClient.getHodFacultyList();

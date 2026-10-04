@@ -542,6 +542,9 @@ export const ApiClient = {
      const qs = params.toString() ? `?${params.toString()}` : '';
      return request(`/hod/teams${qs}`);
    },
+   async getHodTeamSubmission(teamId: string, week: number): Promise<any> {
+     return request<any>(`/hod/teams/${encodeURIComponent(teamId)}/submission/${week}`);
+   },
    async getHodFacultyList(): Promise<any[]> {
      return request('/hod/faculty-list');
    },

@@ -1,6 +1,6 @@
 """HOD router - department-wide advisors, students, teams, faculty, history."""
 from typing import Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -110,6 +110,23 @@ async def get_teams(
     data = await service.get_teams(batch, className, search)
     await cache_service.set_json(cache_key, data, expire_seconds=60)
     return data
+
+
+@router.get("/teams/{team_id}/submission/{week}")
+@router.get("/teams/{team_id}/submissions/{week}")
+async def get_team_submission(
+    team_id: str,
+    week: int,
+    user: User = Depends(require_roles("hod", "admin")),
+    service: HODService = Depends(get_hod_service),
+):
+    sub = await service.get_submission_detail(team_id, week)
+    if not sub:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Submission for team '{team_id}' week {week} not found",
+        )
+    return sub
 
 
 @router.get("/faculty-list")

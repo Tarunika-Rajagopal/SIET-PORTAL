@@ -19,4 +19,21 @@ export const QUERY_KEYS = {
   advisorGuides: ['advisor', 'available-guides'] as const,
   advisorTeams: (className: string) => ['advisor', 'teams', className] as const,
   advisorStudents: (className: string, batch: string) => ['advisor', 'students', className, batch] as const,
+
+  // HOD query keys
+  hodAdvisors: (batch?: string, className?: string) => ['hod', 'advisors', batch || 'ALL', className || 'ALL'] as const,
+  hodTeams: (batch?: string, className?: string, search?: string) => ['hod', 'teams', batch || 'ALL', className || 'ALL', search || ''] as const,
+  hodTeamSubmission: (teamId: string, week: number) => ['hod', 'team-submission', teamId, week] as const,
+  hodFilterOptions: ['hod', 'filter-options'] as const,
+  hodFacultyList: ['hod', 'faculty-list'] as const,
+  hodHistory: ['hod', 'history'] as const,
+  hodWeekReleases: ['hod', 'week-releases'] as const,
+  hodWeeklySummary: ['hod', 'weekly-summary'] as const,
+
+  // Guide query keys
+  guideDashboard: ['guide', 'dashboard'] as const,
+  guideTeams: ['guide', 'teams'] as const,
+  guideSubmissions: ['guide', 'submissions'] as const,
+  guideHistory: (faculty?: string, className?: string) => ['guide', 'history', faculty || '', className || ''] as const,
 };
+

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { ApiClient } from '../../services/apiClient';
 import { HodService } from '../../services/hodService';
+import { useHodWeeklySummary, useHodWeekReleases, invalidateHodWeekReleasesQuery } from '../../hooks/useQueries';
 
 interface WeekData {
   week: number;
@@ -64,9 +65,19 @@ export const WeeklySubmissionManagementView: React.FC = () => {
   });
   const [updatingReleaseWeek, setUpdatingReleaseWeek] = useState<number | null>(null);
 
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // TanStack Query hooks
+  const { data: summaryData, isLoading: isSummaryLoading, refetch: refetchSummary } = useHodWeeklySummary();
+  const { data: relData, isLoading: isReleasesLoading, refetch: refetchReleases } = useHodWeekReleases();
+
+  const handleRefresh = useCallback(() => {
+    refetchSummary();
+    refetchReleases();
+  }, [refetchSummary, refetchReleases]);
+
+  const isLoading = isSummaryLoading || isReleasesLoading;
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -77,63 +88,51 @@ export const WeeklySubmissionManagementView: React.FC = () => {
     weeks: []
   });
 
-  // Fetch summary from backend
-  const fetchSummary = useCallback(async (quiet = false) => {
-    if (!quiet) setIsLoading(true);
-    try {
-      const data = await ApiClient.getWeeklySubmissionsSummary();
-      if (Array.isArray(data) && data.length > 0) {
-        setWeeks(prevWeeks => {
-          return [1, 2, 3, 4].map(wNum => {
-            const apiItem = data.find(d => d.week === wNum);
-            const meta = DEFAULT_WEEK_METADATA[wNum] || { title: `Week ${wNum}`, description: '' };
-            if (apiItem) {
-              const status: 'Submitted' | 'Empty' | 'No Submissions' = 
-                apiItem.studentCount > 0 ? 'Submitted' : (apiItem.status === 'No Submissions' ? 'No Submissions' : 'Empty');
-              return {
-                week: wNum,
-                title: meta.title,
-                description: meta.description,
-                studentCount: apiItem.studentCount,
-                submissionCount: apiItem.submissionCount,
-                status: status
-              };
-            }
-            return prevWeeks.find(pw => pw.week === wNum) || {
+  // Synchronize summary data from TanStack Query
+  useEffect(() => {
+    if (Array.isArray(summaryData) && summaryData.length > 0) {
+      setWeeks(prevWeeks => {
+        return [1, 2, 3, 4].map(wNum => {
+          const apiItem = summaryData.find(d => d.week === wNum);
+          const meta = DEFAULT_WEEK_METADATA[wNum] || { title: `Week ${wNum}`, description: '' };
+          if (apiItem) {
+            const status: 'Submitted' | 'Empty' | 'No Submissions' = 
+              apiItem.studentCount > 0 ? 'Submitted' : (apiItem.status === 'No Submissions' ? 'No Submissions' : 'Empty');
+            return {
               week: wNum,
               title: meta.title,
               description: meta.description,
-              studentCount: 0,
-              submissionCount: 0,
-              status: 'Empty'
+              studentCount: apiItem.studentCount,
+              submissionCount: apiItem.submissionCount,
+              status: status
             };
-          });
+          }
+          return prevWeeks.find(pw => pw.week === wNum) || {
+            week: wNum,
+            title: meta.title,
+            description: meta.description,
+            studentCount: 0,
+            submissionCount: 0,
+            status: 'Empty'
+          };
         });
-      }
-    } catch (summaryErr: any) {
-      console.warn('[WeeklySubmissionManagement] Could not fetch summary:', summaryErr);
+      });
     }
+  }, [summaryData]);
 
-    // Fetch real weekly submission release status from backend
-    try {
-      const relData = await HodService.fetchWeekReleases();
-      if (relData) {
-        setWeekReleases({
-          1: Boolean(relData['1']),
-          2: Boolean(relData['2']),
-          3: Boolean(relData['3']),
-          4: Boolean(relData['4']),
-        });
-      }
-    } catch (err: any) {
-      console.warn('[WeeklySubmissionManagement] Could not fetch week release status:', err);
-    } finally {
-      setIsLoading(false);
+  // Synchronize release status from TanStack Query
+  useEffect(() => {
+    if (relData) {
+      setWeekReleases({
+        1: Boolean(relData['1']),
+        2: Boolean(relData['2']),
+        3: Boolean(relData['3']),
+        4: Boolean(relData['4']),
+      });
     }
-  }, []);
+  }, [relData]);
 
   useEffect(() => {
-    fetchSummary();
 
     // Cross-tab real-time sync with BroadcastChannel
     let bc: BroadcastChannel | null = null;
@@ -161,7 +160,7 @@ export const WeeklySubmissionManagementView: React.FC = () => {
           [e.detail.week]: Boolean(e.detail.released)
         }));
       } else {
-        fetchSummary(true);
+        handleRefresh();
       }
     };
 
@@ -180,7 +179,7 @@ export const WeeklySubmissionManagementView: React.FC = () => {
     };
 
     const handleFocus = () => {
-      fetchSummary(true);
+      handleRefresh();
     };
 
     window.addEventListener('siet_release_updated', handleLocalReleaseUpdate);
@@ -189,7 +188,7 @@ export const WeeklySubmissionManagementView: React.FC = () => {
 
     // Heartbeat poll every 4 seconds for bulletproof real-time sync
     const interval = setInterval(() => {
-      fetchSummary(true);
+      handleRefresh();
     }, 4000);
 
     return () => {
@@ -199,7 +198,7 @@ export const WeeklySubmissionManagementView: React.FC = () => {
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
-  }, [fetchSummary]);
+  }, [handleRefresh]);
 
   // Auto-hide toast after 4.5 seconds
   useEffect(() => {
@@ -244,6 +243,7 @@ export const WeeklySubmissionManagementView: React.FC = () => {
           4: Boolean(res.releases['4']),
         });
       }
+      invalidateHodWeekReleasesQuery();
     } catch (err: any) {
       // Revert optimistic update on failure
       setWeekReleases(prev => ({
@@ -301,6 +301,7 @@ export const WeeklySubmissionManagementView: React.FC = () => {
       // 1. Call backend API
       try {
         await ApiClient.deleteWeeklySubmissions(weeksToDelete);
+        invalidateHodWeekReleasesQuery();
       } catch (apiErr) {
         console.warn('[WeeklySubmissionManagement] Backend delete error, syncing local state:', apiErr);
       }
@@ -378,7 +379,7 @@ export const WeeklySubmissionManagementView: React.FC = () => {
       });
 
       // 6. Refresh summary from backend
-      await fetchSummary(true);
+      handleRefresh();
       window.dispatchEvent(new Event('siet_hod_history_updated'));
       window.dispatchEvent(new Event('storage'));
     } catch (err: any) {
@@ -414,7 +415,7 @@ export const WeeklySubmissionManagementView: React.FC = () => {
         {/* Top-Level Actions */}
         <div className="flex items-center gap-3 shrink-0">
           <button
-            onClick={() => fetchSummary()}
+            onClick={handleRefresh}
             disabled={isLoading || isDeleting}
             className="px-3.5 py-2.5 rounded-xl border border-[#D8CCBA] bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#292725] text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-2xs disabled:opacity-50"
             title="Refresh submission metrics"
