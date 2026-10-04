@@ -1,5 +1,4 @@
-// Test script for Manual Team Creation Wizard integration
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = (process.env.VITE_API_URL || 'https://siet-portal-2.onrender.com').replace(/\/+$/, '');
 
 async function runTest() {
   console.log('--- 1. Checking Backend Health ---');

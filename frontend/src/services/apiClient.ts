@@ -1,7 +1,8 @@
 import { AdminStudent } from './adminService';
 
-const PRIMARY_API_BASE_URL = (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : 'http://127.0.0.1:8000/api/v1');
-const FALLBACK_API_BASE_URL = (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : 'http://localhost:8000/api/v1');
+const BACKEND_BASE_URL = (import.meta.env.VITE_API_URL || 'https://siet-portal-2.onrender.com').replace(/\/+$/, '');
+const PRIMARY_API_BASE_URL = `${BACKEND_BASE_URL}/api/v1`;
+const FALLBACK_API_BASE_URL = `${BACKEND_BASE_URL}/api/v1`;
 
 function getToken(): string | null {
   try {
@@ -53,7 +54,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
         });
       } catch (fallbackErr: any) {
         if (fetchErr.name === 'TypeError' || fallbackErr.name === 'TypeError') {
-          throw new Error('Cannot connect to backend server at localhost:8000 (or 127.0.0.1:8000). Is the server running?');
+          throw new Error(`Cannot connect to backend server at ${BACKEND_BASE_URL}. Is the server running?`);
         }
         throw fetchErr;
       }
@@ -91,10 +92,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const ApiClient = {
   async checkServerHealth(): Promise<{ online: boolean; databaseOk: boolean; message: string }> {
-    const urls = ['http://localhost:8000/health', 'http://127.0.0.1:8000/health'];
+    const urls = [`${BACKEND_BASE_URL}/health`];
     for (const url of urls) {
       try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
         if (res.ok) {
           const data = await res.json();
           return { online: true, databaseOk: data.status === 'healthy', message: data.status };

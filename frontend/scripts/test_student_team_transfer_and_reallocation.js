@@ -3,7 +3,7 @@
  * Run with: node frontend/scripts/test_student_team_transfer_and_reallocation.js
  */
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = `${(process.env.VITE_API_URL || 'https://siet-portal-2.onrender.com').replace(/\/+$/, '')}/api/v1`;
 
 async function main() {
   console.log('--- Testing Student Team Transfer & Reallocation ---');
