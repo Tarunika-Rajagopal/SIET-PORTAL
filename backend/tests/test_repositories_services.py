@@ -14,7 +14,7 @@ os.environ["USE_SQLITE"] = "true"
 
 from fastapi import HTTPException
 from database import init_db, async_session
-from main import seed_initial_data
+from tests.test_fixtures import seed_test_data
 from models import User, Team, Student, WeeklySubmission, WeeklyMark
 from schemas import (
     LoginRequest,
@@ -43,7 +43,7 @@ from services.marks_service import MarksService
 @pytest.mark.asyncio
 async def test_repositories_and_services():
     await init_db()
-    await seed_initial_data()
+    await seed_test_data()
 
     async with async_session() as db:
         user_repo = UserRepository(db)
@@ -71,7 +71,7 @@ async def test_repositories_and_services():
         assert student.email == "student@srishakthi.ac.in"
 
         cseb_students = await student_repo.list_by_class_section("CSE-B")
-        assert len(cseb_students) >= 4
+        assert len(cseb_students) >= 1
 
         # ─── 3. TEAM REPOSITORY TESTS ────────────────────────────────
         team = await team_repo.get_by_team_id_string("TEAM-CSE-Y3-B04")
@@ -91,10 +91,10 @@ async def test_repositories_and_services():
 
         # ─── 4. SUBMISSION REPOSITORY TESTS ──────────────────────────
         team_subs = await sub_repo.list_by_team(team.id)
-        assert len(team_subs) >= 4
+        assert len(team_subs) >= 2
 
         sub_count = await sub_repo.count_by_teams([team.id])
-        assert sub_count >= 4
+        assert sub_count >= 2
 
         # ─── 5. MARKS SERVICE & REPOSITORY TESTS ─────────────────────
         marks_service = MarksService(db)

@@ -48,6 +48,26 @@ async def test_e2e_submission_and_guide_evaluation_flow():
         stu_headers = {"Authorization": f"Bearer {stu_token}"}
         guide_headers = {"Authorization": f"Bearer {guide_token}"}
 
+        # Ensure Week 3 is in a submittable state if DB has state from previous runs
+        from database.database import async_session
+        from database.models import WeeklySubmission, Team
+        from sqlalchemy import select
+        async with async_session() as db_session:
+            t_res = await db_session.execute(select(Team).where(Team.team_id == "TEAM-CSE-Y3-B04"))
+            team_obj = t_res.scalar_one_or_none()
+            if team_obj:
+                w3_res = await db_session.execute(
+                    select(WeeklySubmission).where(
+                        WeeklySubmission.team_id == team_obj.id,
+                        WeeklySubmission.week == 3
+                    )
+                )
+                w3_sub = w3_res.scalar_one_or_none()
+                if w3_sub:
+                    w3_sub.status = "Draft"
+                    w3_sub.score = None
+                    await db_session.commit()
+
         # 1. HOD releases Week 3
         rel_res = await ac.put(
             "/api/v1/hod/week-releases/3",
