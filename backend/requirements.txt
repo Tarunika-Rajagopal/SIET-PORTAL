@@ -1,3 +1,4 @@
+aiosqlite==0.22.1
 alembic==1.19.0
 altair==6.3.0
 annotated-doc==0.0.4
@@ -142,4 +143,3 @@ xlsxwriter==3.2.9
 xxhash==4.0.1
 yarl==1.24.5
 zstandard==0.25.0
-ï»¿aiosqlite==0.22.1
