@@ -25,3 +25,5 @@ backend/tests/*.db
 
 # Backend generated uploads
 backend/uploads/
+.vercel
+.env*
