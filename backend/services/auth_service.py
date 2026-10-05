@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import User
 from schemas import LoginRequest, LoginResponse
 from repositories.user_repository import UserRepository
-from auth import verify_password_async, create_access_token
+from auth import verify_password_async, create_access_token, rehash_if_needed
 
 
 def _enum_val(v) -> str | None:
@@ -65,4 +65,9 @@ class AuthService:
                 detail="Invalid credentials. Please verify your email/roll and password.",
             )
         token = create_access_token(str(user.id), _enum_val(user.role))
+        # Progressively migrate plaintext passwords to bcrypt on successful login
+        try:
+            await rehash_if_needed(user, self.session)
+        except Exception:
+            pass  # Non-critical — don't block login if rehash fails
         return LoginResponse(success=True, token=token, user=format_user_dict(user))

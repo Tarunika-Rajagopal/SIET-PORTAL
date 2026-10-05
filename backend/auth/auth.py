@@ -33,12 +33,26 @@ def hash_password(password: str) -> str:
     ).decode("utf-8")
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    """Verify plain password against a bcrypt hash (blocking). No plaintext fallback."""
-    if not plain or not hashed:
+def _is_bcrypt_hash(value: str) -> bool:
+    """Return True if the stored value looks like a bcrypt hash."""
+    return value.startswith(("$2a$", "$2b$", "$2y$"))
+
+
+def verify_password(plain: str, stored: str) -> bool:
+    """Verify plain password against a stored credential.
+
+    Supports two formats:
+    1. bcrypt hash (starts with $2a$/$2b$/$2y$) → bcrypt.checkpw
+    2. Legacy plaintext (older seeded users)     → constant-time comparison
+    """
+    if not plain or not stored:
         return False
     try:
-        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+        if _is_bcrypt_hash(stored):
+            return bcrypt.checkpw(plain.encode("utf-8"), stored.encode("utf-8"))
+        # Legacy plaintext comparison (constant-time to avoid timing attacks)
+        import hmac
+        return hmac.compare_digest(plain, stored)
     except Exception:
         return False
 
@@ -48,9 +62,17 @@ async def hash_password_async(password: str) -> str:
     return await run_in_threadpool(hash_password, password)
 
 
-async def verify_password_async(plain: str, hashed: str) -> bool:
-    """Run bcrypt verification in a worker thread so the event loop is not blocked."""
-    return await run_in_threadpool(verify_password, plain, hashed)
+async def verify_password_async(plain: str, stored: str) -> bool:
+    """Run password verification in a worker thread so the event loop is not blocked."""
+    return await run_in_threadpool(verify_password, plain, stored)
+
+
+async def rehash_if_needed(user, db) -> None:
+    """If user's password is stored as plaintext, rehash it to bcrypt (progressive migration)."""
+    if user.password and not _is_bcrypt_hash(user.password):
+        user.password = await hash_password_async(user.password)
+        db.add(user)
+        await db.commit()
 
 
 # ── JWT helpers ────────────────────────────────────────────────
