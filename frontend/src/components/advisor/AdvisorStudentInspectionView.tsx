@@ -158,68 +158,6 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
     onShowToast(res.message);
   };
 
-  // Real file download trigger
-  const handleDownloadFile = (fileName: string, fileType: 'ppt' | 'pdf') => {
-    let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    let content = '';
-
-    if (fileType === 'pdf') {
-      mimeType = 'application/pdf';
-      content = `%PDF-1.4
-1 0 obj
-<< /Title (${fileName}) /Author (${team.guide}) >>
-endobj
-2 0 obj
-<< /Type /Catalog /Pages 3 0 R >>
-endobj
-3 0 obj
-<< /Type /Pages /Kids [4 0 R] /Count 1 >>
-endobj
-4 0 obj
-<< /Type /Page /Parent 3 0 R /MediaBox [0 0 612 792] /Contents 5 0 R >>
-endobj
-5 0 obj
-<< /Length 220 >>
-stream
-BT
-/F1 14 Tf
-50 720 Td
-(Sri Shakthi Institute of Engineering and Technology - Department of CSE) Tj
-0 -25 Td
-(Milestone Deliverable Dossier: Week ${selectedWeek}) Tj
-0 -20 Td
-(Project Title: ${getSubmissionTitle(activeSubmission?.projectTitle || team.title)}) Tj
-0 -20 Td
-(Team: ${team.teamNo} | Class: ${team.class}) Tj
-0 -20 Td
-(Faculty Guide: ${team.guide}) Tj
-ET
-endstream
-endobj
-xref
-0 6
-trailer
-<< /Size 6 /Root 2 0 R >>
-startxref
-500
-%%EOF`;
-    } else {
-      mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      content = `SIET PowerPoint Milestone Presentation\nMilestone: Week ${selectedWeek}\nProject: ${team.title}\nTeam: ${team.teamNo}\nGuide: ${team.guide}`;
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    onShowToast(`Downloaded ${fileName}`);
-  };
-
   return (
     <div className="space-y-6 pb-12 animate-fadeIn font-sans">
       
@@ -389,7 +327,7 @@ startxref
               Milestone Sprint Submissions &amp; Weekly Grading
             </h3>
             <p className="text-xs text-[#75695A]">
-              Inspect student deliverables, verify authentic PPT/PDF files, and grade individual marks.
+              Inspect student deliverables and grade individual marks.
             </p>
           </div>
 
@@ -593,57 +531,7 @@ startxref
             </div>
           </div>
 
-          {/* Verified Artifacts: Real PPT and PDF Downloads */}
-          <div className="pt-2">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
-              Verified Submission Deliverables
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-4 bg-[#F8F5EE] border border-[#D8CCBA] rounded-2xl flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold">
-                    <FileText size={20} />
-                  </div>
-                  <div>
-                    <span className="font-bold text-[#111111] block text-xs">
-                      Milestone_Dossier_W{selectedWeek}.pdf
-                    </span>
-                    <span className="text-[10px] text-[#75695A]">Official Dossier &bull; 2.4 MB</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadFile(`Milestone_Dossier_W${selectedWeek}.pdf`, 'pdf')}
-                  className="px-3 py-1.5 bg-white hover:bg-[#EDE7DB] border border-[#D8CCBA] text-[#111111] rounded-xl font-medium text-xs flex items-center gap-1.5 transition shadow-2xs"
-                >
-                  <Download size={13} />
-                  <span>Download</span>
-                </button>
-              </div>
 
-              <div className="p-4 bg-[#F8F5EE] border border-[#D8CCBA] rounded-2xl flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold">
-                    <FileText size={20} />
-                  </div>
-                  <div>
-                    <span className="font-bold text-[#111111] block text-xs">
-                      Sprint_Presentation_W{selectedWeek}.pptx
-                    </span>
-                    <span className="text-[10px] text-[#75695A]">Slide Deck &bull; 8.1 MB</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDownloadFile(`Sprint_Presentation_W${selectedWeek}.pptx`, 'ppt')}
-                  className="px-3 py-1.5 bg-white hover:bg-[#EDE7DB] border border-[#D8CCBA] text-[#111111] rounded-xl font-medium text-xs flex items-center gap-1.5 transition shadow-2xs"
-                >
-                  <Download size={13} />
-                  <span>Download</span>
-                </button>
-              </div>
-            </div>
-          </div>
 
           {/* Links */}
           <div className="flex flex-wrap items-center gap-3 pt-2">

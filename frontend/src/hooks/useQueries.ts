@@ -244,11 +244,14 @@ export function invalidateHodFacultyListQuery() {
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.hodFacultyList });
 }
 
-// Guide invalidation helpers
+// Guide & Cross-Portal invalidation helpers
 export function invalidateGuideDataQuery() {
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.guideDashboard });
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.guideTeams });
   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.guideSubmissions });
+  queryClient.invalidateQueries({ queryKey: ['advisor', 'teams'] });
+  queryClient.invalidateQueries({ queryKey: ['hod', 'teams'] });
+  queryClient.invalidateQueries({ queryKey: ['hod', 'team-submission'] });
 }
 
 export function invalidateGuideHistoryQuery() {

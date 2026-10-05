@@ -34,20 +34,22 @@ const RoleBasedHome: React.FC = () => {
 
   const role = (activeRole || currentUser.role || '').toLowerCase();
 
-  switch (role) {
-    case 'guide':
-      return <Navigate to="/guide/approve-submissions" replace />;
-    case 'advisor':
-      return <Navigate to="/advisor" replace />;
-    case 'hod':
-      return <Navigate to="/hod" replace />;
-    case 'admin':
-      return <Navigate to="/admin" replace />;
-    case 'student':
-      return <Navigate to="/student" replace />;
-    default:
-      return <Navigate to="/login" replace />;
+  if (role.includes('guide') && !role.includes('advisor')) {
+    return <Navigate to="/guide/approve-submissions" replace />;
   }
+  if (role.includes('advisor')) {
+    return <Navigate to="/advisor" replace />;
+  }
+  if (role.includes('hod')) {
+    return <Navigate to="/hod" replace />;
+  }
+  if (role.includes('admin')) {
+    return <Navigate to="/admin" replace />;
+  }
+  if (role.includes('student')) {
+    return <Navigate to="/student" replace />;
+  }
+  return <Navigate to="/login" replace />;
 };
 
 const ProtectedRoute: React.FC<{ allowedRoles?: string[]; children: React.ReactNode }> = ({ allowedRoles, children }) => {
@@ -57,8 +59,23 @@ const ProtectedRoute: React.FC<{ allowedRoles?: string[]; children: React.ReactN
     return <Navigate to="/login" replace />;
   }
 
+  const userRoles = new Set<string>();
   const role = (activeRole || currentUser.role || '').toLowerCase();
-  if (allowedRoles && !allowedRoles.includes(role)) {
+  if (role) {
+    if (role.includes('&')) {
+      role.split('&').forEach(r => userRoles.add(r.trim()));
+    }
+    userRoles.add(role);
+  }
+  if (currentUser.role) {
+    const rawRole = currentUser.role.toLowerCase();
+    if (rawRole.includes('&')) {
+      rawRole.split('&').forEach(r => userRoles.add(r.trim()));
+    }
+    userRoles.add(rawRole);
+  }
+
+  if (allowedRoles && !allowedRoles.some(r => userRoles.has(r.toLowerCase()))) {
     return <Navigate to="/login" replace />;
   }
 
@@ -85,7 +102,7 @@ export const App: React.FC = () => {
           <Route
             path="/advisor"
             element={
-              <ProtectedRoute allowedRoles={['advisor']}>
+              <ProtectedRoute allowedRoles={['advisor', 'advisor & guide']}>
                 <AdvisorPortalPage />
               </ProtectedRoute>
             }
@@ -122,7 +139,7 @@ export const App: React.FC = () => {
           <Route
             path="/guide"
             element={
-              <ProtectedRoute allowedRoles={['guide']}>
+              <ProtectedRoute allowedRoles={['guide', 'advisor & guide']}>
                 <GuideProvider>
                   <GuideLayout />
                 </GuideProvider>

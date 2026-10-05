@@ -1,7 +1,6 @@
 import React from 'react';
 import { 
-  X, FileText, Presentation, Image as ImageIcon, 
-  ExternalLink, Github, Bell, CheckCircle2, Clock, Calendar
+  X, ExternalLink, Github, Bell, CheckCircle2, Clock, Calendar
 } from 'lucide-react';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
@@ -17,13 +16,10 @@ export const WeeklyReviewDrawer = ({
   if (!isOpen || !team || !submission) return null;
 
   const hasAbstract = Boolean(submission.abstractSummary && submission.abstractSummary.trim());
-  const hasReport = Boolean(submission.reportUrl);
-  const hasPpt = Boolean(submission.pptUrl);
-  const hasImages = Boolean(submission.images && submission.images.length > 0);
   const hasObstacles = Boolean((submission.obstaclesFaced || submission.problemsFaced) && (submission.obstaclesFaced || submission.problemsFaced).trim());
   const hasNextPlan = Boolean(submission.nextWeekPlan && submission.nextWeekPlan.trim());
-  const hasGithub = Boolean(team.githubUrl && team.githubUrl.trim());
-  const hasDemo = Boolean(team.liveDemoUrl && team.liveDemoUrl.trim());
+  const hasGithub = Boolean((team.githubUrl || submission.githubUrl) && (team.githubUrl || submission.githubUrl).trim());
+  const hasDemo = Boolean((team.liveDemoUrl || submission.liveDemoUrl) && (team.liveDemoUrl || submission.liveDemoUrl).trim());
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-xs animate-fadeIn font-sans">
@@ -109,15 +105,21 @@ export const WeeklyReviewDrawer = ({
               )}
             </div>
 
-            {team.technologiesUsed && team.technologiesUsed.length > 0 && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {team.technologiesUsed.map((tech, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded-md bg-white text-slate-800 font-bold text-[10px] border border-[#D8CCBA]">
-                    {tech}
-                  </span>
-                ))}
-              </div>
-            )}
+            {(() => {
+              const raw = team.technologiesUsed || team.technologyUsed || team.techStack || submission.technologiesUsed || submission.technologyUsed || submission.techStack;
+              const list = Array.isArray(raw)
+                ? raw
+                : (typeof raw === 'string' && raw.trim() ? raw.split(',').map(s => s.trim()).filter(Boolean) : []);
+              return list.length > 0 ? (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {list.map((tech, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded-md bg-white text-slate-800 font-bold text-[10px] border border-[#D8CCBA]">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              ) : null;
+            })()}
           </div>
 
           {/* Section 2: Weekly Deliverables */}
@@ -145,103 +147,6 @@ export const WeeklyReviewDrawer = ({
                 <p className="text-slate-700 leading-relaxed text-xs">
                   {submission.abstractSummary}
                 </p>
-              )}
-            </div>
-
-            {/* Document Cards: Technical Report & Slide Deck */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Technical Report */}
-              <div className="p-4 bg-white border border-[#D8CCBA] rounded-2xl space-y-2 shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-mint-50 text-mint-700 border border-mint-200 flex items-center justify-center shrink-0">
-                      <FileText size={16} />
-                    </div>
-                    <div>
-                      <h5 className="font-bold text-slate-900 text-xs">Technical Report (PDF)</h5>
-                      <span className="text-[10px] text-slate-400 block truncate">{submission.reportUrl && !submission.reportUrl.startsWith('mock_') ? submission.reportUrl : 'Report.pdf'}</span>
-                    </div>
-                  </div>
-                  {hasReport ? (
-                    <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">Submitted</span>
-                  ) : (
-                    <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.2 rounded text-[10px]">Not Submitted</span>
-                  )}
-                </div>
-                {hasReport && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenDocPreview('report')}
-                    className="w-full py-1.5 text-center font-bold text-mint-900 bg-mint-50 border border-mint-200 hover:bg-mint-100 rounded-xl transition text-[11px] cursor-pointer"
-                  >
-                    View Full Report
-                  </button>
-                )}
-              </div>
-
-              {/* Presentation Slide Deck */}
-              <div className="p-4 bg-white border border-[#D8CCBA] rounded-2xl space-y-2 shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
-                      <Presentation size={16} />
-                    </div>
-                    <div>
-                      <h5 className="font-bold text-slate-900 text-xs">Sprint Slide Deck (PPT)</h5>
-                      <span className="text-[10px] text-slate-400 block truncate">{submission.presentationFileName || 'Presentation.pptx'}</span>
-                    </div>
-                  </div>
-                  {hasPpt ? (
-                    <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">Submitted</span>
-                  ) : (
-                    <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.2 rounded text-[10px]">Not Submitted</span>
-                  )}
-                </div>
-                {hasPpt && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenDocPreview('ppt')}
-                    className="w-full py-1.5 text-center font-bold text-amber-900 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-xl transition text-[11px] cursor-pointer"
-                  >
-                    View Slide Deck
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Image Thumbnails Lightbox */}
-            <div className="p-4 bg-slate-50 border border-[#D8CCBA] rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                  <ImageIcon size={13} className="text-mint-600" />
-                  <span>Hardware &amp; Software Artifact Captures:</span>
-                </span>
-                {hasImages ? (
-                  <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Submitted</span>
-                ) : (
-                  <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded text-[10px]">Not Submitted</span>
-                )}
-              </div>
-              {hasImages && (
-                <div className="grid grid-cols-3 gap-2.5 pt-1">
-                  {submission.images.map((img, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => onOpenImageViewer(idx)}
-                      className="group relative rounded-xl overflow-hidden border border-[#D8CCBA] aspect-video hover:border-mint-500 shadow-xs transition cursor-pointer"
-                    >
-                      <img
-                        src={img}
-                        alt={`Capture ${idx + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                      />
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-bold text-[10px]">
-                        Inspect HD
-                      </div>
-                    </button>
-                  ))}
-                </div>
               )}
             </div>
 

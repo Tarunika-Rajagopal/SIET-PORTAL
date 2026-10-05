@@ -28,7 +28,6 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   const [activeWeekSub, setActiveWeekSub] = useState<WeeklySubmission | null>(null);
   const [resubmitModalOpen, setResubmitModalOpen] = useState(false);
   const [resubmitNotes, setResubmitNotes] = useState('');
-  const [downloadToast, setDownloadToast] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,99 +157,12 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
     }
   };
 
-  // Real file download trigger for PPT and PDF
-  const handleDownloadFile = (fileName: string, fileType: 'ppt' | 'pdf', sub: WeeklySubmission, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
 
-    const currentUser = AuthService.getCurrentUser();
-    const currentStudentName = currentUser?.name || 'Student';
-    const currentStudentRoll = currentUser?.rollNo || currentUser?.email || 'N/A';
-    const guideDisplayName = sub.guideName || team?.guideName || 'Project Guide';
-
-    let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    let content = '';
-
-    if (fileType === 'pdf') {
-      mimeType = 'application/pdf';
-      content = `%PDF-1.4
-1 0 obj
-<< /Title (${fileName}) /Author (${guideDisplayName}) >>
-endobj
-2 0 obj
-<< /Type /Catalog /Pages 3 0 R >>
-endobj
-3 0 obj
-<< /Type /Pages /Kids [4 0 R] /Count 1 >>
-endobj
-4 0 obj
-<< /Type /Page /Parent 3 0 R /MediaBox [0 0 612 792] /Contents 5 0 R >>
-endobj
-5 0 obj
-<< /Length 220 >>
-stream
-BT
-/F1 14 Tf
-50 720 Td
-(Sri Shakthi Institute of Engineering and Technology - Department of CSE) Tj
-0 -25 Td
-(Milestone Deliverable Dossier: Week ${sub.week} - ${sub.title}) Tj
-0 -20 Td
-(Project Title: ${getSubmissionTitle(sub.projectTitle)}) Tj
-0 -20 Td
-(Student: ${currentStudentName} | Roll No: ${currentStudentRoll}) Tj
-0 -20 Td
-(Project Guide: ${guideDisplayName} | Status: ${sub.status}) Tj
-0 -20 Td
-(Submitted Date: ${sub.submissionDate || 'N/A'}) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f
-trailer
-<< /Size 6 /Root 2 0 R >>
-startxref
-500
-%%EOF`;
-    } else {
-      mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      content = `SIET PowerPoint Milestone Presentation
-Milestone: Week ${sub.week} - ${sub.title}
-Project: ${getSubmissionTitle(sub.projectTitle)}
-Student: ${currentStudentName} (${currentStudentRoll})
-Project Guide: ${guideDisplayName}
-Submission Date: ${sub.submissionDate || 'N/A'}
-Evaluation Status: ${sub.status}
-Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setDownloadToast(`Downloaded ${fileName}`);
-    setTimeout(() => {
-      setDownloadToast(null);
-    }, 3000);
-  };
 
   return (
     <div className="space-y-4 font-sans">
 
-      {/* Toast Notification */}
-      {downloadToast && (
-        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border border-slate-700 animate-in fade-in slide-in-from-top-2">
-          <Download size={14} className="text-mint-400" />
-          <span>{downloadToast}</span>
-        </div>
-      )}
+
 
       {/* Backend Evaluation History Error Alert */}
       {historyError && (
@@ -732,39 +644,7 @@ Comments: ${sub.comments || 'Evaluated by Faculty Guide'}`;
                     </div>
                   </div>
 
-                  {/* Output Screenshot Media Preview */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Submitted Output Screenshot
-                    </span>
-                    {activeWeekSub.screenshotFile ? (
-                      <div className="p-3 bg-slate-50 border border-[#D8CCBA] rounded-2xl flex items-center gap-3">
-                        <img
-                          src={activeWeekSub.screenshotFile}
-                          alt="Output preview"
-                          className="w-16 h-16 rounded-xl object-contain border border-mint-200 bg-white p-1"
-                        />
-                        <div>
-                          <span className="font-bold text-slate-800 block text-xs">Edge Vision Inference Output</span>
-                          <span className="text-[11px] text-slate-500">Real-time classification telemetry screenshot</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-2xl flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-500 flex items-center justify-center shrink-0">
-                          <ImageIcon size={20} />
-                        </div>
-                        <div className="flex-1">
-                          <span className="font-bold text-slate-700 block text-xs">Output Screenshot</span>
-                          <span className="text-[11px] text-slate-500">No output screenshot image uploaded for this week</span>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                          <XCircle size={12} />
-                          <span>Not Submitted</span>
-                        </span>
-                      </div>
-                    )}
-                  </div>
+
 
                 </div>
 

@@ -26,7 +26,7 @@ async def get_all_marks(
 @router.get("/{team_id}/weekly")
 async def get_all_weekly_marks(
     team_id: str,
-    user: User = Depends(require_roles("advisor", "hod", "guide", "student", "admin")),
+    user: User = Depends(require_roles("advisor", "advisor & guide", "hod", "guide", "student", "admin")),
     service: MarksService = Depends(get_marks_service),
 ):
     return await service.get_all_team_marks(team_id, user)
@@ -36,7 +36,7 @@ async def get_all_weekly_marks(
 async def get_weekly_marks(
     team_id: str,
     week_number: int,
-    user: User = Depends(require_roles("advisor", "hod", "guide", "student", "admin")),
+    user: User = Depends(require_roles("advisor", "advisor & guide", "hod", "guide", "student", "admin")),
     service: MarksService = Depends(get_marks_service),
 ):
     return await service.get_weekly_marks(team_id, week_number, user)
@@ -50,7 +50,7 @@ async def save_weekly_marks(
     team_id: str,
     week_number: int,
     req: SaveWeeklyMarksRequest,
-    user: User = Depends(require_roles("advisor", "admin", "guide", "hod")),
+    user: User = Depends(require_roles("advisor", "advisor & guide", "admin", "guide", "hod")),
     service: MarksService = Depends(get_marks_service),
 ):
     res = await service.save_weekly_marks(

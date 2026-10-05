@@ -18,7 +18,7 @@ export const isTeamFullySubmitted = (team) => {
   const absVal = team.abstract || team.projectDescription || team.abstractSummary || firstSub?.abstractSummary || firstSub?.abstract;
   const hasAbstract = Boolean(absVal && String(absVal).trim());
 
-  const techVal = team.technologiesUsed || team.techStack || firstSub?.technologiesUsed || firstSub?.techStack;
+  const techVal = team.technologiesUsed || team.techStack || team.technologyUsed || firstSub?.technologiesUsed || firstSub?.techStack || firstSub?.technologyUsed;
   const hasTechStack = Boolean(
     techVal && (Array.isArray(techVal) ? techVal.length > 0 : Boolean(String(techVal).trim()))
   );
@@ -29,18 +29,6 @@ export const isTeamFullySubmitted = (team) => {
   const demoVal = team.liveDemoUrl || team.demoUrl || firstSub?.liveDemoUrl || firstSub?.demoUrl;
   const hasDemo = Boolean(demoVal && String(demoVal).trim());
 
-  const pptVal = team.presentationUrl || team.pptUrl || team.presentationFile || firstSub?.pptUrl || firstSub?.presentationFileName;
-  const hasPpt = Boolean(pptVal && String(pptVal).trim());
-
-  const repVal = team.reportUrl || team.pdfFile || team.pdfUrl || team.reportFile || firstSub?.reportUrl || firstSub?.pdfFile || (firstSub?.presentationFileName && firstSub.presentationFileName.toLowerCase().endsWith('.pdf'));
-  const hasReport = Boolean(repVal && String(repVal).trim());
-
-  const imgVal = team.screenshots || team.images || firstSub?.images;
-  const hasImages = Boolean(
-    (Array.isArray(imgVal) && imgVal.length > 0) ||
-    Boolean(team.screenshotFile && String(team.screenshotFile).trim())
-  );
-
   return Boolean(
     hasTitle &&
     hasProblemStatement &&
@@ -48,10 +36,7 @@ export const isTeamFullySubmitted = (team) => {
     hasAbstract &&
     hasTechStack &&
     hasGithub &&
-    hasDemo &&
-    hasPpt &&
-    hasReport &&
-    hasImages
+    hasDemo
   );
 };
 
@@ -76,7 +61,7 @@ export const hasAnyDetailSubmitted = (team) => {
   const absVal = team.abstract || team.projectDescription || team.abstractSummary || firstSub?.abstractSummary || firstSub?.abstract;
   const hasAbstract = Boolean(absVal && String(absVal).trim());
 
-  const techVal = team.technologiesUsed || team.techStack || firstSub?.technologiesUsed || firstSub?.techStack;
+  const techVal = team.technologiesUsed || team.techStack || team.technologyUsed || firstSub?.technologiesUsed || firstSub?.techStack || firstSub?.technologyUsed;
   const hasTechStack = Boolean(
     techVal && (Array.isArray(techVal) ? techVal.length > 0 : Boolean(String(techVal).trim()))
   );
@@ -87,26 +72,14 @@ export const hasAnyDetailSubmitted = (team) => {
   const demoVal = team.liveDemoUrl || team.demoUrl || firstSub?.liveDemoUrl || firstSub?.demoUrl;
   const hasDemo = Boolean(demoVal && String(demoVal).trim());
 
-  const pptVal = team.presentationUrl || team.pptUrl || team.presentationFile || firstSub?.pptUrl || firstSub?.presentationFileName;
-  const hasPpt = Boolean(pptVal && String(pptVal).trim() && !String(pptVal).includes('mock_ppt'));
-
-  const repVal = team.reportUrl || team.pdfFile || team.pdfUrl || team.reportFile || firstSub?.reportUrl || firstSub?.pdfFile || (firstSub?.presentationFileName && firstSub.presentationFileName.toLowerCase().endsWith('.pdf'));
-  const hasReport = Boolean(repVal && String(repVal).trim() && !String(repVal).includes('mock'));
-
-  const imgVal = team.screenshots || team.images || firstSub?.images;
-  const hasImages = Boolean(
-    (Array.isArray(imgVal) && imgVal.length > 0) ||
-    Boolean(team.screenshotFile && String(team.screenshotFile).trim())
-  );
-
   const hasAnyWeeklySubmission = Boolean(
     team.submissions && team.submissions.some(s => 
       s.weekNumber > 0 && (
         (s.submissionStatus && !s.submissionStatus.includes('Awaiting') && !s.submissionStatus.includes('Notice')) ||
         Boolean(s.abstractSummary) ||
         Boolean(s.githubUrl) ||
-        Boolean(s.pptUrl && !String(s.pptUrl).includes('mock')) ||
-        Boolean(s.reportUrl && !String(s.reportUrl).includes('mock'))
+        Boolean(s.demoUrl) ||
+        Boolean(s.liveDemoUrl)
       )
     )
   );
@@ -119,9 +92,6 @@ export const hasAnyDetailSubmitted = (team) => {
     hasTechStack ||
     hasGithub ||
     hasDemo ||
-    hasPpt ||
-    hasReport ||
-    hasImages ||
     hasAnyWeeklySubmission
   );
 };

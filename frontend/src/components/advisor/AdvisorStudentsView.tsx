@@ -422,12 +422,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     setExpandedStudentRoll(prev => prev === student.rollNo ? null : student.rollNo);
   };
 
-  // Real file download trigger for PPT and PDF
-  const handleDownloadFile = (fileName: string, fileType: 'ppt' | 'pdf', sub: WeeklySubmission, team: ClassTeam, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    AdvisorSubmissionsService.downloadFile(fileName, fileType, sub, team, advisorName);
-    onShowToast(`Downloaded ${fileName}`);
-  };
+
 
   // Live metrics that update automatically whenever data changes
   const totalStrength = students.length;
@@ -1379,98 +1374,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  
-                  {/* Presentation PPT */}
-                  {inspectionSubmission.sub.fileName || inspectionSubmission.sub.presentationFile ? (
-                    <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                          <FileText size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                            {inspectionSubmission.sub.fileName || inspectionSubmission.sub.presentationFile}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">PowerPoint Deck</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadFile(
-                          inspectionSubmission.sub.fileName || inspectionSubmission.sub.presentationFile || `Submission_${inspectionSubmission.sub.week + 1}_Deck.pptx`,
-                          'ppt',
-                          inspectionSubmission.sub,
-                          inspectionSubmission.team,
-                          e
-                        )}
-                        className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                      >
-                        <Download size={13} />
-                        <span>Download</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                          <FileText size={18} />
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-500 block">Presentation Deck</span>
-                          <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold">
-                        ✕ Not Uploaded
-                      </span>
-                    </div>
-                  )}
 
-                  {/* Technical Report PDF */}
-                  {inspectionSubmission.sub.pdfFile ? (
-                    <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
-                          <FileCode size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                            {inspectionSubmission.sub.pdfFile}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">PDF Technical Dossier</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadFile(
-                          inspectionSubmission.sub.pdfFile || `Submission_${inspectionSubmission.sub.week + 1}_Report.pdf`,
-                          'pdf',
-                          inspectionSubmission.sub,
-                          inspectionSubmission.team,
-                          e
-                        )}
-                        className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                      >
-                        <Download size={13} />
-                        <span>Download</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                          <FileCode size={18} />
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-500 block">Technical Dossier</span>
-                          <span className="text-[10px] text-slate-400">Report (.pdf)</span>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold">
-                        ✕ Not Uploaded
-                      </span>
-                    </div>
-                  )}
 
                   {/* GitHub Repo Link */}
                   {inspectionSubmission.sub.repoUrl ? (
@@ -1557,21 +1461,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 </div>
               </div>
 
-              {/* Screenshot Preview if Available */}
-              {inspectionSubmission.sub.screenshotFile && (
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
-                    Implementation Screenshot / Proof of Work
-                  </span>
-                  <div className="p-2 rounded-2xl bg-slate-50 border border-[#E2E8E4] flex items-center justify-center">
-                    <img 
-                      src={inspectionSubmission.sub.screenshotFile} 
-                      alt="Deliverable Screenshot" 
-                      className="max-h-64 rounded-xl border border-slate-200 object-contain shadow-xs" 
-                    />
-                  </div>
-                </div>
-              )}
+
 
             </div>
 

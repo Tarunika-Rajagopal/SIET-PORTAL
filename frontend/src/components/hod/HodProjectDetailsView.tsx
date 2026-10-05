@@ -43,7 +43,6 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
   const [batchFilter, setBatchFilter] = useState(initialBatch);
   const [classFilter, setClassFilter] = useState(initialClass);
   const [searchTerm, setSearchTerm] = useState('');
-  const [downloadToast, setDownloadToast] = useState<string | null>(null);
 
   // All matching teams based on batch/class filters and search from live backend
   const [matchingTeams, setMatchingTeams] = useState<HodTeamDetails[]>([]);
@@ -146,95 +145,10 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
     setSearchTerm('');
   };
 
-  // Real file download trigger for PPT and PDF (matching Student Portal)
-  const handleDownloadFile = (fileName: string, fileType: 'ppt' | 'pdf', sub?: WeeklySubmission, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-
-    const weekNum = sub?.week || selectedWeek;
-    const weekTitle = sub?.title || `Milestone ${weekNum}`;
-    let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    let content = '';
-
-    if (fileType === 'pdf') {
-      mimeType = 'application/pdf';
-      content = `%PDF-1.4
-1 0 obj
-<< /Title (${fileName}) /Author (${activeTeam?.guide?.name || 'Faculty Guide'}) >>
-endobj
-2 0 obj
-<< /Type /Catalog /Pages 3 0 R >>
-endobj
-3 0 obj
-<< /Type /Pages /Kids [4 0 R] /Count 1 >>
-endobj
-4 0 obj
-<< /Type /Page /Parent 3 0 R /MediaBox [0 0 612 792] /Contents 5 0 R >>
-endobj
-5 0 obj
-<< /Length 220 >>
-stream
-BT
-/F1 14 Tf
-50 720 Td
-(Sri Shakthi Institute of Engineering and Technology - Department of CSE) Tj
-0 -25 Td
-(HOD Milestone Audit Dossier: Week ${weekNum} - ${weekTitle}) Tj
-0 -20 Td
-(Project Title: ${getSubmissionTitle(sub?.projectTitle || activeTeam?.projectTitle)}) Tj
-0 -20 Td
-(Team: ${activeTeam?.teamNo || 'Team'} | Class: ${activeTeam?.classSection || 'CSE'}) Tj
-0 -20 Td
-(Guide: ${activeTeam?.guide?.name || 'Faculty Guide'} | Status: ${sub?.status || 'Approved'}) Tj
-0 -20 Td
-(Submitted Date: ${sub?.submissionDate || 'N/A'}) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f
-trailer
-<< /Size 6 /Root 2 0 R >>
-startxref
-500
-%%EOF`;
-    } else {
-      mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      content = `SIET PowerPoint Milestone Presentation
-Milestone: Week ${weekNum} - ${weekTitle}
-Project: ${getSubmissionTitle(sub?.projectTitle || activeTeam?.projectTitle)}
-Team: ${activeTeam?.teamNo || 'Team'}
-Faculty Guide: ${activeTeam?.guide?.name || 'Faculty Guide'}
-Submission Date: ${sub?.submissionDate || 'N/A'}
-Evaluation Status: ${sub?.status || 'Approved'}
-Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setDownloadToast(`Downloaded ${fileName}`);
-    setTimeout(() => setDownloadToast(null), 3000);
-  };
 
   return (
     <div className="space-y-6">
       
-      {/* Toast Notification */}
-      {downloadToast && (
-        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border border-slate-700 animate-in fade-in slide-in-from-top-2">
-          <Download size={14} className="text-mint-400" />
-          <span>{downloadToast}</span>
-        </div>
-      )}
-
       {/* 1. Filter Option Row (Clean, no extra marketing/banner content) */}
       <div className="bg-white rounded-2xl p-4 shadow-card border border-[#E2E8E4] flex flex-wrap items-center gap-3">
         
@@ -836,90 +750,6 @@ Critique: ${sub?.comments || 'Evaluated by Faculty Guide'}`;
                       </span>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        
-                        {/* Presentation PPT */}
-                        {activeSubmission.fileName || activeSubmission.presentationFile ? (
-                          <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                                <FileText size={18} />
-                              </div>
-                              <div>
-                                <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                                  {activeSubmission.fileName || activeSubmission.presentationFile}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  PowerPoint (.pptx)
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => handleDownloadFile(activeSubmission.fileName || activeSubmission.presentationFile || `Week_${activeSubmission.week}_Presentation.pptx`, 'ppt', activeSubmission, e)}
-                              className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                            >
-                              <Download size={13} />
-                              <span>Download</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                                <FileText size={18} />
-                              </div>
-                              <div>
-                                <span className="font-bold text-slate-500 block">Presentation Deck</span>
-                                <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
-                              </div>
-                            </div>
-                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                              <XCircle size={12} />
-                              <span>✕ Not Uploaded</span>
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Technical Report PDF */}
-                        {activeSubmission.pdfFile ? (
-                          <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
-                                <FileCode size={18} />
-                              </div>
-                              <div>
-                                <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                                  {activeSubmission.pdfFile}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-mono">PDF Document</span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => handleDownloadFile(activeSubmission.pdfFile || `Week_${activeSubmission.week}_Report.pdf`, 'pdf', activeSubmission, e)}
-                              className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                            >
-                              <Download size={13} />
-                              <span>Download</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                                <FileCode size={18} />
-                              </div>
-                              <div>
-                                <span className="font-bold text-slate-500 block">Technical Dossier</span>
-                                <span className="text-[10px] text-slate-400">Report (.pdf)</span>
-                              </div>
-                            </div>
-                            <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                              <XCircle size={12} />
-                              <span>✕ Not Uploaded</span>
-                            </span>
-                          </div>
-                        )}
 
                         {/* GitHub Repo Link */}
                         {activeSubmission.repoUrl ? (

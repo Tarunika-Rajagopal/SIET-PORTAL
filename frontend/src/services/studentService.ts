@@ -25,7 +25,6 @@ try {
 
 const TEAM_STORAGE_KEY = "siet_student_team_v6";
 const SUBMISSIONS_STORAGE_KEY = "siet_student_submissions_v6";
-const GUIDE_TEAMS_STORAGE_KEY = "siet_guide_portal_teams_v6";
 
 export interface StudentDeliverableState {
   week: string;
@@ -114,15 +113,20 @@ export const DEFAULT_COMPLETED_WEEKS: WeeklySubmission[] = [];
 
 export const StudentService = {
   getCurrentAcademicWeek(): number {
-    // Academic semester Week 1 began Sunday, September 13, 2026.
-    // Each Sunday rolls over to the next academic week automatically (Week 1, Week 2, Week 3, ...).
-    const semesterStart = new Date(2026, 8, 13); // September 13, 2026
-    const now = new Date();
-    const diffTime = now.getTime() - semesterStart.getTime();
-    if (diffTime < 0) return 1;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const weekNumber = Math.floor(diffDays / 7) + 1;
-    return Math.max(1, Math.min(16, weekNumber));
+    try {
+      const cached = localStorage.getItem('siet_week_release_status');
+      if (cached) {
+        const releases = JSON.parse(cached);
+        const releasedWeeks = Object.entries(releases)
+          .filter(([_, released]) => Boolean(released))
+          .map(([w]) => Number(w))
+          .filter(w => !Number.isNaN(w));
+        if (releasedWeeks.length > 0) {
+          return Math.max(...releasedWeeks);
+        }
+      }
+    } catch {}
+    return 1;
   },
 
   getTeam(): StudentTeamExtended {
@@ -151,8 +155,9 @@ export const StudentService = {
         (currentUser.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === currentUser.rollNo.trim().toLowerCase()) ||
         (currentUser.email && m.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
       )) {
-        const className = currentUser.class || 'CSE-B';
-        const advRaw = localStorage.getItem(`siet_advisor_teams_${className}`);
+        const className = currentUser.class || '';
+        if (className) {
+          const advRaw = localStorage.getItem(`siet_advisor_teams_${className}`);
         if (advRaw) {
           const advTeams = JSON.parse(advRaw);
           if (Array.isArray(advTeams)) {
@@ -183,34 +188,15 @@ export const StudentService = {
               };
             }
           }
-        }
-      }
-    } catch (e) { }
-
-    // Check if Guide has approved title or submission 1 without calling this.isSubmission1Approved()
-    if (team.isTitleApproved || team.guideApprovalStatus === 'Approved') {
-      return team;
-    }
-
-    try {
-      const rawGuide = localStorage.getItem(GUIDE_TEAMS_STORAGE_KEY);
-      if (rawGuide) {
-        const guideTeams = JSON.parse(rawGuide);
-        const gt = guideTeams.find((t: any) => t.teamId === team.id || t.id === team.id || t.teamNo === team.teamNo);
-        if (gt) {
-          if (gt.titleStatus === 'Approved' || gt.titleLocked === true) {
-            team.isTitleApproved = true;
-            team.guideApprovalStatus = 'Approved';
-          } else if (gt.submissions && gt.submissions[0]) {
-            const s0 = gt.submissions[0];
-            if (s0.evaluationStatus === 'Approved' || s0.status === 'Approved') {
-              team.isTitleApproved = true;
-              team.guideApprovalStatus = 'Approved';
-            }
           }
         }
       }
     } catch (e) { }
+
+    // If title is approved, ensure team reflects status
+    if (team.isTitleApproved || team.guideApprovalStatus === 'Approved') {
+      return team;
+    }
 
     if (team.isTitleApproved) {
       if (!team.projectTitle || team.projectTitle === 'No Title Submitted' || team.projectTitle === 'Title Approval Pending') {

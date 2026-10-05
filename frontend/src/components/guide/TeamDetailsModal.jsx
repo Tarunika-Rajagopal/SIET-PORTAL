@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, Users, Code, ExternalLink, Github, FileText, CheckCircle2, 
-  Clock, AlertCircle, XCircle, Send, CheckSquare, Presentation, 
-  Image as ImageIcon, Lock, Bell
+  X, Users, Code, ExternalLink, Github, CheckCircle2, 
+  Clock, AlertCircle, XCircle, Send, CheckSquare, 
+  Lock, Bell
 } from 'lucide-react';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 
@@ -35,15 +35,15 @@ export const TeamDetailsModal = ({
   const hasProblemStatement = Boolean(team.problemStatement && team.problemStatement.trim());
   const hasSolution = Boolean(team.proposedSolution && team.proposedSolution.trim());
   const hasAbstract = Boolean((team.abstract || team.projectDescription) && (team.abstract || team.projectDescription).trim());
-  const hasTechStack = Boolean(team.technologiesUsed && team.technologiesUsed.length > 0);
+  
+  const rawTech = team.technologiesUsed || team.technologyUsed || team.techStack;
+  const techList = Array.isArray(rawTech)
+    ? rawTech
+    : (typeof rawTech === 'string' && rawTech.trim() ? rawTech.split(',').map(s => s.trim()).filter(Boolean) : []);
+  const hasTechStack = Boolean(techList.length > 0);
+
   const hasGithub = Boolean(team.githubUrl && team.githubUrl.trim());
   const hasDemo = Boolean(team.liveDemoUrl && team.liveDemoUrl.trim());
-
-  // Week 1 or latest deliverable files
-  const firstSub = team.submissions?.[0];
-  const hasPpt = Boolean(firstSub?.pptUrl || firstSub?.presentationFileName);
-  const hasReport = Boolean(firstSub?.reportUrl);
-  const hasImages = Boolean(firstSub?.images && firstSub.images.length > 0);
 
   const handleConfirmReject = (e) => {
     e?.preventDefault();
@@ -240,7 +240,7 @@ export const TeamDetailsModal = ({
               </div>
               {hasTechStack && (
                 <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {team.technologiesUsed.map((tech, i) => (
+                  {techList.map((tech, i) => (
                     <span key={i} className="px-2.5 py-0.5 rounded-lg bg-mint-50 text-mint-900 font-bold text-[11px] border border-mint-200">
                       {tech}
                     </span>
@@ -286,68 +286,6 @@ export const TeamDetailsModal = ({
                   </a>
                 )}
               </div>
-            </div>
-
-            {/* 8 & 9: Presentation & Report Dossier Files */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                    <Presentation size={13} /> 8. Proposal Slides (PPT)
-                  </span>
-                  {hasPpt ? (
-                    <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">Submitted</span>
-                  ) : (
-                    <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.2 rounded text-[10px]">Not Submitted</span>
-                  )}
-                </div>
-                {hasPpt && (
-                  <span className="text-slate-800 font-mono font-bold text-xs truncate block">
-                    {firstSub?.presentationFileName || 'Proposal_Presentation.pptx'}
-                  </span>
-                )}
-              </div>
-
-              <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                    <FileText size={13} /> 9. Technical Report (PDF)
-                  </span>
-                  {hasReport ? (
-                    <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">Submitted</span>
-                  ) : (
-                    <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.2 rounded text-[10px]">Not Submitted</span>
-                  )}
-                </div>
-                {hasReport && (
-                  <span className="text-slate-800 font-mono font-bold text-xs truncate block">
-                    {firstSub?.reportUrl && !firstSub.reportUrl.startsWith('mock_') ? firstSub.reportUrl : 'Technical_Dossier_W0.pdf'}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* 10. Prototype / Hardware Captures */}
-            <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                  <ImageIcon size={13} /> 10. Prototype Bench / Hardware Captures
-                </span>
-                {hasImages ? (
-                  <span className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">Submitted</span>
-                ) : (
-                  <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2 py-0.2 rounded text-[10px]">Not Submitted</span>
-                )}
-              </div>
-              {hasImages && (
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  {firstSub.images.map((img, idx) => (
-                    <div key={idx} className="rounded-xl overflow-hidden border border-[#D8CCBA] aspect-video">
-                      <img src={img} alt="Capture" className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 

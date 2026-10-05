@@ -211,13 +211,42 @@ def require_roles(*allowed_roles: str):
     Dependency factory to enforce Role-Based Access Control.
     Raises HTTP 403 Forbidden if user lacks permitted role.
     """
-    allowed = [r.strip().lower() for r in allowed_roles]
+    allowed = set(r.strip().lower() for r in allowed_roles)
 
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        user_role = (current_user.role or "").strip().lower()
-        active_role = (current_user.active_role or "").strip().lower()
+        user_roles = set()
+        user_role = (current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role or "")).strip().lower()
+        active_role = (current_user.active_role.value if hasattr(current_user.active_role, "value") else str(current_user.active_role or "")).strip().lower()
 
-        if user_role in allowed or (active_role and active_role in allowed):
+        if user_role:
+            user_roles.add(user_role)
+            if "&" in user_role:
+                for part in user_role.split("&"):
+                    user_roles.add(part.strip())
+        if active_role:
+            user_roles.add(active_role)
+            if "&" in active_role:
+                for part in active_role.split("&"):
+                    user_roles.add(part.strip())
+
+        # Also inspect Faculty table for dual role assignment
+        if current_user.email and not ({"guide", "advisor"}.issubset(user_roles)):
+            from models import Faculty
+            from database import async_session
+            try:
+                async with async_session() as s:
+                    res_f = await s.execute(select(Faculty).where(Faculty.email == current_user.email))
+                    fac = res_f.scalars().first()
+                    if fac and fac.role:
+                        fac_role = (fac.role.value if hasattr(fac.role, "value") else str(fac.role)).strip().lower()
+                        user_roles.add(fac_role)
+                        if "&" in fac_role:
+                            for part in fac_role.split("&"):
+                                user_roles.add(part.strip())
+            except Exception:
+                pass
+
+        if any(r in allowed for r in user_roles):
             return current_user
 
         raise HTTPException(

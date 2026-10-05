@@ -72,20 +72,9 @@ export const AdvisorService = {
   getTeamsForClass(className: string = ""): ClassTeam[] {
     if (!className) return [];
 
-    const isMockTitle = (str?: string) => 
-      /autonomous crop disease|decentralized smart grid|edge-ai wearable|llm-powered/i.test(str || '');
-
     const syncWithRealStudentAndGuide = (teamList: ClassTeam[]): ClassTeam[] => {
       try {
-        // 1. Scrub any lingering mock titles from all teams
-        teamList.forEach(t => {
-          if (isMockTitle(t.title)) {
-            t.title = '';
-            t.status = 'Pending';
-          }
-        });
-
-        // 2. Real-time synchronization for active student team with Student Portal data
+        // 1. Real-time synchronization for active student team with Student Portal data
         const studentTeam = StudentService.getTeam();
         let matchedActiveTeamId: string | null = null;
 
@@ -116,45 +105,15 @@ export const AdvisorService = {
             matchedActiveTeamId = activeStudentTeam.teamId;
             const d1 = StudentService.getDeliverables('Submission 1', activeStudentTeam.teamId || studentTeam.id);
             const rawRealTitle = (d1?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
-            const cleanRealTitle = isMockTitle(rawRealTitle) ? '' : rawRealTitle;
 
-            activeStudentTeam.title = cleanRealTitle;
-            if (cleanRealTitle) {
+            activeStudentTeam.title = rawRealTitle;
+            if (rawRealTitle) {
               activeStudentTeam.status = (studentTeam.isTitleApproved || studentTeam.guideApprovalStatus === 'Approved')
                 ? 'Active & Approved'
                 : 'Under Review';
             } else {
               activeStudentTeam.status = 'Pending';
             }
-          }
-        }
-
-        // 3. Sync other teams with Guide Portal if real titles were submitted & approved
-        const guideRaw = localStorage.getItem('siet_guide_portal_teams_v6');
-        if (guideRaw) {
-          const guideTeams = JSON.parse(guideRaw);
-          if (Array.isArray(guideTeams)) {
-            teamList.forEach(t => {
-              if (matchedActiveTeamId && t.teamId === matchedActiveTeamId) return; // Active student team already synchronized with student
-              const tNum = parseInt(String(t.teamNo || t.teamId).replace(/\D/g, ''), 10);
-              const gt = guideTeams.find((g: any) => 
-                (g.teamId && g.teamId.toLowerCase() === t.teamId.toLowerCase()) || 
-                (g.teamNo && g.teamNo.toLowerCase() === t.teamNo.toLowerCase()) || 
-                (Number(g.teamNumber) === tNum && !Number.isNaN(tNum))
-              );
-              if (gt) {
-                if (gt.projectTitle && gt.projectTitle.trim() && !isMockTitle(gt.projectTitle)) {
-                  t.title = gt.projectTitle.trim();
-                  t.status = (gt.titleStatus === 'Approved' || gt.titleLocked) ? 'Approved' : 'Pending';
-                } else {
-                  t.title = '';
-                  t.status = 'Pending';
-                }
-                if (gt.guide) {
-                  t.guide = gt.guide;
-                }
-              }
-            });
           }
         }
       } catch (e) {

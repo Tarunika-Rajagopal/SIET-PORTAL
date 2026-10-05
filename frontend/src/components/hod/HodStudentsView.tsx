@@ -295,83 +295,6 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     setTimeout(() => setSaveSuccessMsg(''), 4000);
   };
 
-  // Helper to trigger file downloads
-  const handleDownloadFile = (fileName: string, fileType: 'pdf' | 'ppt', team: HodTeamDetails, sub: WeeklySubmission) => {
-    let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    let content = '';
-    const isSub1Approved = team.status === 'Approved' || team.guideApprovalStatus === 'Approved' || StudentService.isSubmission1Approved(team.id);
-    const formattedTitle = formatProjectTitle(team.projectTitle, isSub1Approved ? 'Approved' : team.status, isSub1Approved);
-
-    if (fileType === 'pdf') {
-      mimeType = 'application/pdf';
-      content = `%PDF-1.4
-1 0 obj
-<< /Title (${fileName}) /Author (${team.guide?.name || 'Faculty Guide'}) >>
-endobj
-2 0 obj
-<< /Type /Catalog /Pages 3 0 R >>
-endobj
-3 0 obj
-<< /Type /Pages /Kids [4 0 R] /Count 1 >>
-endobj
-4 0 obj
-<< /Type /Page /Parent 3 0 R /MediaBox [0 0 612 792] /Contents 5 0 R >>
-endobj
-5 0 obj
-<< /Length 220 >>
-stream
-BT
-/F1 14 Tf
-50 720 Td
-(SRI SHAKTHI INSTITUTE OF ENGINEERING & TECHNOLOGY) Tj
-/F1 11 Tf
-0 -24 Td
-(Department of Computer Science & Engineering) Tj
-0 -20 Td
-(PROJECT DOSSIER: ${formattedTitle}) Tj
-0 -20 Td
-(Team: ${team.teamNo} | Class: ${team.classSection} | Batch: ${team.batch}) Tj
-0 -20 Td
-(Milestone: Submission ${sub.week} | Status: ${sub.status}) Tj
-0 -20 Td
-(Abstract: ${(sub.abstract || 'Approved academic milestone deliverable submitted by student team.').substring(0, 80)}) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000010 00000 n 
-0000000079 00000 n 
-0000000128 00000 n 
-0000000185 00000 n 
-0000000282 00000 n 
-trailer
-<< /Size 6 /Root 2 0 R >>
-startxref
-554
-%%EOF`;
-    } else {
-      content = `SIET Presentation Deliverable
-Project: ${formattedTitle}
-Team: ${team.teamNo} | Class: ${team.classSection}
-Milestone: Submission ${sub.week}
-Guide: ${team.guide?.name || 'Unassigned'}
-Advisor: ${team.advisor?.name || 'Unassigned'}
-Generated for Academic Verification.`;
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName || `${team.teamNo}_Submission_${sub.week}.${fileType === 'pdf' ? 'pdf' : 'pptx'}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="space-y-4">
       
@@ -919,70 +842,10 @@ Generated for Academic Verification.`;
                   )}
                 </div>
 
-                {/* 6. PPT Presentation */}
+                {/* 6. GitHub Repository */}
                 <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-700 text-xs">6. Presentation Slide Deck (PPT)</span>
-                    {activeModalSub.presentationFile ? (
-                      <span className="text-emerald-700 font-extrabold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
-                        <CheckCircle2 size={11} /> Submitted
-                      </span>
-                    ) : (
-                      <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-md text-[11px]">
-                        Not Submitted
-                      </span>
-                    )}
-                  </div>
-                  {activeModalSub.presentationFile ? (
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="font-mono text-xs text-slate-800 truncate max-w-sm">
-                        {activeModalSub.presentationFile}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadFile(activeModalSub.presentationFile || 'presentation.pptx', 'ppt', activeModalTeam, activeModalSub)}
-                        className="px-2.5 py-1 rounded-lg bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Download size={12} /> Download PPT
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* 7. PDF Report */}
-                <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-700 text-xs">7. Technical Milestone Report (PDF)</span>
-                    {activeModalSub.pdfFile ? (
-                      <span className="text-emerald-700 font-extrabold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
-                        <CheckCircle2 size={11} /> Submitted
-                      </span>
-                    ) : (
-                      <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-md text-[11px]">
-                        Not Submitted
-                      </span>
-                    )}
-                  </div>
-                  {activeModalSub.pdfFile ? (
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="font-mono text-xs text-slate-800 truncate max-w-sm">
-                        {activeModalSub.pdfFile}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadFile(activeModalSub.pdfFile || 'report.pdf', 'pdf', activeModalTeam, activeModalSub)}
-                        className="px-2.5 py-1 rounded-lg bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Download size={12} /> Download PDF
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* 8. GitHub Repository */}
-                <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-700 text-xs">8. GitHub Repository</span>
+                    <span className="font-extrabold text-slate-700 text-xs">6. GitHub Repository</span>
                     {activeModalSub.repoUrl ? (
                       <span className="text-emerald-700 font-extrabold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
                         <CheckCircle2 size={11} /> Submitted
@@ -1010,7 +873,7 @@ Generated for Academic Verification.`;
                 {/* 9. Live Demo */}
                 <div className="p-3.5 bg-slate-50/70 border border-[#D8CCBA] rounded-2xl space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-700 text-xs">9. Live Demo / Deployment</span>
+                    <span className="font-extrabold text-slate-700 text-xs">7. Live Demo / Deployment</span>
                     {activeModalSub.demoUrl ? (
                       <span className="text-emerald-700 font-extrabold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
                         <CheckCircle2 size={11} /> Submitted

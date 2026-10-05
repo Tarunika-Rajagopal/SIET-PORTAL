@@ -31,6 +31,10 @@ async def test_all_endpoints():
             if t:
                 t.guide_email = "dr.manimegalai@siet.ac.in"
                 t.guide_name = "Dr. P. Manimegalai"
+                from models import WeeklySubmission
+                w2 = (await s.execute(select(WeeklySubmission).where(WeeklySubmission.team_id == t.id, WeeklySubmission.week == 2))).scalar_one_or_none()
+                if w2:
+                    w2.status = "Pending"
                 await s.commit()
 
         # 1. Root & Health
@@ -121,15 +125,16 @@ async def test_all_endpoints():
                 "id", "weekNumber", "teamId", "teamNo", "teamNumber", "classSection",
                 "teamLeader", "projectTitle", "status", "evaluationStatus", "submissionDate",
                 "score", "abstractSummary", "problemStatement", "proposedSolution",
-                "technologyUsed", "obstaclesFaced", "pptUrl", "presentationFileName",
-                "reportUrl", "githubUrl", "liveDemoUrl", "images", "comments", "guideReviewDate"
+                "technologyUsed", "technologiesUsed", "techStack", "obstaclesFaced",
+                "githubUrl", "liveDemoUrl", "comments", "guideReviewDate"
             ]:
                 assert field in s0, f"Field '{field}' missing from weekly submission"
 
-            # Verify removed alias fields are absent
+            # Verify removed fields (PPT, PDF, Output Screenshot, and obsolete aliases) are absent
             for removed in [
                 "submissionId", "week", "abstract", "presentationFile", "pdfFile",
-                "repoUrl", "demoUrl", "screenshotFile"
+                "repoUrl", "demoUrl", "screenshotFile", "pptUrl", "presentationFileName",
+                "reportUrl", "images"
             ]:
                 assert removed not in s0, f"Field '{removed}' should have been removed"
 

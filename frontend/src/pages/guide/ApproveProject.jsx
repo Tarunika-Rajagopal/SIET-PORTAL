@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { useGuide } from '../../context/GuideContext';
 import { MarksService } from '../../services/marksService';
-import { StudentService } from '../../services/studentService';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { hasAnyDetailSubmitted } from '../../utils/submissionUtils';
 
@@ -84,9 +83,7 @@ export const ApproveProject = () => {
           ? s.hasContent
           : (
               s.submissionDate &&
-              (s.abstractSummary || s.problemStatement || s.proposedSolution || s.technologyUsed || s.obstaclesFaced || s.pptUrl || s.reportUrl || s.presentationFileName || s.pdfFile || s.githubUrl || s.liveDemoUrl || (s.images && s.images.length > 0)) &&
-              !String(s.pptUrl || '').includes('mock_ppt') &&
-              !String(s.presentationFileName || '').includes('mock_ppt')
+              (s.abstractSummary || s.problemStatement || s.proposedSolution || s.technologyUsed || s.technologiesUsed || s.techStack || s.obstaclesFaced || s.githubUrl || s.liveDemoUrl)
             )
       );
 
@@ -107,8 +104,19 @@ export const ApproveProject = () => {
 
     if (pending) {
       const weekNum = Number(pending.weekNumber !== undefined ? pending.weekNumber : (pending.week !== undefined ? pending.week : (pending.submissionNumber || 1)));
+      const rawTech = pending.technologiesUsed || pending.technologyUsed || pending.techStack || team.technologiesUsed || team.technologyUsed;
+      const techArr = Array.isArray(rawTech)
+        ? rawTech
+        : (typeof rawTech === 'string' && rawTech.trim()
+            ? rawTech.split(',').map(s => s.trim()).filter(Boolean)
+            : []);
+      const techStr = typeof rawTech === 'string' ? rawTech : techArr.join(', ');
+
       return {
         ...pending,
+        technologiesUsed: techArr,
+        technologyUsed: techStr,
+        techStack: techStr,
         weekNumber: weekNum,
         submissionNumber: weekNum,
         isCurrentWait: true
@@ -121,6 +129,14 @@ export const ApproveProject = () => {
 
     if (!hasTitleMarks && team.titleStatus !== 'Approved' && (team.titleStatus === 'Pending' || hasAnyDetailSubmitted(team) || team.projectTitle)) {
       const w0 = subs[0];
+      const rawTech = w0?.technologiesUsed || w0?.technologyUsed || w0?.techStack || team.technologiesUsed || team.technologyUsed || team.techStack;
+      const techArr = Array.isArray(rawTech)
+        ? rawTech
+        : (typeof rawTech === 'string' && rawTech.trim()
+            ? rawTech.split(',').map(s => s.trim()).filter(Boolean)
+            : []);
+      const techStr = typeof rawTech === 'string' ? rawTech : techArr.join(', ');
+
       return {
         weekNumber: w0?.weekNumber || 1,
         submissionNumber: 1,
@@ -128,14 +144,14 @@ export const ApproveProject = () => {
         status: team.titleStatus || 'Pending',
         evaluationStatus: team.titleStatus || 'Pending',
         submissionDate: team.submittedDate || 'Submitted for Review',
-        problemStatement: team.problemStatement || '',
-        proposedSolution: team.proposedSolution || '',
-        abstractSummary: team.abstract || team.projectDescription || '',
-        technologiesUsed: team.technologiesUsed || [],
-        githubUrl: team.githubUrl || '',
-        liveDemoUrl: team.liveDemoUrl || '',
-        reportUrl: team.reportUrl || '',
-        presentationFileName: team.presentationFileName || '',
+        problemStatement: team.problemStatement || w0?.problemStatement || '',
+        proposedSolution: team.proposedSolution || w0?.proposedSolution || '',
+        abstractSummary: team.abstract || team.projectDescription || w0?.abstractSummary || '',
+        technologiesUsed: techArr,
+        technologyUsed: techStr,
+        techStack: techStr,
+        githubUrl: team.githubUrl || w0?.githubUrl || '',
+        liveDemoUrl: team.liveDemoUrl || w0?.liveDemoUrl || '',
         isCurrentWait: true
       };
     }
@@ -269,47 +285,6 @@ export const ApproveProject = () => {
       approveTitle(inspectedTeam.teamId);
     }
 
-    // 2. Immediately synchronize approval status to Student submissions list
-    try {
-      const studentSubs = StudentService.getSubmissions() || [];
-      let sItem = studentSubs.find(s => s.week === weekNum);
-      if (sItem) {
-        sItem.status = 'Approved';
-        sItem.comments = guideRemarks.trim() || 'Approved by Faculty Guide.';
-        sItem.score = calculatedTeamAverage;
-      } else {
-        studentSubs.push({
-          week: weekNum,
-          title: `Submission ${weekNum} Deliverable Submission`,
-          dueDate: `Submission ${weekNum}`,
-          status: 'Approved',
-          score: calculatedTeamAverage,
-          comments: guideRemarks.trim() || 'Approved by Faculty Guide.',
-          submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        });
-      }
-      StudentService.saveSubmissions(studentSubs);
-    } catch (e) {}
-
-    // 3. Immediately synchronize approved title to Student and Advisor stores if Submission 1
-    const approvedTitle = inspectedSub.projectTitle || inspectedTeam.projectTitle || inspectedTeam.title;
-    if (approvedTitle && weekNum === 1) {
-      try {
-        const sTeam = StudentService.getTeam();
-        sTeam.isTitleApproved = true;
-        sTeam.guideApprovalStatus = 'Approved';
-        sTeam.projectTitle = approvedTitle;
-        sTeam.submittedTitle = approvedTitle;
-        StudentService.saveTeam(sTeam);
-
-        const targetTeamId = inspectedTeam?.teamId || inspectedTeam?.id || inspectedTeam?.teamNo;
-        const d1 = StudentService.getDeliverables('Submission 1', targetTeamId);
-        d1.isTitleApproved = true;
-        d1.projectTitle = approvedTitle;
-        StudentService.saveAllDeliverables('Submission 1', d1, targetTeamId);
-      } catch (e) {}
-    }
-
     showToast(`Submission ${weekNum} for Team #${inspectedTeam.teamNumber} approved with average score (${calculatedTeamAverage}/100).`, 'success');
     setInspectModalOpen(false);
   };
@@ -352,95 +327,8 @@ export const ApproveProject = () => {
     setInspectModalOpen(false);
   };
 
-  // Download PPT/PDF
-  const handleDownloadFile = (fileName, fileType, sub, e) => {
-    if (e) e.stopPropagation();
-
-    let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    let content = '';
-
-    const formattedTitle = getSubmissionTitle(inspectedTeam?.projectTitle);
-
-    if (fileType === 'pdf') {
-      mimeType = 'application/pdf';
-      content = `%PDF-1.4
-1 0 obj
-<< /Title (${fileName}) /Author (${inspectedTeam?.guide || 'Faculty Guide'}) >>
-endobj
-2 0 obj
-<< /Type /Catalog /Pages 3 0 R >>
-endobj
-3 0 obj
-<< /Type /Pages /Kids [4 0 R] /Count 1 >>
-endobj
-4 0 obj
-<< /Type /Page /Parent 3 0 R /MediaBox [0 0 612 792] /Contents 5 0 R >>
-endobj
-5 0 obj
-<< /Length 220 >>
-stream
-BT
-/F1 14 Tf
-50 720 Td
-(Sri Shakthi Institute of Engineering and Technology - Department of CSE) Tj
-0 -25 Td
-(Milestone Deliverable Dossier: Submission ${sub.submissionNumber || sub.weekNumber} - ${sub.title || 'Technical Report'}) Tj
-0 -20 Td
-(Project Title: ${formattedTitle}) Tj
-0 -20 Td
-(Lead Student: ${inspectedTeam?.teamLeader} | Roll No: ${inspectedTeam?.leaderRollNo}) Tj
-0 -20 Td
-(Faculty Guide: ${inspectedTeam?.guide || 'Faculty Guide'} | Status: ${sub.status || sub.evaluationStatus || 'Submitted'}) Tj
-0 -20 Td
-(Submitted Date: ${sub.submissionDate || new Date().toLocaleDateString()}) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f
-trailer
-<< /Size 6 /Root 2 0 R >>
-startxref
-500
-%%EOF`;
-    } else {
-      mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      content = `SIET PowerPoint Milestone Presentation
-Milestone: Submission ${sub.submissionNumber || sub.weekNumber} - ${sub.title || 'Presentation Deck'}
-Project: ${formattedTitle}
-Lead Student: ${inspectedTeam?.teamLeader} (${inspectedTeam?.leaderRollNo})
-Faculty Guide: ${inspectedTeam?.guide || 'Faculty Guide'}
-Submission Date: ${sub.submissionDate || new Date().toLocaleDateString()}
-Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setDownloadToast(`Downloaded ${fileName}`);
-    setTimeout(() => {
-      setDownloadToast(null);
-    }, 3000);
-  };
-
   return (
     <div className="space-y-5 pb-12 animate-fadeIn font-sans">
-      
-      {/* Toast */}
-      {downloadToast && (
-        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border border-slate-700">
-          <Download size={14} className="text-mint-400" />
-          <span>{downloadToast}</span>
-        </div>
-      )}
 
       {/* 1. FILTERING TOOLBAR ONLY (Starts directly from filtering) */}
       <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#D8CCBA] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
@@ -774,71 +662,31 @@ Status: ${sub.status || sub.evaluationStatus || 'Submitted'}`;
                 <h4 className="text-[10px] font-extrabold text-[#75695A] uppercase tracking-wider">
                   Technologies &amp; Frameworks
                 </h4>
-                {Array.isArray(inspectedSub.technologiesUsed) && inspectedSub.technologiesUsed.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {inspectedSub.technologiesUsed.map((tech, i) => (
-                      <span key={i} className="px-2.5 py-1 rounded-lg bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-[11px] font-bold">
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-rose-600 font-bold text-xs">Not Submitted</span>
-                )}
+                {(() => {
+                  const raw = inspectedSub.technologiesUsed || inspectedSub.technologyUsed || inspectedSub.techStack || inspectedTeam?.technologiesUsed || inspectedTeam?.technologyUsed || inspectedTeam?.techStack;
+                  const list = Array.isArray(raw)
+                    ? raw
+                    : (typeof raw === 'string' && raw.trim() ? raw.split(',').map(s => s.trim()).filter(Boolean) : []);
+                  return list.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {list.map((tech, i) => (
+                        <span key={i} className="px-2.5 py-1 rounded-lg bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-[11px] font-bold">
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-rose-600 font-bold text-xs">Not Submitted</span>
+                  );
+                })()}
               </div>
 
-              {/* 6. Artifacts: Presentation PPT, PDF, GitHub, Demo */}
+              {/* 6. Artifacts: GitHub, Demo */}
               <div className="space-y-2.5">
                 <h4 className="text-[10px] font-extrabold text-[#75695A] uppercase tracking-wider">
                   Deliverables &amp; Artifacts
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  
-                  {/* Presentation PPT */}
-                  <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 truncate">
-                      <Presentation size={18} className="text-amber-700 shrink-0" />
-                      <div className="truncate">
-                        <span className="font-bold text-[#111111] text-xs block truncate">Presentation Deck</span>
-                        <span className="text-[10px] text-[#75695A]">PowerPoint (.pptx)</span>
-                      </div>
-                    </div>
-                    {inspectedSub.presentationFileName || inspectedSub.pptUrl || inspectedSub.presentationFile ? (
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadFile(`Team_${inspectedTeam.teamNumber}_Submission_${inspectedSub.submissionNumber || 1}.pptx`, 'ppt', inspectedSub, e)}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-[#D8CCBA] hover:bg-[#EDE7DB] text-xs font-bold text-[#111111] flex items-center gap-1 cursor-pointer shrink-0"
-                      >
-                        <Download size={13} />
-                        <span>Download</span>
-                      </button>
-                    ) : (
-                      <span className="text-rose-600 font-bold text-xs shrink-0">Not Submitted</span>
-                    )}
-                  </div>
-
-                  {/* PDF Technical Report */}
-                  <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 truncate">
-                      <FileText size={18} className="text-rose-700 shrink-0" />
-                      <div className="truncate">
-                        <span className="font-bold text-[#111111] text-xs block truncate">Technical Report</span>
-                        <span className="text-[10px] text-[#75695A]">Documentation (.pdf)</span>
-                      </div>
-                    </div>
-                    {inspectedSub.reportUrl || inspectedSub.reportFile ? (
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadFile(`Team_${inspectedTeam.teamNumber}_Submission_${inspectedSub.submissionNumber || 1}.pdf`, 'pdf', inspectedSub, e)}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-[#D8CCBA] hover:bg-[#EDE7DB] text-xs font-bold text-[#111111] flex items-center gap-1 cursor-pointer shrink-0"
-                      >
-                        <Download size={13} />
-                        <span>Download</span>
-                      </button>
-                    ) : (
-                      <span className="text-rose-600 font-bold text-xs shrink-0">Not Submitted</span>
-                    )}
-                  </div>
 
                   {/* GitHub Repo */}
                   <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl flex items-center justify-between gap-2">

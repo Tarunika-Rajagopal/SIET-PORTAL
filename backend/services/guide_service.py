@@ -15,6 +15,26 @@ from repositories.project_repository import ProjectRepository
 from repositories.marks_repository import MarksRepository
 
 
+def _normalize_faculty_name(name: Optional[str]) -> str:
+    if not name:
+        return ""
+    cleaned = name.lower().strip()
+    for prefix in ["dr.", "dr ", "prof.", "prof ", "mr.", "mr ", "mrs.", "mrs ", "ms.", "ms "]:
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+    return " ".join(cleaned.split())
+
+
+def _is_guide_for_team(user: User, team: Optional[Team]) -> bool:
+    if not team:
+        return False
+    if team.guide_email and user.email:
+        return team.guide_email.strip().lower() == user.email.strip().lower()
+    if team.guide_name and user.name:
+        return _normalize_faculty_name(team.guide_name) == _normalize_faculty_name(user.name)
+    return False
+
+
 def _team_brief(t: Team) -> Dict[str, Any]:
     digits = "".join(filter(str.isdigit, t.team_no or ""))
     team_number = int(digits) if digits else 1
@@ -51,6 +71,11 @@ def _team_brief(t: Team) -> Dict[str, Any]:
         "leaderRollNo": t.lead_roll_no or "",
         "memberCount": len(t.members) if t.members else 0,
         "members": members_list,
+        "problemStatement": t.problem_statement or "",
+        "proposedSolution": t.proposed_solution or "",
+        "abstract": t.abstract or "",
+        "githubUrl": t.repo_url or "",
+        "liveDemoUrl": t.demo_url or "",
     }
 
 
@@ -140,13 +165,12 @@ class GuideService:
                 (s.solution and s.solution.strip()) or
                 (s.technology_used and s.technology_used.strip()) or
                 (s.obstacles_faced and s.obstacles_faced.strip()) or
-                (s.presentation_file and s.presentation_file.strip() and "mock_ppt" not in s.presentation_file) or
-                (s.pdf_file and s.pdf_file.strip()) or
-                (s.file_name and s.file_name.strip()) or
                 (s.repo_url and s.repo_url.strip()) or
-                (s.demo_url and s.demo_url.strip()) or
-                (s.screenshot_file and s.screenshot_file.strip())
+                (s.demo_url and s.demo_url.strip())
             )
+
+            tech_used = s.technology_used or ""
+            tech_list = [x.strip() for x in tech_used.split(",") if x.strip()] if tech_used else []
 
             out.append({
                 "id": str(s.id),
@@ -166,14 +190,12 @@ class GuideService:
                 "abstractSummary": s.abstract or "",
                 "problemStatement": s.problem_statement or "",
                 "proposedSolution": s.solution or "",
-                "technologyUsed": s.technology_used or "",
+                "technologyUsed": tech_used,
+                "technologiesUsed": tech_list,
+                "techStack": tech_used,
                 "obstaclesFaced": s.obstacles_faced or "",
-                "pptUrl": s.presentation_file or "",
-                "presentationFileName": s.presentation_file or "",
-                "reportUrl": s.pdf_file or "",
                 "githubUrl": s.repo_url or (t.repo_url if t else ""),
                 "liveDemoUrl": s.demo_url or (t.demo_url if t else ""),
-                "images": [s.screenshot_file] if s.screenshot_file else [],
                 "comments": (s.comments or (wm.remarks if wm else "")) if (is_approved or status_val in ("Revision Required", "Rejected")) else "",
                 "guideReviewDate": s.guide_review_date or "",
             })
@@ -191,14 +213,7 @@ class GuideService:
 
         # Authorize: submission must belong to a team supervised by this guide
         team = await self.team_repo.get_by_id(s.team_id)
-        guide_name = user.name or ""
-        is_guide = False
-        if team:
-            if team.guide_email and team.guide_email.lower() == user.email.lower():
-                is_guide = True
-            elif team.guide_name and guide_name and guide_name.lower() in team.guide_name.lower():
-                is_guide = True
-        if not is_guide:
+        if not _is_guide_for_team(user, team):
             raise HTTPException(403, "You are not authorized to review submissions for this team")
 
         status_upper = (req.status or "").strip().upper()
@@ -279,13 +294,7 @@ class GuideService:
         if not team:
             raise HTTPException(404, "Team not found")
 
-        guide_name = user.name or ""
-        is_guide = False
-        if team.guide_email and team.guide_email.lower() == user.email.lower():
-            is_guide = True
-        elif team.guide_name and guide_name and guide_name.lower() in team.guide_name.lower():
-            is_guide = True
-        if not is_guide:
+        if not _is_guide_for_team(user, team):
             raise HTTPException(403, "You are not authorized to review submissions for this team")
 
         s = await self.sub_repo.get_by_team_and_week(team.id, week)
@@ -370,7 +379,7 @@ class GuideService:
             action_type=action_type,
             target=target,
             details=details,
-            class_section=class_section or user.class_name or "CSE-B",
+            class_section=class_section or user.class_name or "",
         )
         await audit_repo.create_guide_history(entry)
         await self.session.commit()

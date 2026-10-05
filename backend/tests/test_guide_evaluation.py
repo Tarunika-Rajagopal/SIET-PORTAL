@@ -36,7 +36,7 @@ async def test_guide_submission_evaluation_flow():
         submissions = res.json()
         assert len(submissions) > 0
 
-        target = submissions[0]
+        target = next((s for s in submissions if s.get("teamId") == "TEAM-CSE-Y3-B04"), submissions[0])
         member_marks = {
             "714023104112": 88,
             "714023104178": 90,

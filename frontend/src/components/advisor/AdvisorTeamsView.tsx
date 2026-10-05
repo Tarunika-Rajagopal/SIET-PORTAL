@@ -169,14 +169,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
   const teamMarksMap = activeTeam ? MarksService.getAllTeamMarks(activeTeam.teamId) : {};
   const activeWeekMarks = activeTeam ? MarksService.getWeeklyMarks(activeTeam.teamId, selectedWeek) : null;
 
-  const handleDownloadFile = (fileName: string, fileType: 'ppt' | 'pdf', sub?: WeeklySubmission, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (!activeTeam) return;
-    const targetSub = sub || activeSubmission;
-    if (!targetSub) return;
-    AdvisorSubmissionsService.downloadFile(fileName, fileType, targetSub, activeTeam, advisorName);
-    onShowToast(`Downloaded ${fileName}`);
-  };
+
 
   const handleConfirmDeleteTeam = async () => {
     if (!activeTeam) return;
@@ -808,100 +801,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                     </span>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      
-                      {/* Presentation PPT */}
-                      {activeSubmission.fileName || activeSubmission.presentationFile ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                              <FileText size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                                {activeSubmission.fileName || activeSubmission.presentationFile}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {activeSubmission.fileSize || '4.2 MB'} &bull; PowerPoint Deck
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDownloadFile(
-                              activeSubmission.fileName || activeSubmission.presentationFile || `Week_${activeSubmission.week}_Presentation.pptx`,
-                              'ppt',
-                              activeSubmission,
-                              e
-                            )}
-                            className="px-3 py-1.5 rounded-xl bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                          >
-                            <Download size={13} />
-                            <span>Download</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                              <FileText size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-500 block">Presentation Deck</span>
-                              <span className="text-[10px] text-slate-400">PowerPoint (.pptx)</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>✕ Not Uploaded</span>
-                          </span>
-                        </div>
-                      )}
 
-                      {/* Technical Report PDF */}
-                      {activeSubmission.pdfFile ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
-                              <FileCode size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block truncate max-w-[150px]">
-                                {activeSubmission.pdfFile}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">PDF Technical Dossier</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDownloadFile(
-                              activeSubmission.pdfFile || `Week_${activeSubmission.week}_Report.pdf`,
-                              'pdf',
-                              activeSubmission,
-                              e
-                            )}
-                            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer"
-                          >
-                            <Download size={13} />
-                            <span>Download</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                              <FileCode size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-500 block">Technical Dossier</span>
-                              <span className="text-[10px] text-slate-400">Report (.pdf)</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>✕ Not Uploaded</span>
-                          </span>
-                        </div>
-                      )}
 
                       {/* GitHub Repo Link */}
                       {activeSubmission.repoUrl ? (

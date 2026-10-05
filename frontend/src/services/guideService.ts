@@ -1,5 +1,5 @@
 import { ApprovalItem } from '../types';
-import { StudentService } from './studentService';
+import { ApiClient } from './apiClient';
 
 export interface MentoredTeam {
   teamId: string;
@@ -16,56 +16,51 @@ export interface MentoredTeam {
 }
 
 export const GuideService = {
-  getMentoredTeams(): MentoredTeam[] {
-    const team = StudentService.getTeam();
-    const currentWeek = StudentService.getCurrentAcademicWeek();
-    return [
-      {
-        teamId: team.id,
-        class: team.section,
-        batch: team.batch,
-        title: team.projectTitle,
-        leadStudent: "Tarunika Rajgopal (714023104112)",
-        currentWeek: currentWeek,
-        status: team.status,
-        guideApprovalStatus: team.guideApprovalStatus,
-        lastSubmission: "Week " + currentWeek,
-        reviewStatus: team.guideApprovalStatus === 'Approved' ? 'Approved' : 'Under Review',
-        progress: team.progress
-      }
-    ];
-  },
-
-  getPendingApprovals(): ApprovalItem[] {
-    const team = StudentService.getTeam();
-    if (team.submittedTitle && !team.isTitleApproved) {
-      return [
-        {
-          id: "app-1",
-          teamNo: team.teamNo,
-          title: team.submittedTitle,
-          proposedBy: "Tarunika Rajgopal (714023104112)",
-          submittedOn: "Week 1",
-          status: "Pending",
-          category: "Project Title Proposal",
-          description: "Initial Capstone Project Title Proposal submitted by student."
-        }
-      ];
+  async getMentoredTeams(): Promise<MentoredTeam[]> {
+    try {
+      const teams = await ApiClient.getGuideTeams();
+      return (teams || []).map((t: any) => ({
+        teamId: t.teamId || t.id || '',
+        class: t.classSection || t.section || '',
+        batch: t.batch || '',
+        title: t.projectTitle || '',
+        leadStudent: t.teamLeader ? `${t.teamLeader}${t.leaderRollNo ? ` (${t.leaderRollNo})` : ''}` : '',
+        currentWeek: 1,
+        status: t.status || 'In Progress',
+        guideApprovalStatus: t.guideApprovalStatus || 'Pending',
+        lastSubmission: 'Week 1',
+        reviewStatus: t.guideApprovalStatus === 'Approved' ? 'Approved' : 'Under Review',
+        progress: t.progress || 0
+      }));
+    } catch {
+      return [];
     }
-    return [];
   },
 
-  approveItem(_id: string): void {
-    const team = StudentService.getTeam();
-    team.isTitleApproved = true;
-    team.guideApprovalStatus = 'Approved';
-    StudentService.saveTeam(team);
+  async getPendingApprovals(): Promise<ApprovalItem[]> {
+    try {
+      const teams = await ApiClient.getGuideTeams();
+      const pending = (teams || []).filter((t: any) => !t.isTitleApproved && t.projectTitle);
+      return pending.map((t: any) => ({
+        id: t.id || t.teamId || '',
+        teamNo: t.teamNo || `Team ${t.teamNumber || ''}`,
+        title: t.projectTitle || '',
+        proposedBy: t.teamLeader ? `${t.teamLeader}${t.leaderRollNo ? ` (${t.leaderRollNo})` : ''}` : '',
+        submittedOn: 'Week 1',
+        status: 'Pending',
+        category: 'Project Title Proposal',
+        description: 'Capstone Project Title Proposal submitted by student team.'
+      }));
+    } catch {
+      return [];
+    }
   },
 
-  rejectItem(_id: string, _reason?: string): void {
-    const team = StudentService.getTeam();
-    team.isTitleApproved = false;
-    team.guideApprovalStatus = 'Revision Required';
-    StudentService.saveTeam(team);
+  async approveItem(teamId: string, title?: string): Promise<void> {
+    await ApiClient.approveProjectTitle(teamId, title || '');
+  },
+
+  async rejectItem(teamId: string, reason?: string): Promise<void> {
+    await ApiClient.rejectProjectTitle(teamId, reason || 'Title revised');
   }
 };

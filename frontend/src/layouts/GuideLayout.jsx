@@ -47,7 +47,7 @@ export const GuideLayout = () => {
       to: '/guide/approve-submissions',
       label: 'Approve Submissions',
       icon: CheckSquare,
-      badge: stats.pendingTitleApprovalsCount > 0 ? `${stats.pendingTitleApprovalsCount} Pending` : null,
+      badge: (stats.totalPendingApprovalsCount > 0) ? `${stats.totalPendingApprovalsCount} Pending` : null,
       badgeColor: 'bg-[#EDE7DB] text-[#8A6A32] border border-[#D4C39F]'
     },
     {

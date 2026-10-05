@@ -13,6 +13,26 @@ from repositories.marks_repository import MarksRepository
 from repositories.submission_repository import SubmissionRepository
 
 
+def _normalize_faculty_name(name: Optional[str]) -> str:
+    if not name:
+        return ""
+    cleaned = name.lower().strip()
+    for prefix in ["dr.", "dr ", "prof.", "prof ", "mr.", "mr ", "mrs.", "mrs ", "ms.", "ms "]:
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+    return " ".join(cleaned.split())
+
+
+def _is_guide_for_team(user: User, team: Optional[Team]) -> bool:
+    if not team:
+        return False
+    if team.guide_email and user.email:
+        return team.guide_email.strip().lower() == user.email.strip().lower()
+    if team.guide_name and user.name:
+        return _normalize_faculty_name(team.guide_name) == _normalize_faculty_name(user.name)
+    return False
+
+
 class MarksService:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -27,17 +47,12 @@ class MarksService:
         return team
 
     def check_team_access(self, team: Team, user: User) -> None:
-        if user.role == "student":
+        user_role = (user.role or "").lower()
+        if user_role == "student":
             if user.team_id != team.team_id and user.team_id != str(team.id):
                 raise HTTPException(status_code=403, detail="You are not authorized to view marks for this team")
-        elif user.role == "guide":
-            guide_name = user.name or ""
-            is_guide = False
-            if team.guide_email and team.guide_email.lower() == user.email.lower():
-                is_guide = True
-            elif team.guide_name and guide_name and guide_name.lower() in team.guide_name.lower():
-                is_guide = True
-            if not is_guide:
+        elif "guide" in user_role:
+            if not _is_guide_for_team(user, team):
                 raise HTTPException(status_code=403, detail="You are not authorized to view marks for this team")
 
     async def _get_team_members(self, team_id_uuid: uuid.UUID) -> list:

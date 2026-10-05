@@ -92,13 +92,14 @@ class StudentService:
                 team = await self.team_repo.get_by_team_id_string(user.team_id)
 
         if not team:
+            from sqlalchemy import or_, desc, func
+            from models import Student
             clauses = []
-            if user.roll_no:
-                clauses.append(TeamMember.roll_no == user.roll_no.strip())
-            if user.email:
-                clauses.append(TeamMember.email == user.email.strip())
+            if user.roll_no and user.roll_no.strip():
+                clauses.append(func.lower(func.trim(TeamMember.roll_no)) == user.roll_no.strip().lower())
+            if user.email and user.email.strip():
+                clauses.append(func.lower(func.trim(TeamMember.email)) == user.email.strip().lower())
             if clauses:
-                from sqlalchemy import or_, desc
                 res = await self.session.execute(
                     select(TeamMember)
                     .where(or_(*clauses))
@@ -119,6 +120,35 @@ class StudentService:
                                 except Exception:
                                     await self.session.rollback()
                             break
+
+            # Secondary fallback: lookup in students table by roll_no or email
+            if not team and (user.roll_no or user.email):
+                s_clauses = []
+                if user.roll_no and user.roll_no.strip():
+                    s_clauses.append(func.lower(func.trim(Student.roll_no)) == user.roll_no.strip().lower())
+                if user.email and user.email.strip():
+                    s_clauses.append(func.lower(func.trim(Student.email)) == user.email.strip().lower())
+                if s_clauses:
+                    res_s = await self.session.execute(select(Student).where(or_(*s_clauses)))
+                    stud = res_s.scalars().first()
+                    if stud and stud.class_section and stud.team_no and stud.team_no != "Unassigned":
+                        team_candidates = [
+                            f"{stud.class_section}-{stud.team_no}",
+                            stud.team_no,
+                        ]
+                        for cand in team_candidates:
+                            if with_members:
+                                team = await self.team_repo.get_with_members(cand)
+                            else:
+                                team = await self.team_repo.get_by_team_id_string(cand)
+                            if team:
+                                if not user.team_id:
+                                    user.team_id = team.team_id or str(team.id)
+                                    try:
+                                        await self.session.commit()
+                                    except Exception:
+                                        await self.session.rollback()
+                                break
 
         if not team:
             raise HTTPException(404, "Student is not assigned to any team")

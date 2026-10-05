@@ -41,9 +41,7 @@ export const WeeklySubmissions = () => {
     (team.submissions || []).forEach(sub => {
       const hasRealContent = Boolean(
         sub.submissionDate &&
-        (sub.abstractSummary || sub.problemStatement || sub.proposedSolution || sub.pptUrl || sub.reportUrl || sub.presentationFileName || sub.pdfFile || sub.githubUrl || sub.liveDemoUrl || (sub.images && sub.images.length > 0)) &&
-        !String(sub.pptUrl || '').includes('mock_ppt') &&
-        !String(sub.presentationFileName || '').includes('mock_ppt')
+        (sub.abstractSummary || sub.problemStatement || sub.proposedSolution || sub.technologyUsed || sub.techStack || sub.githubUrl || sub.liveDemoUrl || sub.title || sub.projectTitle)
       );
 
       if (hasRealContent) {

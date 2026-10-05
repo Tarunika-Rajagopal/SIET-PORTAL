@@ -128,14 +128,20 @@ export const MyTeams = () => {
                          existing?.submissionStatus === 'Approved';
 
       if (existing) {
+        const rawTech = existing.technologiesUsed || existing.technologyUsed || existing.techStack || team.technologiesUsed || team.technologyUsed || team.techStack;
+        const techArr = Array.isArray(rawTech)
+          ? rawTech
+          : (typeof rawTech === 'string' && rawTech.trim()
+              ? rawTech.split(',').map(s => s.trim()).filter(Boolean)
+              : []);
+        const techStr = typeof rawTech === 'string' ? rawTech : techArr.join(', ');
+
         const hasRealContent = Boolean(
           existing.hasContent !== undefined
             ? existing.hasContent
             : (
                 existing.submissionDate &&
-                (existing.abstractSummary || existing.problemStatement || existing.proposedSolution || existing.technologyUsed || existing.obstaclesFaced || existing.pptUrl || existing.reportUrl || existing.presentationFileName || existing.pdfFile || existing.githubUrl || existing.liveDemoUrl || (existing.images && existing.images.length > 0)) &&
-                !String(existing.pptUrl || '').includes('mock_ppt') &&
-                !String(existing.presentationFileName || '').includes('mock_ppt')
+                (existing.abstractSummary || existing.problemStatement || existing.proposedSolution || techStr || existing.obstaclesFaced || existing.githubUrl || existing.liveDemoUrl)
               )
         );
 
@@ -143,6 +149,9 @@ export const MyTeams = () => {
 
         return {
           ...existing,
+          technologiesUsed: techArr,
+          technologyUsed: techStr,
+          techStack: techStr,
           submissionNumber: def.submissionNumber,
           weekNumber: def.weekNumber,
           title: existing.title || def.defaultTitle,
@@ -158,6 +167,14 @@ export const MyTeams = () => {
 
       // If team proposal details exist and this is Submission 1
       if (def.submissionNumber === 1 && (team.projectTitle || team.problemStatement)) {
+        const rawTech = team.technologiesUsed || team.technologyUsed || team.techStack;
+        const techArr = Array.isArray(rawTech)
+          ? rawTech
+          : (typeof rawTech === 'string' && rawTech.trim()
+              ? rawTech.split(',').map(s => s.trim()).filter(Boolean)
+              : []);
+        const techStr = typeof rawTech === 'string' ? rawTech : techArr.join(', ');
+
         return {
           submissionNumber: 1,
           weekNumber: 1,
@@ -171,13 +188,21 @@ export const MyTeams = () => {
           problemStatement: team.problemStatement || '',
           proposedSolution: team.proposedSolution || '',
           abstractSummary: team.abstract || team.projectDescription || '',
-          technologiesUsed: team.technologiesUsed || [],
+          technologiesUsed: techArr,
+          technologyUsed: techStr,
+          techStack: techStr,
           githubUrl: team.githubUrl || '',
-          liveDemoUrl: team.liveDemoUrl || '',
-          reportUrl: team.reportUrl || '',
-          presentationFileName: team.presentationFileName || ''
+          liveDemoUrl: team.liveDemoUrl || ''
         };
       }
+
+      const teamRawTech = team.technologiesUsed || team.technologyUsed || team.techStack;
+      const teamTechArr = Array.isArray(teamRawTech)
+        ? teamRawTech
+        : (typeof teamRawTech === 'string' && teamRawTech.trim()
+            ? teamRawTech.split(',').map(s => s.trim()).filter(Boolean)
+            : []);
+      const teamTechStr = typeof teamRawTech === 'string' ? teamRawTech : teamTechArr.join(', ');
 
       return {
         submissionNumber: def.submissionNumber,
@@ -191,7 +216,9 @@ export const MyTeams = () => {
         marksRemarks: '',
         abstractSummary: '',
         obstaclesFaced: '',
-        technologiesUsed: team.technologiesUsed || []
+        technologiesUsed: teamTechArr,
+        technologyUsed: teamTechStr,
+        techStack: teamTechStr
       };
     });
   };
@@ -204,96 +231,8 @@ export const MyTeams = () => {
     setDetailModalOpen(true);
   };
 
-  // Real file download for PPT and PDF
-  const handleDownloadFile = (fileName, fileType, sub, e) => {
-    if (e) e.stopPropagation();
-
-    let mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    let content = '';
-
-    const formattedTitle = getSubmissionTitle(activeTeamForModal?.projectTitle);
-
-    if (fileType === 'pdf') {
-      mimeType = 'application/pdf';
-      content = `%PDF-1.4
-1 0 obj
-<< /Title (${fileName}) /Author (${activeTeamForModal?.guide || 'Faculty Guide'}) >>
-endobj
-2 0 obj
-<< /Type /Catalog /Pages 3 0 R >>
-endobj
-3 0 obj
-<< /Type /Pages /Kids [4 0 R] /Count 1 >>
-endobj
-4 0 obj
-<< /Type /Page /Parent 3 0 R /MediaBox [0 0 612 792] /Contents 5 0 R >>
-endobj
-5 0 obj
-<< /Length 220 >>
-stream
-BT
-/F1 14 Tf
-50 720 Td
-(Sri Shakthi Institute of Engineering and Technology - Department of CSE) Tj
-0 -25 Td
-(Milestone Deliverable Dossier: Submission ${sub.submissionNumber} - ${sub.title}) Tj
-0 -20 Td
-(Project Title: ${formattedTitle}) Tj
-0 -20 Td
-(Lead Student: ${activeTeamForModal?.teamLeader} | Roll No: ${activeTeamForModal?.leaderRollNo}) Tj
-0 -20 Td
-(Project Guide: ${activeTeamForModal?.guide || 'Faculty Guide'} | Status: ${sub.status}) Tj
-0 -20 Td
-(Submitted Date: ${sub.submissionDate || 'N/A'}) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f
-trailer
-<< /Size 6 /Root 2 0 R >>
-startxref
-500
-%%EOF`;
-    } else {
-      mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      content = `SIET PowerPoint Milestone Presentation
-Milestone: Submission ${sub.submissionNumber} - ${sub.title}
-Project: ${formattedTitle}
-Lead Student: ${activeTeamForModal?.teamLeader} (${activeTeamForModal?.leaderRollNo})
-Project Guide: ${activeTeamForModal?.guide || 'Faculty Guide'}
-Submission Date: ${sub.submissionDate || 'N/A'}
-Evaluation Status: ${sub.status}
-Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty Guide'}`;
-    }
-
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setDownloadToast(`Downloaded ${fileName}`);
-    setTimeout(() => {
-      setDownloadToast(null);
-    }, 3000);
-  };
-
   return (
     <div className="space-y-5 pb-12 animate-fadeIn font-sans">
-      
-      {/* Toast */}
-      {downloadToast && (
-        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border border-slate-700 animate-fadeIn">
-          <Download size={14} className="text-mint-400" />
-          <span>{downloadToast}</span>
-        </div>
-      )}
 
       {/* 1. FILTERING TOOLBAR ONLY (Starts directly from filtering: batch, class, name) */}
       <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#D8CCBA] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
@@ -415,7 +354,7 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
                         {/* 3. Title */}
                         <td className="p-4">
                           {(() => {
-                            const isSub1Approved = team.titleStatus === 'Approved' || team.isTitleApproved || StudentService.isSubmission1Approved(team.teamId || team.id);
+                            const isSub1Approved = team.titleStatus === 'Approved' || team.isTitleApproved;
                             const formatted = formatProjectTitle(team.projectTitle, isSub1Approved ? 'Approved' : team.titleStatus, isSub1Approved);
                             const isApproved = formatted !== 'No Title Submitted' && formatted !== 'Title Approval Pending';
                             const isPending = formatted === 'Title Approval Pending';
@@ -750,71 +689,31 @@ Guide Feedback: ${sub.marksRemarks || sub.guideRemarks || 'Evaluated by Faculty 
                 <h4 className="text-[10px] font-extrabold text-[#75695A] uppercase tracking-wider">
                   Technologies &amp; Frameworks
                 </h4>
-                {Array.isArray(activeSubModal.technologiesUsed) && activeSubModal.technologiesUsed.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeSubModal.technologiesUsed.map((tech, i) => (
-                      <span key={i} className="px-2.5 py-1 rounded-lg bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-[11px] font-bold">
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-rose-600 font-bold text-xs">Not Submitted</span>
-                )}
+                {(() => {
+                  const raw = activeSubModal.technologiesUsed || activeSubModal.technologyUsed || activeSubModal.techStack || activeTeamForModal?.technologiesUsed || activeTeamForModal?.technologyUsed || activeTeamForModal?.techStack;
+                  const list = Array.isArray(raw)
+                    ? raw
+                    : (typeof raw === 'string' && raw.trim() ? raw.split(',').map(s => s.trim()).filter(Boolean) : []);
+                  return list.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {list.map((tech, i) => (
+                        <span key={i} className="px-2.5 py-1 rounded-lg bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-[11px] font-bold">
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-rose-600 font-bold text-xs">Not Submitted</span>
+                  );
+                })()}
               </div>
 
-              {/* 6. Artifacts: Presentation PPT, PDF, GitHub, Demo */}
+              {/* 6. Artifacts: GitHub, Demo */}
               <div className="space-y-2.5">
                 <h4 className="text-[10px] font-extrabold text-[#75695A] uppercase tracking-wider">
                   Submitted Deliverables &amp; Artifacts
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  
-                  {/* Presentation PPT */}
-                  <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 truncate">
-                      <Presentation size={18} className="text-amber-700 shrink-0" />
-                      <div className="truncate">
-                        <span className="font-bold text-[#111111] text-xs block truncate">Presentation Deck</span>
-                        <span className="text-[10px] text-[#75695A]">PowerPoint (.pptx)</span>
-                      </div>
-                    </div>
-                    {activeSubModal.presentationFileName || activeSubModal.pptUrl || activeSubModal.presentationFile ? (
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadFile(`Team_${activeTeamForModal.teamNumber}_Submission_${activeSubModal.submissionNumber}.pptx`, 'ppt', activeSubModal, e)}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-[#D8CCBA] hover:bg-[#EDE7DB] text-xs font-bold text-[#111111] flex items-center gap-1 cursor-pointer shrink-0"
-                      >
-                        <Download size={13} />
-                        <span>Download</span>
-                      </button>
-                    ) : (
-                      <span className="text-rose-600 font-bold text-xs shrink-0">Not Submitted</span>
-                    )}
-                  </div>
-
-                  {/* PDF Technical Report */}
-                  <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 truncate">
-                      <FileText size={18} className="text-rose-700 shrink-0" />
-                      <div className="truncate">
-                        <span className="font-bold text-[#111111] text-xs block truncate">Technical Report</span>
-                        <span className="text-[10px] text-[#75695A]">Documentation (.pdf)</span>
-                      </div>
-                    </div>
-                    {activeSubModal.reportUrl || activeSubModal.reportFile ? (
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadFile(`Team_${activeTeamForModal.teamNumber}_Submission_${activeSubModal.submissionNumber}.pdf`, 'pdf', activeSubModal, e)}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-[#D8CCBA] hover:bg-[#EDE7DB] text-xs font-bold text-[#111111] flex items-center gap-1 cursor-pointer shrink-0"
-                      >
-                        <Download size={13} />
-                        <span>Download</span>
-                      </button>
-                    ) : (
-                      <span className="text-rose-600 font-bold text-xs shrink-0">Not Submitted</span>
-                    )}
-                  </div>
 
                   {/* GitHub Repo */}
                   <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl flex items-center justify-between gap-2">

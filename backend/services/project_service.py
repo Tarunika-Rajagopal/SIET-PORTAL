@@ -10,6 +10,27 @@ from models import Team, TitleApproval, User
 from schemas import UpdateTitleRequest, TitleApprovalRequest
 from repositories.team_repository import TeamRepository
 from repositories.project_repository import ProjectRepository
+from typing import Optional
+
+
+def _normalize_faculty_name(name: Optional[str]) -> str:
+    if not name:
+        return ""
+    cleaned = name.lower().strip()
+    for prefix in ["dr.", "dr ", "prof.", "prof ", "mr.", "mr ", "mrs.", "mrs ", "ms.", "ms "]:
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+    return " ".join(cleaned.split())
+
+
+def _is_guide_for_team(user: User, team: Optional[Team]) -> bool:
+    if not team:
+        return False
+    if team.guide_email and user.email:
+        return team.guide_email.strip().lower() == user.email.strip().lower()
+    if team.guide_name and user.name:
+        return _normalize_faculty_name(team.guide_name) == _normalize_faculty_name(user.name)
+    return False
 
 
 class ProjectService:
@@ -80,14 +101,9 @@ class ProjectService:
             raise HTTPException(status_code=404, detail="Project or team not found")
 
         # If guide, verify guide is assigned to this team
-        if current_user.role == "guide":
-            guide_name = current_user.name or ""
-            is_guide = False
-            if team.guide_email and team.guide_email.lower() == current_user.email.lower():
-                is_guide = True
-            elif team.guide_name and guide_name and guide_name.lower() in team.guide_name.lower():
-                is_guide = True
-            if not is_guide:
+        user_role = (current_user.role or "").lower()
+        if "guide" in user_role:
+            if not _is_guide_for_team(current_user, team):
                 raise HTTPException(status_code=403, detail="You are not authorized to approve titles for this team")
 
         decision = req.decision.upper()

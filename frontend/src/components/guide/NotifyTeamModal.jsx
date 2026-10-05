@@ -12,8 +12,8 @@ const TIMING_PRESETS = [
 export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
   const currentWeek = StudentService.getCurrentAcademicWeek();
   const [weekNumber, setWeekNumber] = useState(currentWeek);
-  const [timing, setTiming] = useState(team?.notifiedTiming || "Today at 3:00 PM");
-  const [location, setLocation] = useState(team?.notifiedLocation || "Faculty Cabin 204");
+  const [timing, setTiming] = useState(team?.notifiedTiming || "");
+  const [location, setLocation] = useState(team?.notifiedLocation || "");
   const [comment, setComment] = useState(team?.notifiedComment || "");
   const [error, setError] = useState("");
 
@@ -27,8 +27,8 @@ export const NotifyTeamModal = ({ isOpen, onClose, team, onNotify }) => {
     }
 
     const success = onNotify(team.teamId, {
-      timing: timing.trim() || "Today at 3:00 PM",
-      location: location.trim() || "Faculty Cabin 204",
+      timing: timing.trim(),
+      location: location.trim(),
       comment: comment.trim(),
       weekNumber: Number(weekNumber)
     });

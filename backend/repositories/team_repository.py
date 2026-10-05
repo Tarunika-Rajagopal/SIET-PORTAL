@@ -2,7 +2,7 @@
 import uuid
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, cast, String, or_
+from sqlalchemy import select, cast, String, or_, func
 from sqlalchemy.orm import selectinload
 
 from models import Team, TeamMember
@@ -33,51 +33,101 @@ class TeamRepository:
         return list(v)
 
     async def get_by_team_id_string(self, team_id_str: str) -> Optional[Team]:
-        cleaned = team_id_str.strip()
-        digits = "".join(c for c in cleaned if c.isdigit())
-        num = int(digits) if digits else None
-        conds = [Team.team_id == cleaned, Team.team_no == cleaned]
+        cleaned = (team_id_str or "").strip()
+        if not cleaned:
+            return None
+
+        # 1. Exact UUID match
         try:
             parsed_uuid = uuid.UUID(cleaned)
-            conds.append(Team.id == parsed_uuid)
+            res = await self.session.execute(select(Team).where(Team.id == parsed_uuid))
+            team = res.scalars().first()
+            if team:
+                return team
         except (ValueError, TypeError):
-            conds.append(cast(Team.id, String) == cleaned)
+            pass
 
-        if num is not None:
-            conds.extend([
-                Team.team_no == f"Team {num:02d}",
-                Team.team_no == f"Team {num}",
-                Team.team_id.ilike(f"%{digits}%"),
-            ])
+        # 2. Exact team_id match (case-insensitive)
+        res = await self.session.execute(
+            select(Team).where(func.lower(Team.team_id) == cleaned.lower())
+        )
+        team = res.scalars().first()
+        if team:
+            return team
 
-        res = await self.session.execute(select(Team).where(or_(*conds)))
-        return res.scalars().first()
+        # 3. Exact team_no match (case-insensitive, e.g. "Team 01")
+        res = await self.session.execute(
+            select(Team).where(func.lower(Team.team_no) == cleaned.lower())
+        )
+        team = res.scalars().first()
+        if team:
+            return team
+
+        # 4. Fallback digits match ONLY if cleaned input is numeric digits (e.g. "1" or "01")
+        if cleaned.isdigit():
+            num = int(cleaned)
+            res = await self.session.execute(
+                select(Team).where(
+                    or_(
+                        Team.team_no == f"Team {num:02d}",
+                        Team.team_no == f"Team {num}",
+                    )
+                )
+            )
+            team = res.scalars().first()
+            if team:
+                return team
+
+        return None
 
     async def get_with_members(self, team_identifier: uuid.UUID | str) -> Optional[Team]:
         q = select(Team).options(selectinload(Team.members))
         if isinstance(team_identifier, uuid.UUID):
-            q = q.where(Team.id == team_identifier)
-        else:
-            cleaned = str(team_identifier).strip()
-            digits = "".join(c for c in cleaned if c.isdigit())
-            num = int(digits) if digits else None
+            res = await self.session.execute(q.where(Team.id == team_identifier))
+            return res.scalars().first()
 
-            conds = [Team.team_id == cleaned, Team.team_no == cleaned]
-            try:
-                parsed_uuid = uuid.UUID(cleaned)
-                conds.append(Team.id == parsed_uuid)
-            except (ValueError, TypeError):
-                conds.append(cast(Team.id, String) == cleaned)
+        cleaned = str(team_identifier or "").strip()
+        if not cleaned:
+            return None
 
-            if num is not None:
-                conds.extend([
-                    Team.team_no == f"Team {num:02d}",
-                    Team.team_no == f"Team {num}",
-                    Team.team_id.ilike(f"%{digits}%"),
-                ])
-            q = q.where(or_(*conds))
-        res = await self.session.execute(q)
-        return res.scalars().first()
+        # 1. Exact UUID match
+        try:
+            parsed_uuid = uuid.UUID(cleaned)
+            res = await self.session.execute(q.where(Team.id == parsed_uuid))
+            team = res.scalars().first()
+            if team:
+                return team
+        except (ValueError, TypeError):
+            pass
+
+        # 2. Exact team_id match
+        res = await self.session.execute(q.where(func.lower(Team.team_id) == cleaned.lower()))
+        team = res.scalars().first()
+        if team:
+            return team
+
+        # 3. Exact team_no match
+        res = await self.session.execute(q.where(func.lower(Team.team_no) == cleaned.lower()))
+        team = res.scalars().first()
+        if team:
+            return team
+
+        # 4. Fallback digits match ONLY if cleaned input is numeric digits
+        if cleaned.isdigit():
+            num = int(cleaned)
+            res = await self.session.execute(
+                q.where(
+                    or_(
+                        Team.team_no == f"Team {num:02d}",
+                        Team.team_no == f"Team {num}",
+                    )
+                )
+            )
+            team = res.scalars().first()
+            if team:
+                return team
+
+        return None
 
     async def get_with_members_and_submissions(self, team_identifier: uuid.UUID | str) -> Optional[Team]:
         q = select(Team).options(
@@ -85,28 +135,51 @@ class TeamRepository:
             selectinload(Team.submissions),
         )
         if isinstance(team_identifier, uuid.UUID):
-            q = q.where(Team.id == team_identifier)
-        else:
-            cleaned = str(team_identifier).strip()
-            digits = "".join(c for c in cleaned if c.isdigit())
-            num = int(digits) if digits else None
+            res = await self.session.execute(q.where(Team.id == team_identifier))
+            return res.scalars().first()
 
-            conds = [Team.team_id == cleaned, Team.team_no == cleaned]
-            try:
-                parsed_uuid = uuid.UUID(cleaned)
-                conds.append(Team.id == parsed_uuid)
-            except (ValueError, TypeError):
-                conds.append(cast(Team.id, String) == cleaned)
+        cleaned = str(team_identifier or "").strip()
+        if not cleaned:
+            return None
 
-            if num is not None:
-                conds.extend([
-                    Team.team_no == f"Team {num:02d}",
-                    Team.team_no == f"Team {num}",
-                    Team.team_id.ilike(f"%{digits}%"),
-                ])
-            q = q.where(or_(*conds))
-        res = await self.session.execute(q)
-        return res.scalars().first()
+        # 1. Exact UUID match
+        try:
+            parsed_uuid = uuid.UUID(cleaned)
+            res = await self.session.execute(q.where(Team.id == parsed_uuid))
+            team = res.scalars().first()
+            if team:
+                return team
+        except (ValueError, TypeError):
+            pass
+
+        # 2. Exact team_id match
+        res = await self.session.execute(q.where(func.lower(Team.team_id) == cleaned.lower()))
+        team = res.scalars().first()
+        if team:
+            return team
+
+        # 3. Exact team_no match
+        res = await self.session.execute(q.where(func.lower(Team.team_no) == cleaned.lower()))
+        team = res.scalars().first()
+        if team:
+            return team
+
+        # 4. Fallback digits match ONLY if cleaned input is numeric digits
+        if cleaned.isdigit():
+            num = int(cleaned)
+            res = await self.session.execute(
+                q.where(
+                    or_(
+                        Team.team_no == f"Team {num:02d}",
+                        Team.team_no == f"Team {num}",
+                    )
+                )
+            )
+            team = res.scalars().first()
+            if team:
+                return team
+
+        return None
 
     async def list_by_class(self, class_name: str, batch: Optional[str] = None) -> List[Team]:
         variants = self._class_variants(class_name)
@@ -119,9 +192,17 @@ class TeamRepository:
     async def list_by_guide(self, guide_email: Optional[str] = None, guide_name: Optional[str] = None) -> List[Team]:
         conditions = []
         if guide_email:
-            conditions.append(Team.guide_email == guide_email)
+            conditions.append(func.lower(Team.guide_email) == guide_email.strip().lower())
         if guide_name:
-            conditions.append(Team.guide_name.ilike(f"%{guide_name}%"))
+            clean_name = guide_name.strip()
+            for prefix in ["Dr.", "dr.", "Prof.", "prof.", "Mr.", "mr.", "Mrs.", "mrs.", "Ms.", "ms."]:
+                if clean_name.startswith(prefix):
+                    clean_name = clean_name[len(prefix):].strip()
+            conditions.append(func.lower(Team.guide_name) == guide_name.strip().lower())
+            if clean_name != guide_name.strip():
+                conditions.append(func.lower(Team.guide_name) == clean_name.lower())
+                conditions.append(func.lower(Team.guide_name) == f"dr. {clean_name.lower()}")
+                conditions.append(func.lower(Team.guide_name) == f"prof. {clean_name.lower()}")
         if not conditions:
             return []
         q = select(Team).options(selectinload(Team.members)).where(or_(*conditions))
