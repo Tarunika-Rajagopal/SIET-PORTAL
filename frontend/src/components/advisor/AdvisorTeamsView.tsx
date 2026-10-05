@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Search, RefreshCw, BookOpen, Award, UserCheck, 
+import {
+  Users, Search, RefreshCw, BookOpen, Award, UserCheck,
   ChevronRight, ChevronDown, CheckCircle2, AlertCircle, X, Check, UserX, UserPlus,
-  FileText, FileCode, Github, ExternalLink, Download, Clock, Sparkles, Crown, 
+  FileText, FileCode, Github, ExternalLink, Download, Clock, Sparkles, Crown,
   Mail, GraduationCap, XCircle, User, Calendar, Layers, Edit3, Trash2
 } from 'lucide-react';
 import { AdvisorService, ClassTeam } from '../../services/advisorService';
@@ -43,13 +43,13 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
   onNavigateToAssignMarks,
   onShowToast
 }) => {
-  const [teams, setTeams] = useState<ClassTeam[]>(() => 
+  const [teams, setTeams] = useState<ClassTeam[]>(() =>
     AdvisorService.getTeamsForClass(className)
   );
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Selected team (defaults to prop selectedTeamId or first team)
-  const [activeTeamId, setActiveTeamId] = useState<string>(() => 
+  const [activeTeamId, setActiveTeamId] = useState<string>(() =>
     selectedTeamId || teams[0]?.teamId || ''
   );
 
@@ -123,11 +123,11 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
   const activeTeam = isStudentUnassigned
     ? null
-    : (teams.find(t => 
-        t.teamId === activeTeamId || 
-        (activeTeamId && t.teamNo.toLowerCase() === activeTeamId.toLowerCase()) ||
-        (activeTeamId && t.teamId.toLowerCase() === activeTeamId.toLowerCase())
-      ) || (onlyShowStudentTeam ? null : (activeTeamId ? null : teams[0])));
+    : (teams.find(t =>
+      t.teamId === activeTeamId ||
+      (activeTeamId && t.teamNo.toLowerCase() === activeTeamId.toLowerCase()) ||
+      (activeTeamId && t.teamId.toLowerCase() === activeTeamId.toLowerCase())
+    ) || (onlyShowStudentTeam ? null : (activeTeamId ? null : teams[0])));
 
   const filteredTeams = teams.filter(t => {
     if (!searchTerm.trim()) return true;
@@ -139,11 +139,11 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
       t.members.some(m => m.name.toLowerCase().includes(q) || m.rollNo.includes(q))
     );
   });
-  
+
   const { data: availableGuides = [] } = useAdvisorGuides();
 
   // Submissions for currently selected active team (Strictly authentic student submissions up to current week)
-  const allTeamSubmissions: WeeklySubmission[] = activeTeam 
+  const allTeamSubmissions: WeeklySubmission[] = activeTeam
     ? AdvisorSubmissionsService.getTeamSubmissions(activeTeam)
     : [];
   const teamSubmissions: WeeklySubmission[] = allTeamSubmissions;
@@ -161,7 +161,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
     }
   }, [activeTeamId, teamSubmissions.length, currentAcademicWeek]);
 
-  const activeSubmission: WeeklySubmission | undefined = 
+  const activeSubmission: WeeklySubmission | undefined =
     teamSubmissions.length > 0
       ? (teamSubmissions.find(s => s.week === selectedWeek) || teamSubmissions[0])
       : undefined;
@@ -208,7 +208,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans">
-      
+
       {/* Top Controls Bar (Clean - No big green banner, no approved batch) */}
       <div className="bg-white rounded-3xl p-5 shadow-card border border-[#E2E8E4] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -336,11 +336,10 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                   setActiveTeamId(t.teamId);
                   onSelectTeam(t.teamId);
                 }}
-                className={`p-5 rounded-3xl border transition cursor-pointer flex flex-col justify-between gap-3 ${
-                  isSelected
+                className={`p-5 rounded-3xl border transition cursor-pointer flex flex-col justify-between gap-3 ${isSelected
                     ? 'bg-mint-50/70 border-mint-500 ring-2 ring-mint-400/40 shadow-sm'
                     : 'bg-white border-[#E2E8E4] hover:bg-slate-50 hover:border-mint-300 shadow-card'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="px-3 py-1 rounded-xl bg-mint-100 text-mint-900 border border-mint-200 font-black text-xs">
@@ -392,10 +391,10 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
       {/* Selected Team: Detailed Teammates & Week-Wise Submissions Section */}
       {activeTeam && (
         <div className="space-y-6 animate-fadeIn">
-          
+
           {/* Main Selected Team Card */}
           <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-card border border-[#E2E8E4] space-y-6">
-            
+
             {/* Team Banner Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8E4] pb-4">
               <div>
@@ -406,11 +405,10 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                   <span className="text-xs text-slate-500 font-mono font-bold bg-slate-100 px-2.5 py-0.5 rounded-md">
                     {activeTeam.teamId}
                   </span>
-                  <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
-                    activeTeam.title 
+                  <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${activeTeam.title
                       ? (activeTeam.status === 'Active & Approved' || activeTeam.status === 'Approved' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200')
                       : 'bg-slate-100 text-slate-600 border border-slate-300'
-                  }`}>
+                    }`}>
                     {activeTeam.title ? activeTeam.status : 'Pending Title'}
                   </span>
                 </div>
@@ -505,22 +503,20 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                     .join('');
 
                   return (
-                    <div 
+                    <div
                       key={m.rollNo}
-                      className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 shadow-2xs transition-all ${
-                        m.isLead 
-                          ? 'bg-mint-50/70 border-mint-300 ring-1 ring-mint-400/40' 
+                      className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 shadow-2xs transition-all ${m.isLead
+                          ? 'bg-mint-50/70 border-mint-300 ring-1 ring-mint-400/40'
                           : 'bg-slate-50/90 border-[#E2E8E4] hover:bg-slate-100/70'
-                      }`}
+                        }`}
                     >
                       {/* Top row: Avatar + Name & Lead Pill */}
                       <div>
                         <div className="flex items-start gap-3">
-                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${
-                            m.isLead 
-                              ? 'bg-mint-500 text-white' 
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs ${m.isLead
+                              ? 'bg-mint-500 text-white'
                               : 'bg-white border border-[#E2E8E4] text-slate-700'
-                          }`}>
+                            }`}>
                             {m.isLead ? <Crown size={17} className="text-white" /> : initials}
                           </div>
 
@@ -579,7 +575,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
           {/* 2. Comprehensive Week-Wise Submissions Module (Weeks 1 to 8) */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-[#E2E8E4] space-y-6">
-            
+
             {/* Header: Title and Week Selection */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8E4] pb-4">
               <div>
@@ -643,27 +639,32 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                       key={s.week}
                       type="button"
                       onClick={() => setSelectedWeek(s.week)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-2 cursor-pointer shadow-2xs ${
-                        isSelected
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-2 cursor-pointer shadow-2xs ${isSelected
                           ? 'bg-mint-500 text-white shadow-sm font-extrabold ring-2 ring-mint-400/30'
                           : 'bg-slate-50 hover:bg-mint-50 text-slate-700 border border-[#E2E8E4]'
-                      }`}
+                        }`}
                     >
                       <span>Week {s.week}</span>
-                      <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase ${
-                        isSelected 
-                          ? 'bg-white/20 text-white' 
+                      <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase ${isSelected
+                          ? 'bg-white/20 text-white'
                           : s.status === 'Approved' ? 'bg-emerald-100 text-emerald-800'
+<<<<<<< Updated upstream
                           : s.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800'
                           : s.status === 'Submitted' ? 'bg-amber-100 text-amber-900'
                           : 'bg-slate-200 text-slate-600'
                       }`}>
                         {s.status}
+=======
+                            : s.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800'
+                              : (s.status === 'Submitted' || s.status === 'Pending') ? 'bg-amber-100 text-amber-900'
+                                : 'bg-slate-200 text-slate-600'
+                        }`}>
+                        {s.status === 'Submitted' ? 'Pending' : s.status}
+>>>>>>> Stashed changes
                       </span>
                       {weekMarks && (
-                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                          isSelected ? 'bg-white text-mint-950' : 'bg-mint-100 text-mint-900'
-                        }`}>
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${isSelected ? 'bg-white text-mint-950' : 'bg-mint-100 text-mint-900'
+                          }`}>
                           {weekMarks.teamAverage}%
                         </span>
                       )}
@@ -693,11 +694,270 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                 </div>
               </div>
             ) : activeSubmission ? (
+<<<<<<< Updated upstream
               <div className="pt-2">
                 <AdvisorSubmissionDetails
                   submission={activeSubmission}
                   teamTitle={activeTeam.title}
                 />
+=======
+              <div className="space-y-6 pt-1 text-xs">
+                {/* Complete Student Technical Submission Details */}
+                <div className="space-y-4">
+                  <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#E2E8E4] pb-2">
+                    Complete Student Technical Submission Details
+                  </h4>
+
+                  {/* Project Title */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Project Title
+                    </span>
+                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900">
+                      {getSubmissionTitle(activeSubmission.projectTitle || activeTeam.title)}
+                    </div>
+                  </div>
+
+                  {/* Problem Statement */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Problem Statement
+                    </span>
+                    {activeSubmission.problemStatement ? (
+                      <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                        {activeSubmission.problemStatement}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-slate-400" />
+                        <span>No problem statement submitted for this milestone</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Proposed Solution */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Proposed Solution &amp; Technical Approach
+                    </span>
+                    {activeSubmission.solution ? (
+                      <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                        {activeSubmission.solution}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-slate-400" />
+                        <span>No technical solution submitted for this milestone</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Technologies Used */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Technologies &amp; Frameworks
+                    </span>
+                    {activeSubmission.technologyUsed ? (
+                      <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl flex flex-wrap gap-2">
+                        {activeSubmission.technologyUsed.split(',').map((tech, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2.5 py-1 rounded-lg bg-white border border-[#E2E8E4] text-xs font-mono font-bold text-slate-800 shadow-2xs hover:border-mint-300 transition"
+                          >
+                            {tech.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-slate-400" />
+                        <span>No specific technologies recorded for this week</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Obstacles Faced */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Obstacles Faced &amp; Engineering Resolutions
+                    </span>
+                    {activeSubmission.obstaclesFaced ? (
+                      <div className="p-3.5 bg-rose-50/60 border border-rose-200 rounded-xl text-xs text-slate-800 leading-relaxed">
+                        {activeSubmission.obstaclesFaced}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-emerald-500" />
+                        <span>No blocking obstacles reported for this milestone</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Abstract */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                      Milestone Abstract &amp; Deliverable Summary
+                    </span>
+                    {activeSubmission.abstract ? (
+                      <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
+                        {activeSubmission.abstract}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
+                        <XCircle size={14} className="text-slate-400" />
+                        <span>No abstract summary provided for this milestone</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 5. Deliverables & File Downloads */}
+                  <div>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
+                      Milestone Deliverables, Presentations &amp; Repositories
+                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+
+                      {/* GitHub Repo Link */}
+                      {activeSubmission.repoUrl ? (
+                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
+                              <Github size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-900 block">Source Code Repository</span>
+                              <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
+                                {activeSubmission.repoUrl}
+                              </span>
+                            </div>
+                          </div>
+                          <a
+                            href={activeSubmission.repoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                          >
+                            <ExternalLink size={13} />
+                            <span>Open</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                              <Github size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-500 block">Source Code Repository</span>
+                              <span className="text-[10px] text-slate-400">GitHub Link</span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                            <XCircle size={12} />
+                            <span>✕ Not Uploaded</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Live Demo Link */}
+                      {activeSubmission.demoUrl ? (
+                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                              <ExternalLink size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-900 block">Live Demo / Telemetry</span>
+                              <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
+                                {activeSubmission.demoUrl}
+                              </span>
+                            </div>
+                          </div>
+                          <a
+                            href={activeSubmission.demoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                          >
+                            <ExternalLink size={13} />
+                            <span>Launch</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                              <ExternalLink size={18} />
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-500 block">Live Demo / Dashboard</span>
+                              <span className="text-[10px] text-slate-400">Web URL</span>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
+                            <XCircle size={12} />
+                            <span>✕ Not Uploaded</span>
+                          </span>
+                        </div>
+                      )}
+
+                    </div>
+                  </div>
+
+                  {/* 6. Evaluation Scores & Individual Student Marks */}
+                  {(() => {
+                    const subNum = (activeSubmission as any).submissionNumber ||
+                      ((activeSubmission as any).weekNumber !== undefined ? ((activeSubmission as any).weekNumber + 1) :
+                        (activeSubmission.week !== undefined ? activeSubmission.week + 1 : 1));
+                    const marksRec = MarksService.getWeeklyMarks(activeTeam.teamId, subNum, activeTeam.members?.map(m => m.rollNo)) ||
+                      (subNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0, activeTeam.members?.map(m => m.rollNo)) : null);
+                    if (!marksRec) return null;
+
+                    return (
+                      <div className="space-y-3 p-4 rounded-2xl bg-mint-50/70 border border-mint-200 shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Award size={16} className="text-mint-800" />
+                            <h4 className="text-xs font-bold text-mint-950 uppercase tracking-wider">
+                              Assigned Milestone Marks Breakdown
+                            </h4>
+                          </div>
+                          <span className="px-3 py-1 rounded-xl bg-white border border-mint-200 font-extrabold text-xs text-mint-900">
+                            Team Average: {marksRec.teamAverage} / 100
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {(activeTeam.members || []).map((member) => {
+                            const mScore = marksRec.memberMarks?.[member.rollNo] ?? marksRec.teamAverage;
+                            return (
+                              <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-mint-200 flex items-center justify-between gap-2">
+                                <div className="truncate">
+                                  <span className="font-bold text-slate-900 text-xs block truncate">{member.name}</span>
+                                  <span className="font-mono text-[10px] text-slate-500">{member.rollNo}</span>
+                                </div>
+                                <span className="px-2.5 py-1 rounded-lg bg-mint-50 border border-mint-200 font-extrabold text-xs text-mint-900 shrink-0">
+                                  {mScore} / 100
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {marksRec.remarks && (
+                          <p className="text-xs text-mint-900 font-medium pt-1 border-t border-mint-200/60 italic">
+                            &ldquo;{marksRec.remarks}&rdquo; &bull; Evaluated by {marksRec.gradedBy}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                </div>
+
+>>>>>>> Stashed changes
               </div>
             ) : null}
 
@@ -709,7 +969,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
       {/* Modal: Delete Team Confirmation Dialog */}
       {isDeleteConfirmOpen && activeTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div 
+          <div
             className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-rose-100 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200"
             role="dialog"
             aria-modal="true"
