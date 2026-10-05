@@ -232,6 +232,14 @@ class MarksService:
                     sub.score = avg
                     if remarks:
                         sub.comments = remarks
+                    if avg > 0:
+                        sub.status = "Approved"
+                if avg > 0 and week_number == 1 and team:
+                    team.is_title_approved = True
+                    team.guide_approval_status = "Approved"
+                    team.status = "Approved"
+                if avg > 0 and team:
+                    team.progress = max(team.progress or 0, min(100, week_number * 25))
             except Exception:
                 pass
             await self.session.commit()
@@ -262,6 +270,14 @@ class MarksService:
                     sub.score = avg
                     if remarks:
                         sub.comments = remarks
+                    if avg > 0:
+                        sub.status = "Approved"
+                if avg > 0 and week_number == 1 and team:
+                    team.is_title_approved = True
+                    team.guide_approval_status = "Approved"
+                    team.status = "Approved"
+                if avg > 0 and team:
+                    team.progress = max(team.progress or 0, min(100, week_number * 25))
             except Exception:
                 pass
             await self.session.commit()

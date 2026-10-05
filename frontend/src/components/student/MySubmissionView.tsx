@@ -8,8 +8,9 @@ import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import {
   Calendar, CheckCircle2, Clock, FileText, Upload, AlertTriangle,
   MessageSquare, RefreshCw, X, FileCode, ExternalLink, Image as ImageIcon,
-  Award, User, Download, Check, XCircle, Bell, MapPin, Edit3, ChevronRight
+  Award, User, Users, Download, Check, XCircle, Bell, MapPin, Edit3, ChevronRight, Star
 } from 'lucide-react';
+import { invalidateTeamsQuery } from '../../hooks/useQueries';
 
 interface MySubmissionViewProps {
   onSuccess?: (msg: string) => void;
@@ -156,6 +157,8 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
 
       setResubmitModalOpen(false);
       if (detailModalOpen) setDetailModalOpen(false);
+      invalidateTeamsQuery();
+      window.dispatchEvent(new Event('siet_data_updated'));
       if (onSuccess) {
         const subNum = activeWeekSub.week;
         onSuccess(`Submission ${subNum} milestone updated and submitted for Guide re-review.`);
@@ -232,6 +235,19 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
                 (isApproved || isMarksAssigned || sub.score != null) && !isRevisionRequired
               );
 
+              const currentUser = AuthService.getCurrentUser();
+              const myRollNo = currentUser?.rollNo || (currentUser as any)?.roll_number || '';
+              const cleanRoll = String(myRollNo).trim().toLowerCase();
+              const myIndividualScore = marksRec?.memberMarks
+                ? (marksRec.memberMarks[myRollNo] ??
+                   marksRec.memberMarks[myRollNo.trim()] ??
+                   Object.entries(marksRec.memberMarks).find(([k]) => k.trim().toLowerCase() === cleanRoll)?.[1] ??
+                   null)
+                : null;
+              const teamAvgScore = (marksRec?.teamAverage !== undefined && marksRec.teamAverage > 0)
+                ? marksRec.teamAverage
+                : (typeof sub.score === 'number' && sub.score > 0 ? sub.score : null);
+
               return (
                 <div
                   key={sub.week}
@@ -262,7 +278,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
                             isRevisionRequired ? 'bg-rose-500' :
                               'bg-amber-500'
                             }`}></span>
-                          <span>{isApproved ? 'Approved' : isRevisionRequired ? sub.status : 'Pending'}</span>
+                          <span>{isApproved ? 'Approved' : isRevisionRequired ? sub.status : 'Submitted'}</span>
                         </span>
                       </div>
 
@@ -272,12 +288,6 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
 
                       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
                         <span>Submitted: <strong className="text-slate-700 font-bold">{sub.submissionDate || "N/A"}</strong></span>
-                        {(isApproved && (marksRec?.teamAverage != null || sub.score != null)) && (
-                          <>
-                            <span>&bull;</span>
-                            <span className="text-mint-700 font-extrabold">Score: {marksRec?.teamAverage ?? sub.score} / {sub.maxScore || 100}</span>
-                          </>
-                        )}
                         {sub.fileName && (
                           <>
                             <span>&bull;</span>
@@ -285,6 +295,24 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
                           </>
                         )}
                       </div>
+
+                      {/* Display Individual and Team Score */}
+                      {(isApproved && (myIndividualScore !== null || teamAvgScore !== null)) && (
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          {myIndividualScore !== null && (
+                            <span className="px-2 py-0.5 rounded-lg bg-mint-900 text-white font-extrabold text-[10px] flex items-center gap-1 shadow-2xs">
+                              <Award size={11} className="text-amber-300" />
+                              <span>My Score: <strong className="text-amber-200">{myIndividualScore}</strong>/100</span>
+                            </span>
+                          )}
+                          {teamAvgScore !== null && (
+                            <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-200 font-bold text-[10px] flex items-center gap-1 shadow-2xs">
+                              <Users size={11} className="text-mint-300" />
+                              <span>Team Avg: <strong className="text-white">{teamAvgScore}</strong>/100</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Technical metadata pills preview */}
                       <div className="flex flex-wrap gap-2 pt-1">
@@ -441,7 +469,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
                         isModalRevision ? 'text-rose-700' :
                           'text-amber-700'
                         }`}>
-                        {isModalApproved ? 'Approved' : isModalRevision ? activeWeekSub.status : 'Pending'}
+                        {isModalApproved ? 'Approved' : isModalRevision ? activeWeekSub.status : 'Submitted'}
                       </span>
                     </div>
                   </div>
@@ -456,8 +484,85 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
                 </button>
               </div>
 
-              {/* Modal Scrollable Body: Pure Student Submission Details (Consultation Notice & Guide Review Cards Removed) */}
+              {/* Modal Scrollable Body */}
               <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700 flex-1">
+
+                {/* Official Evaluation & Marks Record */}
+                {isModalApproved && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-mint-50/80 via-white to-slate-50 border border-mint-200 shadow-2xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-mint-100 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Award size={16} className="text-amber-500" />
+                        <span className="font-black text-xs text-slate-900 uppercase tracking-wide">
+                          Official Evaluation &amp; Marks Record
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Evaluated by: <strong className="text-slate-800 font-bold">{modalMarks?.gradedBy || activeWeekSub.guideName || 'Faculty Guide'}</strong>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* My Individual Score */}
+                      {(() => {
+                        const currentUser = AuthService.getCurrentUser();
+                        const myRoll = currentUser?.rollNo || (currentUser as any)?.roll_number || '';
+                        const cleanRoll = String(myRoll).trim().toLowerCase();
+                        const myScore = modalMarks?.memberMarks
+                          ? (modalMarks.memberMarks[myRoll] ??
+                             modalMarks.memberMarks[String(myRoll).trim()] ??
+                             Object.entries(modalMarks.memberMarks).find(([k]) => k.trim().toLowerCase() === cleanRoll)?.[1] ??
+                             modalMarks.teamAverage)
+                          : (activeWeekSub.score || modalMarks?.teamAverage || null);
+                        return (
+                          <div className="p-3 bg-white rounded-xl border border-mint-300 ring-1 ring-mint-300/40 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg bg-mint-100 text-mint-800 flex items-center justify-center font-black">
+                                <Award size={16} className="text-amber-500" />
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Individual Score</span>
+                                <span className="text-xs font-black text-slate-900">{myRoll || 'Candidate'}</span>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-mint-600 text-white font-black text-xs shadow-2xs">
+                              {myScore !== null && myScore !== undefined ? `${myScore} / 100` : 'Pending'}
+                            </span>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Team Score */}
+                      <div className="p-3 bg-white rounded-xl border border-[#E2E8E4] flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-black">
+                            <Users size={16} />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Team Score / Average</span>
+                            <span className="text-xs font-black text-slate-900">All Members</span>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-white font-black text-xs shadow-2xs">
+                          {modalMarks?.teamAverage ?? activeWeekSub.score ?? 'Pending'} / 100
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Guide Remarks / Comments */}
+                    {(modalMarks?.remarks || activeWeekSub.comments) && (
+                      <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs mt-2">
+                        <div className="flex items-center gap-1.5 font-bold text-amber-900 mb-1">
+                          <MessageSquare size={13} className="text-amber-600" />
+                          <span>Guide Feedback &amp; Evaluation Remarks</span>
+                        </div>
+                        <p className="text-slate-700 italic leading-relaxed whitespace-pre-wrap">
+                          {modalMarks?.remarks || activeWeekSub.comments}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Complete Submission by Student */}
                 <div className="space-y-4">

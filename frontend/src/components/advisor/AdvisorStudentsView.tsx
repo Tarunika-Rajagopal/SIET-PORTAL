@@ -16,6 +16,7 @@ import AdvisorCreateTeamModal from './AdvisorCreateTeamModal';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
 import AdvisorGuideReassignModal from './AdvisorGuideReassignModal';
 import AdvisorDeleteTeamModal from './AdvisorDeleteTeamModal';
+import AdvisorSubmissionDetailModal from './AdvisorSubmissionDetailModal';
 import { useClassStudents, useClassTeams, invalidateStudentsQuery, invalidateTeamsQuery } from '../../hooks/useQueries';
 import { queryClient, QUERY_KEYS } from '../../lib/queryClient';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
@@ -48,6 +49,8 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     sub: WeeklySubmission;
     team: ClassTeam;
     marks: WeeklyMarksRecord | null;
+    studentRollNo?: string;
+    studentName?: string;
   } | null>(null);
 
   // Modals
@@ -87,6 +90,28 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     invalidateTeamsQuery();
     await Promise.all([refetchStudents(), refetchTeams()]);
   };
+
+  useEffect(() => {
+    const unsubMarks = MarksService.subscribe(() => {
+      refetchTeams();
+      refetchStudents();
+    });
+
+    const handleUpdate = () => {
+      MarksService.fetchAllMarks().catch(() => {});
+      refetchTeams();
+      refetchStudents();
+    };
+
+    window.addEventListener('siet_marks_updated', handleUpdate);
+    window.addEventListener('siet_data_updated', handleUpdate);
+
+    return () => {
+      unsubMarks();
+      window.removeEventListener('siet_marks_updated', handleUpdate);
+      window.removeEventListener('siet_data_updated', handleUpdate);
+    };
+  }, [refetchStudents, refetchTeams]);
 
   const teamCapacity = AdvisorService.getTeamCapacity(className);
   const areTeamsCreated = teams.length > 0 && students.some(s => s.teamNo && s.teamNo !== 'Unassigned');
@@ -718,8 +743,8 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                     ? MarksService.getAllTeamMarks(assignedTeam.teamId, assignedTeam.members.map(m => m.rollNo))
                     : {};
 
-                  // Milestones: Submission 1, Submission 2, Submission 3, Submission 4 (and any extra submitted weeks)
-                  const milestoneWeeks = Array.from(new Set([0, 1, 2, 3, ...teamSubmissions.map(sub => sub.week)])).sort((a, b) => a - b);
+                  // Milestones: Strictly 1 to 4 (Submission 1, Submission 2, Submission 3, Submission 4)
+                  const milestoneNumbers = [1, 2, 3, 4];
 
                   return (
                     <React.Fragment key={s.rollNo}>
@@ -963,23 +988,49 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  {milestoneWeeks.map((weekNum) => {
-                                    const submissionNumber = weekNum + 1;
+                                  {milestoneNumbers.map((submissionNumber) => {
                                     const sub = teamSubmissions.find(item => 
-                                      item.week === weekNum || 
-                                      item.title?.toLowerCase().includes(`submission ${submissionNumber}`)
+                                      item.week === submissionNumber || 
+                                      (item as any).weekNumber === submissionNumber ||
+                                      item.title?.toLowerCase().includes(`submission ${submissionNumber}`) ||
+                                      item.title?.toLowerCase().includes(`submission_${submissionNumber}`)
                                     );
                                     const weekMarks = teamMarksRecords[submissionNumber] || 
-                                                      (submissionNumber === 1 ? teamMarksRecords[0] : null) ||
-                                                      teamMarksRecords[submissionNumber - 1];
+                                                      MarksService.getWeeklyMarks(assignedTeam.teamId, submissionNumber, assignedTeam.members.map(m => m.rollNo));
+
                                     const markScore = (weekMarks?.teamAverage !== undefined && weekMarks.teamAverage > 0)
                                       ? weekMarks.teamAverage
                                       : (typeof sub?.score === 'number' && sub.score > 0 ? sub.score : null);
 
+                                    const cleanRoll = s.rollNo.trim().toLowerCase();
+                                    const individualScore = weekMarks?.memberMarks
+                                      ? (weekMarks.memberMarks[s.rollNo] ??
+                                         weekMarks.memberMarks[s.rollNo.trim()] ??
+                                         Object.entries(weekMarks.memberMarks).find(([k]) => k.trim().toLowerCase() === cleanRoll)?.[1] ??
+                                         null)
+                                      : null;
+
                                     // If submitted
                                     if (sub) {
-                                      const isApproved = sub.status === 'Approved';
-                                      const isRevision = sub.status === 'Changes Requested';
+                                      const isRevision = 
+                                        sub.status === 'Changes Requested' || 
+                                        sub.status === 'Revision Required' || 
+                                        sub.status === 'Rejected' ||
+                                        (submissionNumber === 1 && (assignedTeam.status === 'Rejected' || (assignedTeam as any).guideApprovalStatus === 'Rejected'));
+
+                                      const isApproved = !isRevision && Boolean(
+                                        sub.status === 'Approved' ||
+                                        (sub.status as string) === 'Evaluated' ||
+                                        (markScore !== null && markScore > 0) ||
+                                        (individualScore !== null && individualScore > 0) ||
+                                        (submissionNumber === 1 && (
+                                          assignedTeam.status === 'Approved' ||
+                                          (assignedTeam as any).isTitleApproved ||
+                                          (assignedTeam as any).guideApprovalStatus === 'Approved' ||
+                                          StudentService.isSubmission1Approved(assignedTeam.teamId)
+                                        )) ||
+                                        StudentService.isSubmissionApproved(submissionNumber, assignedTeam.teamId)
+                                      );
 
                                       const effectiveTeam: ClassTeam = assignedTeam || {
                                         teamId: s.teamNo || 'team-temp',
@@ -997,11 +1048,13 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
                                       return (
                                         <div
-                                          key={weekNum}
+                                          key={submissionNumber}
                                           onClick={() => setInspectionSubmission({
                                             sub,
                                             team: effectiveTeam,
-                                            marks: weekMarks
+                                            marks: weekMarks,
+                                            studentRollNo: s.rollNo,
+                                            studentName: s.name
                                           })}
                                           className="p-3.5 rounded-2xl border border-mint-200 bg-mint-50/20 hover:bg-mint-50/60 hover:border-mint-400 transition cursor-pointer flex flex-col justify-between gap-3 shadow-2xs group/sub"
                                         >
@@ -1039,19 +1092,26 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                             )}
                                           </div>
 
-                                          <div className="flex items-center justify-between pt-2 border-t border-[#E2E8E4]/60">
-                                            {/* Marks Awarded (View-Only) */}
-                                            <div>
-                                              {markScore !== null ? (
-                                                <span className="px-2 py-0.5 rounded-lg bg-slate-900 text-white font-black text-[10px] flex items-center gap-1">
-                                                  <Award size={11} className="text-amber-400" />
-                                                  <span>Marks: {markScore}/100</span>
+                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-[#E2E8E4]/60">
+                                            {/* Marks Awarded (Both Individual and Team Score) */}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              {individualScore !== null && individualScore > 0 ? (
+                                                <span className="px-2 py-0.5 rounded-lg bg-mint-900 text-white font-extrabold text-[10px] flex items-center gap-1 shadow-2xs">
+                                                  <Award size={11} className="text-amber-300" />
+                                                  <span>Individual: {individualScore}/100</span>
                                                 </span>
-                                              ) : (
+                                              ) : null}
+                                              {markScore !== null && markScore > 0 ? (
+                                                <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-100 font-bold text-[10px] flex items-center gap-1 shadow-2xs">
+                                                  <Users size={11} className="text-mint-300" />
+                                                  <span>Team Avg: {markScore}/100</span>
+                                                </span>
+                                              ) : null}
+                                              {((individualScore === null || individualScore === 0) && (markScore === null || markScore === 0)) ? (
                                                 <span className="text-[10px] text-slate-400 font-bold italic">
                                                   Marks pending evaluation
                                                 </span>
-                                              )}
+                                              ) : null}
                                             </div>
 
                                             <button
@@ -1061,10 +1121,12 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                                 setInspectionSubmission({
                                                   sub,
                                                   team: effectiveTeam,
-                                                  marks: weekMarks
+                                                  marks: weekMarks,
+                                                  studentRollNo: s.rollNo,
+                                                  studentName: s.name
                                                 });
                                               }}
-                                              className="px-3 py-1 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 font-extrabold text-[11px] flex items-center gap-1 transition cursor-pointer shadow-2xs group-hover/sub:bg-mint-100"
+                                              className="px-3 py-1 rounded-lg bg-mint-50 hover:bg-mint-100 text-mint-800 border border-mint-200 font-extrabold text-[11px] flex items-center gap-1 transition cursor-pointer shadow-2xs group-hover/sub:bg-mint-100 shrink-0 self-end sm:self-auto"
                                             >
                                               <Eye size={12} />
                                               <span>View Details</span>
@@ -1077,7 +1139,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                     // If NOT submitted -> Show in RED: Not Submitted
                                     return (
                                       <div
-                                        key={weekNum}
+                                        key={submissionNumber}
                                         className="p-3.5 rounded-2xl border border-dashed border-rose-200 bg-rose-50/30 flex flex-col justify-between gap-3"
                                       >
                                         <div className="flex items-start justify-between gap-2">
@@ -1123,387 +1185,18 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         </div>
       </div>
 
-      {/* POP-UP 1: Exact Student Submission Inspection Modal (Deliverables & View-Only Marks) */}
-      {inspectionSubmission && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
-          <div 
-            className="bg-white w-full max-w-2xl rounded-3xl shadow-modal border border-[#E2E8E4] max-h-[90vh] flex flex-col overflow-hidden transform transition-all"
-            role="dialog"
-            aria-modal="true"
-          >
-            {/* Modal Header */}
-            <div className="bg-white px-6 py-4 border-b border-[#E2E8E4] flex items-center justify-between shrink-0">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-lg bg-mint-600 text-white font-black text-xs">
-                    Submission {inspectionSubmission.sub.week + 1}
-                  </span>
-                  <span className="text-xs font-extrabold text-slate-900">
-                    {inspectionSubmission.team.teamNo}
-                  </span>
-                  <span className="text-slate-400">&bull;</span>
-                  <span className="text-xs text-slate-600 font-medium">
-                    Guide: {inspectionSubmission.team.guide || 'Faculty Guide'}
-                  </span>
-                </div>
-                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 mt-1">
-                  {inspectionSubmission.sub.projectTitle || inspectionSubmission.sub.title || 'Technical Submission Deliverables'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setInspectionSubmission(null)}
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-5 text-xs">
-              
-              {/* Submission Status & Marks Overview Banner */}
-              <div className="p-4 rounded-2xl bg-[#F8FAF9] border border-[#E2E8E4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-mint-100 text-mint-800 flex items-center justify-center font-bold shrink-0">
-                    <Award size={20} />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      Evaluation Status
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black border ${
-                        inspectionSubmission.sub.status === 'Approved'
-                          ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
-                          : inspectionSubmission.sub.status === 'Changes Requested'
-                          ? 'bg-rose-100 text-rose-900 border-rose-200'
-                          : 'bg-amber-100 text-amber-900 border-amber-200'
-                      }`}>
-                        {inspectionSubmission.sub.status}
-                      </span>
-                      <span className="text-[11px] text-slate-400 font-mono">
-                        Date: {inspectionSubmission.sub.submissionDate || 'Recorded'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* View-Only Marks Display */}
-                {(() => {
-                  const subNum = (inspectionSubmission.sub as any).weekNumber !== undefined 
-                    ? ((inspectionSubmission.sub as any).weekNumber + 1) 
-                    : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week + 1 : 1);
-                  const memberRolls = inspectionSubmission.team.members?.map(m => m.rollNo);
-                  const marksRec = MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum, memberRolls) ||
-                                   (subNum === 1 ? MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, 0, memberRolls) : null) ||
-                                   MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum - 1, memberRolls) ||
-                                   inspectionSubmission.marks;
-                  const hasMarks = Boolean(marksRec && (
-                    (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
-                    (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
-                  ));
-
-                  return (
-                    <div className="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-[#E2E8E4]">
-                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Guide Assigned Marks (View-Only)
-                      </div>
-                      {hasMarks ? (
-                        <div className="text-base font-black text-slate-900 mt-0.5 flex items-center sm:justify-end gap-1.5">
-                          <span className="text-emerald-700">
-                            {marksRec?.teamAverage ?? inspectionSubmission.sub.score}
-                          </span>
-                          <span className="text-xs text-slate-400">/ 100</span>
-                        </div>
-                      ) : (
-                        <div className="text-xs font-bold text-slate-500 italic mt-0.5">
-                          Marks pending guide assessment
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Individual Student Marks Breakdown Card */}
-              {(() => {
-                const subNum = (inspectionSubmission.sub as any).weekNumber !== undefined 
-                  ? ((inspectionSubmission.sub as any).weekNumber + 1) 
-                  : (inspectionSubmission.sub.week !== undefined ? inspectionSubmission.sub.week + 1 : 1);
-                const memberRolls = inspectionSubmission.team.members?.map(m => m.rollNo);
-                const marksRec = MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum, memberRolls) ||
-                                 (subNum === 1 ? MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, 0, memberRolls) : null) ||
-                                 MarksService.getWeeklyMarks(inspectionSubmission.team.teamId, subNum - 1, memberRolls) ||
-                                 inspectionSubmission.marks;
-                const hasMarks = Boolean(marksRec && (
-                  (marksRec.teamAverage !== undefined && marksRec.teamAverage > 0) ||
-                  (marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
-                ));
-                if (!hasMarks || !marksRec) return null;
-
-                return (
-                  <div className="p-4 rounded-2xl bg-mint-50/70 border border-mint-200 space-y-3 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Award size={16} className="text-mint-800" />
-                        <h4 className="text-xs font-bold text-mint-950 uppercase tracking-wider">
-                          Assigned Milestone Marks Breakdown
-                        </h4>
-                      </div>
-                      <span className="px-3 py-1 rounded-xl bg-white border border-mint-200 font-extrabold text-xs text-mint-900">
-                        Team Average: {marksRec.teamAverage} / 100
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {(inspectionSubmission.team.members || []).map((member) => {
-                        const mScore = marksRec.memberMarks?.[member.rollNo] ?? marksRec.teamAverage;
-                        return (
-                          <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-mint-200 flex items-center justify-between gap-2 shadow-2xs">
-                            <div className="truncate">
-                              <span className="font-bold text-slate-900 text-xs block truncate">{member.name}</span>
-                              <span className="font-mono text-[10px] text-slate-500">{member.rollNo} {member.isLead && '• Lead'}</span>
-                            </div>
-                            <div>
-                              {mScore !== undefined ? (
-                                <span className="px-2.5 py-1 rounded-lg bg-mint-100 text-mint-950 font-black text-xs border border-mint-200">
-                                  {mScore} / 100
-                                </span>
-                              ) : (
-                                <span className="text-slate-400 text-[11px] italic font-semibold">
-                                  Unassigned
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {marksRec.remarks && (
-                      <p className="text-xs text-mint-900 font-medium pt-1 border-t border-mint-200/60 italic">
-                        &ldquo;{marksRec.remarks}&rdquo; &bull; Evaluated by {marksRec.gradedBy}
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Guide Remarks / Comments if Available */}
-              {(inspectionSubmission.sub.comments || inspectionSubmission.marks?.remarks) && (
-                <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block">
-                    Guide Feedback / Evaluation Remarks:
-                  </span>
-                  <p className="text-xs text-amber-900 leading-relaxed font-medium">
-                    {inspectionSubmission.sub.comments || inspectionSubmission.marks?.remarks}
-                  </p>
-                </div>
-              )}
-
-              {/* Problem Statement */}
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                  Problem Statement
-                </span>
-                {inspectionSubmission.sub.problemStatement ? (
-                  <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                    {inspectionSubmission.sub.problemStatement}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                    <XCircle size={14} className="text-slate-400" />
-                    <span>No problem statement submitted for this milestone</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Proposed Solution */}
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                  Proposed Solution &amp; Technical Approach
-                </span>
-                {inspectionSubmission.sub.solution ? (
-                  <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                    {inspectionSubmission.sub.solution}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                    <XCircle size={14} className="text-slate-400" />
-                    <span>No technical solution submitted for this milestone</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Technologies Used */}
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                  Technologies &amp; Frameworks
-                </span>
-                {inspectionSubmission.sub.technologyUsed ? (
-                  <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl flex flex-wrap gap-2">
-                    {inspectionSubmission.sub.technologyUsed.split(',').map((tech, idx) => (
-                      <span 
-                        key={idx} 
-                        className="px-2.5 py-1 rounded-lg bg-white border border-[#E2E8E4] text-xs font-mono font-bold text-slate-800 shadow-2xs"
-                      >
-                        {tech.trim()}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                    <XCircle size={14} className="text-slate-400" />
-                    <span>No specific technologies recorded for this week</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Obstacles Faced */}
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                  Obstacles Faced &amp; Resolutions
-                </span>
-                {inspectionSubmission.sub.obstaclesFaced ? (
-                  <div className="p-3.5 bg-rose-50/60 border border-rose-200 rounded-xl text-xs text-slate-800 leading-relaxed">
-                    {inspectionSubmission.sub.obstaclesFaced}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                    <CheckCircle2 size={14} className="text-emerald-500" />
-                    <span>No blocking obstacles reported for this milestone</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Abstract */}
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                  Milestone Abstract &amp; Deliverable Summary
-                </span>
-                {inspectionSubmission.sub.abstract ? (
-                  <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                    {inspectionSubmission.sub.abstract}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                    <XCircle size={14} className="text-slate-400" />
-                    <span>No abstract summary provided for this milestone</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Deliverable Files & Links */}
-              <div>
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
-                  Deliverable Files, Presentations &amp; Repositories
-                </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-
-                  {/* GitHub Repo Link */}
-                  {inspectionSubmission.sub.repoUrl ? (
-                    <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
-                          <Github size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-slate-900 block">Source Code Repository</span>
-                          <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
-                            {inspectionSubmission.sub.repoUrl}
-                          </span>
-                        </div>
-                      </div>
-                      <a
-                        href={inspectionSubmission.sub.repoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
-                      >
-                        <ExternalLink size={13} />
-                        <span>Open</span>
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                          <Github size={18} />
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-500 block">Source Code Repository</span>
-                          <span className="text-[10px] text-slate-400">GitHub Link</span>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold">
-                        ✕ Not Uploaded
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Live Demo Link */}
-                  {inspectionSubmission.sub.demoUrl ? (
-                    <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                          <ExternalLink size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-slate-900 block">Live Demo / Telemetry</span>
-                          <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
-                            {inspectionSubmission.sub.demoUrl}
-                          </span>
-                        </div>
-                      </div>
-                      <a
-                        href={inspectionSubmission.sub.demoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
-                      >
-                        <ExternalLink size={13} />
-                        <span>Launch</span>
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                          <ExternalLink size={18} />
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-500 block">Live Demo / Dashboard</span>
-                          <span className="text-[10px] text-slate-400">Web URL</span>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold">
-                        ✕ Not Uploaded
-                      </span>
-                    </div>
-                  )}
-
-                </div>
-              </div>
-
-
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-[#F8FAF9] px-6 py-4 border-t border-[#E2E8E4] flex items-center justify-end shrink-0">
-              <button
-                type="button"
-                onClick={() => setInspectionSubmission(null)}
-                className="px-4 py-2 text-xs font-bold text-slate-700 bg-white border border-[#E2E8E4] hover:bg-slate-50 rounded-xl transition cursor-pointer shadow-2xs"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* POP-UP 1: Exact Student Submission Inspection Modal (In same format as student submissions) */}
+      <AdvisorSubmissionDetailModal
+        isOpen={Boolean(inspectionSubmission)}
+        onClose={() => setInspectionSubmission(null)}
+        submission={inspectionSubmission?.sub}
+        teamTitle={inspectionSubmission?.team?.title || inspectionSubmission?.sub?.projectTitle}
+        teamNo={inspectionSubmission?.team?.teamNo}
+        marks={inspectionSubmission?.marks}
+        team={inspectionSubmission?.team}
+        studentRollNo={inspectionSubmission?.studentRollNo}
+        studentName={inspectionSubmission?.studentName}
+      />
 
       {/* POP-UP 2: Add Student to Class (NO placeholders in inputs!) */}
       {isAddStudentOpen && (

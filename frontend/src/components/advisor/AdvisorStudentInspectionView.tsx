@@ -12,6 +12,7 @@ import { StudentService } from '../../services/studentService';
 import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsService';
 import { WeeklySubmission } from '../../types';
 import { getSubmissionTitle } from '../../utils/titleUtils';
+import AdvisorSubmissionDetails from './AdvisorSubmissionDetails';
 
 interface AdvisorStudentInspectionViewProps {
   team: ClassTeam;
@@ -427,136 +428,12 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
           )}
         </div>
 
-        {/* Part 1: Guide Critique & Remarks */}
-        <div className="bg-[#F8F5EE] rounded-2xl p-5 border border-[#D8CCBA] space-y-3 text-xs">
-          <div className="flex items-center justify-between border-b border-[#D8CCBA]/60 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#111111] text-[#F8F5EE] flex items-center justify-center font-bold">
-                <User size={16} />
-              </div>
-              <div>
-                <span className="font-semibold text-[#111111] block text-xs">
-                  Review by {team.guide}
-                </span>
-                <span className="text-[10px] text-[#75695A] font-medium">Faculty Project Guide</span>
-              </div>
-            </div>
-
-            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border ${
-              activeSubmission?.status === 'Approved' ? 'bg-[#4A5844]/15 text-[#4A5844] border-[#4A5844]/20' :
-              activeSubmission?.status === 'Changes Requested' ? 'bg-[#7C3838]/15 text-[#7C3838] border-[#7C3838]/20' :
-              'bg-[#8A6A32]/15 text-[#8A6A32] border-[#8A6A32]/20'
-            }`}>
-              {activeSubmission?.status === 'Submitted' ? 'Pending' : (activeSubmission?.status || 'Approved')}
-            </span>
-          </div>
-
-          <div>
-            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-              Guide Evaluation Critique &amp; Remarks:
-            </span>
-            <p className="text-[#111111] font-medium leading-relaxed bg-white p-3.5 rounded-xl border border-[#D8CCBA]">
-              {activeSubmission?.comments || 'Satisfactory milestone deliverables verified and endorsed by technical guide.'}
-            </p>
-          </div>
-        </div>
-
-        {/* Part 2: Complete Student Submission Details */}
-        <div className="space-y-4 text-xs">
-          <h4 className="font-serif font-semibold text-sm text-[#111111] border-b border-[#D8CCBA] pb-2">
-            Complete Student Submission Details
-          </h4>
-
-          {/* Project Title */}
-          <div>
-            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-              Project Title
-            </span>
-            <div className="p-3 bg-[#F8F5EE]/60 border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111]">
-              {getSubmissionTitle(activeSubmission?.projectTitle || team.title)}
-            </div>
-          </div>
-
-          {/* Problem Statement */}
-          <div>
-            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-              Problem Statement
-            </span>
-            <div className="p-3.5 bg-[#F8F5EE]/60 border border-[#D8CCBA] rounded-xl text-xs text-[#111111] leading-relaxed font-normal">
-              {activeSubmission?.problemStatement || "Modern agricultural monitoring lacks low-cost, edge-computed crop disease identification during real-time automated drone flight sweeps."}
-            </div>
-          </div>
-
-          {/* Solution Approach */}
-          <div>
-            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-              Proposed Solution &amp; Engineering Approach
-            </span>
-            <div className="p-3.5 bg-[#F8F5EE]/60 border border-[#D8CCBA] rounded-xl text-xs text-[#111111] leading-relaxed font-normal">
-              {activeSubmission?.solution || "Deploy quantized MobileNetV3 and YOLOv8 on an onboard NVIDIA Jetson Nano mounted to a custom quadcopter frame with automated GPS waypoint telemetries."}
-            </div>
-          </div>
-
-          {/* Obstacles Faced */}
-          <div>
-            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-              Technical Obstacles Encountered
-            </span>
-            <div className="p-3.5 bg-[#7C3838]/10 border border-[#7C3838]/20 rounded-xl text-xs text-[#111111] leading-relaxed font-normal">
-              {activeSubmission?.obstaclesFaced || "Thermal throttling was observed during prolonged inference at 1080p resolution. Added passive aluminum heatsinks and a 5V fan."}
-            </div>
-          </div>
-
-          {/* Abstract */}
-          <div>
-            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-              Sprint Milestone Abstract
-            </span>
-            <div className="p-3.5 bg-[#F8F5EE]/60 border border-[#D8CCBA] rounded-xl text-xs text-[#111111] leading-relaxed font-normal">
-              {activeSubmission?.abstract || "This sprint milestone synthesizes the literature review, sensor telemetry calibration, and architecture pipeline for the capstone implementation."}
-            </div>
-          </div>
-
-          {/* Technologies Used */}
-          <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
-              Technologies &amp; Frameworks
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {["Python", "PyTorch", "TensorRT", "ROS2", "Jetson Nano", "FastAPI", "React"].map((tech) => (
-                <span key={tech} className="px-3 py-1 rounded-xl bg-mint-50 text-mint-900 border border-mint-200 text-xs font-bold">
-                  {tech}
-                </span>
-              ))}
-            </div>
-          </div>
-
-
-
-          {/* Links */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <a
-              href="https://github.com/siet-cse/capstone-drone-cv"
-              target="_blank"
-              rel="noreferrer"
-              className="px-4 py-2 rounded-xl bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] text-xs font-medium transition flex items-center gap-1.5"
-            >
-              <Github size={14} />
-              <span>GitHub Repository</span>
-              <ExternalLink size={12} />
-            </a>
-
-            <a
-              href="https://crop-drone-demo.siet.ac.in"
-              target="_blank"
-              rel="noreferrer"
-              className="px-4 py-2 rounded-xl bg-[#EDE7DB] hover:bg-[#D8CCBA] text-[#111111] border border-[#D8CCBA] text-xs font-medium transition flex items-center gap-1.5"
-            >
-              <ExternalLink size={14} />
-              <span>Live Staging Demo</span>
-            </a>
-          </div>
-
+        {/* Complete Student Submission Details (Same format, no mock data, missing fields marked Not Submitted) */}
+        <div className="bg-white rounded-2xl p-5 border border-[#D8CCBA]">
+          <AdvisorSubmissionDetails
+            submission={activeSubmission}
+            teamTitle={team.title}
+          />
         </div>
 
       </div>

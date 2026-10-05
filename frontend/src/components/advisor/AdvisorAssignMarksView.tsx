@@ -10,6 +10,7 @@ import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsServ
 import { StudentService } from '../../services/studentService';
 import { WeeklySubmission } from '../../types';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
+import AdvisorSubmissionDetails from './AdvisorSubmissionDetails';
 
 interface AdvisorAssignMarksViewProps {
   className: string;
@@ -209,7 +210,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {teams.map((t) => {
             const isSelected = activeTeam?.teamId === t.teamId;
-            const subNum = selectedWeek !== undefined ? selectedWeek + 1 : 1;
+            const subNum = selectedWeek !== undefined ? selectedWeek : 1;
             const wMarks = MarksService.getWeeklyMarks(t.teamId, subNum) || (subNum === 1 ? MarksService.getWeeklyMarks(t.teamId, 0) : null);
 
             return (
@@ -299,7 +300,7 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
                   onChange={(e) => setSelectedWeek(Number(e.target.value))}
                   className="appearance-none pl-3.5 pr-8 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#111111] shadow-xs cursor-pointer"
                 >
-                  {[1, 2, 3, 4].filter(w => w <= Math.max(1, currentAcademicWeek)).map((w) => (
+                  {[1, 2, 3, 4].filter(w => w <= Math.max(1, currentAcademicWeek, ...teamSubmissions.map(s => s.week))).map((w) => (
                     <option key={w} value={w}>
                       {w === 1 ? 'Week 1: Project Initiation & Title Proposal' : `Week ${w} Milestone${w === currentAcademicWeek ? ' (Current)' : ''}`}
                     </option>
@@ -350,92 +351,20 @@ export const AdvisorAssignMarksView: React.FC<AdvisorAssignMarksViewProps> = ({
             </div>
 
             {activeSubmission ? (
-              <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-                      Problem Statement
-                    </span>
-                    <div className="p-3.5 rounded-xl bg-white border border-[#D8CCBA] text-[#292725] leading-relaxed min-h-20">
-                      {activeSubmission.problemStatement || 'No problem statement recorded for this milestone.'}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-                      Proposed Solution / Work
-                    </span>
-                    <div className="p-3.5 rounded-xl bg-white border border-[#D8CCBA] text-[#292725] leading-relaxed min-h-20">
-                      {activeSubmission.solution || activeSubmission.abstract || 'No solution or work summary recorded for this milestone.'}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block mb-1">
-                    Technology / Implementation Notes
-                  </span>
-                  <div className="p-3.5 rounded-xl bg-white border border-[#D8CCBA] text-[#292725] leading-relaxed">
-                    {activeSubmission.technologyUsed || 'No technology details recorded for this milestone.'}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-3 rounded-xl bg-white border border-[#D8CCBA] flex items-center gap-2 min-w-0">
-                    <FileText size={16} className="text-[#75695A] shrink-0" />
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-[#75695A] block">Presentation</span>
-                      <span className="font-semibold text-[#111111] truncate block">
-                        {activeSubmission.presentationFile || activeSubmission.fileName || 'Not uploaded'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white border border-[#D8CCBA] flex items-center gap-2 min-w-0">
-                    <FileCode size={16} className="text-[#75695A] shrink-0" />
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-[#75695A] block">Report</span>
-                      <span className="font-semibold text-[#111111] truncate block">
-                        {activeSubmission.pdfFile || 'Not uploaded'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white border border-[#D8CCBA] flex items-center gap-2 min-w-0">
-                    <Github size={16} className="text-[#75695A] shrink-0" />
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-[#75695A] block">Repository</span>
-                      {activeSubmission.repoUrl ? (
-                        <a href={activeSubmission.repoUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#111111] truncate block underline">
-                          {activeSubmission.repoUrl}
-                        </a>
-                      ) : (
-                        <span className="font-semibold text-[#111111] truncate block">Not uploaded</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white border border-[#D8CCBA] flex items-center gap-2 min-w-0">
-                    <ExternalLink size={16} className="text-[#75695A] shrink-0" />
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-[#75695A] block">Demo</span>
-                      {activeSubmission.demoUrl ? (
-                        <a href={activeSubmission.demoUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#111111] truncate block underline">
-                          {activeSubmission.demoUrl}
-                        </a>
-                      ) : (
-                        <span className="font-semibold text-[#111111] truncate block">Not uploaded</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <AdvisorSubmissionDetails
+                submission={activeSubmission}
+                teamTitle={activeTeam.title}
+              />
             ) : (
-              <div className="p-3.5 bg-white border border-dashed border-[#D8CCBA] rounded-xl text-xs text-[#75695A]">
-                No submitted milestone work is currently recorded for this selected team. The team roster and project title above are still available for evaluation context.
+              <div className="p-3.5 bg-[#F8F5EE] border border-dashed border-[#D8CCBA] rounded-xl text-xs text-[#75695A]">
+                No submitted milestone work is currently recorded for this selected team.
               </div>
             )}
           </div>
 
           {/* Quick Week Pill Buttons (Only up to current academic week) */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {[1, 2, 3, 4].filter(w => w <= Math.max(1, currentAcademicWeek)).map((w) => {
+            {[1, 2, 3, 4].filter(w => w <= Math.max(1, currentAcademicWeek, ...teamSubmissions.map(s => s.week))).map((w) => {
               const isCurrent = w === selectedWeek;
               const subNum = w;
               const wMarks = MarksService.getWeeklyMarks(activeTeam.teamId, subNum);
