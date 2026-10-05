@@ -1,9 +1,14 @@
 # Trigger reload for advisor endpoints including guide reassignment and available guides
+import time
 import traceback
 import asyncio
+import contextvars
 from contextlib import asynccontextmanager
+
+from sqlalchemy import event
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from database import init_db, async_session, db_status, check_db_connection
 from models import (
@@ -29,14 +34,15 @@ from routers.marks_router import router as marks_router
 from routers.job_router import router as job_router
 # Seed service export for tests and maintenance
 from services.seed_service import seed_initial_data
+from database.database import measure_db_latency, engine
 
+
+# ── lifespan MUST be defined before FastAPI(...) uses it ───────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async def _bg_startup():
         try:
             await init_db()
-            
-               
         except Exception as e:
             print(f"[Startup] Background DB notice: {e}")
 
@@ -53,12 +59,33 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+# ── temporary diagnostics: queries + time per request ──────────
+_q = contextvars.ContextVar("q", default=None)
+
+
+@event.listens_for(engine.sync_engine, "before_cursor_execute")
+def _count(conn, cursor, statement, parameters, context, executemany):
+    counter = _q.get()
+    if counter is not None:
+        counter["n"] += 1
+
+
+@app.middleware("http")
+async def log_time(request, call_next):
+    counter = {"n": 0}
+    _q.set(counter)
+    start = time.perf_counter()
+    response = await call_next(request)
+    ms = (time.perf_counter() - start) * 1000
+    print(f"[REQ] {request.method} {request.url.path} {ms:.0f} ms, {counter['n']} queries", flush=True)
+    return response
+
+
 # Enable CORS for frontend Vite development server and production
 cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
 if not cors_origins:
     cors_origins = ["*"]
-
-from fastapi.middleware.gzip import GZipMiddleware
 
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
@@ -109,7 +136,11 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy", "database": "connected"}
-    
+
+
+@app.get("/health/db-latency")
+async def db_latency():
+    return await measure_db_latency()
 
 
 if __name__ == "__main__":
@@ -121,4 +152,3 @@ if __name__ == "__main__":
         reload=True,
         reload_dirs=["app", "routers", "services", "repositories", "database", "auth"],
     )
-

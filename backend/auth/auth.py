@@ -2,6 +2,7 @@
 Authentication utilities — JWT via PyJWT, password hashing via bcrypt, and RBAC authorization.
 """
 from datetime import datetime, timezone, timedelta
+import time
 import uuid as _uuid
 
 import jwt
@@ -9,7 +10,8 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
+from starlette.concurrency import run_in_threadpool
 
 from database import get_db
 from config import get_settings
@@ -18,33 +20,47 @@ from models import User
 settings = get_settings()
 _bearer = HTTPBearer(auto_error=False)
 
+# Cost factor for NEW hashes. Existing hashes keep the cost they were created
+# with (bcrypt stores it inside the hash), so old users are unaffected.
+BCRYPT_ROUNDS = 10
+
 
 # ── password helpers ───────────────────────────────────────────
 def hash_password(password: str) -> str:
-    """Hash plain password using bcrypt."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    """Hash plain password using bcrypt (blocking — use hash_password_async in async routes)."""
+    return bcrypt.hashpw(
+        password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
+    ).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Verify plain password against bcrypt hash. Supports legacy plaintext fallback."""
+    """Verify plain password against a bcrypt hash (blocking). No plaintext fallback."""
     if not plain or not hashed:
         return False
-    if plain == hashed:
-        return True
     try:
         return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
     except Exception:
         return False
 
 
+async def hash_password_async(password: str) -> str:
+    """Run bcrypt hashing in a worker thread so the event loop is not blocked."""
+    return await run_in_threadpool(hash_password, password)
+
+
+async def verify_password_async(plain: str, hashed: str) -> bool:
+    """Run bcrypt verification in a worker thread so the event loop is not blocked."""
+    return await run_in_threadpool(verify_password, plain, hashed)
+
+
 # ── JWT helpers ────────────────────────────────────────────────
 def create_access_token(user_id: str, role: str) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
         "role": role,
-        "exp": exp,
-        "iat": datetime.now(timezone.utc),
+        "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        "iat": now,
     }
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
@@ -62,7 +78,7 @@ def _decode(token: str) -> dict:
             detail="Token expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except (jwt.InvalidTokenError, jwt.PyJWTError):
+    except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
@@ -76,7 +92,38 @@ def _decode(token: str) -> dict:
         )
 
 
+# ── small in-memory user cache (per process) ───────────────────
 _USER_SESSION_CACHE: dict = {}
+_CACHE_TTL_SECONDS = 60.0
+_CACHE_MAX_ENTRIES = 1000
+
+
+def _cache_get(uid: str):
+    entry = _USER_SESSION_CACHE.get(uid)
+    if entry and entry[1] > time.time():
+        return entry[0]
+    if entry:
+        _USER_SESSION_CACHE.pop(uid, None)
+    return None
+
+
+def _cache_set(uid: str, user: User) -> None:
+    # Keep the cache bounded so it cannot grow forever.
+    if len(_USER_SESSION_CACHE) >= _CACHE_MAX_ENTRIES:
+        now = time.time()
+        for key in [k for k, v in _USER_SESSION_CACHE.items() if v[1] <= now]:
+            _USER_SESSION_CACHE.pop(key, None)
+        if len(_USER_SESSION_CACHE) >= _CACHE_MAX_ENTRIES:
+            _USER_SESSION_CACHE.pop(next(iter(_USER_SESSION_CACHE)), None)
+    _USER_SESSION_CACHE[uid] = (user, time.time() + _CACHE_TTL_SECONDS)
+
+
+def invalidate_user_cache(uid: str | None = None) -> None:
+    """Call after changing a user's role/password/status so changes apply immediately."""
+    if uid is None:
+        _USER_SESSION_CACHE.clear()
+    else:
+        _USER_SESSION_CACHE.pop(str(uid), None)
 
 
 # ── dependency: current user from JWT ──────────────────────────
@@ -100,23 +147,30 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    now = datetime.now(timezone.utc).timestamp()
-    cached = _USER_SESSION_CACHE.get(uid)
-    if cached and cached[1] > now:
-        return cached[0]
+    cached = _cache_get(uid)
+    if cached is not None:
+        return cached
 
     user = None
-    # Try as UUID first
-    try:
-        user = (await db.execute(select(User).where(User.id == _uuid.UUID(uid)))).scalar_one_or_none()
-    except Exception:
-        pass
 
-    # Fallback to email / roll_no
+    # Try as UUID first (parse separately so DB errors are not swallowed)
+    try:
+        parsed_uid = _uuid.UUID(uid)
+    except (ValueError, AttributeError, TypeError):
+        parsed_uid = None
+
+    if parsed_uid is not None:
+        user = (
+            await db.execute(select(User).where(User.id == parsed_uid))
+        ).scalar_one_or_none()
+
+    # Fallback to email / roll_no (legacy tokens)
     if not user:
-        user = (await db.execute(
-            select(User).where(or_(User.email == uid, User.roll_no == uid))
-        )).scalar_one_or_none()
+        user = (
+            await db.execute(
+                select(User).where(or_(User.email == uid, User.roll_no == uid))
+            )
+        ).scalar_one_or_none()
 
     if not user:
         raise HTTPException(
@@ -125,7 +179,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    _USER_SESSION_CACHE[uid] = (user, now + 60.0)
+    _cache_set(uid, user)
     return user
 
 
@@ -135,10 +189,11 @@ def require_roles(*allowed_roles: str):
     Dependency factory to enforce Role-Based Access Control.
     Raises HTTP 403 Forbidden if user lacks permitted role.
     """
+    allowed = [r.strip().lower() for r in allowed_roles]
+
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
         user_role = (current_user.role or "").strip().lower()
         active_role = (current_user.active_role or "").strip().lower()
-        allowed = [r.strip().lower() for r in allowed_roles]
 
         if user_role in allowed or (active_role and active_role in allowed):
             return current_user
@@ -153,15 +208,28 @@ def require_roles(*allowed_roles: str):
 # ── authenticate by email/roll + password ──────────────────────
 async def authenticate_user(db: AsyncSession, login: str, password: str):
     term = (login or "").strip().lower()
+    if not term or not password:
+        return None
+
+    # Case-insensitive match that can use the functional indexes
+    # ix_users_email_lower / ix_users_roll_no_lower (see SQL below).
     r = await db.execute(
-        select(User).where(or_(User.email.ilike(term), User.roll_no.ilike(term)))
+        select(User).where(
+            or_(func.lower(User.email) == term, func.lower(User.roll_no) == term)
+        )
     )
     user = r.scalar_one_or_none()
     if not user or not user.password:
         return None
 
-    # Enforce strict bcrypt verification — no plaintext fallback
-    if not verify_password(password, user.password):
+    # bcrypt is CPU-heavy: run it in a worker thread so other requests
+    # (advisors, filter-options, ...) are not blocked while it runs.
+    if not await verify_password_async(password, user.password):
         return None
 
     return user
+
+
+# ── SQL to run once on your database ───────────────────────────
+# CREATE INDEX IF NOT EXISTS ix_users_email_lower   ON users (lower(email));
+# CREATE INDEX IF NOT EXISTS ix_users_roll_no_lower ON users (lower(roll_no));
