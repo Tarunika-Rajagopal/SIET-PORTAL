@@ -319,6 +319,57 @@ function getGuideApprovedSubmissionsForTeam(team: ClassTeam): WeeklySubmission[]
   }
 }
 
+import { MarksService } from './marksService';
+
+function enrichSubmission(sub: WeeklySubmission, team: ClassTeam): WeeklySubmission {
+  const memberRolls = team.members?.map(m => m.rollNo) || [];
+  const weekMarks = MarksService.getWeeklyMarks(team.teamId || '', sub.week, memberRolls);
+  
+  const hasMarks = Boolean(
+    (weekMarks && (
+      (weekMarks.teamAverage !== undefined && weekMarks.teamAverage > 0) ||
+      (weekMarks.memberMarks && Object.values(weekMarks.memberMarks).some(m => typeof m === 'number' && m > 0))
+    )) ||
+    (typeof sub.score === 'number' && sub.score > 0)
+  );
+
+  const isRevision = 
+    sub.status === 'Changes Requested' || 
+    sub.status === 'Revision Required' || 
+    sub.status === 'Rejected' ||
+    (sub.week === 1 && (team.status === 'Rejected' || (team as any).guideApprovalStatus === 'Rejected'));
+
+  const isApproved = !isRevision && Boolean(
+    sub.status === 'Approved' ||
+    (sub.status as string) === 'Evaluated' ||
+    hasMarks ||
+    (sub.week === 1 && (
+      team.status === 'Approved' || 
+      (team as any).isTitleApproved ||
+      (team as any).guideApprovalStatus === 'Approved' ||
+      StudentService.isSubmission1Approved(team.teamId)
+    )) ||
+    StudentService.isSubmissionApproved(sub.week, team.teamId)
+  );
+
+  const effectiveStatus: WeeklySubmission['status'] = isRevision 
+    ? 'Changes Requested' 
+    : isApproved 
+      ? 'Approved' 
+      : 'Submitted';
+
+  const finalScore = (weekMarks?.teamAverage !== undefined && weekMarks.teamAverage > 0)
+    ? weekMarks.teamAverage
+    : (typeof sub.score === 'number' && sub.score > 0 ? sub.score : sub.score);
+
+  return {
+    ...sub,
+    status: effectiveStatus,
+    score: finalScore,
+    comments: sub.comments || weekMarks?.remarks || ''
+  };
+}
+
 export const AdvisorSubmissionsService = {
   /**
    * Returns milestone submissions for a given class team.
@@ -328,11 +379,18 @@ export const AdvisorSubmissionsService = {
   getTeamSubmissions(team: ClassTeam): WeeklySubmission[] {
     if (!team) return [];
 
-    // Prioritize authoritative backend-loaded submissions attached to the team
-    if ((team as any)?.submissions && Array.isArray((team as any).submissions) && (team as any).submissions.length > 0) {
-      return (team as any).submissions;
+    const subsMap = new Map<number, WeeklySubmission>();
+
+    // 1. Prioritize authoritative backend-loaded submissions attached to the team
+    if ((team as any)?.submissions && Array.isArray((team as any).submissions)) {
+      for (const s of (team as any).submissions) {
+        if (s && typeof s === 'object' && s.week) {
+          subsMap.set(Number(s.week), s);
+        }
+      }
     }
 
+    // 2. Canonical student submissions for student's team
     const studentTeam = StudentService.getTeam();
     const tNum = team.teamNo ? parseInt(team.teamNo.replace(/\D/g, ''), 10) : null;
     const sNum = studentTeam.teamNumber != null ? Number(studentTeam.teamNumber) : (studentTeam.teamNo ? parseInt(studentTeam.teamNo.replace(/\D/g, ''), 10) : null);
@@ -348,32 +406,44 @@ export const AdvisorSubmissionsService = {
 
     if (isStudentTeam) {
       const studentSubs = getCanonicalStudentSubmissions(team.title, team.teamId || studentTeam.id);
-      if (studentSubs.length > 0) {
-        return studentSubs;
+      for (const s of studentSubs) {
+        if (s && s.week && !subsMap.has(s.week)) {
+          subsMap.set(s.week, s);
+        }
       }
     }
 
-    // 2. Guide-approved project/submission records for the exact selected team
+    // 3. Guide-approved project/submission records for the exact selected team
     const guideApprovedSubmissions = getGuideApprovedSubmissionsForTeam(team);
-    if (guideApprovedSubmissions.length > 0) {
-      return guideApprovedSubmissions;
+    for (const s of guideApprovedSubmissions) {
+      if (s && s.week && !subsMap.has(s.week)) {
+        subsMap.set(s.week, s);
+      }
     }
 
-    // 3. Check local storage for custom submissions explicitly saved for this specific teamId
+    // 4. Check local storage for custom submissions explicitly saved for this specific teamId
     try {
       const stored = localStorage.getItem(`siet_team_submissions_${team.teamId}`);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter(s => s && typeof s === 'object' && !String(s.presentationFile || '').includes('mock_ppt'));
+          for (const s of parsed) {
+            if (s && typeof s === 'object' && s.week && !subsMap.has(s.week) && !String(s.presentationFile || '').includes('mock_ppt')) {
+              subsMap.set(s.week, s);
+            }
+          }
         }
       }
     } catch (e) {
       console.error(e);
     }
 
-    // 4. For any team without submissions, return clean empty list (never fall back to another team)
-    return [];
+    // Enrich all submissions with current marks and status, sorted by week
+    const result: WeeklySubmission[] = Array.from(subsMap.values())
+      .map(s => enrichSubmission(s, team))
+      .sort((a, b) => a.week - b.week);
+
+    return result;
   },
 
   getSubmissionForWeek(team: ClassTeam, week: number): WeeklySubmission | undefined {

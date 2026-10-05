@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { StudentService, StudentDeliverableState } from '../../services/studentService';
 import { MarksService } from '../../services/marksService';
 import { ApiClient } from '../../services/apiClient';
+import { invalidateTeamsQuery } from '../../hooks/useQueries';
 import { Bell, Clock, MapPin, AlertTriangle, Lock, Unlock, Check, Edit3, Send, RefreshCw } from 'lucide-react';
 
 interface SubmissionViewProps {
@@ -401,6 +402,23 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       } catch (subListErr) {
         console.warn('Could not refresh submissions list:', subListErr);
       }
+
+      try {
+        StudentService.saveAllDeliverables(`Submission ${currentSubmissionNumber}`, {
+          projectTitle: title,
+          problemStatement,
+          solution,
+          technologyUsed: technology,
+          obstaclesFaced,
+          abstract,
+          repoUrl,
+          demoUrl,
+          submissionDate: savedSub?.submissionDate || todayDateStr
+        });
+      } catch (e) {}
+
+      invalidateTeamsQuery();
+      window.dispatchEvent(new Event('siet_data_updated'));
 
       setIsEditing(false);
       setIsSubmitting(false);

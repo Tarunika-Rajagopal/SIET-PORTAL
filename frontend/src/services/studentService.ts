@@ -445,21 +445,26 @@ export const StudentService = {
 
   isSubmissionApproved(subNumber: number, teamId?: string): boolean {
     if (subNumber === 1) return this.isSubmission1Approved(teamId);
-    if (!teamId || subNumber < 1 || subNumber > 4) return false;
+    if (subNumber < 1 || subNumber > 4) return false;
 
-    const tId = teamId.trim();
     const currentTeam = this.getTeam();
-    const isStudentTeam = Boolean(currentTeam?.id && (tId === currentTeam.id || tId === currentTeam.teamNo));
+    const effectiveTeamId = (teamId || currentTeam?.id || currentTeam?.teamNo || '').trim();
+    if (!effectiveTeamId) return false;
 
-    const marks = MarksService.getWeeklyMarks(tId, subNumber);
-    if (marks && (marks.teamAverage > 0 || (marks.memberMarks && Object.keys(marks.memberMarks).length > 0))) {
+    const isStudentTeam = Boolean(currentTeam?.id && (
+      effectiveTeamId.toLowerCase() === currentTeam.id.toLowerCase() || 
+      effectiveTeamId.toLowerCase() === (currentTeam.teamNo || '').toLowerCase()
+    ));
+
+    const marks = MarksService.getWeeklyMarks(effectiveTeamId, subNumber);
+    if (marks && ((marks.teamAverage !== undefined && marks.teamAverage > 0) || (marks.memberMarks && Object.values(marks.memberMarks).some(m => typeof m === 'number' && m > 0)))) {
       return true;
     }
 
     if (isStudentTeam) {
       const subs = this.getSubmissions();
       const sub = subs.find(s => s.week === subNumber);
-      if (sub && sub.status === 'Approved') return true;
+      if (sub && (sub.status === 'Approved' || (typeof sub.score === 'number' && sub.score > 0))) return true;
     }
 
     return false;

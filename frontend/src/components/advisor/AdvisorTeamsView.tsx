@@ -16,6 +16,7 @@ import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { useAdvisorGuides } from '../../hooks/useQueries';
 import AdvisorManualTeamModal from './AdvisorManualTeamModal';
 import AdvisorEditTeamModal from './AdvisorEditTeamModal';
+import AdvisorSubmissionDetails from './AdvisorSubmissionDetails';
 
 interface AdvisorTeamsViewProps {
   className: string;
@@ -145,7 +146,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
   const allTeamSubmissions: WeeklySubmission[] = activeTeam 
     ? AdvisorSubmissionsService.getTeamSubmissions(activeTeam)
     : [];
-  const teamSubmissions: WeeklySubmission[] = allTeamSubmissions.filter(s => s.week <= currentAcademicWeek);
+  const teamSubmissions: WeeklySubmission[] = allTeamSubmissions;
 
   // Keep selectedWeek aligned with actual submissions or current academic week when team changes
   useEffect(() => {
@@ -482,8 +483,15 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                 {activeTeam.members.map((m) => {
                   // Calculate average marks across evaluated weeks for this student
                   const studentEvaluations = Object.values(teamMarksMap)
-                    .map(record => record.memberMarks?.[m.rollNo])
-                    .filter(val => typeof val === 'number') as number[];
+                    .map(record => {
+                      const cleanRoll = m.rollNo.trim().toLowerCase();
+                      const val = record.memberMarks?.[m.rollNo] ??
+                        record.memberMarks?.[m.rollNo.trim()] ??
+                        Object.entries(record.memberMarks || {}).find(([k]) => k.trim().toLowerCase() === cleanRoll)?.[1] ??
+                        (record.teamAverage > 0 ? record.teamAverage : undefined);
+                      return typeof val === 'number' ? val : undefined;
+                    })
+                    .filter((val): val is number => typeof val === 'number');
 
                   const avgScore = studentEvaluations.length > 0
                     ? Math.round((studentEvaluations.reduce((a, b) => a + b, 0) / studentEvaluations.length) * 10) / 10
@@ -647,10 +655,10 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                           ? 'bg-white/20 text-white' 
                           : s.status === 'Approved' ? 'bg-emerald-100 text-emerald-800'
                           : s.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800'
-                          : (s.status === 'Submitted' || s.status === 'Pending') ? 'bg-amber-100 text-amber-900'
+                          : s.status === 'Submitted' ? 'bg-amber-100 text-amber-900'
                           : 'bg-slate-200 text-slate-600'
                       }`}>
-                        {s.status === 'Submitted' ? 'Pending' : s.status}
+                        {s.status}
                       </span>
                       {weekMarks && (
                         <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
@@ -685,262 +693,11 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                 </div>
               </div>
             ) : activeSubmission ? (
-              <div className="space-y-6 pt-1 text-xs">
-                {/* Complete Student Technical Submission Details */}
-                <div className="space-y-4">
-                  <h4 className="font-extrabold text-sm text-slate-900 border-b border-[#E2E8E4] pb-2">
-                    Complete Student Technical Submission Details
-                  </h4>
-
-                  {/* Project Title */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Project Title
-                    </span>
-                    <div className="p-3 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs font-bold text-slate-900">
-                      {getSubmissionTitle(activeSubmission.projectTitle || activeTeam.title)}
-                    </div>
-                  </div>
-
-                  {/* Problem Statement */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Problem Statement
-                    </span>
-                    {activeSubmission.problemStatement ? (
-                      <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                        {activeSubmission.problemStatement}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>No problem statement submitted for this milestone</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Proposed Solution */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Proposed Solution &amp; Technical Approach
-                    </span>
-                    {activeSubmission.solution ? (
-                      <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                        {activeSubmission.solution}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>No technical solution submitted for this milestone</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Technologies Used */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Technologies &amp; Frameworks
-                    </span>
-                    {activeSubmission.technologyUsed ? (
-                      <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl flex flex-wrap gap-2">
-                        {activeSubmission.technologyUsed.split(',').map((tech, idx) => (
-                          <span 
-                            key={idx} 
-                            className="px-2.5 py-1 rounded-lg bg-white border border-[#E2E8E4] text-xs font-mono font-bold text-slate-800 shadow-2xs hover:border-mint-300 transition"
-                          >
-                            {tech.trim()}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>No specific technologies recorded for this week</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Obstacles Faced */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Obstacles Faced &amp; Engineering Resolutions
-                    </span>
-                    {activeSubmission.obstaclesFaced ? (
-                      <div className="p-3.5 bg-rose-50/60 border border-rose-200 rounded-xl text-xs text-slate-800 leading-relaxed">
-                        {activeSubmission.obstaclesFaced}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <CheckCircle2 size={14} className="text-emerald-500" />
-                        <span>No blocking obstacles reported for this milestone</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Abstract */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                      Milestone Abstract &amp; Deliverable Summary
-                    </span>
-                    {activeSubmission.abstract ? (
-                      <div className="p-3.5 bg-slate-50 border border-[#E2E8E4] rounded-xl text-xs text-slate-800 leading-relaxed">
-                        {activeSubmission.abstract}
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-slate-50/70 border border-dashed border-slate-300 rounded-xl text-xs text-slate-400 italic flex items-center gap-1.5">
-                        <XCircle size={14} className="text-slate-400" />
-                        <span>No abstract summary provided for this milestone</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 5. Deliverables & File Downloads */}
-                  <div>
-                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
-                      Milestone Deliverables, Presentations &amp; Repositories
-                    </span>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-
-                      {/* GitHub Repo Link */}
-                      {activeSubmission.repoUrl ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
-                              <Github size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block">Source Code Repository</span>
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
-                                {activeSubmission.repoUrl}
-                              </span>
-                            </div>
-                          </div>
-                          <a
-                            href={activeSubmission.repoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
-                          >
-                            <ExternalLink size={13} />
-                            <span>Open</span>
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                              <Github size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-500 block">Source Code Repository</span>
-                              <span className="text-[10px] text-slate-400">GitHub Link</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>✕ Not Uploaded</span>
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Live Demo Link */}
-                      {activeSubmission.demoUrl ? (
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#E2E8E4] flex items-center justify-between shadow-xs">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                              <ExternalLink size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block">Live Demo / Telemetry</span>
-                              <span className="text-[10px] text-slate-400 truncate max-w-[150px] block font-mono">
-                                {activeSubmission.demoUrl}
-                              </span>
-                            </div>
-                          </div>
-                          <a
-                            href={activeSubmission.demoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
-                          >
-                            <ExternalLink size={13} />
-                            <span>Launch</span>
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="p-3.5 rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                              <ExternalLink size={18} />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-500 block">Live Demo / Dashboard</span>
-                              <span className="text-[10px] text-slate-400">Web URL</span>
-                            </div>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-extrabold flex items-center gap-1">
-                            <XCircle size={12} />
-                            <span>✕ Not Uploaded</span>
-                          </span>
-                        </div>
-                      )}
-
-                    </div>
-                  </div>
-
-                  {/* 6. Evaluation Scores & Individual Student Marks */}
-                  {(() => {
-                    const subNum = (activeSubmission as any).submissionNumber || 
-                                   ((activeSubmission as any).weekNumber !== undefined ? ((activeSubmission as any).weekNumber + 1) : 
-                                   (activeSubmission.week !== undefined ? activeSubmission.week + 1 : 1));
-                    const marksRec = MarksService.getWeeklyMarks(activeTeam.teamId, subNum, activeTeam.members?.map(m => m.rollNo)) ||
-                                     (subNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0, activeTeam.members?.map(m => m.rollNo)) : null);
-                    if (!marksRec) return null;
-
-                    return (
-                      <div className="space-y-3 p-4 rounded-2xl bg-mint-50/70 border border-mint-200 shadow-2xs">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Award size={16} className="text-mint-800" />
-                            <h4 className="text-xs font-bold text-mint-950 uppercase tracking-wider">
-                              Assigned Milestone Marks Breakdown
-                            </h4>
-                          </div>
-                          <span className="px-3 py-1 rounded-xl bg-white border border-mint-200 font-extrabold text-xs text-mint-900">
-                            Team Average: {marksRec.teamAverage} / 100
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {(activeTeam.members || []).map((member) => {
-                            const mScore = marksRec.memberMarks?.[member.rollNo] ?? marksRec.teamAverage;
-                            return (
-                              <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-mint-200 flex items-center justify-between gap-2">
-                                <div className="truncate">
-                                  <span className="font-bold text-slate-900 text-xs block truncate">{member.name}</span>
-                                  <span className="font-mono text-[10px] text-slate-500">{member.rollNo}</span>
-                                </div>
-                                <span className="px-2.5 py-1 rounded-lg bg-mint-50 border border-mint-200 font-extrabold text-xs text-mint-900 shrink-0">
-                                  {mScore} / 100
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {marksRec.remarks && (
-                          <p className="text-xs text-mint-900 font-medium pt-1 border-t border-mint-200/60 italic">
-                            &ldquo;{marksRec.remarks}&rdquo; &bull; Evaluated by {marksRec.gradedBy}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                </div>
-
+              <div className="pt-2">
+                <AdvisorSubmissionDetails
+                  submission={activeSubmission}
+                  teamTitle={activeTeam.title}
+                />
               </div>
             ) : null}
 
