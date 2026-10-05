@@ -39,11 +39,20 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
   const isRevision = status === 'Changes Requested' || status === 'Rejected' || status === 'Revision Required';
 
   // Marks data
+  const subMemberMarks = (submission as any)?.memberMarks && typeof (submission as any).memberMarks === 'object' && Object.keys((submission as any).memberMarks).length > 0
+    ? (submission as any).memberMarks
+    : null;
+
+  const marksMemberMarks = marks?.memberMarks && typeof marks.memberMarks === 'object' && Object.keys(marks.memberMarks).length > 0
+    ? marks.memberMarks
+    : null;
+
+  const memberMarks: Record<string, number> = marksMemberMarks || subMemberMarks || {};
+
   const teamScore = (marks?.teamAverage !== undefined && marks.teamAverage > 0)
     ? marks.teamAverage
     : (typeof submission.score === 'number' && submission.score > 0 ? submission.score : null);
 
-  const memberMarks = marks?.memberMarks || {};
   const cleanRoll = (studentRollNo || '').trim().toLowerCase();
 
   const inspectedStudentMark = studentRollNo
@@ -55,7 +64,7 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
 
   const hasAnyMarks = teamScore !== null || Object.keys(memberMarks).length > 0;
   const remarksText = marks?.remarks || submission.comments || '';
-  const gradedBy = marks?.gradedBy || submission.guideName || 'Faculty Guide';
+  const gradedBy = marks?.gradedBy || (submission as any).gradedBy || submission.guideName || 'Faculty Guide';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 font-sans">
@@ -164,11 +173,11 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
                     </div>
                   </div>
                   <div>
-                    {inspectedStudentMark !== null ? (
+                    {inspectedStudentMark !== null && inspectedStudentMark !== undefined ? (
                       <span className="px-2.5 py-1 rounded-lg bg-mint-600 text-white font-black text-xs shadow-2xs">
                         {inspectedStudentMark} / 100
                       </span>
-                    ) : teamScore !== null ? (
+                    ) : (Object.keys(memberMarks).length === 0 && teamScore !== null) ? (
                       <span className="px-2.5 py-1 rounded-lg bg-mint-600 text-white font-black text-xs shadow-2xs">
                         {teamScore} / 100
                       </span>
@@ -189,10 +198,13 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {team.members.map(m => {
                     const mCleanRoll = m.rollNo.trim().toLowerCase();
-                    const markVal = memberMarks[m.rollNo] ??
+                    const individualVal = memberMarks[m.rollNo] ??
                       memberMarks[m.rollNo.trim()] ??
-                      Object.entries(memberMarks).find(([k]) => k.trim().toLowerCase() === mCleanRoll)?.[1] ??
-                      teamScore;
+                      Object.entries(memberMarks).find(([k]) => k.trim().toLowerCase() === mCleanRoll)?.[1];
+
+                    const markVal = (individualVal !== null && individualVal !== undefined)
+                      ? individualVal
+                      : (Object.keys(memberMarks).length === 0 ? teamScore : null);
 
                     const isCurrentStudent = studentRollNo && mCleanRoll === cleanRoll;
 

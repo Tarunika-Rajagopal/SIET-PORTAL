@@ -403,20 +403,6 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         console.warn('Could not refresh submissions list:', subListErr);
       }
 
-      try {
-        StudentService.saveAllDeliverables(`Submission ${currentSubmissionNumber}`, {
-          projectTitle: title,
-          problemStatement,
-          solution,
-          technologyUsed: technology,
-          obstaclesFaced,
-          abstract,
-          repoUrl,
-          demoUrl,
-          submissionDate: savedSub?.submissionDate || todayDateStr
-        });
-      } catch (e) {}
-
       invalidateTeamsQuery();
       window.dispatchEvent(new Event('siet_data_updated'));
 

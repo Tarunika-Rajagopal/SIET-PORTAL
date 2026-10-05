@@ -50,6 +50,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
 
   // Subscribe to real-time marks updates
   useEffect(() => {
+    MarksService.fetchAllMarks().catch(() => {});
     const unsub = MarksService.subscribe(() => {
       setMarksTick(n => n + 1);
     });
@@ -139,7 +140,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     setSaveSuccessMsg('');
 
     // Pre-populate marks draft
-    const subNum = (sub as any).submissionNumber || (sub.week !== undefined ? sub.week + 1 : 1);
+    const subNum = (sub as any).submissionNumber || (sub as any).weekNumber || sub.week || 1;
     const wMarks = MarksService.getWeeklyMarks(team.id, subNum, team.members.map(m => m.rollNo)) ||
                    (subNum === 1 ? MarksService.getWeeklyMarks(team.id, 0, team.members.map(m => m.rollNo)) : null);
     const initialMarks: Record<string, number> = {};
@@ -183,7 +184,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   const handleSaveMarks = async () => {
     if (!activeModalTeam || !activeModalSub) return;
 
-    const subNum = (activeModalSub as any).submissionNumber || (activeModalSub.week !== undefined ? activeModalSub.week + 1 : 1);
+    const subNum = (activeModalSub as any).submissionNumber || (activeModalSub as any).weekNumber || activeModalSub.week || 1;
 
     // 0. Log action to HodHistoryService for audit tracking
     const currentUser = AuthService.getCurrentUser();
@@ -233,55 +234,6 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
       );
     }
 
-    // 2. Sync to guide portal storage
-    try {
-      const guideRaw = localStorage.getItem('siet_guide_portal_teams_v6');
-      if (guideRaw) {
-        const gTeams = JSON.parse(guideRaw);
-        if (Array.isArray(gTeams)) {
-          let updated = false;
-          gTeams.forEach((gt: any) => {
-            if (
-              gt.teamId === activeModalTeam.id ||
-              gt.id === activeModalTeam.id ||
-              (gt.teamNumber && activeModalTeam.teamNo.includes(String(gt.teamNumber)))
-            ) {
-              if (Array.isArray(gt.submissions)) {
-                const s = gt.submissions.find((sub: any) => (sub.weekNumber ?? sub.week) === activeModalSub.week);
-                if (s) {
-                  s.marks = draftAverage;
-                  s.comments = draftRemarks;
-                  updated = true;
-                }
-              }
-            }
-          });
-          if (updated) {
-            localStorage.setItem('siet_guide_portal_teams_v6', JSON.stringify(gTeams));
-          }
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    // 3. Sync to student portal storage
-    try {
-      const studentRaw = localStorage.getItem('siet_student_submissions_v6');
-      if (studentRaw) {
-        const sSubs = JSON.parse(studentRaw);
-        if (Array.isArray(sSubs)) {
-          const s = sSubs.find((sub: any) => sub.week === activeModalSub.week);
-          if (s) {
-            s.score = draftAverage;
-            s.comments = draftRemarks;
-            localStorage.setItem('siet_student_submissions_v6', JSON.stringify(sSubs));
-          }
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
 
     // 4. Dispatch events
     window.dispatchEvent(new Event('siet_marks_updated'));
@@ -573,7 +525,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                       {team.submissions.slice(0, 4).map((sub) => {
                                         const weekNum = sub.week;
-                                        const subNumber = (sub as any).submissionNumber || (sub.week !== undefined ? sub.week + 1 : 1);
+                                        const subNumber = (sub as any).submissionNumber || (sub as any).weekNumber || sub.week || 1;
                                         const wMarks = MarksService.getWeeklyMarks(team.id, subNumber, team.members.map(m => m.rollNo)) ||
                                                        (subNumber === 1 ? MarksService.getWeeklyMarks(team.id, 0, team.members.map(m => m.rollNo)) : null);
                                         const isApproved = sub.status === 'Approved';
@@ -679,7 +631,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
             <div className="bg-[#F8F5EE] px-6 py-4 border-b border-[#D8CCBA] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <span className="px-2.5 py-1 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-extrabold text-xs">
-                  {activeModalTeam.teamNo} &bull; Submission {activeModalSub.week}
+                  {activeModalTeam.teamNo} &bull; Submission {(activeModalSub as any).submissionNumber || (activeModalSub as any).weekNumber || activeModalSub.week || 1}
                 </span>
                 <div>
                   <h3 className="text-sm font-serif font-bold text-[#111111] truncate max-w-md">
@@ -926,7 +878,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                   <div className="space-y-3">
                     <div className="bg-[#FAF8F4] rounded-2xl p-4 border border-[#D8CCBA] space-y-3">
                       {(() => {
-                        const subNum = (activeModalSub as any).submissionNumber || (activeModalSub.week !== undefined ? activeModalSub.week + 1 : 1);
+                        const subNum = (activeModalSub as any).submissionNumber || (activeModalSub as any).weekNumber || activeModalSub.week || 1;
                         const wMarks = MarksService.getWeeklyMarks(activeModalTeam.id, subNum, activeModalTeam.members.map(x => x.rollNo)) ||
                                        (subNum === 1 ? MarksService.getWeeklyMarks(activeModalTeam.id, 0, activeModalTeam.members.map(x => x.rollNo)) : null);
 

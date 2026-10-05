@@ -32,12 +32,45 @@ function dispatchGlobalEvents() {
 }
 
 /**
- * Generate generic team ID aliases for cross-format matching.
- * E.g. "TEAM-CSE-Y3-B04" → ["team-4", "team-04", "Team 4", "Team 04", "4", "04"]
+ * Generate safe team ID aliases for cross-format matching.
+ * Section-qualified identifiers (e.g. "TEAM-CSE-Y3-B04") strictly preserve section isolation
+ * (e.g. "CSE-B Team 04", "B04") and never emit bare digits ("4", "04") that collide across sections.
+ * UUIDs are strictly kept intact without extracting trailing digits.
  */
 function getAliasesForTeam(teamId: string): string[] {
   if (!teamId) return [];
+  // If teamId is a UUID, return only the UUID (never extract trailing digits as a team number)
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId)) {
+    return [teamId, teamId.toLowerCase()];
+  }
   const aliases = new Set<string>([teamId, teamId.toLowerCase()]);
+
+  // Section-aware matching: e.g. "TEAM-CSE-B-T10", "TEAM-CSE-Y3-B04", "CSE-B Team 04", "B-Team 04", "CSE-B-T10"
+  const classSecMatch = teamId.match(/(?:CSE-?([A-D])|([A-D]))[-_\s]*(?:team|t)?[-_\s]*(\d+)/i);
+  if (classSecMatch) {
+    const sec = (classSecMatch[1] || classSecMatch[2] || '').toUpperCase();
+    const rawNum = classSecMatch[3];
+    const num = parseInt(rawNum, 10);
+    const padded = num < 10 ? `0${num}` : `${num}`;
+    aliases.add(`CSE-${sec} Team ${num}`);
+    aliases.add(`CSE-${sec} Team ${padded}`);
+    aliases.add(`CSE-${sec}-${num}`);
+    aliases.add(`CSE-${sec}-${padded}`);
+    aliases.add(`CSE-${sec}-Team ${num}`);
+    aliases.add(`CSE-${sec}-Team ${padded}`);
+    aliases.add(`TEAM-CSE-${sec}-T${num}`);
+    aliases.add(`TEAM-CSE-${sec}-T${padded}`);
+    aliases.add(`${sec}-Team ${num}`);
+    aliases.add(`${sec}-Team ${padded}`);
+    aliases.add(`Team ${num}`);
+    aliases.add(`Team ${padded}`);
+    aliases.add(`team-${num}`);
+    aliases.add(`team-${padded}`);
+    aliases.add(`${sec}${padded}`);
+    return Array.from(aliases);
+  }
+
+  // Generic team numbering ONLY if no class/section is present
   const numMatch = teamId.match(/\d+$/) || teamId.match(/(\d+)/);
   if (numMatch) {
     const rawNum = numMatch[1] || numMatch[0];
@@ -47,8 +80,6 @@ function getAliasesForTeam(teamId: string): string[] {
     aliases.add(`team-${padded}`);
     aliases.add(`Team ${num}`);
     aliases.add(`Team ${padded}`);
-    aliases.add(`${num}`);
-    aliases.add(padded);
   }
   return Array.from(aliases);
 }
@@ -62,9 +93,14 @@ export const MarksService = {
     try {
       const serverMarks = await ApiClient.getAllWeeklyMarks();
       if (serverMarks && typeof serverMarks === 'object' && Object.keys(serverMarks).length > 0) {
-        cachedMarks = serverMarks;
+        cachedMarks = { ...cachedMarks, ...serverMarks };
+        for (const [key, weekObj] of Object.entries(serverMarks)) {
+          for (const alias of getAliasesForTeam(key)) {
+            cachedMarks[alias] = { ...(cachedMarks[alias] || {}), ...weekObj };
+          }
+        }
         notifyListeners();
-        return serverMarks;
+        return cachedMarks;
       }
     } catch (e) {
       console.warn('Failed to fetch marks from backend:', e);
@@ -81,10 +117,13 @@ export const MarksService = {
     try {
       const serverTeamMarks = await ApiClient.getTeamWeeklyMarks(teamId);
       if (serverTeamMarks && typeof serverTeamMarks === 'object') {
-        cachedMarks[teamId] = {};
-        for (const [wStr, rec] of Object.entries(serverTeamMarks)) {
-          const w = Number(wStr);
-          cachedMarks[teamId][w] = rec as WeeklyMarksRecord;
+        const targetAliases = [teamId, ...getAliasesForTeam(teamId)];
+        for (const a of targetAliases) {
+          if (!cachedMarks[a]) cachedMarks[a] = {};
+          for (const [wStr, rec] of Object.entries(serverTeamMarks)) {
+            const w = Number(wStr);
+            cachedMarks[a][w] = rec as WeeklyMarksRecord;
+          }
         }
         notifyListeners();
         return serverTeamMarks;
@@ -185,22 +224,6 @@ export const MarksService = {
         }
         result[wNum].memberMarks = normalizedMarks;
       }
-
-      // Ensure all current member roll numbers are populated if milestone was evaluated
-      if (memberRollNos && memberRollNos.length > 0) {
-        if (!result[wNum].memberMarks) {
-          result[wNum].memberMarks = {};
-        }
-        const teamAvg = result[wNum].teamAverage || 0;
-        for (const rno of memberRollNos) {
-          const clean = String(rno).trim();
-          const lower = clean.toLowerCase();
-          const exists = Object.keys(result[wNum].memberMarks).some(k => k.trim().toLowerCase() === lower);
-          if (!exists && teamAvg > 0) {
-            result[wNum].memberMarks[clean] = teamAvg;
-          }
-        }
-      }
     }
 
     return result;
@@ -246,9 +269,12 @@ export const MarksService = {
       gradedBy
     };
 
-    // Optimistically update in-memory cache
-    if (!cachedMarks[teamId]) cachedMarks[teamId] = {};
-    cachedMarks[teamId][weekNumber] = record;
+    // Optimistically update in-memory cache across teamId and all aliases
+    const aliases = [teamId, ...getAliasesForTeam(teamId)];
+    for (const a of aliases) {
+      if (!cachedMarks[a]) cachedMarks[a] = {};
+      cachedMarks[a][weekNumber] = record;
+    }
 
     notifyListeners();
     dispatchGlobalEvents();

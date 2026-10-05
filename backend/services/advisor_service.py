@@ -4,9 +4,10 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
 from sqlalchemy import select, or_
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import Team, TeamMember, Student, User, AdvisorHistory
+from models import Team, TeamMember, Student, User, AdvisorHistory, WeeklyMark, WeeklyMemberMark
 from repositories.team_repository import TeamRepository
 from repositories.student_repository import StudentRepository
 from repositories.faculty_repository import FacultyRepository
@@ -90,20 +91,45 @@ class AdvisorService:
         for s in subs:
             subs_by_team.setdefault(s.team_id, []).append(s)
 
+        marks_by_team_week = {}
+        if team_ids:
+            marks_res = await self.session.execute(
+                select(WeeklyMark)
+                .options(selectinload(WeeklyMark.member_marks))
+                .where(WeeklyMark.team_id.in_(team_ids))
+            )
+            for wm in marks_res.scalars().all():
+                marks_by_team_week[(wm.team_id, wm.week_number)] = wm
+
         out = []
         for t in rows:
             st = _ser_team(t)
             t_subs = subs_by_team.get(t.id, [])
-            st["submissions"] = [
-                {
+            submissions_list = []
+            seen_weeks = set()
+            for s in t_subs:
+                seen_weeks.add(s.week)
+                wm = marks_by_team_week.get((t.id, s.week))
+                member_marks = {}
+                if wm and wm.member_marks:
+                    for mm in wm.member_marks:
+                        if mm.roll_no:
+                            member_marks[mm.roll_no.strip()] = float(mm.mark) if mm.mark is not None else 0.0
+                score_val = float(wm.team_average) if (wm and wm.team_average is not None) else (float(s.score) if s.score is not None else None)
+                status_val = s.status.value if hasattr(s.status, "value") else (s.status or "Pending")
+                if score_val is not None and score_val > 0 and status_val not in ("Changes Requested", "Rejected"):
+                    status_val = "Approved"
+
+                submissions_list.append({
                     "id": str(s.id),
                     "week": s.week,
                     "weekNumber": s.week,
                     "title": s.title or f"Week {s.week} Deliverables",
                     "dueDate": s.due_date or "",
-                    "status": s.status.value if hasattr(s.status, "value") else (s.status or "Pending"),
-                    "submissionDate": s.submission_date or "",
-                    "score": float(s.score) if s.score is not None else None,
+                    "status": status_val,
+                    "submissionDate": s.submission_date or (wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else ""),
+                    "score": score_val,
+                    "memberMarks": member_marks,
                     "maxScore": float(s.max_score) if s.max_score is not None else 100.0,
                     "projectTitle": s.project_title or t.project_title or "",
                     "problemStatement": s.problem_statement or "",
@@ -119,12 +145,52 @@ class AdvisorService:
                     "githubUrl": s.repo_url or "",
                     "demoUrl": s.demo_url or "",
                     "liveDemoUrl": s.demo_url or "",
-                    "guideName": s.guide_name or t.guide_name or "",
-                    "guideReviewDate": s.guide_review_date or "",
-                    "comments": s.comments or "",
-                }
-                for s in t_subs
-            ]
+                    "guideName": s.guide_name or (wm.graded_by if wm else "") or t.guide_name or "",
+                    "guideReviewDate": s.guide_review_date or (wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else ""),
+                    "comments": s.comments or (wm.remarks if wm else "") or "",
+                })
+
+            # Also include evaluated milestones in WeeklyMark that don't have an explicit WeeklySubmission row
+            for (team_uuid, week_num), wm in marks_by_team_week.items():
+                if team_uuid == t.id and week_num not in seen_weeks and week_num > 0:
+                    seen_weeks.add(week_num)
+                    member_marks = {}
+                    if wm and wm.member_marks:
+                        for mm in wm.member_marks:
+                            if mm.roll_no:
+                                member_marks[mm.roll_no.strip()] = float(mm.mark) if mm.mark is not None else 0.0
+                    score_val = float(wm.team_average) if wm.team_average is not None else None
+                    submissions_list.append({
+                        "id": f"wm-{wm.id}",
+                        "week": week_num,
+                        "weekNumber": week_num,
+                        "title": f"Submission {week_num} Deliverables",
+                        "dueDate": f"Submission {week_num}",
+                        "status": "Approved" if (score_val and score_val > 0) else "Submitted",
+                        "submissionDate": wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else "",
+                        "score": score_val,
+                        "memberMarks": member_marks,
+                        "maxScore": 100.0,
+                        "projectTitle": t.project_title or "",
+                        "problemStatement": t.problem_statement or "",
+                        "solution": t.proposed_solution or "",
+                        "proposedSolution": t.proposed_solution or "",
+                        "technologyUsed": "",
+                        "technologiesUsed": [],
+                        "obstaclesFaced": "",
+                        "problemsFaced": "",
+                        "abstract": t.abstract or "",
+                        "abstractSummary": t.abstract or "",
+                        "repoUrl": t.repo_url or "",
+                        "githubUrl": t.repo_url or "",
+                        "demoUrl": t.demo_url or "",
+                        "liveDemoUrl": t.demo_url or "",
+                        "guideName": wm.graded_by or t.guide_name or "",
+                        "guideReviewDate": wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else "",
+                        "comments": wm.remarks or "",
+                    })
+
+            st["submissions"] = sorted(submissions_list, key=lambda x: x["week"])
             out.append(st)
         return out
 

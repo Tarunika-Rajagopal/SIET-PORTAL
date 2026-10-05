@@ -42,9 +42,10 @@ export const MyTeams = () => {
   // Current academic week
   const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
 
-  // Marks listener
+  // Marks listener & initial fetch
   const [, setMarksTick] = useState(0);
   useEffect(() => {
+    MarksService.fetchAllMarks().catch(() => {});
     const unsubMarks = MarksService.subscribe(() => {
       setMarksTick(n => n + 1);
     });
@@ -61,6 +62,27 @@ export const MyTeams = () => {
       window.removeEventListener('storage', handleSync);
     };
   }, []);
+
+  // Fetch team-specific marks whenever teams change or modal opens
+  useEffect(() => {
+    if (teams && teams.length > 0) {
+      teams.forEach(t => {
+        const tid = t.teamId || t.id;
+        if (tid) {
+          MarksService.fetchTeamMarks(tid).catch(() => {});
+        }
+      });
+    }
+  }, [teams]);
+
+  useEffect(() => {
+    if (detailModalOpen && activeTeamForModal) {
+      const tid = activeTeamForModal.teamId || activeTeamForModal.id;
+      if (tid) {
+        MarksService.fetchTeamMarks(tid).catch(() => {});
+      }
+    }
+  }, [detailModalOpen, activeTeamForModal]);
 
   // Extract unique batches dynamically
   const availableBatches = useMemo(() => {
@@ -104,7 +126,7 @@ export const MyTeams = () => {
   // Helper to get all submissions up to current academic week for a team
   const getTeamSubmissionsList = (team) => {
     const memberRolls = (team.members || []).map(m => m.rollNo);
-    const teamMarks = MarksService.getAllTeamMarks(team.teamId, memberRolls);
+    const teamMarks = MarksService.getAllTeamMarks(team.teamId || team.id, memberRolls);
 
     return ALL_SUBMISSIONS.filter(s => s.submissionNumber <= Math.max(4, currentAcademicWeek)).map(def => {
       // Find matching submission in team.submissions
@@ -115,13 +137,22 @@ export const MyTeams = () => {
         (def.submissionNumber === 1 && (s.weekNumber === 0 || s.weekNumber === 1))
       );
 
-      // Marks for this submission
+      // Marks for this submission: check MarksService, existing.score, or existing.memberMarks
       const recordedMark = teamMarks[def.weekNumber] || 
                            (def.weekNumber === 1 ? teamMarks[0] : null);
-      const hasMarks = Boolean(recordedMark && (
-        (typeof recordedMark.teamAverage === 'number' && recordedMark.teamAverage > 0) ||
-        (recordedMark.memberMarks && Object.keys(recordedMark.memberMarks).length > 0)
-      ));
+
+      const scoreFromBackend = (existing?.score !== null && existing?.score !== undefined) ? Number(existing.score) : null;
+      const scoreFromMarks = (recordedMark && typeof recordedMark.teamAverage === 'number' && recordedMark.teamAverage > 0) ? recordedMark.teamAverage : null;
+      const finalScore = scoreFromMarks ?? scoreFromBackend;
+
+      const memberMarksObj = (recordedMark?.memberMarks && Object.keys(recordedMark.memberMarks).length > 0)
+        ? recordedMark.memberMarks
+        : (existing?.memberMarks && Object.keys(existing.memberMarks).length > 0 ? existing.memberMarks : {});
+
+      const hasMarks = Boolean(
+        (finalScore !== null && finalScore !== undefined && finalScore > 0) ||
+        (memberMarksObj && Object.keys(memberMarksObj).length > 0)
+      );
 
       const isApproved = existing?.status === 'Approved' || 
                          existing?.evaluationStatus === 'Approved' || 
@@ -159,9 +190,44 @@ export const MyTeams = () => {
           status: isApproved ? 'Approved' : (hasRealContent ? (existing.status === 'Revision Required' || existing.evaluationStatus === 'Revision Required' ? 'Revision Required' : (existing.status || 'Submitted')) : 'Not Uploaded'),
           evaluationStatus: isApproved ? 'Approved' : (hasRealContent ? (existing.evaluationStatus || 'Pending') : 'Pending'),
           submissionStatus: isApproved ? 'Approved' : (hasRealContent ? (existing.submissionStatus || 'Submitted') : 'Not Uploaded'),
-          hasMarks: isApproved && hasMarks,
-          marksScore: (isApproved && hasMarks) ? (recordedMark.teamAverage ?? existing.score) : (isApproved ? (existing.score ?? null) : null),
-          marksRemarks: isApproved ? (recordedMark?.remarks || existing.guideRemarks || existing.comments || '') : ''
+          hasMarks,
+          marksScore: finalScore,
+          memberMarks: memberMarksObj,
+          marksRemarks: recordedMark?.remarks || existing.guideRemarks || existing.comments || ''
+        };
+      }
+
+      // If team has recorded marks for this week even without explicit submission row
+      if (hasMarks) {
+        const teamRawTech = team.technologiesUsed || team.technologyUsed || team.techStack;
+        const teamTechArr = Array.isArray(teamRawTech)
+          ? teamRawTech
+          : (typeof teamRawTech === 'string' && teamRawTech.trim()
+              ? teamRawTech.split(',').map(s => s.trim()).filter(Boolean)
+              : []);
+        const teamTechStr = typeof teamRawTech === 'string' ? teamRawTech : teamTechArr.join(', ');
+
+        return {
+          submissionNumber: def.submissionNumber,
+          weekNumber: def.weekNumber,
+          title: (def.submissionNumber === 1 && team.projectTitle) ? team.projectTitle : def.defaultTitle,
+          isUploaded: true,
+          status: 'Approved',
+          evaluationStatus: 'Approved',
+          submissionStatus: 'Approved',
+          submissionDate: recordedMark?.gradedAt ? new Date(recordedMark.gradedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null,
+          hasMarks: true,
+          marksScore: finalScore,
+          memberMarks: memberMarksObj,
+          marksRemarks: recordedMark?.remarks || '',
+          abstractSummary: (def.submissionNumber === 1 ? (team.abstract || team.projectDescription || '') : ''),
+          problemStatement: (def.submissionNumber === 1 ? (team.problemStatement || '') : ''),
+          proposedSolution: (def.submissionNumber === 1 ? (team.proposedSolution || '') : ''),
+          technologiesUsed: teamTechArr,
+          technologyUsed: teamTechStr,
+          techStack: teamTechStr,
+          githubUrl: team.githubUrl || '',
+          liveDemoUrl: team.liveDemoUrl || ''
         };
       }
 
@@ -183,7 +249,8 @@ export const MyTeams = () => {
           status: team.titleStatus || 'Pending',
           submissionDate: team.submittedDate || new Date().toISOString().split('T')[0],
           hasMarks,
-          marksScore: hasMarks ? recordedMark.teamAverage : null,
+          marksScore: finalScore,
+          memberMarks: memberMarksObj,
           marksRemarks: recordedMark?.remarks || team.guideFeedback || '',
           problemStatement: team.problemStatement || '',
           proposedSolution: team.proposedSolution || '',
@@ -769,13 +836,19 @@ export const MyTeams = () => {
               {/* 7. Assigned Milestone Evaluation & Individual Student Marks Breakdown */}
               {(() => {
                 const subNum = Number(activeSubModal.weekNumber !== undefined ? activeSubModal.weekNumber : (activeSubModal.week !== undefined ? activeSubModal.week : (activeSubModal.submissionNumber || 1)));
-                const isApproved = activeSubModal.status === 'Approved' || activeSubModal.evaluationStatus === 'Approved' || activeSubModal.submissionStatus === 'Approved';
-                if (!isApproved) return null;
-
                 const memberRolls = activeTeamForModal.members?.map(m => m.rollNo);
-                const marksRec = MarksService.getWeeklyMarks(activeTeamForModal.teamId, subNum, memberRolls) ||
-                                 (subNum === 1 ? MarksService.getWeeklyMarks(activeTeamForModal.teamId, 0, memberRolls) : null);
-                if (!marksRec) return null;
+                const marksRec = MarksService.getWeeklyMarks(activeTeamForModal.teamId || activeTeamForModal.id, subNum, memberRolls) ||
+                                 (subNum === 1 ? MarksService.getWeeklyMarks(activeTeamForModal.teamId || activeTeamForModal.id, 0, memberRolls) : null);
+                
+                const teamAvg = (marksRec && marksRec.teamAverage > 0) ? marksRec.teamAverage : (activeSubModal.marksScore ?? activeSubModal.score ?? null);
+                const memMarks = (marksRec && marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
+                  ? marksRec.memberMarks
+                  : (activeSubModal.memberMarks && Object.keys(activeSubModal.memberMarks).length > 0 ? activeSubModal.memberMarks : null);
+
+                if (teamAvg === null && !memMarks) return null;
+
+                const gradedByText = marksRec?.gradedBy || 'Faculty Guide';
+                const remarksText = marksRec?.remarks || activeSubModal.marksRemarks || activeSubModal.guideRemarks || activeSubModal.comments;
 
                 return (
                   <div className="space-y-3 p-4 rounded-2xl bg-[#EBF0E9] border border-[#BFCEB9]">
@@ -787,14 +860,14 @@ export const MyTeams = () => {
                         </h4>
                       </div>
                       <span className="px-3 py-1 rounded-xl bg-white border border-[#BFCEB9] font-extrabold text-xs text-[#4A5844]">
-                        Team Average: {marksRec.teamAverage} / 100
+                        Team Average: {teamAvg ?? 0} / 100
                       </span>
                     </div>
 
                     {/* Individual Marks Roster */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {(activeTeamForModal.members || []).map((member) => {
-                        const mScore = marksRec.memberMarks?.[member.rollNo] ?? marksRec.teamAverage;
+                        const mScore = memMarks?.[member.rollNo] ?? teamAvg;
                         return (
                           <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-[#BFCEB9] flex items-center justify-between gap-2">
                             <div className="truncate">
@@ -802,16 +875,16 @@ export const MyTeams = () => {
                               <span className="font-mono text-[10px] text-[#75695A]">{member.rollNo}</span>
                             </div>
                             <span className="px-2.5 py-1 rounded-lg bg-[#EBF0E9] border border-[#BFCEB9] font-extrabold text-xs text-[#4A5844] shrink-0">
-                              {mScore} / 100
+                              {typeof mScore === 'number' ? `${mScore} / 100` : '-- / 100'}
                             </span>
                           </div>
                         );
                       })}
                     </div>
 
-                    {marksRec.remarks && (
+                    {remarksText && (
                       <p className="text-xs text-[#4A5844] font-medium pt-1 border-t border-[#BFCEB9]/60 italic">
-                        &ldquo;{marksRec.remarks}&rdquo; &bull; Evaluated by {marksRec.gradedBy}
+                        &ldquo;{remarksText}&rdquo; &bull; Evaluated by {gradedByText}
                       </p>
                     )}
                   </div>

@@ -92,6 +92,8 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   };
 
   useEffect(() => {
+    MarksService.fetchAllMarks().catch(() => {});
+
     const unsubMarks = MarksService.subscribe(() => {
       refetchTeams();
       refetchStudents();
@@ -724,8 +726,9 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                   const teamSubmissions: WeeklySubmission[] = assignedTeam 
                     ? AdvisorSubmissionsService.getTeamSubmissions(assignedTeam) 
                     : [];
+                  const memberRolls = assignedTeam ? assignedTeam.members.map(m => m.rollNo) : [s.rollNo];
                   const teamMarksRecords = assignedTeam 
-                    ? MarksService.getAllTeamMarks(assignedTeam.teamId, assignedTeam.members.map(m => m.rollNo))
+                    ? MarksService.getAllTeamMarks(assignedTeam.teamId || (assignedTeam as any).id || assignedTeam.teamNo, memberRolls)
                     : {};
 
                   // Milestones: Strictly 1 to 4 (Submission 1, Submission 2, Submission 3, Submission 4)
@@ -970,18 +973,30 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                                       item.title?.toLowerCase().includes(`submission ${submissionNumber}`) ||
                                       item.title?.toLowerCase().includes(`submission_${submissionNumber}`)
                                     );
+                                    const teamIdKey = assignedTeam.teamId || (assignedTeam as any).id || assignedTeam.teamNo;
                                     const weekMarks = teamMarksRecords[submissionNumber] || 
-                                                      MarksService.getWeeklyMarks(assignedTeam.teamId, submissionNumber, assignedTeam.members.map(m => m.rollNo));
+                                                      MarksService.getWeeklyMarks(teamIdKey, submissionNumber, memberRolls) ||
+                                                      (submissionNumber === 1 ? MarksService.getWeeklyMarks(teamIdKey, 0, memberRolls) : null) ||
+                                                      (sub && (sub as any).memberMarks && Object.keys((sub as any).memberMarks).length > 0 ? {
+                                                        teamId: assignedTeam.teamId,
+                                                        weekNumber: submissionNumber,
+                                                        memberMarks: (sub as any).memberMarks,
+                                                        teamAverage: typeof sub.score === 'number' ? sub.score : 0,
+                                                        remarks: sub.comments || '',
+                                                        gradedAt: (sub as any).guideReviewDate || (sub as any).submissionDate || '',
+                                                        gradedBy: sub.guideName || 'Faculty Guide'
+                                                      } : null);
 
                                     const markScore = (weekMarks?.teamAverage !== undefined && weekMarks.teamAverage > 0)
                                       ? weekMarks.teamAverage
                                       : (typeof sub?.score === 'number' && sub.score > 0 ? sub.score : null);
 
                                     const cleanRoll = s.rollNo.trim().toLowerCase();
-                                    const individualScore = weekMarks?.memberMarks
-                                      ? (weekMarks.memberMarks[s.rollNo] ??
-                                         weekMarks.memberMarks[s.rollNo.trim()] ??
-                                         Object.entries(weekMarks.memberMarks).find(([k]) => k.trim().toLowerCase() === cleanRoll)?.[1] ??
+                                    const resolvedMemberMarks = weekMarks?.memberMarks || (sub as any)?.memberMarks;
+                                    const individualScore = resolvedMemberMarks
+                                      ? (resolvedMemberMarks[s.rollNo] ??
+                                         resolvedMemberMarks[s.rollNo.trim()] ??
+                                         Object.entries(resolvedMemberMarks).find(([k]) => k.trim().toLowerCase() === cleanRoll)?.[1] ??
                                          null)
                                       : null;
 

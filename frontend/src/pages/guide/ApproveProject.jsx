@@ -42,9 +42,10 @@ export const ApproveProject = () => {
   const [decisionError, setDecisionError] = useState('');
   const [downloadToast, setDownloadToast] = useState(null);
 
-  // Listen to marks updates
+  // Listen to marks updates and fetch authoritative marks on mount
   const [, setTick] = useState(0);
   useEffect(() => {
+    MarksService.fetchAllMarks().catch(() => {});
     const handleSync = () => setTick(n => n + 1);
     window.addEventListener('siet_marks_updated', handleSync);
     window.addEventListener('siet_data_updated', handleSync);
@@ -203,14 +204,24 @@ export const ApproveProject = () => {
     setInspectedSub(sub);
     setActiveDecision(null);
     
-    // Initialize individual marks for all members with empty string
+    const weekNum = Number(
+      sub.weekNumber !== undefined 
+        ? sub.weekNumber 
+        : (sub.week !== undefined ? sub.week : (sub.submissionNumber || 1))
+    );
+    const memberRolls = (team.members || []).map(m => m.rollNo);
+    const existingRec = MarksService.getWeeklyMarks(team.teamId || team.id, weekNum, memberRolls) ||
+                        (weekNum === 1 ? MarksService.getWeeklyMarks(team.teamId || team.id, 0, memberRolls) : null);
+
+    // Initialize individual marks for all members (pre-fill with existing if evaluated)
     const initMarks = {};
     (team.members || []).forEach(m => {
-      initMarks[m.rollNo] = '';
+      const prior = existingRec?.memberMarks?.[m.rollNo] ?? sub.memberMarks?.[m.rollNo] ?? (existingRec?.teamAverage || sub.score || '');
+      initMarks[m.rollNo] = prior !== '' && prior !== undefined && prior !== null ? String(prior) : '';
     });
     setIndividualMarks(initMarks);
 
-    setGuideRemarks('');
+    setGuideRemarks(existingRec?.remarks || sub.comments || sub.guideRemarks || '');
     setMandatoryReason('');
     setDecisionError('');
     setInspectModalOpen(true);

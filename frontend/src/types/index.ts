@@ -93,6 +93,7 @@ export interface WeeklySubmission {
   guideName?: string;
   guideReviewDate?: string;
   guideNotice?: GuideNotice;
+  memberMarks?: Record<string, number>;
 }
 
 export interface RubricCriteria {

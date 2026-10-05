@@ -55,21 +55,10 @@ export const AuthService = {
                 JSON.stringify(sessionData)
             );
 
-            // Purge student team and submission cache if it belongs to a different team/student
-            const cachedTeamRaw = localStorage.getItem("siet_student_team_v6");
-            if (cachedTeamRaw) {
-                const cachedTeam = JSON.parse(cachedTeamRaw);
-                const isDifferentTeam = (user.teamId && cachedTeam.id && user.teamId !== cachedTeam.id) ||
-                                        (user.teamNo && cachedTeam.teamNo && user.teamNo !== cachedTeam.teamNo);
-                const isMemberOfCached = Array.isArray(cachedTeam.members) && cachedTeam.members.some((m: any) =>
-                    (user.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === user.rollNo.trim().toLowerCase()) ||
-                    (user.email && m.email && m.email.trim().toLowerCase() === user.email.trim().toLowerCase())
-                );
-                if (isDifferentTeam || (!isMemberOfCached && (user.role === 'student' || user.activeRole === 'student'))) {
-                    localStorage.removeItem("siet_student_team_v6");
-                    localStorage.removeItem("siet_student_submissions_v6");
-                }
-            }
+            // Proactively purge any legacy domain cache on login
+            localStorage.removeItem("siet_student_team_v6");
+            localStorage.removeItem("siet_student_submissions_v6");
+            localStorage.removeItem("siet_guide_portal_teams_v6");
         } catch (e) {}
     },
 
@@ -98,6 +87,9 @@ export const AuthService = {
                 }
             }
             keysToRemove.forEach(k => localStorage.removeItem(k));
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('siet_auth_logout'));
+            }
         } catch (e) {}
     },
 

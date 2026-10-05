@@ -3,28 +3,26 @@ import { ApiClient } from './apiClient';
 import { MarksService } from './marksService';
 import { AuthService } from './authService';
 
-// Purge any stale legacy cache from previous revisions
-try {
-  const keysToRemove: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && (
-      key.startsWith('siet_student_submissions_v') ||
-      key.startsWith('siet_deliverable_v') ||
-      key.startsWith('siet_student_team_v') ||
-      key.startsWith('siet_guide_portal_teams_v') ||
-      key.startsWith('siet_guide_portal_activities_v')
-    )) {
-      if (!key.includes('_v6')) {
+// Repository-wide cleanup: Purge all stale legacy domain cache from localStorage
+if (typeof window !== 'undefined') {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('siet_student_submissions_') ||
+        key.startsWith('siet_deliverable_') ||
+        key.startsWith('siet_student_team_') ||
+        key.startsWith('siet_guide_portal_teams_') ||
+        key.startsWith('siet_guide_portal_activities_') ||
+        key.startsWith('siet_team_submissions_')
+      )) {
         keysToRemove.push(key);
       }
     }
-  }
-  keysToRemove.forEach(k => localStorage.removeItem(k));
-} catch (e) { }
-
-const TEAM_STORAGE_KEY = "siet_student_team_v6";
-const SUBMISSIONS_STORAGE_KEY = "siet_student_submissions_v6";
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+}
 
 export interface StudentDeliverableState {
   week: string;
@@ -63,24 +61,18 @@ export interface StudentTeamExtended extends Team {
   rejectionReason?: string;
 }
 
-// Helper to scope team storage key dynamically to prevent cross-team contamination
-function getTeamStorageKey(teamId?: string): string {
-  const user = AuthService.getCurrentUser();
-  const rawId = (teamId || user?.teamId || user?.teamNo || '').trim();
-  const cleanId = rawId ? rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '_') : 'unassigned';
-  return `siet_student_team_v6_${cleanId}`;
+// In-memory server-state cache (PostgreSQL is the single authoritative source of truth)
+let memoryStudentTeam: StudentTeamExtended | null = null;
+let memoryStudentSubmissions: WeeklySubmission[] = [];
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('siet_auth_logout', () => {
+    memoryStudentTeam = null;
+    memoryStudentSubmissions = [];
+  });
 }
 
-// Helper to scope student submissions storage key dynamically to prevent cross-team contamination
-function getSubmissionsStorageKey(teamId?: string): string {
-  const user = AuthService.getCurrentUser();
-  const rawId = (teamId || user?.teamId || user?.teamNo || '').trim();
-  const cleanId = rawId ? rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '_') : 'unassigned';
-  return `siet_student_submissions_v6_${cleanId}`;
-}
-
-// Build a default team object from the authenticated user's profile instead of hardcoding Team 04.
-// This ensures the fallback always matches the logged-in student's actual team assignment.
+// Build a default team object from the authenticated user's profile
 function buildDefaultTeamFromUser(): StudentTeamExtended {
   const user = AuthService.getCurrentUser();
   const initialMembers = user && user.name && user.rollNo ? [{
@@ -130,91 +122,76 @@ export const StudentService = {
   },
 
   getTeam(): StudentTeamExtended {
-    const currentUser = AuthService.getCurrentUser();
-    let team: StudentTeamExtended = buildDefaultTeamFromUser();
+    if (memoryStudentTeam) return memoryStudentTeam;
+    return buildDefaultTeamFromUser();
+  },
+
+  saveTeam(team: StudentTeamExtended): void {
+    if (!team) return;
+    memoryStudentTeam = team;
+    window.dispatchEvent(new Event('siet_data_updated'));
+  },
+
+  resetMemoryState(): void {
+    memoryStudentTeam = null;
+    memoryStudentSubmissions = [];
+  },
+
+  async fetchTeamFromBackend(): Promise<StudentTeamExtended | null> {
     try {
-      const scopedKey = getTeamStorageKey(currentUser?.teamId);
-      const stored = localStorage.getItem(scopedKey) || localStorage.getItem(TEAM_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Ensure cached team belongs to the authenticated student
-        const isMatch = currentUser && (
-          (currentUser.teamId && parsed.id === currentUser.teamId) ||
-          (currentUser.teamNo && parsed.teamNo === currentUser.teamNo) ||
-          (Array.isArray(parsed.members) && currentUser.rollNo && parsed.members.some((m: any) => m.rollNo === currentUser.rollNo))
-        );
-        if (isMatch) {
-          team = parsed;
-        }
+      const backendTeam = await ApiClient.getStudentTeam();
+      if (backendTeam && (backendTeam.teamNo || backendTeam.teamId)) {
+        const teamObj: StudentTeamExtended = {
+          id: backendTeam.teamId || backendTeam.id,
+          teamNo: backendTeam.teamNo,
+          projectTitle: backendTeam.title || backendTeam.projectTitle || '',
+          submittedTitle: backendTeam.title || backendTeam.submittedTitle || '',
+          isTitleApproved: backendTeam.status === 'Approved' || backendTeam.status === 'Active & Approved',
+          guideApprovalStatus: (backendTeam.status === 'Approved' || backendTeam.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
+          guideName: backendTeam.guide || backendTeam.guideName || '',
+          advisorName: backendTeam.advisorName || '',
+          batch: backendTeam.batch || '',
+          section: backendTeam.class || backendTeam.section || '',
+          status: 'In Progress',
+          progress: 0,
+          members: (backendTeam.members || []).map((m: any) => ({
+            rollNo: m.rollNo,
+            name: m.name,
+            email: m.email,
+            role: m.isLead ? 'Team Lead' : 'Team Member',
+            isLead: Boolean(m.isLead),
+          })),
+        };
+        this.saveTeam(teamObj);
+        return teamObj;
       }
-    } catch (e) { }
+    } catch (e) {
+      console.warn('Failed to fetch student team from backend:', e);
+    }
+    return null;
+  },
 
-    // Check if the current user belongs to another class team in advisor records
+  async fetchSubmissionsFromBackend(): Promise<WeeklySubmission[]> {
     try {
-      if (currentUser && team?.members && !team.members.some((m: any) =>
-        (currentUser.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === currentUser.rollNo.trim().toLowerCase()) ||
-        (currentUser.email && m.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
-      )) {
-        const className = currentUser.class || '';
-        if (className) {
-          const advRaw = localStorage.getItem(`siet_advisor_teams_${className}`);
-        if (advRaw) {
-          const advTeams = JSON.parse(advRaw);
-          if (Array.isArray(advTeams)) {
-            const matched = advTeams.find((t: any) => Array.isArray(t.members) && t.members.some((m: any) =>
-              (currentUser.rollNo && m.rollNo && m.rollNo.trim().toLowerCase() === currentUser.rollNo.trim().toLowerCase()) ||
-              (currentUser.email && m.email && m.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
-            ));
-            if (matched) {
-              team = {
-                id: matched.teamId,
-                teamNo: matched.teamNo,
-                projectTitle: matched.title || '',
-                submittedTitle: matched.title || '',
-                isTitleApproved: matched.status === 'Approved' || matched.status === 'Active & Approved',
-                guideApprovalStatus: (matched.status === 'Approved' || matched.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
-                guideName: matched.guide || 'Unassigned',
-                advisorName: currentUser.advisorName || '',
-                batch: matched.batch || '2023-2027 (III Year)',
-                section: matched.class || className,
-                status: 'In Progress',
-                progress: 0,
-                members: matched.members.map((m: any) => ({
-                  rollNo: m.rollNo,
-                  name: m.name,
-                  email: m.email,
-                  role: m.isLead ? 'Team Lead' : 'Team Member'
-                }))
-              };
-            }
-          }
-          }
-        }
+      const serverSubs = await ApiClient.getStudentSubmissions();
+      if (Array.isArray(serverSubs)) {
+        this.saveSubmissions(serverSubs);
+        window.dispatchEvent(new Event('siet_student_submissions_updated'));
+        return serverSubs;
       }
-    } catch (e) { }
-
-    // If title is approved, ensure team reflects status
-    if (team.isTitleApproved || team.guideApprovalStatus === 'Approved') {
-      return team;
+    } catch (e) {
+      console.warn('Failed to fetch student submissions from backend:', e);
     }
+    return this.getSubmissions();
+  },
 
-    if (team.isTitleApproved) {
-      if (!team.projectTitle || team.projectTitle === 'No Title Submitted' || team.projectTitle === 'Title Approval Pending') {
-        try {
-          const d1Key = this.getDeliverableKey('Submission 1', team.id);
-          const d1 = localStorage.getItem(d1Key);
-          if (d1) {
-            const p1 = JSON.parse(d1);
-            if (p1?.projectTitle && p1.projectTitle.trim()) {
-              team.projectTitle = p1.projectTitle.trim();
-              team.submittedTitle = p1.projectTitle.trim();
-            }
-          }
-        } catch (e) { }
-      }
-    }
+  getSubmissions(): WeeklySubmission[] {
+    return memoryStudentSubmissions;
+  },
 
-    return team;
+  saveSubmissions(submissions: WeeklySubmission[]): void {
+    memoryStudentSubmissions = Array.isArray(submissions) ? submissions : [];
+    window.dispatchEvent(new Event('siet_data_updated'));
   },
 
   async fetchWeekReleases(): Promise<Record<string, boolean>> {
@@ -259,7 +236,7 @@ export const StudentService = {
       if (userName && leadName && userName === leadName) return true;
     }
 
-    // 3. Check members array
+    // 2. Check members array
     if (team && Array.isArray(team.members) && team.members.length > 0) {
       const member = team.members.find((m: any) => {
         const mRoll = (m.rollNo || '').trim().toLowerCase();
@@ -313,104 +290,6 @@ export const StudentService = {
     return undefined;
   },
 
-  saveTeam(team: StudentTeamExtended): void {
-    if (!team) return;
-    const scopedKey = getTeamStorageKey(team.id);
-    localStorage.setItem(scopedKey, JSON.stringify(team));
-    localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(team));
-    window.dispatchEvent(new Event('siet_data_updated'));
-  },
-
-  async fetchTeamFromBackend(): Promise<StudentTeamExtended | null> {
-    try {
-      const backendTeam = await ApiClient.getStudentTeam();
-      if (backendTeam && (backendTeam.teamNo || backendTeam.teamId)) {
-        const teamObj: StudentTeamExtended = {
-          id: backendTeam.teamId || backendTeam.id,
-          teamNo: backendTeam.teamNo,
-          projectTitle: backendTeam.title || backendTeam.projectTitle || '',
-          submittedTitle: backendTeam.title || backendTeam.submittedTitle || '',
-          isTitleApproved: backendTeam.status === 'Approved' || backendTeam.status === 'Active & Approved',
-          guideApprovalStatus: (backendTeam.status === 'Approved' || backendTeam.status === 'Active & Approved') ? 'Approved' : 'Pending Review',
-          guideName: backendTeam.guide || backendTeam.guideName || '',
-          advisorName: backendTeam.advisorName || '',
-          batch: backendTeam.batch || '',
-          section: backendTeam.class || backendTeam.section || '',
-          status: 'In Progress',
-          progress: 0,
-          members: (backendTeam.members || []).map((m: any) => ({
-            rollNo: m.rollNo,
-            name: m.name,
-            email: m.email,
-            role: m.isLead ? 'Team Lead' : 'Team Member',
-            isLead: Boolean(m.isLead),
-          })),
-        };
-        this.saveTeam(teamObj);
-        return teamObj;
-      }
-    } catch (e) {
-      console.warn('Failed to fetch student team from backend:', e);
-    }
-    return null;
-  },
-
-  async fetchSubmissionsFromBackend(): Promise<WeeklySubmission[]> {
-    try {
-      const serverSubs = await ApiClient.getStudentSubmissions();
-      if (Array.isArray(serverSubs)) {
-        this.saveSubmissions(serverSubs);
-        window.dispatchEvent(new Event('siet_student_submissions_updated'));
-        return serverSubs;
-      }
-    } catch (e) {
-      console.warn('Failed to fetch student submissions from backend:', e);
-    }
-    return this.getSubmissions();
-  },
-
-  getSubmissions(): WeeklySubmission[] {
-    const currentUser = AuthService.getCurrentUser();
-    const scopedKey = getSubmissionsStorageKey(currentUser?.teamId);
-    try {
-      const stored = localStorage.getItem(scopedKey) || localStorage.getItem(SUBMISSIONS_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          let isGuideApproved = false;
-          try {
-            const teamKey = getTeamStorageKey(currentUser?.teamId);
-            const tRaw = localStorage.getItem(teamKey) || localStorage.getItem(TEAM_STORAGE_KEY);
-            if (tRaw) {
-              const parsedT = JSON.parse(tRaw);
-              isGuideApproved = Boolean(parsedT?.isTitleApproved || parsedT?.guideApprovalStatus === 'Approved');
-            }
-          } catch (e) { }
-
-          return parsed.filter((sub: any) => Boolean(sub && typeof sub === 'object')).map((sub: any) => {
-            if (sub.week === 1 && isGuideApproved && (sub.status === 'Submitted' || sub.status === 'Pending' || !sub.status)) {
-              return { ...sub, status: 'Approved' as const };
-            }
-            return sub;
-          });
-        }
-      }
-    } catch (e) { }
-    return DEFAULT_COMPLETED_WEEKS;
-  },
-
-  saveSubmissions(submissions: WeeklySubmission[], teamIdOverride?: string): void {
-    const currentUser = AuthService.getCurrentUser();
-    const scopedKey = getSubmissionsStorageKey(teamIdOverride || currentUser?.teamId);
-    try {
-      localStorage.setItem(scopedKey, JSON.stringify(submissions));
-      localStorage.setItem(SUBMISSIONS_STORAGE_KEY, JSON.stringify(submissions));
-    } catch (e) { }
-    window.dispatchEvent(new Event('siet_data_updated'));
-  },
-
-
-
   isSubmission1Approved(teamId?: string): boolean {
     if (!teamId) return false;
     const tId = teamId.trim();
@@ -419,14 +298,6 @@ export const StudentService = {
 
     if (isStudentTeam) {
       if (currentTeam.isTitleApproved || currentTeam.guideApprovalStatus === 'Approved') return true;
-      try {
-        const scopedKey = getTeamStorageKey(tId);
-        const stored = localStorage.getItem(scopedKey) || localStorage.getItem(TEAM_STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed && (parsed.isTitleApproved || parsed.guideApprovalStatus === 'Approved')) return true;
-        }
-      } catch (e) { }
     }
 
     const marks = MarksService.getWeeklyMarks(tId, 1);
@@ -481,7 +352,6 @@ export const StudentService = {
 
   normalizeWeekSlug(weekText: string): string {
     const lower = (weekText || '').trim().toLowerCase();
-    // Explicitly reject Week 0 / Submission 0
     if (lower === 'week 0' || lower === 'week_0' || lower === 'submission 0' || lower === 'submission_0') {
       return '';
     }
@@ -516,489 +386,38 @@ export const StudentService = {
     return '';
   },
 
-  getDeliverableKey(weekText: string, teamIdOverride?: string): string {
-    const user = AuthService.getCurrentUser();
-    const rawId = (teamIdOverride || user?.teamId || user?.teamNo || '').trim();
-    const cleanId = rawId ? rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '_') : 'unassigned';
-    const weekSlug = this.normalizeWeekSlug(weekText);
-    return `siet_deliverable_v6_${cleanId}_${weekSlug}`;
-  },
-
-  clearDeliverables(weekText: string, teamIdOverride?: string): void {
-    const key = this.getDeliverableKey(weekText, teamIdOverride);
-    try {
-      localStorage.removeItem(key);
-    } catch (e) { }
-  },
-
-  getDeliverables(weekText: string, teamIdOverride?: string): StudentDeliverableState {
-    const key = this.getDeliverableKey(weekText, teamIdOverride);
-    let loadedState: StudentDeliverableState | null = null;
-    try {
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        loadedState = JSON.parse(stored);
-      }
-    } catch (e) { }
-
-    const defaultState: StudentDeliverableState = loadedState || {
+  getDeliverables(weekText: string, _teamIdOverride?: string): StudentDeliverableState {
+    const team = this.getTeam();
+    const cleanTitle = team.projectTitle || team.submittedTitle || '';
+    return {
       week: weekText,
-      projectTitle: "",
-      isTitleApproved: false,
-      problemStatement: "",
-      solution: "",
-      technologyUsed: "",
-      obstaclesFaced: "",
-      abstract: "",
-      presentationFile: "",
-      reportFile: "",
-      repoUrl: "",
-      demoUrl: "",
-      screenshotFile: "",
+      projectTitle: cleanTitle,
+      isTitleApproved: Boolean(team.isTitleApproved),
+      problemStatement: team.problemStatement || '',
+      solution: team.proposedSolution || '',
+      technologyUsed: '',
+      obstaclesFaced: '',
+      abstract: team.abstract || '',
+      presentationFile: '',
+      reportFile: '',
+      repoUrl: team.repoUrl || '',
+      demoUrl: team.demoUrl || '',
+      screenshotFile: '',
       submittedFields: {
-        title: false,
-        problemStatement: false,
-        solution: false,
+        title: Boolean(cleanTitle),
+        problemStatement: Boolean(team.problemStatement),
+        solution: Boolean(team.proposedSolution),
         technologyUsed: false,
         obstaclesFaced: false,
-        abstract: false,
+        abstract: Boolean(team.abstract),
         presentation: false,
         report: false,
-        repoUrl: false,
-        demoUrl: false,
+        repoUrl: Boolean(team.repoUrl),
+        demoUrl: Boolean(team.demoUrl),
         screenshot: false
       }
     };
-
-    // Project Title is shared across milestones; deliverable fields remain milestone-independent
-    const isSubAfter1 =
-      weekText.toLowerCase().includes('submission 2') ||
-      weekText.toLowerCase().includes('submission 3') ||
-      weekText.toLowerCase().includes('submission 4') ||
-      weekText.toLowerCase().includes('week 1') ||
-      weekText.toLowerCase().includes('week 2') ||
-      weekText.toLowerCase().includes('week 3');
-
-    if (isSubAfter1) {
-      let currentSubNum = 2;
-      const match = weekText.match(/\d+/);
-      if (match) {
-        currentSubNum = parseInt(match[0], 10);
-      }
-
-      const team = this.getTeam();
-      const currentTeamId = teamIdOverride || team?.id;
-      let latestTitle = '';
-
-      for (let sNum = 1; sNum < currentSubNum; sNum++) {
-        if (this.isSubmissionApproved(sNum, currentTeamId)) {
-          const dPrevKey = this.getDeliverableKey(`Submission ${sNum}`, currentTeamId);
-          let dPrev: any = null;
-          try {
-            const rawPrev = localStorage.getItem(dPrevKey);
-            if (rawPrev) dPrev = JSON.parse(rawPrev);
-          } catch (e) { }
-
-          const t = dPrev?.projectTitle || (sNum === 1 ? (team.projectTitle || team.submittedTitle) : '');
-          if (t && t.trim() && t !== 'No Title Submitted' && t !== 'Title Approval Pending') latestTitle = t.trim();
-        }
-      }
-
-      if (!latestTitle) {
-        const teamT = (team?.projectTitle || team?.submittedTitle || '').trim();
-        if (teamT && teamT !== 'No Title Submitted' && teamT !== 'Title Approval Pending') latestTitle = teamT;
-      }
-
-      if (latestTitle && !defaultState.projectTitle) {
-        defaultState.projectTitle = latestTitle;
-        defaultState.isTitleApproved = true;
-      }
-    }
-
-    return defaultState;
-  },
-
-  saveAllDeliverables(
-    weekText: string,
-    data: {
-      projectTitle?: string;
-      problemStatement?: string;
-      solution?: string;
-      technologyUsed?: string;
-      obstaclesFaced?: string;
-      abstract?: string;
-      presentationFile?: string;
-      reportFile?: string;
-      repoUrl?: string;
-      demoUrl?: string;
-      screenshotFile?: string;
-      submissionDate?: string;
-    },
-    teamIdOverride?: string
-  ): StudentDeliverableState {
-    const key = this.getDeliverableKey(weekText, teamIdOverride);
-    const current = this.getDeliverables(weekText, teamIdOverride);
-
-    if (data.projectTitle !== undefined) {
-      current.projectTitle = data.projectTitle;
-      current.submittedFields.title = Boolean(data.projectTitle.trim());
-      const team = this.getTeam();
-      team.submittedTitle = data.projectTitle;
-      team.projectTitle = data.projectTitle;
-      if (!this.isSubmission1Approved()) {
-        team.isTitleApproved = false;
-        team.guideApprovalStatus = 'Pending Review';
-        current.isTitleApproved = false;
-      } else {
-        team.isTitleApproved = true;
-        team.guideApprovalStatus = 'Approved';
-        current.isTitleApproved = true;
-      }
-      this.saveTeam(team);
-    }
-    if (data.problemStatement !== undefined) {
-      current.problemStatement = data.problemStatement;
-      current.submittedFields.problemStatement = Boolean(data.problemStatement.trim());
-    }
-    if (data.solution !== undefined) {
-      current.solution = data.solution;
-      current.submittedFields.solution = Boolean(data.solution.trim());
-    }
-    if (data.technologyUsed !== undefined) {
-      current.technologyUsed = data.technologyUsed;
-      current.submittedFields.technologyUsed = Boolean(data.technologyUsed.trim());
-    }
-    if (data.obstaclesFaced !== undefined) {
-      current.obstaclesFaced = data.obstaclesFaced;
-      current.submittedFields.obstaclesFaced = Boolean(data.obstaclesFaced.trim());
-    }
-    if (data.abstract !== undefined) {
-      current.abstract = data.abstract;
-      current.submittedFields.abstract = Boolean(data.abstract.trim());
-    }
-    if (data.presentationFile !== undefined) {
-      current.presentationFile = data.presentationFile;
-      current.submittedFields.presentation = Boolean(data.presentationFile.trim());
-    }
-    if (data.reportFile !== undefined) {
-      current.reportFile = data.reportFile;
-      current.submittedFields.report = Boolean(data.reportFile.trim());
-    }
-    if (data.repoUrl !== undefined) {
-      current.repoUrl = data.repoUrl;
-      current.submittedFields.repoUrl = Boolean(data.repoUrl.trim());
-    }
-    if (data.demoUrl !== undefined) {
-      current.demoUrl = data.demoUrl;
-      current.submittedFields.demoUrl = Boolean(data.demoUrl.trim());
-    }
-    if (data.screenshotFile !== undefined) {
-      current.screenshotFile = data.screenshotFile;
-      current.submittedFields.screenshot = Boolean(data.screenshotFile.trim());
-    }
-
-    localStorage.setItem(key, JSON.stringify(current));
-
-    let subNum = 1;
-    const match = weekText.match(/\d+/);
-    if (match) {
-      const parsed = parseInt(match[0], 10);
-      if (parsed >= 1 && parsed <= 4) {
-        subNum = parsed;
-      }
-    }
-    const weekNum = subNum;
-    const submissionNum = subNum;
-
-    // 1. Synchronize to submissions ledger
-    try {
-      const list = this.getSubmissions();
-      let item = list.find(s => s.week === weekNum);
-      const subDate = data.submissionDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-      if (!item) {
-        item = {
-          week: weekNum,
-          title: `Submission ${submissionNum} Deliverable Submission`,
-          dueDate: `Submission ${submissionNum}`,
-          status: 'Submitted',
-          submissionDate: subDate,
-          projectTitle: current.projectTitle || this.getTeam().projectTitle || '',
-          problemStatement: current.problemStatement,
-          solution: current.solution,
-          technologyUsed: current.technologyUsed,
-          obstaclesFaced: current.obstaclesFaced,
-          abstract: current.abstract,
-          presentationFile: current.presentationFile,
-          pdfFile: current.reportFile,
-          fileName: current.presentationFile || current.reportFile,
-          repoUrl: current.repoUrl,
-          demoUrl: current.demoUrl,
-          screenshotFile: current.screenshotFile,
-          guideName: this.getTeam().guideName || ''
-        };
-        list.push(item);
-      } else {
-        item.status = 'Submitted';
-        item.submissionDate = subDate;
-        if (current.projectTitle) item.projectTitle = current.projectTitle;
-        if (current.problemStatement) item.problemStatement = current.problemStatement;
-        if (current.solution) item.solution = current.solution;
-        if (current.technologyUsed) item.technologyUsed = current.technologyUsed;
-        if (current.obstaclesFaced) item.obstaclesFaced = current.obstaclesFaced;
-        if (current.abstract) item.abstract = current.abstract;
-        if (current.presentationFile) { item.presentationFile = current.presentationFile; item.fileName = current.presentationFile; }
-        if (current.reportFile) item.pdfFile = current.reportFile;
-        if (current.repoUrl) item.repoUrl = current.repoUrl;
-        if (current.demoUrl) item.demoUrl = current.demoUrl;
-        if (current.screenshotFile) item.screenshotFile = current.screenshotFile;
-      }
-      this.saveSubmissions(list);
-    } catch (e) {
-      console.error(e);
-    }
-
-    window.dispatchEvent(new Event('siet_data_updated'));
-    window.dispatchEvent(new Event('storage'));
-
-    return current;
-  },
-
-  saveDeliverableField(
-    weekText: string,
-    field: keyof StudentDeliverableState['submittedFields'],
-    value: string
-  ): StudentDeliverableState {
-    const key = this.getDeliverableKey(weekText);
-    const current = this.getDeliverables(weekText);
-
-    if (field === 'title') {
-      current.projectTitle = value;
-      const team = this.getTeam();
-      team.submittedTitle = value;
-      team.projectTitle = value;
-      team.isTitleApproved = false;
-      team.guideApprovalStatus = 'Pending Review';
-      this.saveTeam(team);
-      current.isTitleApproved = false;
-
-      // Also trigger backend title update
-      ApiClient.getStudentTeam().then(backendTeam => {
-        if (backendTeam?.id) {
-          ApiClient.updateProjectTitle(backendTeam.id, value).catch(() => { });
-        }
-      }).catch(() => { });
-    } else if (field === 'problemStatement') {
-      current.problemStatement = value;
-    } else if (field === 'solution') {
-      current.solution = value;
-    } else if (field === 'technologyUsed') {
-      current.technologyUsed = value;
-    } else if (field === 'obstaclesFaced') {
-      current.obstaclesFaced = value;
-    } else if (field === 'abstract') {
-      current.abstract = value;
-    } else if (field === 'presentation') {
-      current.presentationFile = value;
-    } else if (field === 'report') {
-      current.reportFile = value;
-    } else if (field === 'repoUrl') {
-      current.repoUrl = value;
-    } else if (field === 'demoUrl') {
-      current.demoUrl = value;
-    } else if (field === 'screenshot') {
-      current.screenshotFile = value;
-    }
-
-    current.submittedFields[field] = true;
-    localStorage.setItem(key, JSON.stringify(current));
-
-    let weekNum = 1;
-    const match = weekText.match(/\d+/);
-    if (match) {
-      const parsed = parseInt(match[0], 10);
-      if (parsed >= 1 && parsed <= 4) {
-        weekNum = parsed;
-      }
-    }
-
-    // 1. Synchronize to student's submissions ledger
-    try {
-      const list = this.getSubmissions();
-      let item = list.find(s => s.week === weekNum);
-      if (!item) {
-        item = {
-          week: weekNum,
-          title: `Submission ${weekNum} Deliverable Submission`,
-          dueDate: `Submission ${weekNum}`,
-          status: 'Submitted',
-          submissionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          projectTitle: current.projectTitle || this.getTeam().projectTitle || '',
-          problemStatement: current.problemStatement,
-          solution: current.solution,
-          technologyUsed: current.technologyUsed,
-          obstaclesFaced: current.obstaclesFaced,
-          abstract: current.abstract,
-          presentationFile: current.presentationFile,
-          pdfFile: current.reportFile,
-          fileName: current.presentationFile || current.reportFile,
-          repoUrl: current.repoUrl,
-          demoUrl: current.demoUrl,
-          screenshotFile: current.screenshotFile,
-          guideName: this.getTeam().guideName || ''
-        };
-        list.push(item);
-      } else {
-        item.status = 'Submitted';
-        item.submissionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        if (field === 'title') item.projectTitle = value;
-        if (field === 'problemStatement') item.problemStatement = value;
-        if (field === 'solution') item.solution = value;
-        if (field === 'technologyUsed') item.technologyUsed = value;
-        if (field === 'obstaclesFaced') item.obstaclesFaced = value;
-        if (field === 'abstract') item.abstract = value;
-        if (field === 'presentation') { item.presentationFile = value; item.fileName = value; }
-        if (field === 'report') { item.pdfFile = value; }
-        if (field === 'repoUrl') item.repoUrl = value;
-        if (field === 'demoUrl') item.demoUrl = value;
-        if (field === 'screenshot') item.screenshotFile = value;
-      }
-      this.saveSubmissions(list);
-    } catch (e) {
-      console.error('Error saving submission ledger:', e);
-    }
-
-    try {
-      const studentTeam = this.getTeam();
-      if (studentTeam.guideApprovalStatus === 'Rejected') {
-        studentTeam.guideApprovalStatus = 'Pending';
-        studentTeam.rejectionReason = '';
-        this.saveTeam(studentTeam);
-      }
-    } catch (e) { }
-
-    // Dispatch global events for instant UI synchronization across tabs and pages
-    window.dispatchEvent(new Event('siet_data_updated'));
-    window.dispatchEvent(new Event('storage'));
-
-    return current;
-  },
-
-  async updateSubmission(weekNumber: number, updatedComments: string): Promise<boolean> {
-    const list = this.getSubmissions();
-    const item = list.find(s => s.week === weekNumber);
-    if (!item) return false;
-
-    item.status = 'Submitted';
-    item.submissionDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    item.comments = `Updated: ${updatedComments}`;
-    this.saveSubmissions(list);
-
-    window.dispatchEvent(new Event('siet_data_updated'));
-    window.dispatchEvent(new Event('storage'));
-    return true;
-  },
-
-  deleteSubmission(weekNumber: number): boolean {
-    try {
-      const team = this.getTeam();
-
-      // 1. Remove from submissions list
-      const list = this.getSubmissions().filter(s => s.week !== weekNumber);
-      this.saveSubmissions(list);
-
-      // 2. Clear deliverable state for that week
-      this.clearDeliverables(`Week ${weekNumber}`, team.id);
-      this.clearDeliverables(`Submission ${weekNumber}`, team.id);
-
-      // 3. Reset title & status in student team
-      team.projectTitle = '';
-      team.submittedTitle = '';
-      team.isTitleApproved = false;
-      team.guideApprovalStatus = 'Pending Review';
-      this.saveTeam(team);
-
-      // 4. Reset marks across all portals so marks become unassigned
-      try {
-        const memberRollNos = team?.members?.map(m => m.rollNo) || [];
-        MarksService.deleteWeeklyMarks(team.id, weekNumber, memberRollNos);
-        const targetSection = team?.section || 'CSE-B';
-        const advRaw = localStorage.getItem(`siet_advisor_teams_${targetSection}`);
-        if (advRaw) {
-          const advTeams = JSON.parse(advRaw);
-          if (Array.isArray(advTeams)) {
-            const advTeam = advTeams.find((t: any) => t.teamId === team.id || t.teamNo === team.teamNo);
-            if (advTeam) {
-              advTeam.title = '';
-              advTeam.status = 'Pending';
-              localStorage.setItem(`siet_advisor_teams_${targetSection}`, JSON.stringify(advTeams));
-            }
-          }
-        }
-      } catch (e) { }
-
-      // 5. Asynchronous call to backend to delete submission
-      ApiClient.deleteStudentSubmission(weekNumber).catch(() => { });
-
-      // 6. Global event dispatch
-      window.dispatchEvent(new Event('siet_data_updated'));
-      window.dispatchEvent(new Event('siet_marks_updated'));
-      window.dispatchEvent(new Event('storage'));
-      return true;
-    } catch (e) {
-      console.error('Error deleting submission:', e);
-      return false;
-    }
-  },
-
-  /** Clears ALL submissions and deliverable data across all portals */
-  clearAllSubmissions(): void {
-    // Clear submissions list
-    this.saveSubmissions([]);
-
-    // Clear all deliverable keys
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('siet_deliverable_v6_')) keysToRemove.push(key);
-    }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-
-    // Reset team data
-    const team = this.getTeam();
-    team.projectTitle = '';
-    team.submittedTitle = '';
-    team.isTitleApproved = false;
-    team.guideApprovalStatus = 'Pending Review';
-    team.progress = 0;
-    this.saveTeam(team);
-
-    window.dispatchEvent(new Event('siet_data_updated'));
-    window.dispatchEvent(new Event('storage'));
-  },
-
-  attachGuideNotice(weekNumber: number, notice: GuideNotice): void {
-    try {
-      const list = this.getSubmissions();
-      let item = list.find(s => s.week === weekNumber);
-      if (!item) {
-        item = {
-          week: weekNumber,
-          title: `Week ${weekNumber} Deliverable Submission`,
-          dueDate: `Week ${weekNumber}`,
-          status: 'Pending',
-          guideNotice: notice,
-          guideName: this.getTeam().guideName || ''
-        };
-        list.push(item);
-      } else {
-        item.guideNotice = notice;
-      }
-      this.saveSubmissions(list);
-      window.dispatchEvent(new Event('siet_data_updated'));
-      window.dispatchEvent(new Event('storage'));
-    } catch (e) {
-      console.error('Error attaching guide notice:', e);
-    }
   }
 };
 
+export default StudentService;

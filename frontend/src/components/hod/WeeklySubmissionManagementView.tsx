@@ -306,37 +306,6 @@ export const WeeklySubmissionManagementView: React.FC = () => {
         console.warn('[WeeklySubmissionManagement] Backend delete error, syncing local state:', apiErr);
       }
 
-      // 2. Synchronize any local storage caches to maintain consistency
-      try {
-        // Clean student submissions cache
-        const studentRaw = localStorage.getItem('siet_student_submissions_v6');
-        if (studentRaw) {
-          const parsed = JSON.parse(studentRaw);
-          if (Array.isArray(parsed)) {
-            const filtered = parsed.filter((s: any) => !weeksToDelete.includes(s.week));
-            localStorage.setItem('siet_student_submissions_v6', JSON.stringify(filtered));
-          }
-        }
-
-        // Clean guide portal teams cache
-        const guideTeamsRaw = localStorage.getItem('siet_guide_portal_teams_v6');
-        if (guideTeamsRaw) {
-          const guideTeams = JSON.parse(guideTeamsRaw);
-          if (Array.isArray(guideTeams)) {
-            guideTeams.forEach((t: any) => {
-              if (Array.isArray(t.submissions)) {
-                t.submissions = t.submissions.filter((s: any) => {
-                  const sWeek = s.weekNumber !== undefined ? s.weekNumber : s.week;
-                  return !weeksToDelete.includes(sWeek);
-                });
-              }
-            });
-            localStorage.setItem('siet_guide_portal_teams_v6', JSON.stringify(guideTeams));
-          }
-        }
-      } catch (storageErr) {
-        console.warn('Storage sync error:', storageErr);
-      }
 
       // 3. Update local state immediately
       setWeeks(prev =>

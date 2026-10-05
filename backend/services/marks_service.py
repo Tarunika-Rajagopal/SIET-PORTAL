@@ -98,6 +98,14 @@ class MarksService:
         teams = await self.team_repo.list_all()
         team_id_to_no = {str(t.id): t.team_no for t in teams}
         team_id_to_str_id = {str(t.id): t.team_id for t in teams}
+        team_id_to_class = {str(t.id): (t.class_name or "") for t in teams}
+
+        # Track team_no frequency across all classes
+        team_no_counts: Dict[str, int] = {}
+        for t in teams:
+            if t.team_no:
+                clean_no = t.team_no.strip().lower()
+                team_no_counts[clean_no] = team_no_counts.get(clean_no, 0) + 1
 
         # Cache team members
         team_members_map: Dict[str, list] = {}
@@ -108,6 +116,7 @@ class MarksService:
             t_uuid = str(wm.team_id)
             t_no = team_id_to_no.get(t_uuid, t_uuid)
             t_id_str = team_id_to_str_id.get(t_uuid, t_uuid)
+            t_class = team_id_to_class.get(t_uuid, "")
             current_members = team_members_map.get(t_uuid, [])
 
             member_marks = self._align_member_marks(wm.member_marks or [], wm.team_average, current_members)
@@ -122,7 +131,17 @@ class MarksService:
                 "gradedBy": wm.graded_by or "Class Advisor",
             }
 
-            for key in set([t_uuid, t_no, t_id_str]):
+            keys_to_index = [t_uuid]
+            if t_id_str:
+                keys_to_index.append(t_id_str)
+            if t_class and t_no:
+                keys_to_index.append(f"{t_class} {t_no}".strip())
+                keys_to_index.append(f"{t_class}-{t_no}".strip())
+            # Only add bare t_no if it is unique across all teams to prevent cross-class collisions
+            if t_no and team_no_counts.get(t_no.strip().lower(), 0) == 1:
+                keys_to_index.append(t_no)
+
+            for key in set(keys_to_index):
                 if not key:
                     continue
                 if key not in result:

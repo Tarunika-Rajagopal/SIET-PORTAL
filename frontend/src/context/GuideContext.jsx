@@ -16,13 +16,14 @@ export const GuideProvider = ({ children }) => {
   const [activities, setActivities] = useState([]);
   const [toasts, setToasts] = useState([]);
 
-  // Clean any obsolete mock domain data from localStorage on mount
+  // Clean any obsolete mock domain data from localStorage on mount and fetch authoritative marks
   useEffect(() => {
     try {
       localStorage.removeItem('siet_guide_portal_teams_v6');
       localStorage.removeItem('siet_guide_portal_activities_v6');
       localStorage.removeItem('siet_guide_portal_teams');
     } catch (e) {}
+    MarksService.fetchAllMarks().catch(() => {});
   }, []);
 
   // TanStack Query hooks for Guide data from FastAPI backend
@@ -62,9 +63,10 @@ export const GuideProvider = ({ children }) => {
       const getTeamSubmissions = (team, fallbackSubs = []) => {
         if (!hasBackendSubs) return fallbackSubs;
         const matchingBackend = weeklySubmissions.filter(s =>
+          (s.teamDbId && team.id && s.teamDbId === team.id) ||
           (s.teamId && (s.teamId === team.teamId || s.teamId === team.id)) ||
-          (s.teamNo && team.teamNo && s.teamNo === team.teamNo) ||
-          (s.teamNumber && team.teamNumber && s.teamNumber === team.teamNumber)
+          (s.teamNo && team.teamNo && s.teamNo.toLowerCase() === team.teamNo.toLowerCase()) ||
+          (s.teamNumber && team.teamNumber && s.teamNumber === team.teamNumber && (!s.classSection || !team.classSection || s.classSection.toLowerCase() === team.classSection.toLowerCase()))
         );
         if (matchingBackend.length === 0) return fallbackSubs;
 
@@ -106,9 +108,9 @@ export const GuideProvider = ({ children }) => {
             evaluationStatus: bEvalStatus,
             submissionStatus: bSub.submissionStatus || bStatus,
             isLocked: isApproved,
-            score: bSub.score !== undefined ? bSub.score : (isApproved && idx >= 0 ? merged[idx].score : null),
-            memberMarks: (bSub.memberMarks && Object.keys(bSub.memberMarks).length > 0) ? bSub.memberMarks : (isApproved && idx >= 0 ? (merged[idx].memberMarks || {}) : {}),
-            guideRemarks: bSub.comments || bSub.guideRemarks || (isApproved && idx >= 0 ? (merged[idx].guideRemarks || '') : '')
+            score: bSub.score !== undefined && bSub.score !== null ? bSub.score : (idx >= 0 ? merged[idx].score : null),
+            memberMarks: (bSub.memberMarks && Object.keys(bSub.memberMarks).length > 0) ? bSub.memberMarks : (idx >= 0 ? (merged[idx].memberMarks || {}) : {}),
+            guideRemarks: bSub.comments || bSub.guideRemarks || (idx >= 0 ? (merged[idx].guideRemarks || '') : '')
           };
 
           if (idx >= 0) {
@@ -380,6 +382,7 @@ export const GuideProvider = ({ children }) => {
 
       await invalidateGuideDataQuery();
       await fetchDashboard();
+      await MarksService.fetchAllMarks().catch(() => {});
 
       window.dispatchEvent(new Event('siet_data_updated'));
       window.dispatchEvent(new Event('siet_marks_updated'));

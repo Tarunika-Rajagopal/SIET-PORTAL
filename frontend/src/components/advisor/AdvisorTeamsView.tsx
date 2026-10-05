@@ -70,6 +70,7 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
   useEffect(() => {
     let isMounted = true;
+    MarksService.fetchAllMarks().catch(() => {});
     const loadTeams = async () => {
       try {
         const serverTeams = await AdvisorService.fetchTeamsForClass(className);
@@ -648,19 +649,11 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                       <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase ${isSelected
                           ? 'bg-white/20 text-white'
                           : s.status === 'Approved' ? 'bg-emerald-100 text-emerald-800'
-<<<<<<< Updated upstream
                           : s.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800'
-                          : s.status === 'Submitted' ? 'bg-amber-100 text-amber-900'
+                          : (s.status === 'Submitted' || s.status === 'Pending') ? 'bg-amber-100 text-amber-900'
                           : 'bg-slate-200 text-slate-600'
                       }`}>
-                        {s.status}
-=======
-                            : s.status === 'Changes Requested' ? 'bg-rose-100 text-rose-800'
-                              : (s.status === 'Submitted' || s.status === 'Pending') ? 'bg-amber-100 text-amber-900'
-                                : 'bg-slate-200 text-slate-600'
-                        }`}>
                         {s.status === 'Submitted' ? 'Pending' : s.status}
->>>>>>> Stashed changes
                       </span>
                       {weekMarks && (
                         <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${isSelected ? 'bg-white text-mint-950' : 'bg-mint-100 text-mint-900'
@@ -694,13 +687,6 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                 </div>
               </div>
             ) : activeSubmission ? (
-<<<<<<< Updated upstream
-              <div className="pt-2">
-                <AdvisorSubmissionDetails
-                  submission={activeSubmission}
-                  teamTitle={activeTeam.title}
-                />
-=======
               <div className="space-y-6 pt-1 text-xs">
                 {/* Complete Student Technical Submission Details */}
                 <div className="space-y-4">
@@ -909,11 +895,25 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                   {/* 6. Evaluation Scores & Individual Student Marks */}
                   {(() => {
                     const subNum = (activeSubmission as any).submissionNumber ||
-                      ((activeSubmission as any).weekNumber !== undefined ? ((activeSubmission as any).weekNumber + 1) :
-                        (activeSubmission.week !== undefined ? activeSubmission.week + 1 : 1));
-                    const marksRec = MarksService.getWeeklyMarks(activeTeam.teamId, subNum, activeTeam.members?.map(m => m.rollNo)) ||
-                      (subNum === 1 ? MarksService.getWeeklyMarks(activeTeam.teamId, 0, activeTeam.members?.map(m => m.rollNo)) : null);
-                    if (!marksRec) return null;
+                      ((activeSubmission as any).weekNumber !== undefined ? (activeSubmission as any).weekNumber :
+                        (activeSubmission.week !== undefined ? activeSubmission.week : 1));
+                    const teamIdKey = activeTeam.teamId || (activeTeam as any).id || activeTeam.teamNo;
+                    const memberRolls = activeTeam.members?.map(m => m.rollNo) || [];
+                    const marksRec = MarksService.getWeeklyMarks(teamIdKey, subNum, memberRolls) ||
+                      (subNum === 1 ? MarksService.getWeeklyMarks(teamIdKey, 0, memberRolls) : null);
+
+                    const teamAvg = (marksRec && marksRec.teamAverage > 0)
+                      ? marksRec.teamAverage
+                      : (typeof (activeSubmission as any).score === 'number' && (activeSubmission as any).score > 0 ? (activeSubmission as any).score : null);
+
+                    const memMarks = (marksRec && marksRec.memberMarks && Object.keys(marksRec.memberMarks).length > 0)
+                      ? marksRec.memberMarks
+                      : ((activeSubmission as any).memberMarks && Object.keys((activeSubmission as any).memberMarks).length > 0 ? (activeSubmission as any).memberMarks : null);
+
+                    if (teamAvg === null && !memMarks) return null;
+
+                    const gradedByText = marksRec?.gradedBy || (activeSubmission as any).gradedBy || (activeSubmission as any).guideName || 'Faculty Guide';
+                    const remarksText = marksRec?.remarks || (activeSubmission as any).comments || '';
 
                     return (
                       <div className="space-y-3 p-4 rounded-2xl bg-mint-50/70 border border-mint-200 shadow-2xs">
@@ -925,13 +925,23 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                             </h4>
                           </div>
                           <span className="px-3 py-1 rounded-xl bg-white border border-mint-200 font-extrabold text-xs text-mint-900">
-                            Team Average: {marksRec.teamAverage} / 100
+                            Team Average: {teamAvg ?? 0} / 100
                           </span>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {(activeTeam.members || []).map((member) => {
-                            const mScore = marksRec.memberMarks?.[member.rollNo] ?? marksRec.teamAverage;
+                            const cleanRoll = member.rollNo.trim().toLowerCase();
+                            const indScore = memMarks
+                              ? (memMarks[member.rollNo] ??
+                                 memMarks[member.rollNo.trim()] ??
+                                 Object.entries(memMarks).find(([k]) => k.trim().toLowerCase() === cleanRoll)?.[1])
+                              : undefined;
+
+                            const mScore = (indScore !== undefined && indScore !== null)
+                              ? indScore
+                              : (memMarks ? null : teamAvg);
+
                             return (
                               <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-mint-200 flex items-center justify-between gap-2">
                                 <div className="truncate">
@@ -939,16 +949,16 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
                                   <span className="font-mono text-[10px] text-slate-500">{member.rollNo}</span>
                                 </div>
                                 <span className="px-2.5 py-1 rounded-lg bg-mint-50 border border-mint-200 font-extrabold text-xs text-mint-900 shrink-0">
-                                  {mScore} / 100
+                                  {mScore !== null && mScore !== undefined ? `${mScore} / 100` : 'Pending'}
                                 </span>
                               </div>
                             );
                           })}
                         </div>
 
-                        {marksRec.remarks && (
+                        {remarksText && (
                           <p className="text-xs text-mint-900 font-medium pt-1 border-t border-mint-200/60 italic">
-                            &ldquo;{marksRec.remarks}&rdquo; &bull; Evaluated by {marksRec.gradedBy}
+                            &ldquo;{remarksText}&rdquo; &bull; Evaluated by {gradedByText}
                           </p>
                         )}
                       </div>
@@ -957,7 +967,6 @@ export const AdvisorTeamsView: React.FC<AdvisorTeamsViewProps> = ({
 
                 </div>
 
->>>>>>> Stashed changes
               </div>
             ) : null}
 

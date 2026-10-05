@@ -269,7 +269,7 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
     const currentWeek = 1; // Milestone Review 1
     const memberMarks: Record<string, number> = {};
     team.members.forEach(m => {
-      memberMarks[m.rollNo] = markEntry.score || 85;
+      memberMarks[m.rollNo] = markEntry.score ?? 0;
     });
 
     MarksService.saveWeeklyMarks(
@@ -938,11 +938,11 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
                                           type="number"
                                           min="0"
                                           max="100"
-                                          value={inlineMarks[team.teamId]?.score || 85}
+                                          value={inlineMarks[team.teamId]?.score !== undefined ? inlineMarks[team.teamId]?.score : ''}
                                           onChange={(e) => setInlineMarks(prev => ({
                                             ...prev,
                                             [team.teamId]: {
-                                              score: Number(e.target.value),
+                                              score: e.target.value === '' ? ('' as any) : Number(e.target.value),
                                               remarks: prev[team.teamId]?.remarks || ''
                                             }
                                           }))}
@@ -960,7 +960,7 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
                                           onChange={(e) => setInlineMarks(prev => ({
                                             ...prev,
                                             [team.teamId]: {
-                                              score: prev[team.teamId]?.score || 85,
+                                              score: prev[team.teamId]?.score !== undefined ? prev[team.teamId]?.score : 0,
                                               remarks: e.target.value
                                             }
                                           }))}

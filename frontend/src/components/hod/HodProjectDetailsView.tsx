@@ -75,6 +75,7 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
   const [, setMarksTick] = useState<number>(0);
 
   useEffect(() => {
+    MarksService.fetchAllMarks().catch(() => {});
     const unsubMarks = MarksService.subscribe(() => {
       setMarksTick(n => n + 1);
     });
@@ -125,8 +126,8 @@ export const HodProjectDetailsView: React.FC<HodProjectDetailsViewProps> = ({
   const gradedWeeks = Object.keys(activeTeamMarks).map(Number);
   const submissionWeeks = (activeTeam?.submissions || []).map(s => s.week);
 
-  // Available weeks strictly up to current academic week (no future weeks)
-  const availableWeeks = Array.from({ length: currentAcademicWeek + 1 }, (_, i) => i);
+  // Available weeks strictly up to current academic week (1-indexed, no Week 0)
+  const availableWeeks = Array.from({ length: Math.max(1, currentAcademicWeek) }, (_, i) => i + 1);
 
   // Active submission strictly for the selected week (no fallback to other weeks)
   const availableSubmissions: WeeklySubmission[] = activeTeam?.submissions || [];

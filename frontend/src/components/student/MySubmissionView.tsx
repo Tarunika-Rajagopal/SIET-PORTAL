@@ -43,7 +43,17 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
         ]);
 
         if (!cancelled) {
-          if (fetchedTeam) setTeam(fetchedTeam);
+          if (fetchedTeam) {
+            setTeam(fetchedTeam);
+            try {
+              const teamMarks = await MarksService.fetchTeamMarks(fetchedTeam.id || fetchedTeam.teamId);
+              if (!cancelled && teamMarks) {
+                setBackendMarks(teamMarks);
+              }
+            } catch (e) {
+              console.warn('Failed to load team marks:', e);
+            }
+          }
           setSubmissions(fetchedSubs || []);
           setHistoryError(null);
         }
@@ -64,6 +74,26 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
       cancelled = true;
     };
   }, []);
+
+  // Reactively sync marks when MarksService updates
+  useEffect(() => {
+    if (!team?.id && !team?.teamId) return;
+    const targetId = team.id || team.teamId;
+    const updateMarks = () => {
+      const rolls = team.members?.map((m: any) => m.rollNo);
+      const m = MarksService.getAllTeamMarks(targetId, rolls);
+      if (m && Object.keys(m).length > 0) {
+        setBackendMarks(m);
+      }
+    };
+    updateMarks();
+    const unsub = MarksService.subscribe(updateMarks);
+    window.addEventListener('siet_marks_updated', updateMarks);
+    return () => {
+      unsub();
+      window.removeEventListener('siet_marks_updated', updateMarks);
+    };
+  }, [team?.id, team?.teamId]);
 
   const teamId = team?.id || '';
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
@@ -286,7 +316,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
                       </div>
 
                       {/* Display Individual and Team Score */}
-                      {(isApproved && (myIndividualScore !== null || teamAvgScore !== null)) && (
+                      {(myIndividualScore !== null || teamAvgScore !== null) && (
                         <div className="flex flex-wrap items-center gap-2 pt-1">
                           {myIndividualScore !== null && (
                             <span className="px-2 py-0.5 rounded-lg bg-mint-900 text-white font-extrabold text-[10px] flex items-center gap-1 shadow-2xs">
@@ -477,7 +507,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
               <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700 flex-1">
 
                 {/* Official Evaluation & Marks Record */}
-                {isModalApproved && (
+                {(isModalApproved || isModalMarksAssigned) && (
                   <div className="p-4 rounded-2xl bg-gradient-to-r from-mint-50/80 via-white to-slate-50 border border-mint-200 shadow-2xs space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-mint-100 pb-2">
                       <div className="flex items-center gap-2">

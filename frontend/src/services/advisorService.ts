@@ -385,40 +385,6 @@ export const AdvisorService = {
       await AdminService.saveStudents(allStudents);
     }
 
-    // Student portal team cache sync
-    try {
-      const studentTeamRaw = localStorage.getItem('siet_student_team_v6');
-      if (studentTeamRaw) {
-        const sTeam = JSON.parse(studentTeamRaw);
-        if (sTeam && Array.isArray(sTeam.members)) {
-          sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== studentRollNo);
-          if (sTeam.leadRollNo === studentRollNo) {
-            sTeam.teamNo = 'Unassigned';
-            sTeam.status = 'Unassigned';
-            sTeam.submittedTitle = '';
-            sTeam.projectTitle = '';
-            sTeam.guideName = 'Unassigned';
-          }
-          localStorage.setItem('siet_student_team_v6', JSON.stringify(sTeam));
-        }
-      }
-    } catch {}
-
-    // Guide portal teams cache sync
-    try {
-      const guideTeamsRaw = localStorage.getItem('siet_guide_portal_teams_v6');
-      if (guideTeamsRaw) {
-        const gTeams = JSON.parse(guideTeamsRaw);
-        if (Array.isArray(gTeams)) {
-          gTeams.forEach((gt: any) => {
-            if (Array.isArray(gt.members)) {
-              gt.members = gt.members.filter((m: any) => m.rollNo !== studentRollNo);
-            }
-          });
-          localStorage.setItem('siet_guide_portal_teams_v6', JSON.stringify(gTeams));
-        }
-      }
-    } catch {}
 
     // Call backend API
     try {
@@ -507,21 +473,6 @@ export const AdvisorService = {
             repStudentObj.projectTitle = '';
             repStudentObj.guide = 'Unassigned';
           }
-          // Sync student portal team storage if matching
-          try {
-            const rawStudentTeam = localStorage.getItem('siet_student_team_v6');
-            if (rawStudentTeam) {
-              const parsed = JSON.parse(rawStudentTeam);
-              if (parsed.leadRollNo === repRoll || (Array.isArray(parsed.members) && parsed.members.some((m: any) => m.rollNo === repRoll))) {
-                parsed.teamNo = 'Unassigned';
-                parsed.status = 'Unassigned';
-                parsed.submittedTitle = '';
-                parsed.projectTitle = '';
-                parsed.guideName = 'Unassigned';
-                localStorage.setItem('siet_student_team_v6', JSON.stringify(parsed));
-              }
-            }
-          } catch {}
         }
       }
     }
@@ -590,93 +541,6 @@ export const AdvisorService = {
     }
     await AdminService.saveStudents(allStudents);
 
-    // Sync student portal team cache
-    try {
-      const studentTeamRaw = localStorage.getItem('siet_student_team_v6');
-      if (studentTeamRaw) {
-        const sTeam = JSON.parse(studentTeamRaw);
-        if (sTeam && Array.isArray(sTeam.members)) {
-          // 1. Moving student
-          const wasInSTeam = sTeam.members.some((m: any) => m.rollNo === studentRollNo);
-          if (wasInSTeam && sTeam.teamNo !== targetTeam.teamNo) {
-            sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== studentRollNo);
-          } else if (!wasInSTeam && sTeam.teamNo === targetTeam.teamNo) {
-            sTeam.members.push(newMember);
-          }
-
-          // 2. Replaced student if specified
-          if (options?.replaceStudentRollNo) {
-            const repRoll = options.replaceStudentRollNo;
-            if (options.exchangeAction === 'swap' && sourceTeam) {
-              if (sTeam.teamNo === targetTeam.teamNo) {
-                sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== repRoll);
-              } else if (sTeam.teamNo === sourceTeam.teamNo) {
-                const repObj = allStudents.find(s => s.rollNo === repRoll);
-                sTeam.members.push({
-                  rollNo: repRoll,
-                  name: repObj ? repObj.name : `Student (${repRoll})`,
-                  email: repObj ? repObj.email : `${repRoll}@srishakthi.ac.in`,
-                  isLead: false,
-                });
-              }
-            } else {
-              // Unassign
-              if (sTeam.teamNo === targetTeam.teamNo) {
-                sTeam.members = sTeam.members.filter((m: any) => m.rollNo !== repRoll);
-              }
-              if (sTeam.leadRollNo === repRoll) {
-                sTeam.teamNo = 'Unassigned';
-                sTeam.status = 'Unassigned';
-              }
-            }
-          }
-
-          localStorage.setItem('siet_student_team_v6', JSON.stringify(sTeam));
-        }
-      }
-    } catch {}
-
-    // Sync guide portal teams cache
-    try {
-      const guideTeamsRaw = localStorage.getItem('siet_guide_portal_teams_v6');
-      if (guideTeamsRaw) {
-        const gTeams = JSON.parse(guideTeamsRaw);
-        if (Array.isArray(gTeams)) {
-          gTeams.forEach((gt: any) => {
-            if (Array.isArray(gt.members)) {
-              // 1. Moving student
-              gt.members = gt.members.filter((m: any) => m.rollNo !== studentRollNo);
-              if (gt.teamNo === targetTeam.teamNo || gt.teamId === targetTeam.teamId) {
-                gt.members.push({
-                  name: newMember.name,
-                  rollNo: newMember.rollNo,
-                  email: newMember.email,
-                  role: newMember.isLead ? 'Team Lead' : 'Team Member',
-                });
-              }
-
-              // 2. Replaced student
-              if (options?.replaceStudentRollNo) {
-                const repRoll = options.replaceStudentRollNo;
-                if (gt.teamNo === targetTeam.teamNo || gt.teamId === targetTeam.teamId) {
-                  gt.members = gt.members.filter((m: any) => m.rollNo !== repRoll);
-                }
-                if (options.exchangeAction === 'swap' && sourceTeam && (gt.teamNo === sourceTeam.teamNo || gt.teamId === sourceTeam.teamId)) {
-                  const repObj = allStudents.find(s => s.rollNo === repRoll);
-                  gt.members.push({
-                    name: repObj ? repObj.name : `Student (${repRoll})`,
-                    rollNo: repRoll,
-                    email: repObj ? repObj.email : `${repRoll}@srishakthi.ac.in`,
-                    role: 'Team Member',
-                  });
-                }
-              }
-            }
-          });
-          localStorage.setItem('siet_guide_portal_teams_v6', JSON.stringify(gTeams));
-        }
-      }
-    } catch {}
 
     notifyListeners();
     if (typeof window !== 'undefined') {
@@ -1116,47 +980,6 @@ export const AdvisorService = {
       console.warn("Could not sync admin students:", e);
     }
 
-    // Sync student portal active team storage if matching
-    try {
-      const rawStudentTeam = localStorage.getItem('siet_student_team_v6');
-      if (rawStudentTeam) {
-        const parsed = JSON.parse(rawStudentTeam);
-        if (
-          parsed.id === targetTeam.teamId ||
-          parsed.teamNo === targetTeam.teamNo ||
-          memberRolls.includes(parsed.leadRollNo) ||
-          (Array.isArray(parsed.members) && parsed.members.some((m: any) => memberRolls.includes(m.rollNo)))
-        ) {
-          parsed.teamNo = 'Unassigned';
-          parsed.status = 'Unassigned';
-          parsed.submittedTitle = '';
-          parsed.projectTitle = '';
-          parsed.guideName = 'Unassigned';
-          parsed.isTitleApproved = false;
-          localStorage.setItem('siet_student_team_v6', JSON.stringify(parsed));
-        }
-      }
-    } catch (e) {
-      console.warn("Could not sync student team storage:", e);
-    }
-
-    // Sync guide portal cache to remove dissolved team
-    try {
-      const rawGuide = localStorage.getItem('siet_guide_portal_teams_v6');
-      if (rawGuide) {
-        let gTeams = JSON.parse(rawGuide);
-        if (Array.isArray(gTeams)) {
-          gTeams = gTeams.filter((gt: any) =>
-            gt.teamId !== targetTeam.teamId &&
-            gt.teamNo !== targetTeam.teamNo &&
-            gt.id !== targetTeam.teamId
-          );
-          localStorage.setItem('siet_guide_portal_teams_v6', JSON.stringify(gTeams));
-        }
-      }
-    } catch (e) {
-      console.warn("Could not sync guide portal storage:", e);
-    }
 
     // Record in Advisor History Log
     try {
