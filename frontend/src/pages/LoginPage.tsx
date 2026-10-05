@@ -63,35 +63,20 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setErrorMessage('');
 
-    // Try backend login first
     try {
-      const backendResult = await ApiClient.login(emailOrRoll, password);
-      if (backendResult.success && backendResult.token) {
-        sessionStorage.setItem('siet_auth_token', backendResult.token);
-        localStorage.setItem('siet_auth_token', backendResult.token);
-        login(emailOrRoll, password);
-        return;
+      const res = await login(emailOrRoll, password);
+      if (!res.success) {
+        setErrorMessage(res.message || 'Invalid credentials. Please verify your email/roll and password.');
       }
     } catch (err: any) {
       const msg = err.message || '';
       if (msg.includes('Cannot connect') || msg.includes('not responding')) {
         setErrorMessage('Backend server is not running. Start it with: cd backend && uvicorn main:app --reload');
-        return;
-      }
-      if (msg.includes('Database connection failed') || msg.includes('503')) {
+      } else if (msg.includes('Database connection failed') || msg.includes('503')) {
         setErrorMessage('Database connection failed. Check your Supabase credentials in backend/.env');
-        return;
+      } else {
+        setErrorMessage(msg || 'Invalid institutional credentials');
       }
-      if (msg.includes('Invalid credentials')) {
-        setErrorMessage('Invalid credentials. Please verify your email/roll and password.');
-        return;
-      }
-    }
-
-    // Fallback to localStorage auth if backend is down
-    const res = await login(emailOrRoll, password);
-    if (!res.success) {
-      setErrorMessage(res.message || 'Invalid institutional credentials');
     }
   };
 

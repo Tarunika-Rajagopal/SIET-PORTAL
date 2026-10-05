@@ -1,6 +1,7 @@
 from auth.auth import (
     hash_password,
     verify_password,
+    verify_password_async,
     create_access_token,
     get_current_user,
     authenticate_user,
@@ -10,6 +11,7 @@ from auth.auth import (
 __all__ = [
     "hash_password",
     "verify_password",
+    "verify_password_async",
     "create_access_token",
     "get_current_user",
     "authenticate_user",

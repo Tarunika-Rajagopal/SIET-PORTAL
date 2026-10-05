@@ -121,8 +121,13 @@ export const AuthService = {
             // Backend successfully authenticated the user
             if (data.success && data.user) {
 
+                // Attach the token to the user object so getToken() can
+                // always find it even if the standalone storage keys are
+                // cleared (e.g. by a browser extension or privacy setting).
+                const userWithToken = { ...data.user, token: data.token };
+
                 // Store the user returned by the backend
-                this.setCurrentUser(data.user);
+                this.setCurrentUser(userWithToken);
             }
 
             return {

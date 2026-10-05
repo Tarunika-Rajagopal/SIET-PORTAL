@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import User
 from schemas import LoginRequest, LoginResponse
 from repositories.user_repository import UserRepository
-from auth import verify_password, create_access_token
+from auth import verify_password_async, create_access_token
+
+
+def _enum_val(v) -> str | None:
+    """Return the .value of an enum member, or the original string/None."""
+    return v.value if hasattr(v, "value") else v
 
 
 def format_user_dict(u: User) -> Dict[str, Any]:
@@ -17,7 +22,7 @@ def format_user_dict(u: User) -> Dict[str, Any]:
         "name": u.name,
         "rollNo": u.roll_no,
         "department": u.department,
-        "role": u.role,
+        "role": _enum_val(u.role),
         "designation": u.designation,
         "phone": u.phone,
         "year": u.year,
@@ -48,7 +53,7 @@ class AuthService:
         user = await self.user_repo.get_by_login(term)
         if not user or not user.password:
             return None
-        if not verify_password(password, user.password):
+        if not await verify_password_async(password, user.password):
             return None
         return user
 
@@ -59,5 +64,5 @@ class AuthService:
                 status_code=401,
                 detail="Invalid credentials. Please verify your email/roll and password.",
             )
-        token = create_access_token(str(user.id), user.role)
+        token = create_access_token(str(user.id), _enum_val(user.role))
         return LoginResponse(success=True, token=token, user=format_user_dict(user))
