@@ -185,7 +185,7 @@ export const AdvisorHistoryView: React.FC<AdvisorHistoryViewProps> = ({
                 filteredLogs.map((log) => {
                   const roleName = log.role || 'Class Advisor';
                   return (
-                    <tr key={log.id} className="hover:bg-[#F8F5EE]/60 transition">
+                    <tr key={log.id} className="hover:bg-[#F8F5EE]/60 transition-colors duration-300 ease-out">
                       
                       {/* Timestamp */}
                       <td className="p-4 whitespace-nowrap font-mono text-[#75695A]">

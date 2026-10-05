@@ -219,7 +219,7 @@ export const WeeklySubmissions = () => {
               ) : (
                 filteredSubmissions.map((sub, idx) => {
                   return (
-                    <tr key={idx} className="hover:bg-[#F8F5EE]/80 transition">
+                    <tr key={idx} className="hover:bg-[#F8F5EE]/80 transition-colors duration-300 ease-out">
                       {/* Team ID */}
                       <td className="p-4">
                         <span className="px-2.5 py-1 rounded-lg bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-extrabold text-xs">

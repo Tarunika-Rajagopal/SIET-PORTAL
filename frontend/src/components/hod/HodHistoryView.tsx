@@ -307,7 +307,7 @@ export const HodHistoryView: React.FC = () => {
                 </tr>
               ) : (
                 filteredHistory.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#FAF8F4] transition-colors">
+                  <tr key={item.id} className="hover:bg-[#FAF8F4] transition-colors duration-300 ease-out">
                     {/* Timestamp & Date */}
                     <td className="p-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">

@@ -6,7 +6,10 @@ import {
 } from 'lucide-react';
 import { useGuide } from '../context/GuideContext';
 import { useAuth } from '../context/AuthContext';
+import Header from '../components/common/Header';
 import ProfileModal from '../components/common/ProfileModal';
+import { GrainientBackground } from '@/components/ui/GrainientBackground';
+import { PillNavTab } from '@/components/ui/PillNavTab';
 
 export const GuideLayout = () => {
   const { facultyProfile, stats, toasts, removeToast } = useGuide();
@@ -67,126 +70,55 @@ export const GuideLayout = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F5EE] text-[#111111] flex flex-col font-sans antialiased">
+    <GrainientBackground className="min-h-screen text-[#111111] flex flex-col font-sans antialiased">
       
-      {/* 1. Sticky Header with Uploaded Logo & Title */}
-      <header className="sticky top-0 z-30 h-16 bg-[#F8F5EE] border-b border-[#D8CCBA] px-4 sm:px-6 lg:px-8 flex items-center justify-between shadow-xs">
-        
-        {/* Left Branding */}
-        <div className="flex items-center gap-3">
-          <img 
-            src="/logo.jpg" 
-            alt="SIET CSE" 
-            className="w-10 h-10 rounded-xl object-contain shadow-xs border border-[#D8CCBA] bg-white p-0.5 shrink-0" 
-          />
-          <div>
-            <div className="text-xs font-serif font-bold text-[#111111] tracking-wide flex items-center gap-1.5">
-              <span>Faculty Guide Portal</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#111111]"></span>
-            </div>
-            <div className="text-[10px] text-[#75695A] font-bold hidden sm:block">
-              Department of Computer Science and Engineering &bull; Sri Shakthi Institute
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Metric Pill & User Profile Avatar Dropdown */}
-        <div className="flex items-center gap-3">
-          {/* Assigned Teams Badge */}
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EDE7DB] border border-[#D8CCBA] text-[#111111] text-xs font-bold shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#111111]"></span>
+      {/* Single Compact Horizontal Navbar (76px height) */}
+      <Header
+        title="Faculty Guide Portal"
+        subtitle="Department of Computer Science and Engineering"
+        onOpenProfile={() => setProfileModalOpen(true)}
+        userInitials={facultyProfile.initials || 'SK'}
+        extraRight={
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 border border-white/30 text-white text-xs font-bold shadow-xs backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
             <span>Assigned: {stats.assignedTeamsCount} Teams</span>
           </div>
+        }
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.to || 
+            (item.to === '/guide/approve-submissions' && (
+              location.pathname === '/guide' || 
+              location.pathname === '/guide/' || 
+              location.pathname === '/guide/approve-project' ||
+              location.pathname === '/guide/approve-submissions'
+            ));
 
-          {/* Settings Button */}
-        
-
-          {/* User Profile Avatar with First Letter & Initial */}
-          <div className="relative">
-            <button
-              onClick={() => setProfileDropdownOpen(v => !v)}
-              className="w-10 h-10 rounded-full bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-black text-xs sm:text-sm flex items-center justify-center shadow-subtle border border-[#292725] hover:ring-2 hover:ring-[#B8AA97] hover:ring-offset-2 transition focus:outline-none cursor-pointer"
-              aria-label="User profile menu"
-            >
-              {facultyProfile.initials || 'SK'}
-            </button>
-
-            {/* Dropdown with ONLY Profile and Logout */}
-            {profileDropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setProfileDropdownOpen(false)}
-                ></div>
-                <div className="absolute right-0 mt-2 w-48 bg-[#FFFFFF] rounded-xl shadow-card border border-[#D8CCBA] p-1.5 z-50 animate-in fade-in slide-in-from-top-2">
-                  <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
-                      setProfileModalOpen(true);
-                    }}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
-                  >
-                    <UserIcon size={16} className="text-[#75695A]" />
-                    <span>Profile</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
-                      handleLogout();
-                    }}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#7C3838] hover:bg-[#F8EEEE] rounded-lg flex items-center gap-2.5 transition cursor-pointer"
-                  >
-                    <LogOut size={16} className="text-[#7C3838]" />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-      </header>
-
-      {/* 2. Top Navigation Bar (Full Portal Top Bar Navigation) */}
-      <div className="bg-[#F8F5EE] border-b border-[#D8CCBA] sticky top-16 z-20 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold no-scrollbar">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.to || 
-                (item.to === '/guide/approve-submissions' && (
-                  location.pathname === '/guide' || 
-                  location.pathname === '/guide/' || 
-                  location.pathname === '/guide/approve-project' ||
-                  location.pathname === '/guide/approve-submissions'
-                ));
-
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+          return (
+            <PillNavTab
+              key={item.to}
+              to={item.to}
+              id={`tabGuide${item.label.replace(/\s+/g, '')}`}
+              isActive={isActive}
+              icon={<Icon size={15} strokeWidth={isActive ? 2.25 : 1.75} />}
+              badge={
+                item.badge ? (
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold tracking-tight transition-colors ${
                     isActive
-                      ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                      : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-                  }`}
-                >
-                  <Icon size={16} className={isActive ? 'text-[#F8F5EE]' : 'text-[#75695A]'} />
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      isActive ? 'bg-[#292725] text-[#F8F5EE] border border-[#3E3B38]' : item.badgeColor
-                    }`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </NavLink>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
+                      ? 'bg-white text-[#176B7A]'
+                      : 'bg-white/25 text-white border border-white/35'
+                  }`}>
+                    {item.badge}
+                  </span>
+                ) : null
+              }
+            >
+              {item.label}
+            </PillNavTab>
+          );
+        })}
+      </Header>
 
       {/* 3. Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -228,7 +160,7 @@ export const GuideLayout = () => {
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
       />
-    </div>
+    </GrainientBackground>
   );
 };
 

@@ -37,20 +37,31 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
     const loadBackendData = async () => {
       try {
         const [fetchedTeam, fetchedSubs] = await Promise.all([
-          ApiClient.getStudentTeam().catch(() => null),
-          ApiClient.getStudentSubmissions(),
+          ApiClient.getStudentTeam().catch(() => StudentService.getTeam()),
+          ApiClient.getStudentSubmissions().catch(() => StudentService.getSubmissions() || []),
         ]);
 
         if (!cancelled) {
-          if (fetchedTeam) setTeam(fetchedTeam);
-          setSubmissions(fetchedSubs || []);
+          if (fetchedTeam) {
+            setTeam(fetchedTeam);
+          } else {
+            setTeam(StudentService.getTeam());
+          }
+
+          if (Array.isArray(fetchedSubs) && fetchedSubs.length > 0) {
+            setSubmissions(fetchedSubs);
+          } else {
+            setSubmissions(StudentService.getSubmissions() || []);
+          }
           setHistoryError(null);
         }
       } catch (err: any) {
         if (!cancelled) {
-          console.error('Failed to fetch milestone evaluation history:', err);
-          setHistoryError(err?.message || 'Failed to load evaluation history from backend server');
-          setSubmissions([]);
+          console.warn('Failed to fetch milestone evaluation history from backend, falling back to local store:', err);
+          const fallbackSubs = StudentService.getSubmissions() || [];
+          setSubmissions(fallbackSubs);
+          if (!team) setTeam(StudentService.getTeam());
+          setHistoryError(null);
         }
       } finally {
         if (!cancelled) setHistoryLoading(false);

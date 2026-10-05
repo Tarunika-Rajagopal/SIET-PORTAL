@@ -4,67 +4,77 @@ import Header from '../components/common/Header';
 import ProfileModal from '../components/common/ProfileModal';
 import NotificationToast from '../components/common/NotificationToast';
 import AdvisorStudentsView from '../components/advisor/AdvisorStudentsView';
+import AdvisorTeamsView from '../components/advisor/AdvisorTeamsView';
+import AdvisorAssignMarksView from '../components/advisor/AdvisorAssignMarksView';
 import AdvisorHistoryView from '../components/advisor/AdvisorHistoryView';
 import { AdvisorService, ClassTeam } from '../services/advisorService';
 import { AdminStudent, AdminService, AdminFaculty } from '../services/adminService';
 import { useClassStudents } from '../hooks/useQueries';
-import { Users, History } from 'lucide-react';
+import { Users, Layers, Award } from 'lucide-react';
+import { GrainientBackground } from '@/components/ui/GrainientBackground';
+import { PillNavTab } from '@/components/ui/PillNavTab';
 
 export const AdvisorPortalPage: React.FC = () => {
   const { currentUser } = useAuth();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const className = currentUser?.advisorClass || currentUser?.class || currentUser?.section || "";
-  const batch = currentUser?.advisorBatch || currentUser?.batch || "";
+  const className = currentUser?.advisorClass || currentUser?.class || currentUser?.section || "CSE-B";
+  const batch = currentUser?.advisorBatch || currentUser?.batch || "2023–2027";
   const advisorName = currentUser?.name || "Class Advisor";
 
-  // Navigation tab: 'students' | 'history'
-  const [activeTab, setActiveTab] = useState<'students' | 'history'>('students');
+  // Navigation tab: 'students' | 'teams' | 'evaluations'
+  const [activeTab, setActiveTab] = useState<'students' | 'teams' | 'evaluations'>('students');
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const { data: students = [] } = useClassStudents(className, batch);
 
   return (
-    <div className="min-h-screen bg-[#EFF3F1] flex flex-col font-sans relative">
+    <GrainientBackground className="min-h-screen flex flex-col font-sans relative">
       
-      {/* 1. Header with Uploaded SIET Logo & Profile */}
+      {/* Single Compact Horizontal Navbar (76px height) */}
       <Header
         title="Class Advisor Workspace"
-        subtitle=""
+        subtitle={`${className} • ${batch}`}
         onOpenProfile={() => setProfileModalOpen(true)}
-      />
+      >
+        {/* 1. Students Tab */}
+        <PillNavTab
+          id="tabAdvisorStudents"
+          isActive={activeTab === 'students'}
+          onClick={() => setActiveTab('students')}
+          badge={
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold tracking-tight transition-colors ${
+              activeTab === 'students'
+                ? 'bg-white text-[#176B7A]'
+                : 'bg-white/25 text-white border border-white/35'
+            }`}>
+              {students.length}
+            </span>
+          }
+        >
+          Students
+        </PillNavTab>
 
-      {/* 2. Sticky Top Navigation Bar (Center-Aligned) */}
-      <div className="bg-white border-b border-[#E2E8E4] sticky top-16 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">
-            
-            {/* Students Tab */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('students')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'students'
-                  ? 'bg-mint-500 text-white shadow-sm font-extrabold'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
-              }`}
-            >
-              <Users size={16} />
-              <span>Students</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                activeTab === 'students' ? 'bg-white text-mint-900' : 'bg-mint-100 text-mint-900'
-              }`}>
-                {students.length}
-              </span>
-            </button>
+        {/* 2. Teams Tab */}
+        <PillNavTab
+          id="tabAdvisorTeams"
+          isActive={activeTab === 'teams'}
+          onClick={() => setActiveTab('teams')}
+        >
+          Teams
+        </PillNavTab>
 
-            {/* History Tab */}
-            
+        {/* 3. Evaluations Tab */}
+        <PillNavTab
+          id="tabAdvisorEvaluations"
+          isActive={activeTab === 'evaluations'}
+          onClick={() => setActiveTab('evaluations')}
+        >
+          Evaluations
+        </PillNavTab>
+      </Header>
 
-          </nav>
-        </div>
-      </div>
-
-      {/* 3. Main Workspace Container */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 pb-24">
+      {/* Main Workspace Container */}
+      <main className="max-w-[1360px] w-full mx-auto px-6 sm:px-8 lg:px-12 py-8 flex-1 pb-24">
         
         {/* View 1: Students */}
         {activeTab === 'students' && (
@@ -76,11 +86,29 @@ export const AdvisorPortalPage: React.FC = () => {
           />
         )}
 
-        {/* View 2: History */}
-        {activeTab === 'history' && (
-          <AdvisorHistoryView
+        {/* View 2: Teams */}
+        {activeTab === 'teams' && (
+          <AdvisorTeamsView
+            className={className}
+            batch={batch}
+            advisorName={advisorName}
+            selectedTeamId={selectedTeamId}
+            onSelectTeam={(teamId) => setSelectedTeamId(teamId)}
+            onNavigateToAssignMarks={(teamId) => {
+              setSelectedTeamId(teamId);
+              setActiveTab('evaluations');
+            }}
+            onShowToast={(msg) => setToastMessage(msg)}
+          />
+        )}
+
+        {/* View 3: Evaluations */}
+        {activeTab === 'evaluations' && (
+          <AdvisorAssignMarksView
             className={className}
             advisorName={advisorName}
+            selectedTeamId={selectedTeamId}
+            onShowToast={(msg) => setToastMessage(msg)}
           />
         )}
 
@@ -100,7 +128,7 @@ export const AdvisorPortalPage: React.FC = () => {
         />
       )}
 
-    </div>
+    </GrainientBackground>
   );
 };
 

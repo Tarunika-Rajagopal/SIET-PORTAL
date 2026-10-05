@@ -5,6 +5,7 @@ import Header from '../components/common/Header';
 import ProfileModal from '../components/common/ProfileModal';
 import WeeklySubmissionManagementView from '../components/hod/WeeklySubmissionManagementView';
 import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
+import { GrainientBackground } from '@/components/ui/GrainientBackground';
 
 export const SettingsPage: React.FC = () => {
   const { currentUser, activeRole } = useAuth();
@@ -19,7 +20,7 @@ export const SettingsPage: React.FC = () => {
   const isHod = role === 'hod';
 
   return (
-    <div className="min-h-screen bg-[#F8F5EE] flex flex-col font-sans relative">
+    <GrainientBackground className="min-h-screen flex flex-col font-sans relative">
       {/* Existing Global Header Navigation */}
       <Header
         title={isHod ? "Department Head Workspace" : "Settings"}
@@ -52,10 +53,11 @@ export const SettingsPage: React.FC = () => {
       </main>
 
       {/* Existing Global Profile Modal */}
-      {profileModalOpen && (
-        <ProfileModal onClose={() => setProfileModalOpen(false)} />
-      )}
-    </div>
+      <ProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+      />
+    </GrainientBackground>
   );
 };
 

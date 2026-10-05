@@ -65,6 +65,17 @@
   background: #B8AA97;
 }
 
+/* Hide scrollbar for Chrome, Safari, Opera, IE, Edge, Firefox */
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none,
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Floating animation */
 @keyframes floatAnim {
   0%, 100% { transform: translateY(0px); }

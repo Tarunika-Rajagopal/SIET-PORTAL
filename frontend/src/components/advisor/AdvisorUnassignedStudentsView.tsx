@@ -79,7 +79,7 @@ export const AdvisorUnassignedStudentsView: React.FC<AdvisorUnassignedStudentsVi
                 </tr>
               ) : (
                 filtered.map((student) => (
-                  <tr key={student.rollNo} className="hover:bg-gray-50/60 transition-colors">
+                  <tr key={student.rollNo} className="hover:bg-gray-50/60 transition-colors duration-300 ease-out">
                     <td className="py-3.5 pl-5 pr-3 whitespace-nowrap">
                       <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded border border-gray-200">
                         {student.rollNo}

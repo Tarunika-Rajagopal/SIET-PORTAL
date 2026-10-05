@@ -152,7 +152,7 @@ export const HodAdvisorsView: React.FC<HodAdvisorsViewProps> = ({ onSelectAdviso
                   <tr
                     key={a.id}
                     onClick={() => onSelectAdvisor(a.batch, a.assignedClass)}
-                    className="hover:bg-[#F8F5EE]/60 cursor-pointer transition group"
+                    className="hover:bg-[#F8F5EE]/60 cursor-pointer transition-colors duration-300 ease-out group"
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-2">

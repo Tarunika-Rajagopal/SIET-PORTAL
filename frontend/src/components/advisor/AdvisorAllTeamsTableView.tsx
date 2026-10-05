@@ -407,7 +407,17 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
       {/* Section 3: Institutional Data Table Structure */}
       <div className="bg-white rounded-2xl border border-[#D8CCBA] shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse table-fixed">
+            <colgroup>
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '8%' }} />
+            </colgroup>
             <thead>
               <tr className="border-b border-[#D8CCBA] bg-[#F8F5EE] text-[11px] font-bold text-[#75695A] uppercase tracking-wider select-none">
                 <th scope="col" className="py-3.5 pl-5 pr-3">Team Name</th>
@@ -420,7 +430,7 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
                 <th scope="col" className="py-3.5 pl-3 pr-5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D8CCBA]/50 text-xs">
+            <tbody className="text-xs">
               {filteredTeams.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 px-4 text-center">
@@ -463,9 +473,9 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
                       {/* Main Table Row */}
                       <tr 
                         onClick={() => toggleRowExpand(team.teamId, 'roster')}
-                        className={`transition-colors cursor-pointer group select-none ${
+                        className={`transition-colors duration-300 ease-out cursor-pointer group select-none border-b border-[#D8CCBA]/50 ${
                           isExpanded 
-                            ? 'bg-[#F8F5EE]/90 border-l-4 border-l-[#111111]' 
+                            ? 'bg-[#F8F5EE]/90 shadow-[inset_4px_0_0_#111111]' 
                             : 'hover:bg-[#F3EFE6]/60'
                         }`}
                       >
@@ -473,7 +483,7 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
                         <td className="py-4 pl-5 pr-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span 
-                              className={`transition-transform duration-300 transform text-[#75695A] group-hover:text-[#111111] ${
+                              className={`transition-transform duration-450 ease-out transform text-[#75695A] group-hover:text-[#111111] ${
                                 isExpanded ? 'rotate-90' : 'rotate-0'
                               }`}
                             >
@@ -617,13 +627,15 @@ export const AdvisorAllTeamsTableView: React.FC<AdvisorAllTeamsTableViewProps> =
                       </tr>
 
                       {/* Section 4 & 5: Smooth Click-to-Expand Row Behavior & Content - COMPLETELY INLINE WITHOUT ANY POPUP */}
-                      <tr>
+                      <tr className={isExpanded ? 'border-b border-[#D8CCBA]' : 'border-0'}>
                         <td colSpan={8} className="p-0 border-0">
                           <div
                             style={{
                               display: 'grid',
                               gridTemplateRows: isExpanded ? '1fr' : '0fr',
-                              transition: 'grid-template-rows 400ms cubic-bezier(0.4, 0, 0.2, 1)',
+                              opacity: isExpanded ? 1 : 0,
+                              transition: 'grid-template-rows 460ms cubic-bezier(0.16, 1, 0.3, 1), opacity 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+                              pointerEvents: isExpanded ? 'auto' : 'none',
                             }}
                           >
                             <div style={{ overflow: 'hidden', minHeight: 0 }}>

@@ -24,8 +24,16 @@ export const ApproveProject = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [expandedTeamId, setExpandedTeamId] = useState(null);
+  // Multi-row accordion state (supports multiple rows toggled at the same time)
+  const [expandedTeamIds, setExpandedTeamIds] = useState(new Set());
+  const toggleTeamExpand = (teamId) => {
+    setExpandedTeamIds(prev => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  };
 
   // Active submission inspection modal
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
@@ -399,22 +407,30 @@ export const ApproveProject = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left text-xs border-collapse table-fixed">
+              <colgroup>
+                <col style={{ width: '14%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '38%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '6%' }} />
+              </colgroup>
               <thead className="bg-[#EDE7DB] text-[#111111] uppercase font-extrabold text-[10px] tracking-wider border-b border-[#D8CCBA]">
                 <tr>
-                  <th className="p-4 text-center w-28">Team No</th>
-                  <th className="p-4 text-center w-28">Class</th>
+                  <th className="p-4 text-center">Team No</th>
+                  <th className="p-4 text-center">Class</th>
                   <th className="p-4">Title</th>
-                  <th className="p-4 text-center w-40">Submission Number</th>
-                  <th className="p-4 text-center w-36">Status</th>
-                  <th className="p-4 text-center w-16"></th>
+                  <th className="p-4 text-center">Submission Number</th>
+                  <th className="p-4 text-center">Status</th>
+                  <th className="p-4 text-center"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8CCBA]">
+              <tbody className="bg-white">
                 {filteredTeams.map((team) => {
                   const teamClass = team.classSection || (team.class && team.section ? `${team.class}-${team.section}` : team.class) || 'CSE-B';
                   const activeSub = getTeamActiveSubmission(team);
-                  const isExpanded = expandedTeamId === team.teamId;
+                  const isExpanded = expandedTeamIds.has(team.teamId);
 
                   const subNumber = activeSub?.submissionNumber || 1;
                   const status = activeSub?.status || activeSub?.evaluationStatus || team.titleStatus || 'Pending';
@@ -427,8 +443,8 @@ export const ApproveProject = () => {
                     <React.Fragment key={team.teamId}>
                       {/* Main Table Row */}
                       <tr 
-                        onClick={() => setExpandedTeamId(isExpanded ? null : team.teamId)}
-                        className={`transition cursor-pointer ${
+                        onClick={() => toggleTeamExpand(team.teamId)}
+                        className={`transition-colors duration-300 ease-out cursor-pointer select-none border-b border-[#D8CCBA] ${
                           isExpanded 
                             ? 'bg-[#F8F5EE]' 
                             : 'hover:bg-[#FAF7F2] bg-white'
@@ -486,61 +502,78 @@ export const ApproveProject = () => {
                         {/* Chevron Indicator */}
                         <td className="p-4 text-center text-[#75695A]">
                           <div className="p-1 rounded-lg hover:bg-[#EDE7DB] transition inline-block">
-                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            <ChevronDown 
+                              size={16} 
+                              className={`transition-transform duration-450 ease-out ${
+                                isExpanded ? 'rotate-180 text-[#111111]' : 'rotate-0 text-[#75695A]'
+                              }`} 
+                            />
                           </div>
                         </td>
                       </tr>
 
                       {/* Accordion: ONLY Team Members First, with [Check Submission] Button (No Designation Column) */}
-                      {isExpanded && (
-                        <tr className="bg-[#FAF7F2] border-y border-[#D8CCBA] animate-fadeIn">
-                          <td colSpan={6} className="p-5">
-                            <div className="space-y-4 max-w-5xl mx-auto">
-                              
-                              {/* Header inside accordion: Team Members count + Check Submission Button */}
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D8CCBA]">
-                                <div className="flex items-center gap-2">
-                                  <Users size={16} className="text-[#111111]" />
-                                  <h4 className="text-xs font-extrabold text-[#111111] uppercase tracking-wider">
-                                    Team Members ({team.members?.length || 4} Students)
-                                  </h4>
+                      <tr className={isExpanded ? 'border-b border-[#D8CCBA]' : 'border-0'}>
+                        <td colSpan={6} className="p-0 border-0">
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateRows: isExpanded ? '1fr' : '0fr',
+                              opacity: isExpanded ? 1 : 0,
+                              transition: 'grid-template-rows 460ms cubic-bezier(0.16, 1, 0.3, 1), opacity 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+                              pointerEvents: isExpanded ? 'auto' : 'none',
+                            }}
+                          >
+                            <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                              <div className="bg-[#FAF7F2] border-y border-[#D8CCBA] p-5">
+                                <div className="space-y-4 max-w-5xl mx-auto">
+                                  
+                                  {/* Header inside accordion: Team Members count + Check Submission Button */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D8CCBA]">
+                                    <div className="flex items-center gap-2">
+                                      <Users size={16} className="text-[#111111]" />
+                                      <h4 className="text-xs font-extrabold text-[#111111] uppercase tracking-wider">
+                                        Team Members ({team.members?.length || 4} Students)
+                                      </h4>
+                                    </div>
+
+                                    {/* Prominent [Check Submission] Button */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleOpenCheckSubmission(team, activeSub, e)}
+                                      className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer self-start sm:self-auto active:scale-95"
+                                    >
+                                      <Eye size={14} className="text-[#F8F5EE]" />
+                                      <span>Check Submission</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Team Members List (NO Designation column) */}
+                                  <div className="border border-[#D8CCBA] rounded-2xl overflow-hidden bg-white shadow-2xs">
+                                    <table className="w-full text-left text-xs">
+                                      <thead className="bg-[#EDE7DB] text-[#111111] uppercase font-bold text-[10px] border-b border-[#D8CCBA]">
+                                        <tr>
+                                          <th className="p-3">Roll No</th>
+                                          <th className="p-3">Student Candidate</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-[#D8CCBA]">
+                                        {(team.members || []).map((m, idx) => (
+                                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#F8F5EE]/50'}>
+                                            <td className="p-3 font-mono font-bold text-[#111111]">{m.rollNo}</td>
+                                            <td className="p-3 font-bold text-[#111111]">{m.name}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+
                                 </div>
-
-                                {/* Prominent [Check Submission] Button */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleOpenCheckSubmission(team, activeSub, e)}
-                                  className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer self-start sm:self-auto active:scale-95"
-                                >
-                                  <Eye size={14} className="text-[#F8F5EE]" />
-                                  <span>Check Submission</span>
-                                </button>
                               </div>
-
-                              {/* Team Members List (NO Designation column) */}
-                              <div className="border border-[#D8CCBA] rounded-2xl overflow-hidden bg-white shadow-2xs">
-                                <table className="w-full text-left text-xs">
-                                  <thead className="bg-[#EDE7DB] text-[#111111] uppercase font-bold text-[10px] border-b border-[#D8CCBA]">
-                                    <tr>
-                                      <th className="p-3">Roll No</th>
-                                      <th className="p-3">Student Candidate</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-[#D8CCBA]">
-                                    {(team.members || []).map((m, idx) => (
-                                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#F8F5EE]/50'}>
-                                        <td className="p-3 font-mono font-bold text-[#111111]">{m.rollNo}</td>
-                                        <td className="p-3 font-bold text-[#111111]">{m.name}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-
                             </div>
-                          </td>
-                        </tr>
-                      )}
+                          </div>
+                        </td>
+                      </tr>
                     </React.Fragment>
                   );
                 })}

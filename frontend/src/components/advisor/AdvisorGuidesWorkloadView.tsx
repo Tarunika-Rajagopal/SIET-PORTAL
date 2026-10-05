@@ -93,7 +93,7 @@ export const AdvisorGuidesWorkloadView: React.FC<AdvisorGuidesWorkloadViewProps>
                 </tr>
               ) : (
                 filtered.map(({ faculty, assignedTeams, count, capacity, percentage, isFull }) => (
-                  <tr key={faculty.email} className="hover:bg-gray-50/60 transition-colors">
+                  <tr key={faculty.email} className="hover:bg-gray-50/60 transition-colors duration-300 ease-out">
                     <td className="py-4 pl-5 pr-3 whitespace-nowrap">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center font-bold text-gray-700 text-xs">

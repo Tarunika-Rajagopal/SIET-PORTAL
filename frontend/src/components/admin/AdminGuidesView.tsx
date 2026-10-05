@@ -96,7 +96,7 @@ export const AdminGuidesView: React.FC<AdminGuidesViewProps> = ({ onShowToast })
                 </tr>
               ) : (
                 filtered.map((g) => (
-                  <tr key={g.id} className="hover:bg-mint-50/40 transition">
+                  <tr key={g.id} className="hover:bg-mint-50/40 transition-colors duration-300 ease-out">
                     <td className="p-4">
                       <div className="font-extrabold text-slate-900">{g.name}</div>
                       <span className="text-[11px] text-slate-400 font-mono">{g.email}</span>
