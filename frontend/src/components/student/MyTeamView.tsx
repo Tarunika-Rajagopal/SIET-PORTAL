@@ -3,7 +3,7 @@ import { StudentService, StudentTeamExtended } from '../../services/studentServi
 import { MarksService, WeeklyMarksRecord } from '../../services/marksService';
 import { getUserInitials } from '../../services/authService';
 import { formatProjectTitle } from '../../utils/titleUtils';
-import { Users, BookOpen, Compass, AlertTriangle } from 'lucide-react';
+import { Users, BookOpen, Compass, AlertTriangle, ChevronDown, CheckCircle2, Clock, Mail } from 'lucide-react';
 
 interface MyTeamViewProps {
   team: StudentTeamExtended;
@@ -11,6 +11,16 @@ interface MyTeamViewProps {
 
 export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
   const [marksRecords, setMarksRecords] = useState<Record<number, WeeklyMarksRecord>>({});
+  const [expandedRolls, setExpandedRolls] = useState<Set<string>>(new Set());
+
+  const toggleMemberRow = (rollNo: string) => {
+    setExpandedRolls(prev => {
+      const next = new Set(prev);
+      if (next.has(rollNo)) next.delete(rollNo);
+      else next.add(rollNo);
+      return next;
+    });
+  };
 
   const teamId = team?.id || '';
   const memberRollNos = team?.members?.map(m => m.rollNo) || [];
@@ -45,7 +55,19 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
     };
   }, [teamId, memberRollNos.length]);
 
-  if (!team) return null;
+  const activeTeam = team || StudentService.getTeam();
+
+  if (!activeTeam) {
+    return (
+      <div className="bg-white rounded-3xl p-12 text-center border border-[#D8CCBA] shadow-xs space-y-3">
+        <Users size={36} className="mx-auto text-slate-400" />
+        <h3 className="text-base font-extrabold text-slate-800">No Team Information Available</h3>
+        <p className="text-xs text-slate-500 max-w-md mx-auto">
+          You are currently not enrolled in any project team, or team data is still synchronizing. Please contact your Class Advisor.
+        </p>
+      </div>
+    );
+  }
 
   const isTeamLead = (member: any) => {
     if (member?.isLead || member?.isLeader) return true;
@@ -216,7 +238,16 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
 
         {/* Center-Aligned, Compact Table with Review 1, Review 2, Review 3, Review 4 */}
         <div className="overflow-x-auto p-3 sm:p-4">
-          <table className="w-full text-center text-xs border-collapse">
+          <table className="w-full text-center text-xs border-collapse table-fixed">
+            <colgroup>
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '28%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '4%' }} />
+            </colgroup>
             <thead className="bg-[#EDE7DB]/70 text-[#75695A] uppercase tracking-wider font-mono font-bold text-[10px] border-b border-[#D8CCBA]">
               <tr>
                 <th className="py-2.5 px-3 text-center">REGISTER NUMBER</th>
@@ -225,100 +256,204 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
                 <th className="py-2.5 px-3 text-center">REVIEW 2</th>
                 <th className="py-2.5 px-3 text-center">REVIEW 3</th>
                 <th className="py-2.5 px-3 text-center">REVIEW 4</th>
+                <th className="py-2.5 px-2 text-center w-8"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EAE2D5] font-medium bg-white">
+            <tbody className="font-medium bg-white">
               {(!team.members || team.members.length === 0) ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-xs text-slate-400 italic">
+                  <td colSpan={7} className="py-8 text-center text-xs text-slate-400 italic">
                     No team members registered yet.
                   </td>
                 </tr>
               ) : (
                 team.members.map((member, idx) => {
-                const markR1 = getMemberReviewMark(member.rollNo, 1);
-                const markR2 = getMemberReviewMark(member.rollNo, 2);
-                const markR3 = getMemberReviewMark(member.rollNo, 3);
-                const markR4 = getMemberReviewMark(member.rollNo, 4);
+                  const isExpanded = expandedRolls.has(member.rollNo);
+                  const markR1 = getMemberReviewMark(member.rollNo, 1);
+                  const markR2 = getMemberReviewMark(member.rollNo, 2);
+                  const markR3 = getMemberReviewMark(member.rollNo, 3);
+                  const markR4 = getMemberReviewMark(member.rollNo, 4);
 
-                return (
-                  <tr key={member.rollNo || idx} className="hover:bg-[#FAF8F4] transition-colors">
-                    {/* Register Number */}
-                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
-                      <span className="font-mono font-bold text-[#111111] text-xs">
-                        {member.rollNo}
-                      </span>
-                    </td>
+                  const reviews = [
+                    { num: 1, title: 'Review 1 (Synopsis & Problem Definition)', mark: markR1, rec: marksRecords[1] },
+                    { num: 2, title: 'Review 2 (Design & Methodology)', mark: markR2, rec: marksRecords[2] },
+                    { num: 3, title: 'Review 3 (Prototype & Implementation)', mark: markR3, rec: marksRecords[3] },
+                    { num: 4, title: 'Review 4 (Testing & Final Defense)', mark: markR4, rec: marksRecords[4] },
+                  ];
 
-                    {/* Student Name */}
-                    <td className="py-2.5 px-3 whitespace-nowrap text-left">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1E1E1E] to-[#111111] text-[#F8F5EE] font-bold text-[10px] flex items-center justify-center shadow-xs border border-[#333333] shrink-0">
-                          {getUserInitials(member.name)}
-                        </div>
-                        <span className="font-bold text-[#111111] text-xs">{member.name}</span>
-                        {isTeamLead(member) && (
-                          <span className="px-1.5 py-0.2 rounded-full bg-[#111111] text-amber-400 text-[9px] font-black uppercase tracking-wider">
-                            Lead
+                  return (
+                    <React.Fragment key={member.rollNo || idx}>
+                      {/* Main Member Row */}
+                      <tr 
+                        onClick={() => toggleMemberRow(member.rollNo)}
+                        className={`cursor-pointer transition-colors duration-300 ease-out select-none border-b border-[#EAE2D5] ${
+                          isExpanded ? 'bg-[#FAF6EF]' : 'hover:bg-[#FAF8F4]'
+                        }`}
+                      >
+                        {/* Register Number */}
+                        <td className="py-3 px-3 whitespace-nowrap text-center">
+                          <span className="font-mono font-bold text-[#111111] text-xs">
+                            {member.rollNo}
                           </span>
-                        )}
-                      </div>
-                    </td>
+                        </td>
 
-                    {/* Review 1 */}
-                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
-                      {markR1 !== null ? (
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
-                          {markR1}/100
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic font-semibold text-xs">
-                          Unassigned
-                        </span>
-                      )}
-                    </td>
+                        {/* Student Name */}
+                        <td className="py-3 px-3 whitespace-nowrap text-left">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1E1E1E] to-[#111111] text-[#F8F5EE] font-bold text-[10px] flex items-center justify-center shadow-xs border border-[#333333] shrink-0">
+                              {getUserInitials(member.name)}
+                            </div>
+                            <span className="font-bold text-[#111111] text-xs">{member.name}</span>
+                            {isTeamLead(member) && (
+                              <span className="px-1.5 py-0.2 rounded-full bg-[#111111] text-amber-400 text-[9px] font-black uppercase tracking-wider">
+                                Lead
+                              </span>
+                            )}
+                          </div>
+                        </td>
 
-                    {/* Review 2 */}
-                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
-                      {markR2 !== null ? (
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
-                          {markR2}/100
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic font-semibold text-xs">
-                          Unassigned
-                        </span>
-                      )}
-                    </td>
+                        {/* Review 1 */}
+                        <td className="py-3 px-3 whitespace-nowrap text-center">
+                          {markR1 !== null ? (
+                            <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
+                              {markR1}/100
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic font-semibold text-xs">
+                              Unassigned
+                            </span>
+                          )}
+                        </td>
 
-                    {/* Review 3 */}
-                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
-                      {markR3 !== null ? (
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
-                          {markR3}/100
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic font-semibold text-xs">
-                          Unassigned
-                        </span>
-                      )}
-                    </td>
+                        {/* Review 2 */}
+                        <td className="py-3 px-3 whitespace-nowrap text-center">
+                          {markR2 !== null ? (
+                            <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
+                              {markR2}/100
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic font-semibold text-xs">
+                              Unassigned
+                            </span>
+                          )}
+                        </td>
 
-                    {/* Review 4 */}
-                    <td className="py-2.5 px-3 whitespace-nowrap text-center">
-                      {markR4 !== null ? (
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
-                          {markR4}/100
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic font-semibold text-xs">
-                          Unassigned
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              }))}
+                        {/* Review 3 */}
+                        <td className="py-3 px-3 whitespace-nowrap text-center">
+                          {markR3 !== null ? (
+                            <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
+                              {markR3}/100
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic font-semibold text-xs">
+                              Unassigned
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Review 4 */}
+                        <td className="py-3 px-3 whitespace-nowrap text-center">
+                          {markR4 !== null ? (
+                            <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
+                              {markR4}/100
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic font-semibold text-xs">
+                              Unassigned
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Rotating Chevron */}
+                        <td className="py-3 px-2 text-center whitespace-nowrap">
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[#75695A] hover:text-[#111111] transition-colors duration-300">
+                            <ChevronDown
+                              size={15}
+                              className={`transition-transform duration-450 ease-out ${
+                                isExpanded ? 'rotate-180 text-[#111111]' : 'rotate-0'
+                              }`}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Smooth Animated Toggle Drawer */}
+                      <tr className={isExpanded ? 'border-b border-[#D8CCBA]/80' : 'border-0'}>
+                        <td colSpan={7} className="p-0 border-0">
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateRows: isExpanded ? '1fr' : '0fr',
+                              opacity: isExpanded ? 1 : 0,
+                              transition: 'grid-template-rows 460ms cubic-bezier(0.16, 1, 0.3, 1), opacity 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+                              pointerEvents: isExpanded ? 'auto' : 'none',
+                            }}
+                          >
+                            <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                              <div className="bg-[#FAF7F2] border-y border-[#D8CCBA]/80 p-4 sm:p-5 text-left space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#D8CCBA]/60">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-serif font-bold text-xs text-[#111111]">
+                                      {member.name}
+                                    </span>
+                                    <span className="font-mono text-[11px] text-[#75695A] font-semibold">
+                                      ({member.rollNo})
+                                    </span>
+                                    {isTeamLead(member) && (
+                                      <span className="px-2 py-0.5 rounded-full bg-[#111111] text-amber-400 text-[10px] font-black uppercase">
+                                        Team Leader
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[11px] text-[#75695A] font-medium">
+                                    Review Milestone Progress Breakdown
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+                                  {reviews.map((rev) => {
+                                    const isAssigned = rev.mark !== null;
+                                    return (
+                                      <div 
+                                        key={rev.num}
+                                        className="bg-white rounded-xl p-3 border border-[#D8CCBA] shadow-2xs space-y-2"
+                                      >
+                                        <div className="flex items-center justify-between text-xs">
+                                          <span className="font-mono font-bold text-[#111111]">
+                                            Review {rev.num}
+                                          </span>
+                                          {isAssigned ? (
+                                            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-[11px]">
+                                              {rev.mark}/100
+                                            </span>
+                                          ) : (
+                                            <span className="px-2 py-0.5 rounded-md bg-[#EDE7DB] text-[#75695A] font-semibold text-[10px]">
+                                              Pending
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-[11px] text-[#75695A] leading-tight">
+                                          {rev.title}
+                                        </p>
+                                        <div className="pt-1.5 border-t border-[#EAE2D5] text-[10px] text-[#75695A] flex items-center justify-between">
+                                          <span>Status</span>
+                                          <span className={`font-bold ${isAssigned ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                            {isAssigned ? 'Evaluated' : 'Awaiting Review'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

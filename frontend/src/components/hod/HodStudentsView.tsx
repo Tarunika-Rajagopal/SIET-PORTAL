@@ -33,8 +33,16 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [, setMarksTick] = useState(0);
 
-  // Accordion state
-  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+  // Accordion state (supports multiple rows toggled at the same time)
+  const [expandedTeamIds, setExpandedTeamIds] = useState<Set<string>>(new Set());
+  const toggleTeamExpand = (teamId: string) => {
+    setExpandedTeamIds(prev => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  };
   const [inspectingTeamId, setInspectingTeamId] = useState<string | null>(null);
 
   // Modal inspection state
@@ -330,7 +338,13 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
       {/* Main Teams Table */}
       <div className="bg-white rounded-3xl shadow-sm border border-[#D8CCBA] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs table-fixed">
+            <colgroup>
+              <col style={{ width: '22%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '44%' }} />
+              <col style={{ width: '20%' }} />
+            </colgroup>
             <thead className="bg-[#EDE7DB] text-[#75695A] uppercase tracking-wider font-semibold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4 whitespace-nowrap">Team Number</th>
@@ -339,7 +353,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                 <th className="p-4 whitespace-nowrap">Submissions Made Until Now</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D8CCBA] font-medium">
+            <tbody className="font-medium">
               {loading ? (
                 <tr>
                   <td colSpan={4} className="p-12 text-center text-[#75695A]">
@@ -372,7 +386,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                 </tr>
               ) : (
                 teams.map((team) => {
-                  const isExpanded = expandedTeamId === team.id;
+                  const isExpanded = expandedTeamIds.has(team.id);
                   const isInspecting = inspectingTeamId === team.id;
                   const isSub1Approved = team.status === 'Approved' || team.guideApprovalStatus === 'Approved' || StudentService.isSubmission1Approved(team.id);
                   const formattedTitle = formatProjectTitle(team.projectTitle, isSub1Approved ? 'Approved' : team.status, isSub1Approved);
@@ -384,8 +398,8 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                     <React.Fragment key={team.id}>
                       {/* Main Team Row */}
                       <tr
-                        onClick={() => setExpandedTeamId(isExpanded ? null : team.id)}
-                        className={`cursor-pointer transition-colors ${
+                        onClick={() => toggleTeamExpand(team.id)}
+                        className={`cursor-pointer transition-colors duration-300 ease-out border-b border-[#D8CCBA] select-none ${
                           isExpanded ? 'bg-[#F8F5EE]' : 'hover:bg-[#F8F5EE]/60'
                         }`}
                       >
@@ -395,8 +409,13 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                             <span className="px-2.5 py-1 rounded-xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] font-serif font-bold text-xs">
                               {team.teamNo}
                             </span>
-                            <span className="p-1 rounded-lg text-[#75695A] hover:bg-[#EDE7DB] transition">
-                              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            <span className="p-1 rounded-lg text-[#75695A] hover:bg-[#EDE7DB] transition flex items-center justify-center">
+                              <ChevronDown 
+                                size={14} 
+                                className={`transition-transform duration-450 ease-out ${
+                                  isExpanded ? 'rotate-180 text-[#111111]' : 'rotate-0 text-[#75695A]'
+                                }`} 
+                              />
                             </span>
                           </div>
                           <span className="text-[11px] text-[#75695A] block mt-1 font-medium">
@@ -450,10 +469,20 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                       </tr>
 
                       {/* Expanded Accordion: Team Members & Inspect Submissions */}
-                      {isExpanded && (
-                        <tr className="bg-[#FAF8F4] border-t border-[#D8CCBA]">
-                          <td colSpan={4} className="p-5">
-                            <div className="space-y-4">
+                      <tr className={isExpanded ? 'border-b border-[#D8CCBA]' : 'border-0'}>
+                        <td colSpan={4} className="p-0 border-0">
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateRows: isExpanded ? '1fr' : '0fr',
+                              opacity: isExpanded ? 1 : 0,
+                              transition: 'grid-template-rows 460ms cubic-bezier(0.16, 1, 0.3, 1), opacity 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+                              pointerEvents: isExpanded ? 'auto' : 'none',
+                            }}
+                          >
+                            <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                              <div className="bg-[#FAF8F4] border-t border-[#D8CCBA] p-5">
+                                <div className="space-y-4">
                               
                               {/* Team Members Header & Inspect Submissions Action Button */}
                               <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-[#D8CCBA]">
@@ -606,10 +635,12 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                                 </div>
                               )}
 
+                                </div>
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                      )}
+                          </div>
+                        </td>
+                      </tr>
                     </React.Fragment>
                   );
                 })

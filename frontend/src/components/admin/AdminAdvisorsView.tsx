@@ -149,7 +149,7 @@ export const AdminAdvisorsView: React.FC<AdminAdvisorsViewProps> = ({
                   <tr
                     key={a.id}
                     onClick={(e) => handleRowClick(a, e)}
-                    className="hover:bg-[#F8F5EE]/60 cursor-pointer transition group"
+                    className="hover:bg-[#F8F5EE]/60 cursor-pointer transition-colors duration-300 ease-out group"
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-2">

@@ -7,6 +7,8 @@ import MySubmissionView from '../components/student/MySubmissionView';
 import { StudentService } from '../services/studentService';
 import { ApiClient } from '../services/apiClient';
 import { Users, Send, Clock, CheckCircle2 } from 'lucide-react';
+import { GrainientBackground } from '@/components/ui/GrainientBackground';
+import { PillNavTab } from '@/components/ui/PillNavTab';
 
 type StudentTab = 'my-team' | 'submission' | 'my-submission';
 
@@ -102,68 +104,47 @@ export const StudentPortalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F5EE] flex flex-col font-sans relative">
+    <GrainientBackground className="min-h-screen flex flex-col font-sans relative">
       
-      {/* Top Institutional Header */}
+      {/* Single Compact Horizontal Navbar (76px height) */}
       <Header
         title="Student Project Portal"
         subtitle="Department of Computer Science and Engineering"
         onOpenProfile={() => setProfileModalOpen(true)}
-      />
+      >
+        {/* 1. My Team Tab */}
+        <PillNavTab
+          id="tabStudentMyTeam"
+          isActive={activeTab === 'my-team'}
+          onClick={() => setActiveTab('my-team')}
+          icon={<Users size={15} strokeWidth={activeTab === 'my-team' ? 2.25 : 1.75} />}
+        >
+          My Team
+        </PillNavTab>
 
-      {/* Sticky Horizontal Navigation Bar: Strictly 3 Tabs - Center Aligned */}
-      <div className="bg-[#F8F5EE] border-b border-[#D8CCBA] sticky top-16 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">
-            
-            {/* 1. My Team Tab */}
-            <button
-              id="tabStudentMyTeam"
-              onClick={() => setActiveTab('my-team')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'my-team'
-                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-              }`}
-            >
-              <Users size={16} />
-              <span>My Team</span>
-            </button>
+        {/* 2. Submission Tab */}
+        <PillNavTab
+          id="tabStudentSubmission"
+          isActive={activeTab === 'submission'}
+          onClick={() => setActiveTab('submission')}
+          icon={<Send size={15} strokeWidth={activeTab === 'submission' ? 2.25 : 1.75} />}
+        >
+          Submission
+        </PillNavTab>
 
-            {/* 2. Submission Tab */}
-            <button
-              id="tabStudentSubmission"
-              onClick={() => setActiveTab('submission')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'submission'
-                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-              }`}
-            >
-              <Send size={16} />
-              <span>Submission</span>
-            </button>
-
-            {/* 3. My Submission Tab */}
-            <button
-              id="tabStudentMySubmission"
-              onClick={() => setActiveTab('my-submission')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'my-submission'
-                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-              }`}
-            >
-              <Clock size={16} />
-              <span>My Submission</span>
-            </button>
-
-          </nav>
-        </div>
-      </div>
+        {/* 3. My Submission Tab */}
+        <PillNavTab
+          id="tabStudentMySubmission"
+          isActive={activeTab === 'my-submission'}
+          onClick={() => setActiveTab('my-submission')}
+          icon={<Clock size={15} strokeWidth={activeTab === 'my-submission' ? 2.25 : 1.75} />}
+        >
+          My Submission
+        </PillNavTab>
+      </Header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
+      <main className="flex-1 w-full mx-auto px-6 sm:px-8 lg:px-12 py-8 pb-24" style={{ maxWidth: '1360px' }}>
         {activeTab === 'my-team' && <MyTeamView team={team} />}
         {activeTab === 'submission' && <SubmissionView onSuccess={showToast} />}
         {activeTab === 'my-submission' && (
@@ -195,7 +176,7 @@ export const StudentPortalPage: React.FC = () => {
         onClose={() => setProfileModalOpen(false)}
       />
 
-    </div>
+    </GrainientBackground>
   );
 };
 

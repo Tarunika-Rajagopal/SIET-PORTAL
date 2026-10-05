@@ -210,7 +210,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                 </tr>
               ) : (
                 filteredStudents.map((s) => (
-                  <tr key={s.rollNo} className="hover:bg-mint-50/40 transition">
+                  <tr key={s.rollNo} className="hover:bg-mint-50/40 transition-colors duration-300 ease-out">
                     <td className="p-4 font-mono font-bold text-mint-900 whitespace-nowrap">{s.rollNo}</td>
                     <td className="p-4">
                       <div className="font-extrabold text-slate-900">{s.name}</div>

@@ -41,8 +41,8 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isManageMode, setIsManageMode] = useState<boolean>(false);
 
-  // Student dropdown expansion
-  const [expandedStudentRoll, setExpandedStudentRoll] = useState<string | null>(null);
+  // Student dropdown expansion (supports multiple rows toggled at the same time)
+  const [expandedStudentRolls, setExpandedStudentRolls] = useState<Set<string>>(new Set());
 
   // Submission Inspection Modal (Exact Student Submission Details Pop-up)
   const [inspectionSubmission, setInspectionSubmission] = useState<{
@@ -444,9 +444,17 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     onShowToast(`Successfully generated and finalized ${newTeams.length} teams.`);
   };
 
-  // Toggle dropdown row when student is clicked
+  // Toggle dropdown row when student is clicked (supports multiple rows simultaneously)
   const handleStudentRowClick = (student: AdminStudent) => {
-    setExpandedStudentRoll(prev => prev === student.rollNo ? null : student.rollNo);
+    setExpandedStudentRolls(prev => {
+      const next = new Set(prev);
+      if (next.has(student.rollNo)) {
+        next.delete(student.rollNo);
+      } else {
+        next.add(student.rollNo);
+      }
+      return next;
+    });
   };
 
 
@@ -669,17 +677,24 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       {/* 3. Students Table with Smooth Expandable Accordion */}
       <div className="bg-white rounded-3xl shadow-card border border-[#E2E8E4] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs table-fixed">
+            <colgroup>
+              <col style={{ width: '18%' }} />
+              <col style={{ width: isManageMode ? '30%' : '38%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: isManageMode ? '20%' : '26%' }} />
+              {isManageMode && <col style={{ width: '14%' }} />}
+            </colgroup>
             <thead className="bg-[#F8FAF9] text-slate-500 uppercase tracking-wider font-bold border-b border-[#E2E8E4]">
               <tr>
-                <th className="p-4">Register Number</th>
-                <th className="p-4">Student Name</th>
-                <th className="p-4">Assigned Team</th>
-                <th className="p-4">Assigned Guide</th>
-                {isManageMode && <th className="p-4 text-right">Team Allocation</th>}
+                <th className="p-4 w-[18%]">Register Number</th>
+                <th className={`p-4 ${isManageMode ? 'w-[30%]' : 'w-[38%]'}`}>Student Name</th>
+                <th className="p-4 w-[18%]">Assigned Team</th>
+                <th className={`p-4 ${isManageMode ? 'w-[20%]' : 'w-[26%]'}`}>Assigned Guide</th>
+                {isManageMode && <th className="p-4 text-right w-[14%]">Team Allocation</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8E4] font-medium">
+            <tbody className="font-medium">
               {filteredStudents.length === 0 ? (
                 <tr>
                   <td colSpan={isManageMode ? 5 : 4} className="p-12 text-center text-slate-400">
@@ -688,7 +703,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                 </tr>
               ) : (
                 filteredStudents.map((s) => {
-                  const isExpanded = expandedStudentRoll === s.rollNo;
+                  const isExpanded = expandedStudentRolls.has(s.rollNo);
 
                   // Authoritative assignment: student is assigned if and only if they are present in a team's members roster
                   let assignedTeam = teams.find(t => 
@@ -739,7 +754,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                       {/* Main Student Row */}
                       <tr
                         onClick={() => handleStudentRowClick(s)}
-                        className={`hover:bg-mint-50/40 transition cursor-pointer group select-none ${
+                        className={`border-b border-[#E2E8E4] hover:bg-mint-50/40 transition-colors duration-300 ease-out cursor-pointer group select-none ${
                           isExpanded ? 'bg-mint-50/30' : ''
                         }`}
                       >
@@ -750,13 +765,14 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
 
                         {/* Student Name with Expand Chevron */}
                         <td className="p-4 whitespace-nowrap">
-                          <div className="font-extrabold text-slate-900 group-hover:text-mint-800 transition flex items-center gap-2">
+                          <div className="font-extrabold text-slate-900 group-hover:text-mint-800 transition-colors duration-300 flex items-center gap-2">
                             <span>{s.name}</span>
-                            {isExpanded ? (
-                              <ChevronDown size={14} className="text-mint-700 transition" />
-                            ) : (
-                              <ChevronRight size={14} className="text-slate-300 group-hover:text-mint-600 transition" />
-                            )}
+                            <ChevronDown 
+                              size={14} 
+                              className={`transition-transform duration-450 ease-out ${
+                                isExpanded ? 'rotate-180 text-mint-700' : 'rotate-0 text-slate-400 group-hover:text-mint-600'
+                              }`} 
+                            />
                           </div>
                         </td>
 
@@ -840,10 +856,19 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                       </tr>
 
                       {/* Smooth Dropdown Accordion Row */}
-                      {isExpanded && (
-                        <tr className="bg-slate-50/70 border-b border-[#E2E8E4] transition-all duration-500 ease-in-out animate-fadeIn">
-                          <td colSpan={isManageMode ? 5 : 4} className="p-0">
-                            <div className="p-5 sm:p-6 space-y-5 border-l-4 border-l-mint-500 bg-gradient-to-b from-mint-50/20 via-white to-slate-50/50">
+                      <tr className={isExpanded ? 'border-b border-[#E2E8E4]' : 'border-0'}>
+                        <td colSpan={isManageMode ? 5 : 4} className="p-0 border-0">
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateRows: isExpanded ? '1fr' : '0fr',
+                              opacity: isExpanded ? 1 : 0,
+                              transition: 'grid-template-rows 460ms cubic-bezier(0.16, 1, 0.3, 1), opacity 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+                              pointerEvents: isExpanded ? 'auto' : 'none',
+                            }}
+                          >
+                            <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                              <div className="p-5 sm:p-6 space-y-5 border-l-4 border-l-mint-500 bg-gradient-to-b from-mint-50/20 via-white to-slate-50/50">
                               
                               {/* 1. Team Members First */}
                               <div className="bg-white rounded-2xl p-4 border border-[#E2E8E4] shadow-xs space-y-3">
@@ -1161,10 +1186,11 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
                               </div>
                               )}
 
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                      )}
+                          </div>
+                        </td>
+                      </tr>
                     </React.Fragment>
                   );
                 })

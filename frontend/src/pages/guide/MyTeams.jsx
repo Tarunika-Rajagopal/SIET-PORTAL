@@ -27,11 +27,27 @@ export const MyTeams = () => {
   const [classFilter, setClassFilter] = useState('ALL');
   const [batchFilter, setBatchFilter] = useState('ALL');
   
-  // Expanded team row accordion
-  const [expandedTeamId, setExpandedTeamId] = useState(null);
+  // Multi-row expanded team accordions (supports multiple rows toggled at the same time)
+  const [expandedTeamIds, setExpandedTeamIds] = useState(new Set());
+  const [submissionsExpandedTeamIds, setSubmissionsExpandedTeamIds] = useState(new Set());
 
-  // Toggle to show submissions for expanded team
-  const [submissionsExpandedTeamId, setSubmissionsExpandedTeamId] = useState(null);
+  const toggleTeamExpand = (teamId) => {
+    setExpandedTeamIds(prev => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  };
+
+  const toggleSubmissionsExpand = (teamId) => {
+    setSubmissionsExpandedTeamIds(prev => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  };
 
   // Active week/submission inspection modal
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -369,36 +385,35 @@ export const MyTeams = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left text-xs border-collapse table-fixed">
+              <colgroup>
+                <col style={{ width: '14%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '44%' }} />
+                <col style={{ width: '24%' }} />
+                <col style={{ width: '6%' }} />
+              </colgroup>
               <thead className="bg-[#EDE7DB] text-[#111111] uppercase font-extrabold text-[10px] tracking-wider border-b border-[#D8CCBA]">
                 <tr>
-                  <th className="p-4 text-center w-28">Team No</th>
-                  <th className="p-4 text-center w-28">Class</th>
+                  <th className="p-4 text-center">Team No</th>
+                  <th className="p-4 text-center">Class</th>
                   <th className="p-4">Title</th>
                   <th className="p-4">Team Leader</th>
-                  <th className="p-4 text-center w-16"></th>
+                  <th className="p-4 text-center"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#D8CCBA]">
+              <tbody className="bg-white">
                 {filteredTeams.map((team) => {
                   const teamClass = team.classSection || (team.class && team.section ? `${team.class}-${team.section}` : team.class) || 'CSE-B';
-                  const isExpanded = expandedTeamId === team.teamId;
-                  const isSubmissionsShown = submissionsExpandedTeamId === team.teamId;
+                  const isExpanded = expandedTeamIds.has(team.teamId);
+                  const isSubmissionsShown = submissionsExpandedTeamIds.has(team.teamId);
 
                   return (
                     <React.Fragment key={team.teamId}>
                       {/* Main Table Row */}
                       <tr 
-                        onClick={() => {
-                          if (isExpanded) {
-                            setExpandedTeamId(null);
-                            setSubmissionsExpandedTeamId(null);
-                          } else {
-                            setExpandedTeamId(team.teamId);
-                            setSubmissionsExpandedTeamId(null);
-                          }
-                        }}
-                        className={`transition cursor-pointer ${
+                        onClick={() => toggleTeamExpand(team.teamId)}
+                        className={`transition-colors duration-300 ease-out cursor-pointer select-none border-b border-[#D8CCBA] ${
                           isExpanded 
                             ? 'bg-[#F8F5EE]' 
                             : 'hover:bg-[#FAF7F2] bg-white'
@@ -459,39 +474,54 @@ export const MyTeams = () => {
                         {/* Chevron Indicator */}
                         <td className="p-4 text-center text-[#75695A]">
                           <div className="p-1 rounded-lg hover:bg-[#EDE7DB] transition inline-block">
-                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            <ChevronDown 
+                              size={16} 
+                              className={`transition-transform duration-450 ease-out ${
+                                isExpanded ? 'rotate-180 text-[#111111]' : 'rotate-0 text-[#75695A]'
+                              }`} 
+                            />
                           </div>
                         </td>
                       </tr>
 
                       {/* Accordion Container: Team Members First -> Then [View Submissions] Button & List (NO designation column) */}
-                      {isExpanded && (
-                        <tr className="bg-[#FAF7F2] border-y border-[#D8CCBA] animate-fadeIn">
-                          <td colSpan={5} className="p-5">
-                            <div className="space-y-4 max-w-5xl mx-auto">
-                              
-                              {/* 1. TEAM MEMBERS FIRST */}
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D8CCBA]">
-                                <div className="flex items-center gap-2">
-                                  <Users size={16} className="text-[#111111]" />
-                                  <h4 className="text-xs font-extrabold text-[#111111] uppercase tracking-wider">
-                                    Enrolled Team Members ({team.members?.length || 4} Students)
-                                  </h4>
-                                </div>
+                      <tr className={isExpanded ? 'border-b border-[#D8CCBA]' : 'border-0'}>
+                        <td colSpan={5} className="p-0 border-0">
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateRows: isExpanded ? '1fr' : '0fr',
+                              opacity: isExpanded ? 1 : 0,
+                              transition: 'grid-template-rows 460ms cubic-bezier(0.16, 1, 0.3, 1), opacity 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+                              pointerEvents: isExpanded ? 'auto' : 'none',
+                            }}
+                          >
+                            <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                              <div className="bg-[#FAF7F2] border-y border-[#D8CCBA] p-5">
+                                <div className="space-y-4 max-w-5xl mx-auto">
+                                  
+                                  {/* 1. TEAM MEMBERS FIRST */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#D8CCBA]">
+                                    <div className="flex items-center gap-2">
+                                      <Users size={16} className="text-[#111111]" />
+                                      <h4 className="text-xs font-extrabold text-[#111111] uppercase tracking-wider">
+                                        Enrolled Team Members ({team.members?.length || 4} Students)
+                                      </h4>
+                                    </div>
 
-                                {/* [View Submissions] Toggle Button */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSubmissionsExpandedTeamId(isSubmissionsShown ? null : team.teamId);
-                                  }}
-                                  className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer self-start sm:self-auto active:scale-95"
-                                >
-                                  <Eye size={14} className="text-[#F8F5EE]" />
-                                  <span>{isSubmissionsShown ? 'Hide Submissions' : 'View Submissions'}</span>
-                                </button>
-                              </div>
+                                    {/* [View Submissions] Toggle Button */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleSubmissionsExpand(team.teamId);
+                                      }}
+                                      className="px-4 py-2 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer self-start sm:self-auto active:scale-95"
+                                    >
+                                      <Eye size={14} className="text-[#F8F5EE]" />
+                                      <span>{isSubmissionsShown ? 'Hide Submissions' : 'View Submissions'}</span>
+                                    </button>
+                                  </div>
 
                               {/* Members Table (NO Designation column) */}
                               <div className="border border-[#D8CCBA] rounded-2xl overflow-hidden bg-white shadow-2xs">
@@ -602,10 +632,19 @@ export const MyTeams = () => {
                                             </div>
 
                                             {isSubUploaded && (
-                                              <span className="text-[11px] font-bold text-[#111111] hover:underline flex items-center gap-1">
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setActiveTeamForModal(team);
+                                                  setActiveSubModal(sub);
+                                                  setDetailModalOpen(true);
+                                                }}
+                                                className="text-[11px] font-bold text-[#111111] hover:underline flex items-center gap-1 cursor-pointer"
+                                              >
                                                 <span>View Details</span>
                                                 <Eye size={12} />
-                                              </span>
+                                              </button>
                                             )}
                                           </div>
                                         </div>
@@ -615,10 +654,12 @@ export const MyTeams = () => {
                                 </div>
                               )}
 
+                                </div>
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                      )}
+                          </div>
+                        </td>
+                      </tr>
                     </React.Fragment>
                   );
                 })}

@@ -6,6 +6,8 @@ import HodStudentsView from '../components/hod/HodStudentsView';
 import WeeklySubmissionManagementView from '../components/hod/WeeklySubmissionManagementView';
 import HodHistoryView from '../components/hod/HodHistoryView';
 import { UserCheck, GraduationCap, CheckCircle2, Calendar, History } from 'lucide-react';
+import { GrainientBackground } from '@/components/ui/GrainientBackground';
+import { PillNavTab } from '@/components/ui/PillNavTab';
 
 type HodTab = 'advisors' | 'students' | 'submissions' | 'history';
 
@@ -47,68 +49,44 @@ export const HodPortalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F5EE] flex flex-col font-sans relative">
+    <GrainientBackground className="min-h-screen flex flex-col font-sans relative">
       
-      {/* Top Institutional Header */}
+      {/* Single Compact Horizontal Navbar (76px height) */}
       <Header
         title="Head of Department Workspace"
-        subtitle="Academic Project Governance, Student Mentorship & Project Auditing"
+        subtitle="Academic Project Governance & Mentorship"
         onOpenProfile={() => setProfileModalOpen(true)}
-      />
+      >
+        {/* 1. Advisors Tab */}
+        <PillNavTab
+          id="tabHodAdvisors"
+          isActive={activeTab === 'advisors'}
+          onClick={() => handleTabClick('advisors')}
+          icon={<UserCheck size={15} strokeWidth={activeTab === 'advisors' ? 2.25 : 1.75} />}
+        >
+          Advisors
+        </PillNavTab>
 
-      {/* Sticky Top Navigation Bar: 3 Main Tabs Center-Aligned */}
-      <div className="bg-[#F8F5EE] border-b border-[#D8CCBA] sticky top-16 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">
-            
-            {/* 1. Advisors Tab */}
-            <button
-              id="tabHodAdvisors"
-              onClick={() => handleTabClick('advisors')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'advisors'
-                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-              }`}
-            >
-              <UserCheck size={16} />
-              <span>Advisors</span>
-            </button>
+        {/* 2. Students Tab */}
+        <PillNavTab
+          id="tabHodStudents"
+          isActive={activeTab === 'students'}
+          onClick={() => handleTabClick('students')}
+          icon={<GraduationCap size={15} strokeWidth={activeTab === 'students' ? 2.25 : 1.75} />}
+        >
+          Students
+        </PillNavTab>
 
-            {/* 2. Students Tab */}
-            <button
-              id="tabHodStudents"
-              onClick={() => handleTabClick('students')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'students'
-                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-              }`}
-            >
-              <GraduationCap size={16} />
-              <span>Students</span>
-            </button>
-
-            {/* 3. Weekly Submissions Tab */}
-            <button
-              id="tabHodSubmissions"
-              onClick={() => handleTabClick('submissions')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'submissions'
-                  ? 'bg-[#111111] text-[#F8F5EE] shadow-sm font-bold border border-[#292725]'
-                  : 'text-[#292725] hover:bg-[#F3EFE6] hover:text-[#111111]'
-              }`}
-            >
-              <Calendar size={16} />
-              <span>Weekly Submissions</span>
-            </button>
-
-            {/* 4. Action History Tab */}
-           
-
-          </nav>
-        </div>
-      </div>
+        {/* 3. Weekly Submissions Tab */}
+        <PillNavTab
+          id="tabHodSubmissions"
+          isActive={activeTab === 'submissions'}
+          onClick={() => handleTabClick('submissions')}
+          icon={<Calendar size={15} strokeWidth={activeTab === 'submissions' ? 2.25 : 1.75} />}
+        >
+          Weekly Submissions
+        </PillNavTab>
+      </Header>
 
       {/* Main Content Area */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 pb-24">
@@ -148,7 +126,7 @@ export const HodPortalPage: React.FC = () => {
         onClose={() => setProfileModalOpen(false)}
       />
 
-    </div>
+    </GrainientBackground>
   );
 };
 

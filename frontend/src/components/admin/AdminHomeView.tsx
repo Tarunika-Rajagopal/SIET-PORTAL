@@ -334,7 +334,7 @@ try{
             </thead>
             <tbody className="divide-y divide-[#E2E8E4] font-medium">
               {faculties.map((f) => (
-                <tr key={f.id} className="hover:bg-mint-50/40 transition">
+                <tr key={f.id} className="hover:bg-mint-50/40 transition-colors duration-300 ease-out">
                   <td className="p-4 font-bold text-slate-900">{f.name}</td>
                   <td className="p-4 text-slate-500 font-mono">{f.email}</td>
                   <td className="p-4 text-slate-700">{f.designation}</td>

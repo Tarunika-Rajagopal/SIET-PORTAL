@@ -6,6 +6,8 @@ import AdminAdvisorsView from '../components/admin/AdminAdvisorsView';
 import AdminGuidesView from '../components/admin/AdminGuidesView';
 import AdminStudentsView from '../components/admin/AdminStudentsView';
 import { Home, UserCheck, Briefcase, GraduationCap, CheckCircle2 } from 'lucide-react';
+import { GrainientBackground } from '@/components/ui/GrainientBackground';
+import { PillNavTab } from '@/components/ui/PillNavTab';
 
 export const AdminPortalPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'advisors' | 'guides' | 'students'>(() => {
@@ -48,70 +50,55 @@ export const AdminPortalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#EFF3F1] flex flex-col font-sans relative">
+    <GrainientBackground className="min-h-screen flex flex-col font-sans relative">
       
-      {/* Institutional Top Header */}
+      {/* Single Compact Horizontal Navbar (76px height) */}
       <Header
         title="Department Administration Portal"
         subtitle="Faculty Role Governance & Academic Student Allocation Engine"
         onOpenProfile={() => setProfileModalOpen(true)}
         hideSettings={true}
-      />
+      >
+        {/* Home Tab */}
+        <PillNavTab
+          id="tabAdminHome"
+          isActive={activeTab === 'home'}
+          onClick={() => changeTab('home')}
+          icon={<Home size={15} strokeWidth={activeTab === 'home' ? 2.25 : 1.75} />}
+        >
+          Home
+        </PillNavTab>
 
-      {/* Sticky Horizontal Navigation Bar */}
-      <div className="bg-white border-b border-[#E2E8E4] sticky top-16 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex justify-center items-center space-x-2 py-3 overflow-x-auto text-xs font-bold scrollbar-none">
-            <button
-              onClick={() => changeTab('home')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'home'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
-              }`}
-            >
-              <Home size={15} />
-              <span>Home</span>
-            </button>
+        {/* Advisors Tab */}
+        <PillNavTab
+          id="tabAdminAdvisors"
+          isActive={activeTab === 'advisors'}
+          onClick={() => changeTab('advisors')}
+          icon={<UserCheck size={15} strokeWidth={activeTab === 'advisors' ? 2.25 : 1.75} />}
+        >
+          Advisors
+        </PillNavTab>
 
-            <button
-              onClick={() => changeTab('advisors')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'advisors'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
-              }`}
-            >
-              <UserCheck size={15} />
-              <span>Advisors</span>
-            </button>
+        {/* Guides Tab */}
+        <PillNavTab
+          id="tabAdminGuides"
+          isActive={activeTab === 'guides'}
+          onClick={() => changeTab('guides')}
+          icon={<Briefcase size={15} strokeWidth={activeTab === 'guides' ? 2.25 : 1.75} />}
+        >
+          Guides
+        </PillNavTab>
 
-            <button
-              onClick={() => changeTab('guides')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'guides'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
-              }`}
-            >
-              <Briefcase size={15} />
-              <span>Guides</span>
-            </button>
-
-            <button
-              onClick={() => changeTab('students')}
-              className={`px-4 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'students'
-                  ? 'bg-mint-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-mint-50 hover:text-mint-800'
-              }`}
-            >
-              <GraduationCap size={15} />
-              <span>Students</span>
-            </button>
-          </nav>
-        </div>
-      </div>
+        {/* Students Tab */}
+        <PillNavTab
+          id="tabAdminStudents"
+          isActive={activeTab === 'students'}
+          onClick={() => changeTab('students')}
+          icon={<GraduationCap size={15} strokeWidth={activeTab === 'students' ? 2.25 : 1.75} />}
+        >
+          Students
+        </PillNavTab>
+      </Header>
 
       {/* Main Content Area */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 pb-24">
@@ -157,7 +144,7 @@ export const AdminPortalPage: React.FC = () => {
         onClose={() => setProfileModalOpen(false)}
       />
 
-    </div>
+    </GrainientBackground>
   );
 };
 
