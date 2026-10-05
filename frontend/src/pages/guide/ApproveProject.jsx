@@ -24,6 +24,7 @@ export const ApproveProject = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   // Multi-row accordion state (supports multiple rows toggled at the same time)
   const [expandedTeamIds, setExpandedTeamIds] = useState(new Set());
   const toggleTeamExpand = (teamId) => {
