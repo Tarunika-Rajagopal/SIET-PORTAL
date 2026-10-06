@@ -95,7 +95,7 @@ class MarksService:
     async def get_all_marks(self) -> Dict[str, Dict[int, Any]]:
         rows = await self.marks_repo.list_all_marks()
         result: Dict[str, Dict[int, Any]] = {}
-        teams = await self.team_repo.list_all()
+        teams = await self.team_repo.list_all_with_members_only()
         team_id_to_no = {str(t.id): t.team_no for t in teams}
         team_id_to_str_id = {str(t.id): t.team_id for t in teams}
         team_id_to_class = {str(t.id): (t.class_name or "") for t in teams}
@@ -107,10 +107,11 @@ class MarksService:
                 clean_no = t.team_no.strip().lower()
                 team_no_counts[clean_no] = team_no_counts.get(clean_no, 0) + 1
 
-        # Cache team members
-        team_members_map: Dict[str, list] = {}
-        for t in teams:
-            team_members_map[str(t.id)] = await self._get_team_members(t.id)
+        # Build in-memory team members map directly from eagerly loaded team.members
+        # (team_repo.list_all already fetches members via selectinload in a single batch query)
+        team_members_map: Dict[str, list] = {
+            str(t.id): list(t.members or []) for t in teams
+        }
 
         for wm in rows:
             t_uuid = str(wm.team_id)

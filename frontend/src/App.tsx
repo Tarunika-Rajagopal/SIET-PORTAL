@@ -19,9 +19,9 @@ const WeeklySubmissions = React.lazy(() => import('./pages/guide/WeeklySubmissio
 const SubmissionHistory = React.lazy(() => import('./pages/guide/SubmissionHistory'));
 
 const PortalLoadingFallback: React.FC = () => (
-  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
-    <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4" />
-    <p className="text-sm font-medium text-slate-400 tracking-wide">Loading workspace...</p>
+  <div className="min-h-screen bg-[#F8F5EE] flex flex-col items-center justify-center text-[#111111]">
+    <div className="w-10 h-10 border-4 border-[#176B7A]/20 border-t-[#176B7A] rounded-full animate-spin mb-4" />
+    <p className="text-sm font-medium text-[#75695A] tracking-wide">Loading workspace...</p>
   </div>
 );
 

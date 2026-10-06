@@ -91,21 +91,20 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#EAE3DE] flex flex-col justify-center items-center px-4 sm:px-6 py-8 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-[#F5EFEB] flex flex-col justify-center items-center px-4 sm:px-6 py-8 relative overflow-hidden font-sans">
       
-      {/* Full-Bleed Hand-Drawn Teal Ink Landscape Video Background */}
+      {/* Full-Bleed Floral Vine Video Background */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <video
-          className="absolute inset-0 w-full h-full object-cover object-bottom pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
           autoPlay
           muted
           loop
           playsInline
           preload="auto"
-          poster="https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/4f690bd1-881a-4192-82f2-d714d34c8fb9.png"
         >
           <source
-            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260901_122529_931c22c8-8d2d-47c0-ad51-b97f56a91e42.mp4"
+            src="/login-bg.mp4"
             type="video/mp4"
           />
         </video>
@@ -119,28 +118,7 @@ export const LoginPage: React.FC = () => {
           
           {/* Logo Container with Liquid Glass Emblem Frame */}
           <div className="relative inline-flex flex-col items-center mb-4">
-            <GlassSurface
-              width={104}
-              height={104}
-              borderRadius={26}
-              borderWidth={0.08}
-              displace={6}
-              distortionScale={-140}
-              redOffset={2}
-              greenOffset={8}
-              blueOffset={16}
-              brightness={65}
-              opacity={0.9}
-              backgroundOpacity={0.35}
-              saturation={1.8}
-              mixBlendMode="screen"
-              className="shadow-[0_12px_32px_rgba(23,90,103,0.18)] border border-white/60 hover:scale-105 transition-all duration-300"
-              contentClassName="flex items-center justify-center p-2.5 w-full h-full"
-            >
-              <div className="w-full h-full rounded-2xl bg-white/80 backdrop-blur-xs p-2 flex items-center justify-center border border-white/70 shadow-xs">
-                <img src="/logo.jpg" alt="Sri Shakthi Institute SIET CSE" className="w-full h-full object-contain rounded-xl" />
-              </div>
-            </GlassSurface>
+           
           </div>
 
           {/* Full College Name */}

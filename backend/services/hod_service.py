@@ -68,6 +68,20 @@ class HODService:
         fac_advisors = await self.faculty_repo.list_advisors(batch=batch_filter, class_name=class_filter)
         user_advisors = await self.user_repo.list_by_roles(["advisor"])
 
+        # Prefetch ALL teams once to avoid N+1 per-advisor queries
+        all_teams = await self.team_repo.list_all_with_members_only()
+
+        # Build lookup indexes
+        teams_by_class_batch: Dict[str, List] = {}
+        teams_by_advisor: Dict[str, List] = {}
+        for t in all_teams:
+            key = f"{(t.class_name or '').strip().lower()}|{(t.batch or '').strip().lower()}"
+            if key != "|":
+                teams_by_class_batch.setdefault(key, []).append(t)
+            an = (t.advisor_name or "").strip().lower()
+            if an:
+                teams_by_advisor.setdefault(an, []).append(t)
+
         seen_emails = set()
         result = []
 
@@ -81,9 +95,10 @@ class HODService:
 
             tc = []
             if cls and batch:
-                tc = await self.team_repo.list_by_class(cls, batch)
+                key = f"{cls.strip().lower()}|{batch.strip().lower()}"
+                tc = teams_by_class_batch.get(key, [])
             if not tc and f.name:
-                tc = await self.team_repo.list_by_advisor_name(f.name)
+                tc = teams_by_advisor.get((f.name or "").strip().lower(), [])
 
             stu_count = sum(len(t.members or []) for t in tc)
             result.append({
@@ -107,7 +122,7 @@ class HODService:
                 continue
             if class_filter and class_filter != "ALL" and cls and cls != class_filter:
                 continue
-            tc = await self.team_repo.list_by_advisor_name(u.name or "")
+            tc = teams_by_advisor.get((u.name or "").strip().lower(), [])
             stu_count = sum(len(t.members or []) for t in tc)
             result.append({
                 "id": str(u.id),
@@ -266,6 +281,28 @@ class HODService:
         fac_rows = await self.faculty_repo.list_all()
         user_rows = await self.user_repo.list_by_roles(["guide", "advisor"])
 
+        # Prefetch ALL teams once to avoid N+1 per-faculty queries
+        all_teams = await self.team_repo.list_all_with_members_only()
+
+        # Build lookup indexes for in-memory matching
+        teams_by_guide: Dict[str, List] = {}
+        teams_by_class_batch: Dict[str, List] = {}
+        for t in all_teams:
+            gn = (t.guide_name or "").strip().lower()
+            if gn:
+                teams_by_guide.setdefault(gn, []).append(t)
+            key = f"{(t.class_name or '').strip().lower()}|{(t.batch or '').strip().lower()}"
+            if key != "|":
+                teams_by_class_batch.setdefault(key, []).append(t)
+
+        def _find_teams_for_guide(name: str, advisor_class: str = "", advisor_batch: str = "") -> list:
+            gn = (name or "").strip().lower()
+            tc = teams_by_guide.get(gn, [])
+            if not tc and advisor_class and advisor_batch:
+                key = f"{advisor_class.strip().lower()}|{advisor_batch.strip().lower()}"
+                tc = teams_by_class_batch.get(key, [])
+            return tc
+
         seen_emails = set()
         result = []
 
@@ -274,9 +311,7 @@ class HODService:
                 continue
             email_lower = f.email.lower()
             seen_emails.add(email_lower)
-            tc = await self.team_repo.list_by_guide_name(f.name or "")
-            if not tc and f.advisor_class and f.advisor_batch:
-                tc = await self.team_repo.list_by_class(f.advisor_class, f.advisor_batch)
+            tc = _find_teams_for_guide(f.name or "", f.advisor_class or "", f.advisor_batch or "")
 
             avg_prog = round(sum(t.progress or 0 for t in tc) / len(tc)) if tc else 0
             status_val = "Overloaded" if len(tc) >= 4 else ("Normal" if len(tc) > 0 else "Available")
@@ -298,7 +333,7 @@ class HODService:
         for u in user_rows:
             if not u.email or u.email.lower() in seen_emails:
                 continue
-            tc = await self.team_repo.list_by_guide_name(u.name or "")
+            tc = _find_teams_for_guide(u.name or "")
             avg_prog = round(sum(t.progress or 0 for t in tc) / len(tc)) if tc else 0
             status_val = "Overloaded" if len(tc) >= 4 else ("Normal" if len(tc) > 0 else "Available")
             result.append({
