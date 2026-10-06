@@ -28,9 +28,9 @@ export const PillNavTab: React.FC<PillNavTabProps> = ({
   badge,
   icon,
   className = '',
-  activeClassName = 'bg-white/30 text-white font-bold shadow-sm border border-white/50 backdrop-blur-md',
-  inactiveClassName = 'text-white font-bold hover:text-white',
-  hoverColor = 'rgba(255, 255, 255, 0.22)',
+  activeClassName = 'bg-black/10 text-[#111111] font-bold shadow-xs border border-black/15 backdrop-blur-md',
+  inactiveClassName = 'text-[#111111]/75 font-bold hover:text-[#111111]',
+  hoverColor = 'rgba(0, 0, 0, 0.08)',
   ease = 'power2.out'
 }) => {
   const containerRef = useRef<HTMLElement | null>(null);
@@ -98,7 +98,7 @@ export const PillNavTab: React.FC<PillNavTabProps> = ({
       <span
         ref={circleRef}
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 bottom-0 rounded-full z-[1] block backdrop-blur-xs border border-white/40 shadow-2xs"
+        className="pointer-events-none absolute left-1/2 bottom-0 rounded-full z-[1] block backdrop-blur-xs border border-black/10 shadow-2xs"
         style={{
           background: hoverColor,
           willChange: 'transform'

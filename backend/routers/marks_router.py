@@ -11,6 +11,9 @@ from schemas import SaveWeeklyMarksRequest
 router = APIRouter(prefix="/api/v1/marks", tags=["Marks"])
 
 
+from services.cache_service import cache_service
+
+
 def get_marks_service(db: AsyncSession = Depends(get_db)) -> MarksService:
     return MarksService(db)
 
@@ -20,7 +23,13 @@ async def get_all_marks(
     user: User = Depends(require_roles("advisor", "advisor & guide", "hod", "guide", "student", "admin")),
     service: MarksService = Depends(get_marks_service),
 ):
-    return await service.get_all_marks()
+    cache_key = "cache:marks:all"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_all_marks()
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
 
 
 @router.get("/{team_id}/weekly")
@@ -42,9 +51,6 @@ async def get_weekly_marks(
     return await service.get_weekly_marks(team_id, week_number, user)
 
 
-from services.cache_service import cache_service
-
-
 @router.post("/{team_id}/weekly/{week_number}")
 async def save_weekly_marks(
     team_id: str,
@@ -64,6 +70,7 @@ async def save_weekly_marks(
     await cache_service.delete_by_pattern("cache:student:*")
     await cache_service.delete_by_pattern("cache:advisor:*")
     await cache_service.delete_by_pattern("cache:guide:*")
+    await cache_service.delete_by_pattern("cache:marks:*")
     return res
 
 
@@ -79,5 +86,6 @@ async def delete_weekly_marks(
     await cache_service.delete_by_pattern("cache:student:*")
     await cache_service.delete_by_pattern("cache:advisor:*")
     await cache_service.delete_by_pattern("cache:guide:*")
+    await cache_service.delete_by_pattern("cache:marks:*")
     return res
 

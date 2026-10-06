@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
         backgroundOpacity={0}
         saturation={1}
         overflow="visible"
-        className={`w-full ${noBorder ? '' : 'border-b border-white/20'}`}
+        className={`w-full ${noBorder ? '' : 'border-b border-black/10'}`}
         contentClassName="w-full h-full p-0 flex items-center justify-center overflow-visible"
       >
         <div className="max-w-[1360px] mx-auto px-6 sm:px-8 lg:px-12 w-full">
@@ -77,11 +77,11 @@ export const Header: React.FC<HeaderProps> = ({
               className="w-10 h-10 rounded-xl object-contain border border-[#D8CCBA] bg-white p-0.5 shrink-0" 
             />
             <div>
-              <h1 className="text-[15px] sm:text-base font-sans font-bold text-white leading-tight drop-shadow-xs">
+              <h1 className="text-[15px] sm:text-base font-sans font-bold text-[#111111] leading-tight">
                 {title}
               </h1>
               {subtitle && (
-                <p className="text-[12px] text-white/85 font-semibold leading-none mt-0.5 drop-shadow-xs">{subtitle}</p>
+                <p className="text-[12px] text-[#111111]/75 font-semibold leading-none mt-0.5">{subtitle}</p>
               )}
             </div>
           </div>
@@ -99,19 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Subtle More ⋮ Dropdown Menu */}
             <div className="relative">
-              <button
-                id="headerMoreMenuButton"
-                onClick={() => {
-                  setMoreMenuOpen(!moreMenuOpen);
-                  setProfileDropdownOpen(false);
-                }}
-                className="w-9 h-9 rounded-lg hover:bg-white/20 text-white/90 hover:text-white flex items-center justify-center transition cursor-pointer"
-                aria-label="More options"
-                title="Options"
-              >
-                <MoreVertical size={18} />
-              </button>
-
+           
               {moreMenuOpen && (
                 <>
                   <div
@@ -154,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({
                   setProfileDropdownOpen(!profileDropdownOpen);
                   setMoreMenuOpen(false);
                 }}
-                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold text-xs sm:text-sm flex items-center justify-center border border-white/40 shadow-xs hover:ring-2 hover:ring-white/50 transition focus:outline-none cursor-pointer tracking-wider backdrop-blur-sm"
+                className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 text-[#111111] font-bold text-xs sm:text-sm flex items-center justify-center border border-black/15 shadow-xs hover:ring-2 hover:ring-black/20 transition focus:outline-none cursor-pointer tracking-wider backdrop-blur-sm"
                 aria-label="User profile menu"
               >
                 {avatarInitials}

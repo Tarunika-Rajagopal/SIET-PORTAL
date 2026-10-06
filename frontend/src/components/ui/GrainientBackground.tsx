@@ -2,10 +2,12 @@
 
 import React, { forwardRef, type HTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import Grainient, { type GrainientProps } from "./Grainient";
+import portalBackgroundImage from "@/assets/Gemini_Generated_Image_y1z7qsy1z7qsy1z7.png";
 
 export interface GrainientBackgroundProps extends HTMLAttributes<HTMLDivElement> {
   children?: ReactNode;
+  backgroundImage?: string;
+  overlayClassName?: string;
   color1?: string;
   color2?: string;
   color3?: string;
@@ -29,13 +31,12 @@ export interface GrainientBackgroundProps extends HTMLAttributes<HTMLDivElement>
   centerY?: number;
   zoom?: number;
   lightMode?: boolean;
-  overlayClassName?: string;
 }
 
 export const DEEP_TEAL_PALETTE = {
-  color1: "#5CE1E6", // Radiant cyan-aqua highlight
-  color2: "#176B7A", // Core Deep Teal (requested hex: #176B7A)
-  color3: "#0B3C49", // Deep oceanic teal baseline
+  color1: "#5CE1E6",
+  color2: "#176B7A",
+  color3: "#0B3C49",
 };
 
 const GrainientBackground = forwardRef<HTMLDivElement, GrainientBackgroundProps>(
@@ -43,29 +44,7 @@ const GrainientBackground = forwardRef<HTMLDivElement, GrainientBackgroundProps>
     {
       children,
       className,
-      color1 = DEEP_TEAL_PALETTE.color1,
-      color2 = DEEP_TEAL_PALETTE.color2,
-      color3 = DEEP_TEAL_PALETTE.color3,
-      timeSpeed = 0.25,
-      colorBalance = 0.0,
-      warpStrength = 1.0,
-      warpFrequency = 5.0,
-      warpSpeed = 2.0,
-      warpAmplitude = 50.0,
-      blendAngle = 0.0,
-      blendSoftness = 0.05,
-      rotationAmount = 500.0,
-      noiseScale = 2.0,
-      grainAmount = 0.1,
-      grainScale = 2.0,
-      grainAnimated = false,
-      contrast = 1.5,
-      gamma = 1.0,
-      saturation = 1.0,
-      centerX = 0.0,
-      centerY = 0.0,
-      zoom = 0.9,
-      lightMode = false,
+      backgroundImage = portalBackgroundImage,
       overlayClassName,
       ...props
     },
@@ -74,40 +53,19 @@ const GrainientBackground = forwardRef<HTMLDivElement, GrainientBackgroundProps>
     return (
       <div
         ref={ref}
-        data-slot="grainient-background"
+        data-slot="portal-background"
         className={cn("relative isolate min-h-screen w-full", className)}
         {...props}
       >
-        {/* Full-viewport fixed WebGL Grainient Canvas */}
+        {/* Full-viewport fixed Background Image */}
         <div
           aria-hidden="true"
-          className="fixed inset-0 -z-10 pointer-events-none overflow-hidden"
+          className="fixed inset-0 -z-10 pointer-events-none overflow-hidden select-none"
         >
-          <Grainient
-            color1={color1}
-            color2={color2}
-            color3={color3}
-            timeSpeed={timeSpeed}
-            colorBalance={colorBalance}
-            warpStrength={warpStrength}
-            warpFrequency={warpFrequency}
-            warpSpeed={warpSpeed}
-            warpAmplitude={warpAmplitude}
-            blendAngle={blendAngle}
-            blendSoftness={blendSoftness}
-            rotationAmount={rotationAmount}
-            noiseScale={noiseScale}
-            grainAmount={grainAmount}
-            grainScale={grainScale}
-            grainAnimated={grainAnimated}
-            contrast={contrast}
-            gamma={gamma}
-            saturation={saturation}
-            centerX={centerX}
-            centerY={centerY}
-            zoom={zoom}
-            lightMode={lightMode}
-            className="w-full h-full"
+          <img
+            src={backgroundImage}
+            alt=""
+            className="fixed inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
           />
           {overlayClassName && (
             <div className={cn("absolute inset-0 pointer-events-none", overlayClassName)} />
