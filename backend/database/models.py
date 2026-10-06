@@ -316,6 +316,7 @@ class WeeklySubmission(Base):
     title = Column(String(255), default="")
     due_date = Column(String(50), nullable=True)
     status = Column(SAEnum(SubmissionStatusEnum, name="submission_status", create_type=False, values_callable=lambda obj: [e.value for e in obj]), default=SubmissionStatusEnum.pending)
+    is_completed = Column(Boolean, default=False, nullable=False)
     submission_date = Column(String(50), nullable=True)
     file_name = Column(String(500), nullable=True)
     file_size = Column(String(50), nullable=True)

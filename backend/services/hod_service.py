@@ -324,6 +324,7 @@ class HODService:
                     "title": s.title or f"Week {s.week}",
                     "dueDate": s.due_date or "",
                     "status": s.status.value if hasattr(s.status, "value") else (s.status or "Pending"),
+                    "isCompleted": bool(s.is_completed) if hasattr(s, "is_completed") and s.is_completed is not None else (s.status in ("Submitted", "Approved")),
                     "submissionDate": s.submission_date or "",
                     "fileName": s.file_name or "",
                     "fileSize": s.file_size or "",
@@ -335,6 +336,14 @@ class HODService:
                     "guideReviewDate": s.guide_review_date or "",
                 }
                 for s in subs
+            ]
+            review_map = {
+                s.week: bool(s.is_completed) if hasattr(s, "is_completed") and s.is_completed is not None else (s.status in ("Submitted", "Approved"))
+                for s in subs if s.week is not None
+            }
+            team_dict["reviews"] = [
+                {"reviewNumber": r, "isCompleted": review_map.get(r, False)}
+                for r in (1, 2, 3, 4)
             ]
             result.append(team_dict)
         return result
@@ -364,6 +373,7 @@ class HODService:
             "title": sub.title or f"Week {sub.week}",
             "dueDate": sub.due_date or "",
             "status": sub.status.value if hasattr(sub.status, "value") else (sub.status or "Pending"),
+            "isCompleted": bool(sub.is_completed) if hasattr(sub, "is_completed") and sub.is_completed is not None else (sub.status in ("Submitted", "Approved")),
             "submissionDate": sub.submission_date or "",
             "fileName": sub.file_name or "",
             "fileSize": sub.file_size or "",

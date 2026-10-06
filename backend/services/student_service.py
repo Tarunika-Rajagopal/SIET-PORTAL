@@ -319,6 +319,8 @@ class StudentService:
             effective_problem = req.problemStatement if req.problemStatement is not None else (team.problem_statement or "")
             effective_solution = req.solution if req.solution is not None else (team.proposed_solution or "")
 
+        is_comp = True if req.isSubmit else False
+
         if not s:
             s = WeeklySubmission(
                 id=uuid.uuid4(),
@@ -326,6 +328,7 @@ class StudentService:
                 week=week,
                 title=f"Week {week} Deliverables",
                 status=status,
+                is_completed=is_comp,
                 submission_date=today,
                 problem_statement=effective_problem,
                 solution=effective_solution,
@@ -340,6 +343,8 @@ class StudentService:
             await self.sub_repo.create(s)
         else:
             s.status = status
+            if req.isSubmit:
+                s.is_completed = True
             s.submission_date = today
             if req.isSubmit and is_in_revision:
                 s.score = None

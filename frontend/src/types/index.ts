@@ -73,6 +73,7 @@ export interface WeeklySubmission {
   title: string;
   dueDate: string;
   status: 'Submitted' | 'Pending' | 'Approved' | 'Changes Requested' | 'Rejected' | 'Revision Required';
+  isCompleted?: boolean;
   submissionDate?: string;
   fileName?: string;
   fileSize?: string;

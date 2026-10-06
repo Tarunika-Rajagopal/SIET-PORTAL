@@ -221,6 +221,7 @@ class GuideService:
         status_upper = (req.status or "").strip().upper()
         if status_upper == "APPROVED":
             s.status = "Approved"
+            s.is_completed = True
         elif status_upper in ("REVISION_REQUESTED", "REVISION REQUIRED"):
             s.status = "Revision Required"
         elif status_upper == "REJECTED":

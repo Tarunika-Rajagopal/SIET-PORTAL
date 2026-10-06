@@ -95,19 +95,7 @@ export const LoginPage: React.FC = () => {
       
       {/* Full-Bleed Floral Vine Video Background */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <video
-          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-        >
-          <source
-            src="/login-bg.mp4"
-            type="video/mp4"
-          />
-        </video>
+        
       </div>
 
       {/* Main Login Shell - Responsive and centered */}

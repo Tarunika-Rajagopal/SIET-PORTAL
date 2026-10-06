@@ -8,7 +8,7 @@ import { ApiClient } from '../../services/apiClient';
 import { AuthService } from '../../services/authService';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
-  Search, UserCheck, CheckCircle2, RefreshCw, ChevronDown, ChevronUp, 
+  Search, UserCheck, CheckCircle2, Check, RefreshCw, ChevronDown, ChevronUp, 
   Users, FolderGit2, FileText, Download, ExternalLink, Github, Award,
   Edit3, Save, X, Clock, Eye, Loader2, AlertCircle
 } from 'lucide-react';
@@ -359,23 +359,29 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs table-fixed">
             <colgroup>
-              <col style={{ width: '22%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '44%' }} />
-              <col style={{ width: '20%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '30%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '10%' }} />
             </colgroup>
             <thead className="bg-[#EDE7DB] text-[#75695A] uppercase tracking-wider font-semibold border-b border-[#D8CCBA]">
               <tr>
                 <th className="p-4 whitespace-nowrap">Team Number</th>
                 <th className="p-4 whitespace-nowrap">Class</th>
                 <th className="p-4">Title</th>
-                <th className="p-4 whitespace-nowrap">Submissions Made Until Now</th>
+                <th className="p-4 text-center whitespace-nowrap">Review 1</th>
+                <th className="p-4 text-center whitespace-nowrap">Review 2</th>
+                <th className="p-4 text-center whitespace-nowrap">Review 3</th>
+                <th className="p-4 text-center whitespace-nowrap">Review 4</th>
               </tr>
             </thead>
             <tbody className="font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="p-12 text-center text-[#75695A]">
+                  <td colSpan={7} className="p-12 text-center text-[#75695A]">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <RefreshCw size={24} className="animate-spin text-[#75695A]" />
                       <p className="font-bold text-xs text-[#111111]">Loading real team deliverables &amp; evaluation status...</p>
@@ -384,7 +390,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-rose-600 bg-rose-50/50">
+                  <td colSpan={7} className="p-8 text-center text-rose-600 bg-rose-50/50">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <p className="font-bold text-xs">{error}</p>
                       <button
@@ -399,7 +405,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                 </tr>
               ) : teams.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-[#75695A]">
+                  <td colSpan={7} className="p-8 text-center text-[#75695A]">
                     No project teams match the selected filters.
                   </td>
                 </tr>
@@ -411,7 +417,6 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                   const formattedTitle = formatProjectTitle(team.projectTitle, isSub1Approved ? 'Approved' : team.status, isSub1Approved);
                   const isTitleApproved = formattedTitle !== 'No Title Submitted' && formattedTitle !== 'Title Approval Pending';
                   const isTitlePending = formattedTitle === 'Title Approval Pending';
-                  const submissionsCount = Math.min(4, team.submissions?.length || 0);
 
                   return (
                     <React.Fragment key={team.id}>
@@ -472,24 +477,45 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                           )}
                         </td>
 
-                        {/* Submissions Made Until Now */}
-                        <td className="p-4 whitespace-nowrap">
-                          {submissionsCount > 0 ? (
-                            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-xs inline-flex items-center gap-1.5 shadow-2xs">
-                              <CheckCircle2 size={12} className="text-emerald-600" />
-                              <span>{submissionsCount} {submissionsCount === 1 ? 'Submission' : 'Submissions'}</span>
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-1 rounded-full bg-[#EDE7DB] text-[#75695A] border border-[#D8CCBA] font-semibold text-[11px]">
-                              No Submissions Yet
-                            </span>
-                          )}
-                        </td>
+                        {/* Four Reviews: Review 1, Review 2, Review 3, Review 4 */}
+                        {[1, 2, 3, 4].map((revNum) => {
+                          const sub = team.submissions?.find(s => s.week === revNum);
+                          const isCompleted = Boolean(
+                            sub?.isCompleted ?? 
+                            (sub?.status === 'Submitted' || sub?.status === 'Approved')
+                          );
+
+                          return (
+                            <td 
+                              key={revNum} 
+                              className="p-4 text-center whitespace-nowrap"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="flex items-center justify-center">
+                                {isCompleted ? (
+                                  <div
+                                    title={`Review ${revNum}: Completed`}
+                                    className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center shadow-2xs border border-emerald-600"
+                                  >
+                                    <Check size={12} strokeWidth={3} />
+                                  </div>
+                                ) : (
+                                  <div
+                                    title={`Review ${revNum}: Not Completed`}
+                                    className="w-5 h-5 rounded-md bg-rose-50 text-rose-600 border border-rose-300 flex items-center justify-center shadow-2xs"
+                                  >
+                                    <X size={12} strokeWidth={2.5} />
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
                       </tr>
 
                       {/* Expanded Accordion: Team Members & Inspect Submissions */}
                       <tr className={isExpanded ? 'border-b border-[#D8CCBA]' : 'border-0'}>
-                        <td colSpan={4} className="p-0 border-0">
+                        <td colSpan={7} className="p-0 border-0">
                           <div
                             style={{
                               display: 'grid',
