@@ -13,7 +13,7 @@ export const AdvisorPortalPage: React.FC = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const className = currentUser?.advisorClass || currentUser?.class || currentUser?.section || "CSE-B";
-  const batch = currentUser?.advisorBatch || currentUser?.batch || "2023–2027";
+  const batch = currentUser?.advisorBatch || currentUser?.batch || "2023-2027 (III Year)";
   const advisorName = currentUser?.name || "Class Advisor";
 
   const { data: students = [] } = useClassStudents(className, batch);

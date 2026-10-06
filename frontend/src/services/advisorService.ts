@@ -227,10 +227,6 @@ export const AdvisorService = {
       }
     });
 
-    if (hasMismatch) {
-      await AdminService.saveStudents(allStudents);
-    }
-
     return synchronized;
   },
 

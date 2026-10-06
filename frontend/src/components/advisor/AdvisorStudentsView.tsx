@@ -99,7 +99,6 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
     });
 
     const handleUpdate = () => {
-      MarksService.fetchAllMarks().catch(() => {});
       refetchTeams();
       refetchStudents();
     };

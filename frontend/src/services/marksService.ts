@@ -102,7 +102,6 @@ export const MarksService = {
         }
         cachedMarks = nextCached;
         notifyListeners();
-        dispatchGlobalEvents();
         return cachedMarks;
       }
     } catch (e) {
