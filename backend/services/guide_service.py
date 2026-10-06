@@ -146,9 +146,20 @@ class GuideService:
             is_approved = status_val == "Approved"
 
             member_marks = {}
+            member_rubrics = {}
             if wm and wm.member_marks:
                 for mm in wm.member_marks:
-                    member_marks[mm.roll_no] = float(mm.mark) if mm.mark is not None else 0
+                    rno = mm.roll_no.strip() if mm.roll_no else ""
+                    if rno:
+                        tot = float(mm.mark) if mm.mark is not None else 0.0
+                        member_marks[rno] = tot
+                        member_rubrics[rno] = {
+                            "systemDesign": float(mm.system_design or 0.0),
+                            "presentationInteraction": float(mm.presentation_interaction or 0.0),
+                            "technicalSkills": float(mm.technical_skills or 0.0),
+                            "implementationProgress": float(mm.implementation_progress or 0.0),
+                            "total": tot,
+                        }
 
             score_val = float(s.score) if s.score is not None else (float(wm.team_average) if wm and wm.team_average else None)
 
@@ -188,6 +199,8 @@ class GuideService:
                 "submissionDate": s.submission_date or "",
                 "score": score_val,
                 "memberMarks": member_marks,
+                "memberRubrics": member_rubrics,
+                "maxScore": float(s.max_score) if s.max_score is not None else 20.0,
                 "abstractSummary": s.abstract or "",
                 "problemStatement": s.problem_statement or "",
                 "proposedSolution": s.solution or "",
@@ -234,12 +247,26 @@ class GuideService:
 
         avg_score = req.score
         if req.memberMarks:
-            valid_marks = [v for v in req.memberMarks.values() if isinstance(v, (int, float))]
-            if valid_marks:
-                avg_score = round(sum(valid_marks) / len(valid_marks), 1)
+            totals = []
+            for v in req.memberMarks.values():
+                if isinstance(v, (int, float)):
+                    totals.append(float(v))
+                elif isinstance(v, dict):
+                    t = v.get("total")
+                    if t is None:
+                        t = (
+                            float(v.get("systemDesign", 0) or 0)
+                            + float(v.get("presentationInteraction", 0) or 0)
+                            + float(v.get("technicalSkills", 0) or 0)
+                            + float(v.get("implementationProgress", 0) or 0)
+                        )
+                    totals.append(float(t))
+            if totals:
+                avg_score = round(sum(totals) / len(totals), 1)
 
         if avg_score is not None:
             s.score = avg_score
+            s.max_score = 20.0
 
         # Persist individual marks to WeeklyMark in database
         if team and (req.memberMarks or avg_score is not None):

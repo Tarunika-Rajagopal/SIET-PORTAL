@@ -183,8 +183,15 @@ class UpdateWeekReleaseRequest(BaseModel):
 
 
 # ── Marks ─────────────────────────────────────────────────────
+class MemberRubricDetail(BaseModel):
+    systemDesign: float = 0.0
+    presentationInteraction: float = 0.0
+    technicalSkills: float = 0.0
+    implementationProgress: float = 0.0
+    total: Optional[float] = None
+
 class SaveWeeklyMarksRequest(BaseModel):
-    memberMarks: Dict[str, float]  # rollNo -> mark
+    memberMarks: Dict[str, Any]  # rollNo -> float OR rollNo -> MemberRubricDetail / dict
     remarks: Optional[str] = ""
     gradedBy: Optional[str] = "Class Advisor"
 

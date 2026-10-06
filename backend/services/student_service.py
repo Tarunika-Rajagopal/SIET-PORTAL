@@ -67,7 +67,7 @@ class StudentService:
             "fileSize": s.file_size or "",
             "comments": s.comments or "",
             "score": float(s.score) if s.score is not None else None,
-            "maxScore": float(s.max_score) if s.max_score is not None else 100.0,
+            "maxScore": float(s.max_score) if s.max_score is not None else 20.0,
             "projectTitle": s.project_title or "",
             "problemStatement": s.problem_statement or "",
             "solution": s.solution or "",

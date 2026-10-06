@@ -113,10 +113,20 @@ class AdvisorService:
                 seen_weeks.add(s.week)
                 wm = marks_by_team_week.get((t.id, s.week))
                 member_marks = {}
+                member_rubrics = {}
                 if wm and wm.member_marks:
                     for mm in wm.member_marks:
                         if mm.roll_no:
-                            member_marks[mm.roll_no.strip()] = float(mm.mark) if mm.mark is not None else 0.0
+                            rno = mm.roll_no.strip()
+                            tot = float(mm.mark) if mm.mark is not None else 0.0
+                            member_marks[rno] = tot
+                            member_rubrics[rno] = {
+                                "systemDesign": float(mm.system_design or 0.0),
+                                "presentationInteraction": float(mm.presentation_interaction or 0.0),
+                                "technicalSkills": float(mm.technical_skills or 0.0),
+                                "implementationProgress": float(mm.implementation_progress or 0.0),
+                                "total": tot,
+                            }
                 score_val = float(wm.team_average) if (wm and wm.team_average is not None) else (float(s.score) if s.score is not None else None)
                 status_val = s.status.value if hasattr(s.status, "value") else (s.status or "Pending")
                 if score_val is not None and score_val > 0 and status_val not in ("Changes Requested", "Rejected"):
@@ -132,7 +142,8 @@ class AdvisorService:
                     "submissionDate": s.submission_date or (wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else ""),
                     "score": score_val,
                     "memberMarks": member_marks,
-                    "maxScore": float(s.max_score) if s.max_score is not None else 100.0,
+                    "memberRubrics": member_rubrics,
+                    "maxScore": float(s.max_score) if s.max_score is not None else 20.0,
                     "projectTitle": s.project_title or t.project_title or "",
                     "problemStatement": s.problem_statement or "",
                     "solution": s.solution or "",

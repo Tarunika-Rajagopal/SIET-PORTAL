@@ -1,9 +1,10 @@
-import React from 'react';
-import { X, Award, Users, CheckCircle2, AlertCircle, Clock, MessageSquare, Star } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Award, Users, CheckCircle2, AlertCircle, Clock, MessageSquare, Star, Edit3 } from 'lucide-react';
 import { WeeklySubmission } from '../../types';
-import { WeeklyMarksRecord } from '../../services/marksService';
+import { WeeklyMarksRecord, MarksService } from '../../services/marksService';
 import { ClassTeam } from '../../services/advisorService';
 import AdvisorSubmissionDetails from './AdvisorSubmissionDetails';
+import { RubricEvaluationModal } from '../common/RubricEvaluationModal';
 
 interface AdvisorSubmissionDetailModalProps {
   isOpen: boolean;
@@ -38,19 +39,30 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
   const isApproved = status === 'Approved';
   const isRevision = status === 'Changes Requested' || status === 'Rejected' || status === 'Revision Required';
 
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [localMarks, setLocalMarks] = useState<WeeklyMarksRecord | null>(marks || null);
+
+  React.useEffect(() => {
+    if (team?.teamId) {
+      const latest = MarksService.getWeeklyMarks(team.teamId, subNum);
+      if (latest) setLocalMarks(latest);
+    }
+  }, [isOpen, team?.teamId, subNum]);
+
   // Marks data
   const subMemberMarks = (submission as any)?.memberMarks && typeof (submission as any).memberMarks === 'object' && Object.keys((submission as any).memberMarks).length > 0
     ? (submission as any).memberMarks
     : null;
 
-  const marksMemberMarks = marks?.memberMarks && typeof marks.memberMarks === 'object' && Object.keys(marks.memberMarks).length > 0
-    ? marks.memberMarks
+  const marksMemberMarks = localMarks?.memberMarks && typeof localMarks.memberMarks === 'object' && Object.keys(localMarks.memberMarks).length > 0
+    ? localMarks.memberMarks
     : null;
 
   const memberMarks: Record<string, number> = marksMemberMarks || subMemberMarks || {};
+  const memberRubrics = localMarks?.memberRubrics || (submission as any)?.memberRubrics || {};
 
-  const teamScore = (marks?.teamAverage !== undefined && marks.teamAverage > 0)
-    ? marks.teamAverage
+  const teamScore = (localMarks?.teamAverage !== undefined && localMarks.teamAverage > 0)
+    ? localMarks.teamAverage
     : (typeof submission.score === 'number' && submission.score > 0 ? submission.score : null);
 
   const cleanRoll = (studentRollNo || '').trim().toLowerCase();
@@ -63,8 +75,8 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
     : null;
 
   const hasAnyMarks = teamScore !== null || Object.keys(memberMarks).length > 0;
-  const remarksText = marks?.remarks || submission.comments || '';
-  const gradedBy = marks?.gradedBy || (submission as any).gradedBy || submission.guideName || 'Faculty Guide';
+  const remarksText = localMarks?.remarks || submission.comments || '';
+  const gradedBy = localMarks?.gradedBy || (submission as any).gradedBy || submission.guideName || 'Faculty Guide';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 font-sans">
@@ -126,12 +138,22 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
               <div className="flex items-center gap-2">
                 <Award size={16} className="text-amber-500" />
                 <span className="font-black text-xs text-slate-900 uppercase tracking-wide">
-                  Official Evaluation &amp; Marks Record
+                  Official Evaluation &bull; 4 Rubric Criteria (Max 20 Marks)
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium">
-                Evaluated by: <strong className="text-slate-800 font-bold">{gradedBy}</strong>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Evaluated by: <strong className="text-slate-800 font-bold">{gradedBy}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-[#111111] hover:bg-[#292725] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                >
+                  <Edit3 size={11} />
+                  <span>{hasAnyMarks ? 'Edit Marks' : 'Award Marks'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Score Cards Grid */}
@@ -143,14 +165,14 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
                     <Users size={16} />
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Team Score / Average</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Team Calculated Average</span>
                     <span className="text-xs font-black text-slate-900">Entire Team</span>
                   </div>
                 </div>
                 <div>
                   {teamScore !== null ? (
                     <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-white font-black text-xs shadow-2xs">
-                      {teamScore} / 100
+                      {teamScore} / 20
                     </span>
                   ) : (
                     <span className="text-[11px] text-slate-400 font-bold italic">Pending</span>
@@ -175,11 +197,11 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
                   <div>
                     {inspectedStudentMark !== null && inspectedStudentMark !== undefined ? (
                       <span className="px-2.5 py-1 rounded-lg bg-mint-600 text-white font-black text-xs shadow-2xs">
-                        {inspectedStudentMark} / 100
+                        {inspectedStudentMark} / 20
                       </span>
                     ) : (Object.keys(memberMarks).length === 0 && teamScore !== null) ? (
                       <span className="px-2.5 py-1 rounded-lg bg-mint-600 text-white font-black text-xs shadow-2xs">
-                        {teamScore} / 100
+                        {teamScore} / 20
                       </span>
                     ) : (
                       <span className="text-[11px] text-slate-400 font-bold italic">Pending</span>
@@ -189,39 +211,54 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
               )}
             </div>
 
-            {/* Member-wise Marks Breakdown (If multiple members) */}
-            {team && team.members && team.members.length > 0 && hasAnyMarks && (
+            {/* Member-wise 4-Criteria Breakdown Table */}
+            {team && team.members && team.members.length > 0 && (
               <div className="pt-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
-                  All Team Members &bull; Individual Marks Breakdown
+                  All Team Members &bull; 4-Criteria Rubric Breakdown
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-2">
                   {team.members.map(m => {
                     const mCleanRoll = m.rollNo.trim().toLowerCase();
                     const individualVal = memberMarks[m.rollNo] ??
                       memberMarks[m.rollNo.trim()] ??
                       Object.entries(memberMarks).find(([k]) => k.trim().toLowerCase() === mCleanRoll)?.[1];
 
-                    const markVal = (individualVal !== null && individualVal !== undefined)
-                      ? individualVal
-                      : (Object.keys(memberMarks).length === 0 ? teamScore : null);
-
+                    const rubric = memberRubrics[m.rollNo] || memberRubrics[m.rollNo.trim()] || null;
                     const isCurrentStudent = studentRollNo && mCleanRoll === cleanRoll;
 
                     return (
                       <div
                         key={m.rollNo}
-                        className={`p-2 rounded-xl border flex items-center justify-between gap-2 ${
-                          isCurrentStudent ? 'bg-mint-100/70 border-mint-300 font-bold' : 'bg-slate-50 border-[#E2E8E4]'
+                        className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                          isCurrentStudent ? 'bg-mint-50/80 border-mint-300' : 'bg-white border-[#E2E8E4]'
                         }`}
                       >
                         <div className="min-w-0">
-                          <span className="text-xs font-extrabold text-slate-800 truncate block">{m.name}</span>
+                          <span className="text-xs font-extrabold text-slate-800 truncate block">
+                            {m.name} {m.isLead && <span className="text-amber-700 font-bold text-[10px]">&bull; Lead</span>}
+                          </span>
                           <span className="text-[10px] font-mono text-slate-500">{m.rollNo}</span>
                         </div>
-                        <span className="px-2 py-0.5 rounded-md bg-white border border-[#D8CCBA] text-slate-900 font-black text-xs shrink-0">
-                          {markVal !== null && markVal !== undefined ? `${markVal}/100` : 'Pending'}
-                        </span>
+
+                        {/* 4 Rubric Pill Badges */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-2 py-0.5 rounded-md bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-[10px] font-semibold" title="System Design (Max 5)">
+                            Design: <strong>{rubric ? rubric.systemDesign : (individualVal !== null ? Math.round((Math.min(individualVal, 20)/4)*10)/10 : '-')}</strong>/5
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-[10px] font-semibold" title="Presentation & Interaction (Max 5)">
+                            Pres: <strong>{rubric ? rubric.presentationInteraction : (individualVal !== null ? Math.round((Math.min(individualVal, 20)/4)*10)/10 : '-')}</strong>/5
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-[10px] font-semibold" title="Technical Skills (Max 5)">
+                            Tech: <strong>{rubric ? rubric.technicalSkills : (individualVal !== null ? Math.round((Math.min(individualVal, 20)/4)*10)/10 : '-')}</strong>/5
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-[#F8F5EE] border border-[#D8CCBA] text-[#111111] text-[10px] font-semibold" title="Implementation Progress (Max 5)">
+                            Prog: <strong>{rubric ? rubric.implementationProgress : (individualVal !== null ? Math.round((Math.min(individualVal, 20)/4)*10)/10 : '-')}</strong>/5
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-900 text-white font-black text-xs shrink-0 shadow-2xs">
+                            {individualVal !== null && individualVal !== undefined ? `${individualVal}/20` : 'Pending'}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
@@ -234,7 +271,7 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
               <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-amber-900 mb-1">
                   <MessageSquare size={13} className="text-amber-600" />
-                  <span>Faculty Guide Feedback &amp; Evaluation Remarks</span>
+                  <span>Evaluation Feedback &amp; Remarks (by {gradedBy})</span>
                 </div>
                 <p className="text-slate-700 italic leading-relaxed whitespace-pre-wrap">{remarksText}</p>
               </div>
@@ -248,7 +285,8 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-end bg-slate-50 shrink-0">
+        <div className="p-4 border-t border-[#D8CCBA] flex items-center justify-between bg-slate-50 shrink-0 text-xs text-slate-500">
+          <span>Grading Dossier &bull; Review {subNum}</span>
           <button
             type="button"
             onClick={onClose}
@@ -257,6 +295,26 @@ export const AdvisorSubmissionDetailModal: React.FC<AdvisorSubmissionDetailModal
             Close
           </button>
         </div>
+
+        {/* Rubric Evaluation Modal for Advisor */}
+        {team && (
+          <RubricEvaluationModal
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            teamId={team.teamId}
+            teamNo={team.teamNo}
+            projectTitle={teamTitle || team.title}
+            weekNumber={subNum}
+            members={team.members.map(m => ({ name: m.name, rollNo: m.rollNo, isLead: m.isLead }))}
+            initialRubrics={localMarks?.memberRubrics}
+            initialRemarks={localMarks?.remarks}
+            evaluatorRole="advisor"
+            onSuccess={(avg, newRubrics) => {
+              const latest = MarksService.getWeeklyMarks(team.teamId, subNum);
+              if (latest) setLocalMarks(latest);
+            }}
+          />
+        )}
       </div>
     </div>
   );

@@ -60,25 +60,37 @@ class MarksService:
         return res.scalars().all()
 
     @staticmethod
-    def _align_member_marks(wm_member_marks: list, wm_team_average: Optional[float], current_members: list) -> Dict[str, float]:
+    def _align_member_marks(wm_member_marks: list, wm_team_average: Optional[float], current_members: list):
         raw_marks: Dict[str, float] = {}
+        raw_rubrics: Dict[str, Dict[str, float]] = {}
         for mm in (wm_member_marks or []):
             if mm.roll_no:
-                raw_marks[mm.roll_no.strip()] = float(mm.mark) if mm.mark is not None else 0.0
+                rno = mm.roll_no.strip()
+                m_val = float(mm.mark) if mm.mark is not None else 0.0
+                sd = float(getattr(mm, "system_design", 0.0) or 0.0)
+                pi = float(getattr(mm, "presentation_interaction", 0.0) or 0.0)
+                ts = float(getattr(mm, "technical_skills", 0.0) or 0.0)
+                ip = float(getattr(mm, "implementation_progress", 0.0) or 0.0)
+                if sd == 0 and pi == 0 and ts == 0 and ip == 0 and m_val > 0:
+                    part = round(min(m_val, 20.0) / 4.0, 1)
+                    sd, pi, ts, ip = part, part, part, part
+                raw_marks[rno] = m_val
+                raw_rubrics[rno] = {
+                    "systemDesign": sd,
+                    "presentationInteraction": pi,
+                    "technicalSkills": ts,
+                    "implementationProgress": ip,
+                    "total": m_val,
+                }
 
         if not current_members:
-            return raw_marks
+            return raw_marks, raw_rubrics
 
         current_roll_nos = [m.roll_no.strip() for m in current_members if m.roll_no]
         avg_val = float(wm_team_average) if wm_team_average is not None else 0.0
 
-        # Unmatched marks from old or reassigned member slots
-        unmatched_marks = [
-            mark for rno, mark in raw_marks.items()
-            if not any(rno.lower() == cr.lower() for cr in current_roll_nos)
-        ]
-
         result_marks: Dict[str, float] = {}
+        result_rubrics: Dict[str, Dict[str, float]] = {}
         for tm in current_members:
             if not tm.roll_no:
                 continue
@@ -86,11 +98,19 @@ class MarksService:
             matched_key = next((k for k in raw_marks.keys() if k.lower() == rno.lower()), None)
             if matched_key is not None:
                 result_marks[rno] = raw_marks[matched_key]
+                result_rubrics[rno] = raw_rubrics[matched_key]
             else:
-                assigned = unmatched_marks.pop(0) if unmatched_marks else avg_val
-                result_marks[rno] = assigned
+                result_marks[rno] = avg_val
+                part = round(min(avg_val, 20.0) / 4.0, 1)
+                result_rubrics[rno] = {
+                    "systemDesign": part,
+                    "presentationInteraction": part,
+                    "technicalSkills": part,
+                    "implementationProgress": part,
+                    "total": avg_val,
+                }
 
-        return result_marks
+        return result_marks, result_rubrics
 
     async def get_all_marks(self) -> Dict[str, Dict[int, Any]]:
         rows = await self.marks_repo.list_all_marks()
@@ -120,12 +140,13 @@ class MarksService:
             t_class = team_id_to_class.get(t_uuid, "")
             current_members = team_members_map.get(t_uuid, [])
 
-            member_marks = self._align_member_marks(wm.member_marks or [], wm.team_average, current_members)
+            member_marks, member_rubrics = self._align_member_marks(wm.member_marks or [], wm.team_average, current_members)
 
             entry = {
                 "teamId": t_no or t_id_str or t_uuid,
                 "weekNumber": wm.week_number,
                 "memberMarks": member_marks,
+                "memberRubrics": member_rubrics,
                 "teamAverage": float(wm.team_average) if wm.team_average else 0,
                 "remarks": wm.remarks or "",
                 "gradedAt": wm.graded_at.isoformat() if wm.graded_at else "",
@@ -159,11 +180,12 @@ class MarksService:
         current_members = await self._get_team_members(team.id)
         result = {}
         for wm in rows:
-            member_marks = self._align_member_marks(wm.member_marks or [], wm.team_average, current_members)
+            member_marks, member_rubrics = self._align_member_marks(wm.member_marks or [], wm.team_average, current_members)
             result[wm.week_number] = {
                 "teamId": str(wm.team_id),
                 "weekNumber": wm.week_number,
                 "memberMarks": member_marks,
+                "memberRubrics": member_rubrics,
                 "teamAverage": float(wm.team_average) if wm.team_average else 0,
                 "remarks": wm.remarks or "",
                 "gradedAt": wm.graded_at.isoformat() if wm.graded_at else "",
@@ -180,12 +202,13 @@ class MarksService:
             raise HTTPException(status_code=404, detail="No marks found for this week")
 
         current_members = await self._get_team_members(team.id)
-        member_marks = self._align_member_marks(row.member_marks or [], row.team_average, current_members)
+        member_marks, member_rubrics = self._align_member_marks(row.member_marks or [], row.team_average, current_members)
 
         return {
             "teamId": str(row.team_id),
             "weekNumber": row.week_number,
             "memberMarks": member_marks,
+            "memberRubrics": member_rubrics,
             "teamAverage": float(row.team_average) if row.team_average else 0,
             "remarks": row.remarks or "",
             "gradedAt": row.graded_at.isoformat() if row.graded_at else "",
@@ -201,11 +224,39 @@ class MarksService:
         graded_by: str = "Class Advisor",
     ) -> Dict[str, Any]:
         team = await self.find_team(team_id)
-
         existing = await self.marks_repo.get_weekly_mark(team.id, week_number)
-        marks_vals = [v for v in member_marks.values() if isinstance(v, (int, float))]
-        if marks_vals:
-            avg = round(sum(marks_vals) / len(marks_vals), 1)
+
+        # Parse 4-criteria rubric per member
+        parsed_member_rubrics: Dict[str, Dict[str, float]] = {}
+        parsed_member_totals: Dict[str, float] = {}
+
+        for rno_raw, val in (member_marks or {}).items():
+            rno = str(rno_raw).strip()
+            if isinstance(val, dict):
+                sd = min(5.0, max(0.0, float(val.get("systemDesign", val.get("system_design", 0.0)) or 0.0)))
+                pi = min(5.0, max(0.0, float(val.get("presentationInteraction", val.get("presentation_interaction", 0.0)) or 0.0)))
+                ts = min(5.0, max(0.0, float(val.get("technicalSkills", val.get("technical_skills", 0.0)) or 0.0)))
+                ip = min(5.0, max(0.0, float(val.get("implementationProgress", val.get("implementation_progress", 0.0)) or 0.0)))
+                tot = round(sd + pi + ts + ip, 1)
+            elif isinstance(val, (int, float)):
+                tot = min(20.0, max(0.0, float(val)))
+                part = round(tot / 4.0, 1)
+                sd, pi, ts, ip = part, part, part, part
+            else:
+                continue
+
+            parsed_member_rubrics[rno] = {
+                "system_design": sd,
+                "presentation_interaction": pi,
+                "technical_skills": ts,
+                "implementation_progress": ip,
+                "mark": tot,
+            }
+            parsed_member_totals[rno] = tot
+
+        # Compute team average
+        if parsed_member_totals:
+            avg = round(sum(parsed_member_totals.values()) / len(parsed_member_totals), 1)
         else:
             sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
             if sub and sub.score is not None:
@@ -215,19 +266,22 @@ class MarksService:
             else:
                 avg = 0.0
 
-        # Align marks to current team members so none are omitted
+        # Align marks to current team members so no member is omitted
         current_members = await self._get_team_members(team.id)
-        normalized_member_marks: Dict[str, float] = {}
-        for rno, mark in member_marks.items():
-            if isinstance(mark, (int, float)):
-                normalized_member_marks[str(rno).strip()] = float(mark)
-
         for tm in current_members:
             if not tm.roll_no:
                 continue
             rno = tm.roll_no.strip()
-            if not any(k.lower() == rno.lower() for k in normalized_member_marks.keys()):
-                normalized_member_marks[rno] = avg
+            if not any(k.lower() == rno.lower() for k in parsed_member_rubrics.keys()):
+                part = round(min(avg, 20.0) / 4.0, 1)
+                parsed_member_rubrics[rno] = {
+                    "system_design": part,
+                    "presentation_interaction": part,
+                    "technical_skills": part,
+                    "implementation_progress": part,
+                    "mark": avg,
+                }
+                parsed_member_totals[rno] = avg
 
         if existing:
             existing.team_average = avg
@@ -237,23 +291,29 @@ class MarksService:
             if existing.member_marks:
                 await self.marks_repo.delete_member_marks(list(existing.member_marks))
                 await self.session.flush()
-            for rno, mark in normalized_member_marks.items():
+            for rno, rdata in parsed_member_rubrics.items():
                 await self.marks_repo.add_member_mark(
                     WeeklyMemberMark(
                         id=uuid.uuid4(),
                         weekly_mark_id=existing.id,
                         roll_no=rno,
-                        mark=mark,
+                        system_design=rdata["system_design"],
+                        presentation_interaction=rdata["presentation_interaction"],
+                        technical_skills=rdata["technical_skills"],
+                        implementation_progress=rdata["implementation_progress"],
+                        mark=rdata["mark"],
                     )
                 )
             try:
                 sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
                 if sub:
                     sub.score = avg
+                    sub.max_score = 20.0
                     if remarks:
                         sub.comments = remarks
                     if avg > 0:
                         sub.status = "Approved"
+                        sub.is_completed = True
                 if avg > 0 and week_number == 1 and team:
                     team.is_title_approved = True
                     team.guide_approval_status = "Approved"
@@ -263,7 +323,7 @@ class MarksService:
             except Exception:
                 pass
             await self.session.commit()
-            return {"success": True, "message": "Marks updated", "teamAverage": avg}
+            return {"success": True, "message": "Marks updated", "teamAverage": avg, "memberMarks": parsed_member_totals}
         else:
             wm = WeeklyMark(
                 id=uuid.uuid4(),
@@ -275,23 +335,29 @@ class MarksService:
             )
             await self.marks_repo.create_weekly_mark(wm)
             await self.session.flush()
-            for rno, mark in normalized_member_marks.items():
+            for rno, rdata in parsed_member_rubrics.items():
                 await self.marks_repo.add_member_mark(
                     WeeklyMemberMark(
                         id=uuid.uuid4(),
                         weekly_mark_id=wm.id,
                         roll_no=rno,
-                        mark=mark,
+                        system_design=rdata["system_design"],
+                        presentation_interaction=rdata["presentation_interaction"],
+                        technical_skills=rdata["technical_skills"],
+                        implementation_progress=rdata["implementation_progress"],
+                        mark=rdata["mark"],
                     )
                 )
             try:
                 sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
                 if sub:
                     sub.score = avg
+                    sub.max_score = 20.0
                     if remarks:
                         sub.comments = remarks
                     if avg > 0:
                         sub.status = "Approved"
+                        sub.is_completed = True
                 if avg > 0 and week_number == 1 and team:
                     team.is_title_approved = True
                     team.guide_approval_status = "Approved"
@@ -301,7 +367,7 @@ class MarksService:
             except Exception:
                 pass
             await self.session.commit()
-            return {"success": True, "message": "Marks saved", "teamAverage": avg}
+            return {"success": True, "message": "Marks saved", "teamAverage": avg, "memberMarks": parsed_member_totals}
 
     async def delete_weekly_marks(
         self, team_id: str, week_number: Optional[int] = None

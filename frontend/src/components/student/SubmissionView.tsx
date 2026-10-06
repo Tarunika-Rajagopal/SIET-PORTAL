@@ -583,11 +583,13 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
               <div className="px-3.5 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 text-xs font-bold flex items-center gap-1.5 select-none shadow-xs" title="Milestone evaluated and approved by guide. Read-only.">
                 <Lock size={13} className="text-emerald-700" />
                 <span>
-                  {currentSub?.score !== null && currentSub?.score !== undefined
-                    ? `Evaluated & Approved (Score: ${currentSub.score}/100)`
-                    : marksRecord?.teamAverage !== undefined && marksRecord.teamAverage > 0
-                    ? `Evaluated & Approved (Score: ${marksRecord.teamAverage}/100)`
-                    : 'Milestone Approved (Read-Only)'}
+                  {(() => {
+                    const sc = currentSub?.score ?? (marksRecord?.teamAverage !== undefined && marksRecord.teamAverage > 0 ? marksRecord.teamAverage : null);
+                    if (sc !== null && sc !== undefined) {
+                      return `Evaluated & Approved (Score: ${sc > 20 ? `${sc}/100` : `${sc}/20`})`;
+                    }
+                    return 'Milestone Approved (Read-Only)';
+                  })()}
                 </span>
               </div>
             )}

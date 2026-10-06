@@ -1,9 +1,11 @@
 import { ApiClient } from './apiClient';
+import { MemberRubricsMap } from '../types';
 
 export interface WeeklyMarksRecord {
   teamId: string;
   weekNumber: number;
-  memberMarks: Record<string, number>; // rollNo -> mark (0-100)
+  memberMarks: Record<string, number>; // rollNo -> mark (0-20)
+  memberRubrics?: MemberRubricsMap;    // rollNo -> detailed 4 criteria
   teamAverage: number;
   remarks?: string;
   gradedAt: string;
@@ -266,18 +268,53 @@ export const MarksService = {
   saveWeeklyMarks(
     teamId: string,
     weekNumber: number,
-    memberMarks: Record<string, number>,
+    memberMarks: Record<string, any>,
     remarks: string = '',
-    gradedBy: string = 'Advisor'
+    gradedBy: string = 'Advisor',
+    memberRubrics?: MemberRubricsMap
   ): WeeklyMarksRecord {
-    const marksValues = Object.values(memberMarks).filter(m => typeof m === 'number' && !isNaN(m));
+    const flatMarks: Record<string, number> = {};
+    const normalizedRubrics: MemberRubricsMap = { ...(memberRubrics || {}) };
+
+    for (const [rno, val] of Object.entries(memberMarks || {})) {
+      if (typeof val === 'number') {
+        flatMarks[rno] = val;
+        if (!normalizedRubrics[rno]) {
+          const part = Math.round((Math.min(val, 20) / 4) * 10) / 10;
+          normalizedRubrics[rno] = {
+            systemDesign: part,
+            presentationInteraction: part,
+            technicalSkills: part,
+            implementationProgress: part,
+            total: val
+          };
+        }
+      } else if (val && typeof val === 'object') {
+        const sd = Number(val.systemDesign ?? val.system_design ?? 0);
+        const pi = Number(val.presentationInteraction ?? val.presentation_interaction ?? 0);
+        const ts = Number(val.technicalSkills ?? val.technical_skills ?? 0);
+        const ip = Number(val.implementationProgress ?? val.implementation_progress ?? 0);
+        const tot = Math.round((sd + pi + ts + ip) * 10) / 10;
+        flatMarks[rno] = tot;
+        normalizedRubrics[rno] = {
+          systemDesign: sd,
+          presentationInteraction: pi,
+          technicalSkills: ts,
+          implementationProgress: ip,
+          total: tot
+        };
+      }
+    }
+
+    const marksValues = Object.values(flatMarks).filter(m => typeof m === 'number' && !isNaN(m));
     const sum = marksValues.reduce((acc, curr) => acc + curr, 0);
     const teamAverage = marksValues.length > 0 ? Math.round((sum / marksValues.length) * 10) / 10 : 0;
 
     const record: WeeklyMarksRecord = {
       teamId,
       weekNumber,
-      memberMarks,
+      memberMarks: flatMarks,
+      memberRubrics: normalizedRubrics,
       teamAverage,
       remarks,
       gradedAt: new Date().toISOString(),

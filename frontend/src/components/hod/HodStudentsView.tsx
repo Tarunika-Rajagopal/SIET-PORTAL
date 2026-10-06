@@ -8,7 +8,7 @@ import { ApiClient } from '../../services/apiClient';
 import { AuthService } from '../../services/authService';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
-  Search, UserCheck, CheckCircle2, Check, RefreshCw, ChevronDown, ChevronUp, 
+  Search, UserCheck, CheckCircle2, Check, Filter, RefreshCw, ChevronDown, ChevronUp, 
   Users, FolderGit2, FileText, Download, ExternalLink, Github, Award,
   Edit3, Save, X, Clock, Eye, Loader2, AlertCircle
 } from 'lucide-react';
@@ -31,6 +31,8 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   const [batchFilter, setBatchFilter] = useState(selectedBatch || initialBatch || 'ALL');
   const [classFilter, setClassFilter] = useState(selectedClass || initialClass || 'ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  type ReviewFilterValue = 'ALL' | 'ANY_INCOMPLETE' | 'REV_1' | 'REV_2' | 'REV_3' | 'REV_4';
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilterValue>('ALL');
   const [, setMarksTick] = useState(0);
 
   // Accordion state (supports multiple rows toggled at the same time)
@@ -119,6 +121,39 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
       };
     });
   }, [liveTeamsData, detailedSubsByTeam]);
+
+  // Helper to determine if a review is completed
+  const isReviewCompleted = useCallback((team: HodTeamDetails, revNum: number): boolean => {
+    const sub = team.submissions?.find(s => s.week === revNum);
+    return Boolean(
+      sub?.isCompleted ?? 
+      (sub?.status === 'Submitted' || sub?.status === 'Approved')
+    );
+  }, []);
+
+  // Counts of teams having incomplete reviews per milestone
+  const incompleteCounts = useMemo(() => {
+    return {
+      any: teams.filter(t => [1, 2, 3, 4].some(r => !isReviewCompleted(t, r))).length,
+      r1: teams.filter(t => !isReviewCompleted(t, 1)).length,
+      r2: teams.filter(t => !isReviewCompleted(t, 2)).length,
+      r3: teams.filter(t => !isReviewCompleted(t, 3)).length,
+      r4: teams.filter(t => !isReviewCompleted(t, 4)).length,
+    };
+  }, [teams, isReviewCompleted]);
+
+  // Filter teams based on review selection
+  const displayedTeams = useMemo(() => {
+    if (reviewFilter === 'ALL') return teams;
+    if (reviewFilter === 'ANY_INCOMPLETE') {
+      return teams.filter(t => [1, 2, 3, 4].some(r => !isReviewCompleted(t, r)));
+    }
+    if (reviewFilter === 'REV_1') return teams.filter(t => !isReviewCompleted(t, 1));
+    if (reviewFilter === 'REV_2') return teams.filter(t => !isReviewCompleted(t, 2));
+    if (reviewFilter === 'REV_3') return teams.filter(t => !isReviewCompleted(t, 3));
+    if (reviewFilter === 'REV_4') return teams.filter(t => !isReviewCompleted(t, 4));
+    return teams;
+  }, [teams, reviewFilter, isReviewCompleted]);
 
   const advisors = Array.isArray(liveAdvisorsData) ? liveAdvisorsData : [];
   const loading = teamsLoading || advisorsLoading;
@@ -316,18 +351,84 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
           />
         </div>
 
-        {/* Refresh button */}
-        <button
-          type="button"
-          onClick={handleRefresh}
-          title="Refresh real data"
-          className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
-          aria-label="Refresh real data"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-        </button>
+        {/* Right Most Corner Controls */}
+        <div className="ml-auto flex items-center gap-2.5 shrink-0">
+          {/* Recognizable Crimson / Rose Review Filter Dropdown */}
+          <div className="relative flex items-center">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition shadow-xs ${
+              reviewFilter !== 'ALL'
+                ? 'bg-rose-600 text-white border-rose-700 shadow-sm ring-2 ring-rose-400/30'
+                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300'
+            }`}>
+              <Filter size={13} className={reviewFilter !== 'ALL' ? 'text-white' : 'text-rose-600'} />
+              <select
+                id="selectReviewFilter"
+                value={reviewFilter}
+                onChange={(e) => setReviewFilter(e.target.value as any)}
+                className={`text-xs font-bold bg-transparent border-0 focus:outline-none cursor-pointer pr-1 ${
+                  reviewFilter !== 'ALL'
+                    ? 'text-white [&>option]:text-[#111111] [&>option]:bg-white'
+                    : 'text-rose-700 [&>option]:text-[#111111] [&>option]:bg-white'
+                }`}
+                title="Filter by review non-completion"
+              >
+                <option value="ALL">All Reviews</option>
+                <option value="ANY_INCOMPLETE">Any Incomplete Review ({incompleteCounts.any})</option>
+                <option value="REV_1">Review 1 Incomplete ({incompleteCounts.r1})</option>
+                <option value="REV_2">Review 2 Incomplete ({incompleteCounts.r2})</option>
+                <option value="REV_3">Review 3 Incomplete ({incompleteCounts.r3})</option>
+                <option value="REV_4">Review 4 Incomplete ({incompleteCounts.r4})</option>
+              </select>
+              {reviewFilter !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('ALL')}
+                  className="p-0.5 rounded-full hover:bg-rose-700/80 text-white cursor-pointer transition"
+                  title="Clear review filter"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Refresh button */}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            title="Refresh real data"
+            className="p-2 bg-[#F8F5EE] hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] border border-[#D8CCBA] rounded-xl transition cursor-pointer flex items-center justify-center shrink-0"
+            aria-label="Refresh real data"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
 
       </div>
+
+      {/* Active Crimson Filter Chip Banner */}
+      {reviewFilter !== 'ALL' && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
+            <span>
+              {reviewFilter === 'ANY_INCOMPLETE' && `Filtering teams with any incomplete review (${displayedTeams.length} found)`}
+              {reviewFilter === 'REV_1' && `Filtering teams with incomplete Review 1 (${displayedTeams.length} found)`}
+              {reviewFilter === 'REV_2' && `Filtering teams with incomplete Review 2 (${displayedTeams.length} found)`}
+              {reviewFilter === 'REV_3' && `Filtering teams with incomplete Review 3 (${displayedTeams.length} found)`}
+              {reviewFilter === 'REV_4' && `Filtering teams with incomplete Review 4 (${displayedTeams.length} found)`}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReviewFilter('ALL')}
+            className="px-2.5 py-1 bg-white hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs"
+          >
+            <X size={12} />
+            <span>Clear Filter</span>
+          </button>
+        </div>
+      )}
 
       {/* Class Advisor Banner if specific class selected */}
       {classFilter !== 'ALL' && (
@@ -403,14 +504,29 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                     </div>
                   </td>
                 </tr>
-              ) : teams.length === 0 ? (
+              ) : displayedTeams.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-[#75695A]">
-                    No project teams match the selected filters.
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <p>
+                        {reviewFilter !== 'ALL' 
+                          ? 'No teams match the selected review filter.' 
+                          : 'No project teams match the selected filters.'}
+                      </p>
+                      {reviewFilter !== 'ALL' && (
+                        <button
+                          type="button"
+                          onClick={() => setReviewFilter('ALL')}
+                          className="px-3 py-1 bg-white border border-[#D8CCBA] rounded-lg text-xs font-bold text-[#111111] hover:bg-[#EDE7DB] transition cursor-pointer shadow-2xs"
+                        >
+                          Show All Teams
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
-                teams.map((team) => {
+                displayedTeams.map((team) => {
                   const isExpanded = expandedTeamIds.has(team.id);
                   const isInspecting = inspectingTeamId === team.id;
                   const isSub1Approved = team.status === 'Approved' || team.guideApprovalStatus === 'Approved' || StudentService.isSubmission1Approved(team.id);
@@ -479,11 +595,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
 
                         {/* Four Reviews: Review 1, Review 2, Review 3, Review 4 */}
                         {[1, 2, 3, 4].map((revNum) => {
-                          const sub = team.submissions?.find(s => s.week === revNum);
-                          const isCompleted = Boolean(
-                            sub?.isCompleted ?? 
-                            (sub?.status === 'Submitted' || sub?.status === 'Approved')
-                          );
+                          const isCompleted = isReviewCompleted(team, revNum);
 
                           return (
                             <td 

@@ -95,7 +95,18 @@ export interface WeeklySubmission {
   guideReviewDate?: string;
   guideNotice?: GuideNotice;
   memberMarks?: Record<string, number>;
+  memberRubrics?: Record<string, MemberRubricScore>;
 }
+
+export interface MemberRubricScore {
+  systemDesign: number;            // 0 to 5
+  presentationInteraction: number; // 0 to 5
+  technicalSkills: number;         // 0 to 5
+  implementationProgress: number;  // 0 to 5
+  total: number;                   // 0 to 20
+}
+
+export type MemberRubricsMap = Record<string, MemberRubricScore>;
 
 export interface RubricCriteria {
   id: string;

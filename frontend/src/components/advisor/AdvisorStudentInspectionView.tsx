@@ -13,6 +13,7 @@ import { AdvisorSubmissionsService } from '../../services/advisorSubmissionsServ
 import { WeeklySubmission } from '../../types';
 import { getSubmissionTitle } from '../../utils/titleUtils';
 import AdvisorSubmissionDetails from './AdvisorSubmissionDetails';
+import { RubricEvaluationModal } from '../common/RubricEvaluationModal';
 
 interface AdvisorStudentInspectionViewProps {
   team: ClassTeam;
@@ -78,63 +79,9 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
     )
   );
 
-  // Open Marks Modal
+  // Open Rubric Marks Modal
   const handleOpenMarksModal = () => {
-    if (isMarksEnteredByGuide) return;
-    const existing = MarksService.getWeeklyMarks(team.teamId, selectedWeek);
-    const initialInputs: Record<string, string> = {};
-    team.members.forEach(m => {
-      if (existing && existing.memberMarks[m.rollNo] !== undefined) {
-        initialInputs[m.rollNo] = String(existing.memberMarks[m.rollNo]);
-      } else {
-        initialInputs[m.rollNo] = '';
-      }
-    });
-    setMarksInput(initialInputs);
-    setAdvisorRemarks(existing?.remarks || '');
-    setMarksError('');
     setIsMarksModalOpen(true);
-  };
-
-  // Compute live team average in modal
-  const modalAverage = (() => {
-    const values = Object.values(marksInput)
-      .map(v => parseFloat(v))
-      .filter(v => !isNaN(v) && v >= 0 && v <= 100);
-    if (values.length === 0) return null;
-    const sum = values.reduce((acc, curr) => acc + curr, 0);
-    return Math.round((sum / values.length) * 10) / 10;
-  })();
-
-  // Save Marks
-  const handleSaveMarks = () => {
-    setMarksError('');
-    const parsedMarks: Record<string, number> = {};
-
-    for (const m of team.members) {
-      const rawVal = marksInput[m.rollNo];
-      if (rawVal === undefined || rawVal === '') {
-        setMarksError(`Please assign a mark for ${m.name} (${m.rollNo}).`);
-        return;
-      }
-      const num = parseFloat(rawVal);
-      if (isNaN(num) || num < 0 || num > 100) {
-        setMarksError(`Mark for ${m.name} must be between 0 and 100.`);
-        return;
-      }
-      parsedMarks[m.rollNo] = num;
-    }
-
-    MarksService.saveWeeklyMarks(
-      team.teamId,
-      selectedWeek,
-      parsedMarks,
-      advisorRemarks,
-      "Class Advisor"
-    );
-
-    setIsMarksModalOpen(false);
-    onShowToast(`Evaluated & saved Week ${selectedWeek} marks for ${team.teamNo} (Average: ${modalAverage}/100).`);
   };
   const { data: availableGuides = [] } = useAdvisorGuides();
  
@@ -402,8 +349,13 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
                 Official Advisor Evaluation Status &bull; Week {selectedWeek}
               </span>
               <span className="font-serif font-semibold text-[#111111] text-sm">
-                {currentMarks ? `Team Average Score: ${currentMarks.teamAverage} / 100` : 'No Marks Awarded Yet for this Week'}
+                {currentMarks ? `Team Average Score: ${currentMarks.teamAverage} / 20` : 'No Marks Awarded Yet for this Week'}
               </span>
+              {currentMarks?.gradedBy && (
+                <span className="text-[10px] text-[#75695A] block mt-0.5">
+                  Evaluated by: <strong className="text-[#111111]">{currentMarks.gradedBy}</strong>
+                </span>
+              )}
               {currentMarks?.remarks && (
                 <p className="text-[#75695A] text-[11px] mt-0.5 italic">
                   &ldquo;{currentMarks.remarks}&rdquo;
@@ -412,20 +364,13 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
             </div>
           </div>
 
-          {isMarksEnteredByGuide ? (
-            <div className="px-3.5 py-1.5 bg-[#EDE7DB] text-[#75695A] border border-[#D8CCBA] rounded-xl font-semibold text-xs flex items-center gap-1.5 select-none shrink-0 self-start sm:self-center">
-              <Lock size={12} />
-              <span>Assigned by Guide (Read Only)</span>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleOpenMarksModal}
-              className="px-3.5 py-1.5 bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] rounded-xl font-semibold text-xs transition shrink-0 cursor-pointer self-start sm:self-center"
-            >
-              {currentMarks ? 'Edit Marks' : 'Assign Marks Now'}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleOpenMarksModal}
+            className="px-3.5 py-1.5 bg-white hover:bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] rounded-xl font-semibold text-xs transition shrink-0 cursor-pointer self-start sm:self-center shadow-2xs"
+          >
+            {currentMarks ? 'Edit Evaluation Marks' : 'Assign Rubric Marks'}
+          </button>
         </div>
 
         {/* Complete Student Submission Details (Same format, no mock data, missing fields marked Not Submitted) */}
@@ -438,119 +383,23 @@ export const AdvisorStudentInspectionView: React.FC<AdvisorStudentInspectionView
 
       </div>
 
-      {/* MODAL: Evaluate & Assign Marks */}
-      {isMarksModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn font-sans">
-          <div 
-            className="bg-white w-full max-w-lg rounded-3xl shadow-xl border border-[#D8CCBA] overflow-hidden transform transition-all flex flex-col max-h-[90vh]"
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="bg-[#F8F5EE] px-6 py-4 border-b border-[#D8CCBA] flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#EDE7DB] text-[#111111] border border-[#D8CCBA] flex items-center justify-center font-bold">
-                  <Award size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-serif font-bold text-[#111111]">
-                    Evaluate &amp; Assign Weekly Marks &bull; Week {selectedWeek}
-                  </h3>
-                  <p className="text-[11px] text-[#75695A]">
-                    {team.teamNo} &bull; Individual Student Assessment (Max: 100)
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsMarksModalOpen(false)}
-                className="text-[#75695A] hover:text-[#111111] p-2 rounded-xl hover:bg-[#EDE7DB] transition"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 overflow-y-auto text-xs flex-1">
-              {marksError && (
-                <div className="p-3 bg-rose-50/80 border border-rose-200 rounded-xl text-rose-800 font-medium flex items-center gap-2">
-                  <AlertCircle size={15} className="shrink-0 text-rose-600" />
-                  <span>{marksError}</span>
-                </div>
-              )}
-
-              <div className="p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl flex items-center justify-between">
-                <span className="font-semibold text-[#292725]">Calculated Team Average Score:</span>
-                <span className="text-sm font-bold text-[#111111]">
-                  {modalAverage !== null ? `${modalAverage} / 100` : '-- / 100'}
-                </span>
-              </div>
-
-              {/* Individual Marks Fields */}
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-[#75695A] uppercase tracking-wider">
-                  Individual Student Marks (0 - 100)
-                </label>
-
-                {team.members.map((m) => (
-                  <div key={m.rollNo} className="p-3 rounded-xl bg-[#F8F5EE]/60 border border-[#D8CCBA] flex items-center justify-between gap-3">
-                    <div>
-                      <span className="font-semibold text-[#111111] block">{m.name}</span>
-                      <span className="text-[10px] text-[#75695A] font-mono">
-                        {m.rollNo} {m.isLead ? '• [Team Leader]' : ''}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={marksInput[m.rollNo] || ''}
-                        onChange={(e) => setMarksInput({ ...marksInput, [m.rollNo]: e.target.value })}
-                        className="w-20 px-3 py-1.5 bg-white border border-[#D8CCBA] rounded-xl text-xs font-bold text-[#111111] text-center focus:outline-none focus:border-[#111111] shadow-xs"
-                      />
-                      <span className="text-[#75695A] font-medium text-[11px]">/ 100</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Advisor Remarks */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-[#75695A] uppercase tracking-wider">
-                  Advisor Evaluation Remarks (Optional)
-                </label>
-                <textarea
-                  rows={3}
-                  value={advisorRemarks}
-                  onChange={(e) => setAdvisorRemarks(e.target.value)}
-                  className="w-full p-3 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl text-xs focus:outline-none focus:border-[#111111] shadow-xs text-[#111111] placeholder-[#75695A]/60"
-                />
-              </div>
-
-              <div className="text-[11px] text-[#75695A] italic">
-                * Note: Individual and team average marks are visible to the Guide, Advisor, and HOD, and are strictly hidden from students.
-              </div>
-            </div>
-
-            <div className="bg-[#F8F5EE] px-6 py-4 border-t border-[#D8CCBA] flex items-center justify-between shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsMarksModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-[#292725] hover:text-[#111111] bg-white border border-[#D8CCBA] rounded-xl hover:bg-[#EDE7DB] transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveMarks}
-                className="px-5 py-2 text-xs font-medium text-[#F8F5EE] bg-[#111111] hover:bg-[#292725] rounded-xl shadow-xs transition flex items-center gap-1.5"
-              >
-                <Check size={14} />
-                <span>Save &amp; Record Marks</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Rubric Evaluation Modal */}
+      <RubricEvaluationModal
+        isOpen={isMarksModalOpen}
+        onClose={() => setIsMarksModalOpen(false)}
+        teamId={team.teamId}
+        teamNo={team.teamNo}
+        projectTitle={team.title}
+        weekNumber={selectedWeek}
+        members={team.members.map(m => ({ name: m.name, rollNo: m.rollNo, isLead: m.isLead }))}
+        initialRubrics={currentMarks?.memberRubrics}
+        initialRemarks={currentMarks?.remarks}
+        evaluatorRole="advisor"
+        onSuccess={(avg) => {
+          onShowToast(`Evaluated & saved Review ${selectedWeek} marks for ${team.teamNo} (Average: ${avg}/20).`);
+          setCurrentMarks(MarksService.getWeeklyMarks(team.teamId, selectedWeek));
+        }}
+      />
 
       {/* MODAL: Change Guide */}
       {isChangeGuideOpen && (

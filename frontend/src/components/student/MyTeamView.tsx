@@ -113,6 +113,16 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
     return null;
   };
 
+  const getMemberReviewRubric = (rollNo: string, reviewIndex: number) => {
+    const cleanRollNo = String(rollNo || '').trim();
+    const lowerRoll = cleanRollNo.toLowerCase();
+    const rec = marksRecords[reviewIndex];
+    if (!rec || !rec.memberRubrics) return null;
+    if (rec.memberRubrics[cleanRollNo]) return rec.memberRubrics[cleanRollNo];
+    const matchedKey = Object.keys(rec.memberRubrics).find(k => k.trim().toLowerCase() === lowerRoll);
+    return matchedKey ? rec.memberRubrics[matchedKey] : null;
+  };
+
   return (
     <div className="space-y-6">
       
@@ -290,54 +300,94 @@ export const MyTeamView: React.FC<MyTeamViewProps> = ({ team }) => {
 
                       {/* Review 1 */}
                       <td className="py-3 px-3 whitespace-nowrap text-center">
-                        {markR1 !== null ? (
-                          <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
-                            {markR1}/100
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic font-semibold text-xs">
-                            Unassigned
-                          </span>
-                        )}
+                        {(() => {
+                          const rubR1 = getMemberReviewRubric(member.rollNo, 1);
+                          if (markR1 !== null) {
+                            const tooltip = rubR1 ? `System Design: ${rubR1.systemDesign}/5 • Presentation: ${rubR1.presentationInteraction}/5 • Tech Skills: ${rubR1.technicalSkills}/5 • Progress: ${rubR1.implementationProgress}/5` : 'Total Score';
+                            return (
+                              <span 
+                                title={tooltip}
+                                className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs cursor-help inline-block"
+                              >
+                                {markR1 > 20 ? `${markR1}/100` : `${markR1}/20`}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-slate-400 italic font-semibold text-xs">
+                              Unassigned
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Review 2 */}
                       <td className="py-3 px-3 whitespace-nowrap text-center">
-                        {markR2 !== null ? (
-                          <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
-                            {markR2}/100
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic font-semibold text-xs">
-                            Unassigned
-                          </span>
-                        )}
+                        {(() => {
+                          const rubR2 = getMemberReviewRubric(member.rollNo, 2);
+                          if (markR2 !== null) {
+                            const tooltip = rubR2 ? `System Design: ${rubR2.systemDesign}/5 • Presentation: ${rubR2.presentationInteraction}/5 • Tech Skills: ${rubR2.technicalSkills}/5 • Progress: ${rubR2.implementationProgress}/5` : 'Total Score';
+                            return (
+                              <span 
+                                title={tooltip}
+                                className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs cursor-help inline-block"
+                              >
+                                {markR2 > 20 ? `${markR2}/100` : `${markR2}/20`}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-slate-400 italic font-semibold text-xs">
+                              Unassigned
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Review 3 */}
                       <td className="py-3 px-3 whitespace-nowrap text-center">
-                        {markR3 !== null ? (
-                          <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
-                            {markR3}/100
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic font-semibold text-xs">
-                            Unassigned
-                          </span>
-                        )}
+                        {(() => {
+                          const rubR3 = getMemberReviewRubric(member.rollNo, 3);
+                          if (markR3 !== null) {
+                            const tooltip = rubR3 ? `System Design: ${rubR3.systemDesign}/5 • Presentation: ${rubR3.presentationInteraction}/5 • Tech Skills: ${rubR3.technicalSkills}/5 • Progress: ${rubR3.implementationProgress}/5` : 'Total Score';
+                            return (
+                              <span 
+                                title={tooltip}
+                                className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs cursor-help inline-block"
+                              >
+                                {markR3 > 20 ? `${markR3}/100` : `${markR3}/20`}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-slate-400 italic font-semibold text-xs">
+                              Unassigned
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Review 4 */}
                       <td className="py-3 px-3 whitespace-nowrap text-center">
-                        {markR4 !== null ? (
-                          <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs">
-                            {markR4}/100
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic font-semibold text-xs">
-                            Unassigned
-                          </span>
-                        )}
+                        {(() => {
+                          const rubR4 = getMemberReviewRubric(member.rollNo, 4);
+                          if (markR4 !== null) {
+                            const tooltip = rubR4 ? `System Design: ${rubR4.systemDesign}/5 • Presentation: ${rubR4.presentationInteraction}/5 • Tech Skills: ${rubR4.technicalSkills}/5 • Progress: ${rubR4.implementationProgress}/5` : 'Total Score';
+                            return (
+                              <span 
+                                title={tooltip}
+                                className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-200 font-extrabold text-xs cursor-help inline-block"
+                              >
+                                {markR4 > 20 ? `${markR4}/100` : `${markR4}/20`}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-slate-400 italic font-semibold text-xs">
+                              Unassigned
+                            </span>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );

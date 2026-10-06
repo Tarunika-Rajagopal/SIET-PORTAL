@@ -8,6 +8,7 @@ import { useGuide } from '../../context/GuideContext';
 import { MarksService } from '../../services/marksService';
 import { StudentService } from '../../services/studentService';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
+import RubricEvaluationModal from '../../components/common/RubricEvaluationModal';
 
 export const ALL_SUBMISSIONS = [
   { submissionNumber: 1, weekNumber: 1, defaultTitle: 'Project Initiation & Title Proposal' },
@@ -54,6 +55,7 @@ export const MyTeams = () => {
   const [activeSubModal, setActiveSubModal] = useState(null);
   const [activeTeamForModal, setActiveTeamForModal] = useState(null);
   const [downloadToast, setDownloadToast] = useState(null);
+  const [rubricModalOpen, setRubricModalOpen] = useState(false);
 
   // Current academic week
   const currentAcademicWeek = StudentService.getCurrentAcademicWeek();
@@ -897,27 +899,56 @@ export const MyTeams = () => {
                       <div className="flex items-center gap-2">
                         <Award size={16} className="text-[#4A5844]" />
                         <h4 className="text-xs font-serif font-bold text-[#111111] uppercase tracking-wider">
-                          Evaluation Scores &amp; Individual Student Marks
+                          Official Rubric Evaluation (20 Marks)
                         </h4>
                       </div>
-                      <span className="px-3 py-1 rounded-xl bg-white border border-[#BFCEB9] font-extrabold text-xs text-[#4A5844]">
-                        Team Average: {teamAvg ?? 0} / 100
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 rounded-xl bg-white border border-[#BFCEB9] font-extrabold text-xs text-[#4A5844]">
+                          Team Average: {teamAvg ?? 0} / 20
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setRubricModalOpen(true)}
+                          className="px-3 py-1 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] rounded-lg text-xs font-bold transition cursor-pointer"
+                        >
+                          Edit Rubrics
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Individual Marks Roster */}
+                    {/* Individual Marks Roster with 4-Criteria Breakdown */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {(activeTeamForModal.members || []).map((member) => {
-                        const mScore = memMarks?.[member.rollNo] ?? teamAvg;
+                        const rub = marksRec?.memberRubrics?.[member.rollNo];
+                        const mScore = rub?.total ?? memMarks?.[member.rollNo] ?? teamAvg;
                         return (
-                          <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-[#BFCEB9] flex items-center justify-between gap-2">
-                            <div className="truncate">
-                              <span className="font-bold text-[#111111] text-xs block truncate">{member.name}</span>
-                              <span className="font-mono text-[10px] text-[#75695A]">{member.rollNo}</span>
+                          <div key={member.rollNo} className="p-2.5 bg-white rounded-xl border border-[#BFCEB9] flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="truncate">
+                                <span className="font-bold text-[#111111] text-xs block truncate">{member.name}</span>
+                                <span className="font-mono text-[10px] text-[#75695A]">{member.rollNo}</span>
+                              </div>
+                              <span className="px-2.5 py-1 rounded-lg bg-[#EBF0E9] border border-[#BFCEB9] font-extrabold text-xs text-[#4A5844] shrink-0">
+                                {typeof mScore === 'number' ? `${mScore} / 20` : '-- / 20'}
+                              </span>
                             </div>
-                            <span className="px-2.5 py-1 rounded-lg bg-[#EBF0E9] border border-[#BFCEB9] font-extrabold text-xs text-[#4A5844] shrink-0">
-                              {typeof mScore === 'number' ? `${mScore} / 100` : '-- / 100'}
-                            </span>
+
+                            {rub ? (
+                              <div className="flex flex-wrap gap-1 text-[9px] text-[#75695A] pt-0.5 border-t border-[#BFCEB9]/40">
+                                <span className="px-1.5 py-0.5 bg-[#F8F5EE] border border-[#BFCEB9] rounded">
+                                  SD: <b className="text-[#111111]">{rub.systemDesign ?? 0}</b>/5
+                                </span>
+                                <span className="px-1.5 py-0.5 bg-[#F8F5EE] border border-[#BFCEB9] rounded">
+                                  PI: <b className="text-[#111111]">{rub.presentationInteraction ?? 0}</b>/5
+                                </span>
+                                <span className="px-1.5 py-0.5 bg-[#F8F5EE] border border-[#BFCEB9] rounded">
+                                  TS: <b className="text-[#111111]">{rub.technicalSkills ?? 0}</b>/5
+                                </span>
+                                <span className="px-1.5 py-0.5 bg-[#F8F5EE] border border-[#BFCEB9] rounded">
+                                  IP: <b className="text-[#111111]">{rub.implementationProgress ?? 0}</b>/5
+                                </span>
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })}
@@ -935,7 +966,16 @@ export const MyTeams = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="bg-[#F8F5EE] px-6 py-4 border-t border-[#D8CCBA] flex items-center justify-end shrink-0">
+            <div className="bg-[#F8F5EE] px-6 py-4 border-t border-[#D8CCBA] flex items-center justify-between shrink-0">
+              <button
+                type="button"
+                onClick={() => setRubricModalOpen(true)}
+                className="px-4 py-2 text-xs font-bold text-[#F8F5EE] bg-[#111111] hover:bg-[#292725] rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Award size={14} />
+                <span>Award / Edit Rubric Marks (20 M)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setDetailModalOpen(false)}
@@ -947,6 +987,28 @@ export const MyTeams = () => {
 
           </div>
         </div>
+      )}
+
+      {/* Rubric Evaluation Modal */}
+      {rubricModalOpen && activeTeamForModal && activeSubModal && (
+        <RubricEvaluationModal
+          isOpen={rubricModalOpen}
+          onClose={() => setRubricModalOpen(false)}
+          teamId={activeTeamForModal.teamId || activeTeamForModal.id}
+          teamNo={String(activeTeamForModal.teamNumber || '')}
+          projectTitle={activeTeamForModal.projectTitle || activeSubModal.projectTitle || ''}
+          weekNumber={Number(activeSubModal.weekNumber !== undefined ? activeSubModal.weekNumber : (activeSubModal.week !== undefined ? activeSubModal.week : (activeSubModal.submissionNumber || 1)))}
+          members={(activeTeamForModal.members || []).map(m => ({
+            rollNo: m.rollNo,
+            name: m.name,
+            isLead: m.role?.toLowerCase?.().includes('lead') || m.isLead
+          }))}
+          evaluatorRole="guide"
+          initialRemarks={activeSubModal.marksRemarks || activeSubModal.guideRemarks || activeSubModal.comments || ''}
+          onSuccess={() => {
+            setMarksTick(prev => prev + 1);
+          }}
+        />
       )}
 
     </div>

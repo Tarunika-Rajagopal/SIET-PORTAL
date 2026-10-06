@@ -9,6 +9,7 @@ import { useGuide } from '../../context/GuideContext';
 import { MarksService } from '../../services/marksService';
 import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { hasAnyDetailSubmitted } from '../../utils/submissionUtils';
+import RubricEvaluationModal from '../../components/common/RubricEvaluationModal';
 
 export const ApproveProject = () => {
   const { 
@@ -50,6 +51,31 @@ export const ApproveProject = () => {
   const [mandatoryReason, setMandatoryReason] = useState('');
   const [decisionError, setDecisionError] = useState('');
   const [downloadToast, setDownloadToast] = useState(null);
+  const [rubricModalOpen, setRubricModalOpen] = useState(false);
+
+  const handleRubricSuccess = (avg, rubrics) => {
+    if (!inspectedTeam || !inspectedSub) return;
+    const weekNum = Number(
+      inspectedSub.weekNumber !== undefined 
+        ? inspectedSub.weekNumber 
+        : (inspectedSub.week !== undefined ? inspectedSub.week : (inspectedSub.submissionNumber || 1))
+    );
+    if (evaluateWeeklySubmission) {
+      evaluateWeeklySubmission(
+        inspectedTeam.teamId,
+        weekNum,
+        guideRemarks.trim() || 'Approved by Faculty Guide using official rubric.',
+        avg,
+        rubrics
+      );
+    }
+    if (approveTitle && weekNum === 1) {
+      approveTitle(inspectedTeam.teamId);
+    }
+    showToast(`Submission Week ${weekNum} for Team #${inspectedTeam.teamNumber} approved with average score (${avg} / 20).`, 'success');
+    setInspectModalOpen(false);
+    setRubricModalOpen(false);
+  };
 
   // Listen to marks updates and fetch authoritative marks on mount
   const [, setTick] = useState(0);
@@ -784,89 +810,42 @@ export const ApproveProject = () => {
                 </div>
               </div>
 
-              {/* 4. GUIDE DECISION FORMS: INDIVIDUAL MARKS PER MEMBER */}
+              {/* 4. GUIDE DECISION FORMS: OFFICIAL RUBRIC EVALUATION */}
               {activeDecision === 'approve' && (
-                <div id="marksAssignmentSection" className="p-4 bg-emerald-50/60 border border-emerald-300 rounded-2xl space-y-4 animate-fadeIn">
+                <div id="marksAssignmentSection" className="p-4 bg-emerald-50/70 border border-emerald-300 rounded-2xl space-y-3 animate-fadeIn">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
                       <Award size={16} className="text-emerald-700" />
-                      <span>Assign Individual Student Marks &amp; Approve</span>
-                    </div>
-                    <div className="px-3 py-1 bg-emerald-100 border border-emerald-300 rounded-lg text-emerald-900 font-extrabold text-xs">
-                      Team Average: {calculatedTeamAverage} / 100
+                      <span>Official 4-Part Evaluation Rubrics (Total 20 Marks)</span>
                     </div>
                   </div>
 
-                  {decisionError && (
-                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-bold text-xs flex items-center gap-2">
-                      <AlertCircle size={14} className="text-rose-600 shrink-0" />
-                      <span>{decisionError}</span>
-                    </div>
-                  )}
+                  <div className="bg-white p-4 rounded-xl border border-emerald-200 text-center space-y-3">
+                    <p className="text-xs text-slate-700 leading-relaxed">
+                      Evaluate every team member individually across the 4 official criteria:
+                      <br />
+                      <span className="font-bold text-emerald-950">System Design (5)</span> &bull; <span className="font-bold text-emerald-950">Presentation &amp; Interaction (5)</span> &bull; <span className="font-bold text-emerald-950">Technical Skills (5)</span> &bull; <span className="font-bold text-emerald-950">Implementation Progress (5)</span>
+                      <br />
+                      <span className="text-[11px] text-slate-500 font-semibold">Total: 20 Marks per student</span>
+                    </p>
 
-                  {/* Individual Marks for Every Team Member */}
-                  <div className="space-y-2">
-                    <label className="block text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
-                      Individual Member Scores (0 - 100) <span className="text-rose-600">*</span>
-                    </label>
-                    <div className="space-y-2">
-                      {(inspectedTeam.members || []).map((member) => (
-                        <div key={member.rollNo} className="flex items-center justify-between p-2.5 bg-white border border-emerald-300 rounded-xl gap-3">
-                          <div className="min-w-0">
-                            <span className="font-bold text-slate-900 text-xs block truncate">{member.name}</span>
-                            <span className="text-[10px] text-slate-500 font-mono">{member.rollNo}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 w-28 shrink-0">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              required
-                              value={individualMarks[member.rollNo] ?? ''}
-                              onChange={(e) => {
-                                setIndividualMarks(prev => ({
-                                  ...prev,
-                                  [member.rollNo]: e.target.value
-                                }));
-                                if (decisionError) setDecisionError('');
-                              }}
-                              className="w-full px-2.5 py-1.5 bg-[#EFF3F1] border border-emerald-300 rounded-lg text-xs font-bold text-slate-900 text-center focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                            />
-                            <span className="text-xs text-slate-500 font-bold">/100</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Guide Remarks */}
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-wider mb-1">
-                      Evaluation Remarks (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={guideRemarks}
-                      onChange={(e) => setGuideRemarks(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setRubricModalOpen(true)}
+                      className="px-5 py-2.5 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] font-bold text-xs rounded-xl shadow-xs transition inline-flex items-center gap-2 cursor-pointer"
+                    >
+                      <Award size={15} />
+                      <span>Launch 4-Criteria Rubric Evaluation Modal (20 M)</span>
+                    </button>
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-emerald-200">
                     <button
                       type="button"
                       onClick={() => setActiveDecision(null)}
-                      className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 cursor-pointer"
+                      className="px-3.5 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 cursor-pointer"
                     >
                       Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmApprove}
-                      className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <CheckCircle2 size={14} />
-                      <span>Confirm Approval ({calculatedTeamAverage} Avg)</span>
                     </button>
                   </div>
                 </div>
@@ -1013,26 +992,47 @@ export const ApproveProject = () => {
                   <span>Request Revision</span>
                 </button>
 
-                {/* Accept / Approve Option with Individual Marks */}
+                {/* Accept / Approve Option with Official Rubrics */}
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveDecision('approve');
-                    setDecisionError('');
-                    setTimeout(() => {
-                      document.getElementById('marksAssignmentSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 100);
+                    setRubricModalOpen(true);
                   }}
                   className="px-4 py-2 text-xs font-extrabold text-white bg-mint-500 hover:bg-mint-600 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer active:scale-95"
                 >
-                  <CheckCircle2 size={15} />
-                  <span>Approve &amp; Assign Marks</span>
+                  <Award size={15} />
+                  <span>Evaluate Rubric &amp; Approve (20 M)</span>
                 </button>
               </div>
             </div>
 
           </div>
         </div>
+      )}
+
+      {/* Rubric Evaluation Modal */}
+      {rubricModalOpen && inspectedTeam && inspectedSub && (
+        <RubricEvaluationModal
+          isOpen={rubricModalOpen}
+          onClose={() => setRubricModalOpen(false)}
+          teamId={inspectedTeam.teamId}
+          teamNo={String(inspectedTeam.teamNumber || '')}
+          projectTitle={inspectedTeam.projectTitle || inspectedSub.projectTitle || ''}
+          weekNumber={Number(
+            inspectedSub.weekNumber !== undefined 
+              ? inspectedSub.weekNumber 
+              : (inspectedSub.week !== undefined ? inspectedSub.week : (inspectedSub.submissionNumber || 1))
+          )}
+          members={(inspectedTeam.members || []).map(m => ({
+            rollNo: m.rollNo,
+            name: m.name,
+            isLead: m.role?.toLowerCase?.().includes('lead') || m.isLead
+          }))}
+          evaluatorRole="guide"
+          evaluatorName={facultyProfile?.name || 'Faculty Guide'}
+          initialRemarks={guideRemarks || inspectedSub.comments || ''}
+          onSuccess={handleRubricSuccess}
+        />
       )}
 
     </div>

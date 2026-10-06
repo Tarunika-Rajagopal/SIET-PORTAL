@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { 
   Clock, CheckCircle2, AlertCircle, FileText, Search, Filter, 
   ExternalLink, ArrowUpRight, Lock, Eye, CheckSquare, RefreshCw,
-  Bell
+  Bell, Award
 } from 'lucide-react';
 import { useGuide } from '../../context/GuideContext';
 import { StudentService } from '../../services/studentService';
+import { MarksService } from '../../services/marksService';
 import WeeklyReviewDrawer from '../../components/guide/WeeklyReviewDrawer';
 import DocumentPreviewModal from '../../components/guide/DocumentPreviewModal';
 import ImageViewerModal from '../../components/guide/ImageViewerModal';
 import NotifyTeamModal from '../../components/guide/NotifyTeamModal';
+import RubricEvaluationModal from '../../components/common/RubricEvaluationModal';
 
 export const WeeklySubmissions = () => {
   const { teams, stats, notifyTeam } = useGuide();
@@ -34,6 +36,16 @@ export const WeeklySubmissions = () => {
   const [isNotifyOpen, setIsNotifyOpen] = useState(false);
   const [notifyTargetTeam, setNotifyTargetTeam] = useState(null);
   const [notifyWeekNumber, setNotifyWeekNumber] = useState(currentAcademicWeek);
+
+  // Rubric Evaluation modal state
+  const [isRubricOpen, setIsRubricOpen] = useState(false);
+  const [rubricSub, setRubricSub] = useState(null);
+  const [refreshMarks, setRefreshMarks] = useState(0);
+
+  const handleOpenRubric = (sub) => {
+    setRubricSub(sub);
+    setIsRubricOpen(true);
+  };
 
   // Flatten all submissions with parent team info - strictly real student submissions
   const allSubmissions = [];
@@ -206,13 +218,14 @@ export const WeeklySubmissions = () => {
                 <th className="p-4">Project Title</th>
                 <th className="p-4">Submission Date</th>
                 <th className="p-4">Deliverables Status</th>
+                <th className="p-4 text-center">Rubric Marks</th>
                 <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#D8CCBA] font-medium">
               {filteredSubmissions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-slate-400">
+                  <td colSpan={8} className="p-12 text-center text-slate-400">
                     No weekly sprint submissions found matching the criteria.
                   </td>
                 </tr>
@@ -283,9 +296,52 @@ export const WeeklySubmissions = () => {
                         })()}
                       </td>
 
-                      {/* Actions: View and Notify (NO approval or reject option) */}
+                      {/* Rubric Marks (20 Marks) */}
+                      <td className="p-4 text-center whitespace-nowrap">
+                        {(() => {
+                          const memberRolls = (sub.parentTeam?.members || []).map(m => m.rollNo);
+                          const marksRec = MarksService.getWeeklyMarks(sub.teamId, sub.weekNumber, memberRolls);
+                          const score = marksRec?.teamAverage ?? sub.score;
+                          if (score !== undefined && score !== null && score !== '') {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenRubric(sub)}
+                                className="px-2.5 py-1 rounded-xl bg-[#EDE7DB] border border-[#D8CCBA] text-[#111111] font-bold text-xs inline-flex items-center gap-1.5 hover:bg-[#D8CCBA] transition cursor-pointer"
+                                title="Click to view or edit rubric marks breakdown"
+                              >
+                                <Award size={12} />
+                                <span>{score} / 20</span>
+                              </button>
+                            );
+                          }
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRubric(sub)}
+                              className="px-2 py-0.5 rounded-lg bg-white border border-[#D8CCBA] text-[#75695A] hover:text-[#111111] font-bold text-[11px] inline-flex items-center gap-1 hover:bg-[#F8F5EE] transition cursor-pointer"
+                              title="Award rubric marks (Total 20)"
+                            >
+                              <Award size={11} className="text-[#75695A]" />
+                              <span>Award</span>
+                            </button>
+                          );
+                        })()}
+                      </td>
+
+                      {/* Actions: Marks, Notify, and View */}
                       <td className="p-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRubric(sub)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold text-[#111111] bg-[#EDE7DB] hover:bg-[#D8CCBA] border border-[#D8CCBA] transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                            title="Award or edit official rubric marks"
+                          >
+                            <Award size={13} />
+                            <span>Marks</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => handleOpenNotifyModal(sub.parentTeam, sub.weekNumber)}
@@ -350,6 +406,31 @@ export const WeeklySubmissions = () => {
         team={notifyTargetTeam}
         onNotify={(teamId, data) => notifyTeam(teamId, { ...data, weekNumber: notifyWeekNumber })}
       />
+
+      {/* Rubric Evaluation Modal */}
+      {isRubricOpen && rubricSub && (
+        <RubricEvaluationModal
+          isOpen={isRubricOpen}
+          onClose={() => {
+            setIsRubricOpen(false);
+            setRubricSub(null);
+          }}
+          teamId={rubricSub.teamId}
+          teamNo={String(rubricSub.teamNumber || '')}
+          projectTitle={rubricSub.projectTitle || ''}
+          weekNumber={Number(rubricSub.weekNumber || 1)}
+          members={(rubricSub.parentTeam?.members || []).map(m => ({
+            rollNo: m.rollNo,
+            name: m.name,
+            isLead: m.role?.toLowerCase?.().includes('lead') || m.isLead
+          }))}
+          evaluatorRole="guide"
+          initialRemarks={rubricSub.comments || ''}
+          onSuccess={() => {
+            setRefreshMarks(prev => prev + 1);
+          }}
+        />
+      )}
 
     </div>
   );

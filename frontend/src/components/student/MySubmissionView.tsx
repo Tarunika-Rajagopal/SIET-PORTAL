@@ -714,7 +714,84 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
                     </div>
                   </div>
 
+                  {/* Official Evaluation & Rubric Breakdown */}
+                  {(() => {
+                    const marksRec = backendMarks[subNum] || (subNum === 1 ? backendMarks[0] : null) || MarksService.getWeeklyMarks(teamId, subNum, memberRollNos);
+                    const avgScore = marksRec?.teamAverage ?? activeWeekSub.score;
+                    if (avgScore === undefined || avgScore === null) return null;
 
+                    return (
+                      <div className="pt-4 border-t border-[#D8CCBA] space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Award size={16} className="text-[#111111]" />
+                            <h4 className="font-extrabold text-xs uppercase tracking-wider text-[#111111]">
+                              Official Rubric Evaluation (20 Marks)
+                            </h4>
+                          </div>
+                          <span className="px-3 py-1 bg-[#111111] text-[#F8F5EE] rounded-xl font-bold text-xs">
+                            Team Score: {avgScore > 20 ? `${avgScore} / 100` : `${avgScore} / 20`}
+                          </span>
+                        </div>
+
+                        {marksRec?.gradedBy && (
+                          <p className="text-[11px] text-[#75695A] font-semibold">
+                            Evaluated by: <span className="text-[#111111] font-bold">{marksRec.gradedBy}</span>
+                          </p>
+                        )}
+
+                        {marksRec?.remarks && (
+                          <div className="p-3 bg-[#FAF8F4] border border-[#D8CCBA] rounded-xl text-xs italic text-[#111111]">
+                            &ldquo;{marksRec.remarks}&rdquo;
+                          </div>
+                        )}
+
+                        {/* Member-by-Member Rubrics */}
+                        {team?.members && (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[10px] font-bold text-[#75695A] uppercase tracking-wider block">
+                              Individual Student Rubric Breakdown:
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {team.members.map((m: any) => {
+                                const rub = marksRec?.memberRubrics?.[m.rollNo];
+                                const mScore = rub?.total ?? marksRec?.memberMarks?.[m.rollNo] ?? avgScore;
+                                return (
+                                  <div key={m.rollNo} className="p-2.5 bg-white border border-[#D8CCBA] rounded-xl flex flex-col gap-1.5 shadow-2xs">
+                                    <div className="flex items-center justify-between">
+                                      <div className="truncate">
+                                        <span className="font-bold text-[#111111] text-xs block truncate">{m.name}</span>
+                                        <span className="font-mono text-[10px] text-[#75695A]">{m.rollNo}</span>
+                                      </div>
+                                      <span className="px-2 py-0.5 rounded-lg bg-[#FAF8F4] border border-[#D8CCBA] font-extrabold text-xs text-[#111111]">
+                                        {mScore > 20 ? `${mScore} / 100` : `${mScore} / 20`}
+                                      </span>
+                                    </div>
+                                    {rub ? (
+                                      <div className="flex flex-wrap gap-1 text-[9px] text-[#75695A] pt-1 border-t border-[#D8CCBA]/40">
+                                        <span className="px-1.5 py-0.5 bg-[#FAF8F4] rounded border border-[#D8CCBA]">
+                                          SD: <b className="text-[#111111]">{rub.systemDesign ?? 0}</b>/5
+                                        </span>
+                                        <span className="px-1.5 py-0.5 bg-[#FAF8F4] rounded border border-[#D8CCBA]">
+                                          PI: <b className="text-[#111111]">{rub.presentationInteraction ?? 0}</b>/5
+                                        </span>
+                                        <span className="px-1.5 py-0.5 bg-[#FAF8F4] rounded border border-[#D8CCBA]">
+                                          TS: <b className="text-[#111111]">{rub.technicalSkills ?? 0}</b>/5
+                                        </span>
+                                        <span className="px-1.5 py-0.5 bg-[#FAF8F4] rounded border border-[#D8CCBA]">
+                                          IP: <b className="text-[#111111]">{rub.implementationProgress ?? 0}</b>/5
+                                        </span>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                 </div>
 

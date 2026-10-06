@@ -262,7 +262,7 @@ export const ApiClient = {
   async saveWeeklyMarks(
     teamId: string,
     weekNumber: number,
-    memberMarks: Record<string, number>,
+    memberMarks: Record<string, any>,
     remarks?: string,
     gradedBy?: string
   ) {

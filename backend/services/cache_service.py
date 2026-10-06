@@ -39,13 +39,15 @@ class CacheService:
         redis_url = getattr(settings, "REDIS_URL", "redis://localhost:6379/0")
         try:
             import redis.asyncio as aioredis
-            client = aioredis.from_url(
-                redis_url,
-                decode_responses=True,
-                socket_connect_timeout=5.0,
-                socket_timeout=3.0,
-                retry_on_timeout=True,
-            )
+            kwargs = {
+                "decode_responses": True,
+                "socket_connect_timeout": 2.0,
+                "socket_timeout": 2.0,
+                "retry_on_timeout": False,
+            }
+            if redis_url.startswith("rediss://"):
+                kwargs["ssl_cert_reqs"] = None
+            client = aioredis.from_url(redis_url, **kwargs)
             # Test connectivity
             await client.ping()
             self.redis_client = client
