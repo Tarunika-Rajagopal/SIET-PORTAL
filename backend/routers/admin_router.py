@@ -1,6 +1,7 @@
-"""Admin router - CRUD for faculties, students, audit logs."""
-from fastapi import APIRouter, Depends
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from database import get_db
 from auth import require_roles
@@ -199,7 +200,39 @@ async def delete_student(
             detail=res.get("message", "Failed to delete student")
         )
     await cache_service.invalidate_students()
+    await cache_service.invalidate_teams()
     return res
+
+
+# ── Teams ───────────────────────────────────────────────────────
+@router.get("/teams")
+async def get_teams(
+    batch: Optional[str] = None,
+    className: Optional[str] = None,
+    search: Optional[str] = None,
+    user: User = Depends(require_roles("admin")),
+    service: AdminService = Depends(get_admin_service),
+):
+    return await service.get_teams(batch=batch, class_name=className, search=search)
+
+
+@router.delete("/teams/{team_id}")
+async def delete_team(
+    team_id: str,
+    user: User = Depends(require_roles("admin")),
+    service: AdminService = Depends(get_admin_service),
+):
+    res = await service.delete_team(team_id)
+    if not res.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=res.get("message", "Failed to delete team")
+        )
+    await cache_service.invalidate_teams()
+    await cache_service.invalidate_students()
+    await cache_service.invalidate_faculties()
+    return res
+
 
 
 # ── Audit Logs ──────────────────────────────────────────────────

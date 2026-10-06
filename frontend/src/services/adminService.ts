@@ -1,6 +1,8 @@
 import { AuditLog } from '../types';
 import { ApiClient } from './apiClient';
 import { queryClient, QUERY_KEYS } from '../lib/queryClient';
+import { MarksService } from './marksService';
+
 
 
 export interface AdminFaculty {
@@ -350,15 +352,100 @@ export const AdminService = {
     },
 
   async deleteStudent(rollNo: string): Promise<boolean> {
-        try{
-          await ApiClient.deleteStudent(rollNo); 
-          await queryClient.invalidateQueries({ queryKey: ['admin', 'students'] });
-        } catch(e){
-          console.error(e);
-          return false;
+    try {
+      await ApiClient.deleteStudent(rollNo);
+
+      // Clean local storage caches for advisor teams
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('siet_advisor_teams_')) {
+            localStorage.removeItem(k);
+          }
         }
-        return true;
+      } catch (e) {}
+
+      // Refresh and clean MarksService
+      MarksService.fetchAllMarks().catch(() => {});
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin', 'students'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin', 'teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['advisor', 'students'] }),
+        queryClient.invalidateQueries({ queryKey: ['advisor', 'teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['hod', 'students'] }),
+        queryClient.invalidateQueries({ queryKey: ['hod', 'teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['guide', 'teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['guide', 'dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['guide', 'submissions'] }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.faculties }),
+      ]);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('siet_data_updated'));
+        window.dispatchEvent(new Event('siet_marks_updated'));
+      }
+
+      return true;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   },
+
+  async getTeams(batch?: string, className?: string, search?: string): Promise<any[]> {
+    try {
+      return await ApiClient.getAdminTeams(batch, className, search);
+    } catch (e) {
+      console.error('Failed to fetch admin teams:', e);
+      return [];
+    }
+  },
+
+  async deleteTeam(teamId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await ApiClient.deleteAdminTeam(teamId);
+
+      // Clear marks cache for this team
+      MarksService.clearCacheForTeam(teamId);
+      MarksService.fetchAllMarks().catch(() => {});
+
+      // Clean local storage caches for advisor teams
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('siet_advisor_teams_')) {
+            localStorage.removeItem(k);
+          }
+        }
+      } catch (e) {}
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin', 'teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin', 'students'] }),
+        queryClient.invalidateQueries({ queryKey: ['advisor', 'teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['advisor', 'students'] }),
+        queryClient.invalidateQueries({ queryKey: ['hod', 'teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['hod', 'students'] }),
+        queryClient.invalidateQueries({ queryKey: ['guide', 'teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['guide', 'dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['guide', 'submissions'] }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.faculties }),
+      ]);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('siet_data_updated'));
+        window.dispatchEvent(new Event('siet_marks_updated'));
+      }
+
+      return res;
+    } catch (e: any) {
+      console.error('Failed to delete team:', e);
+      throw e;
+    }
+  },
+
+
 
   // ---------------- AUDIT LOG OPERATIONS ----------------
   getAuditLogs(): AuditLog[] {

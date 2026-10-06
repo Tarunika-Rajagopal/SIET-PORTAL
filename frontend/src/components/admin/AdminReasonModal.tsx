@@ -9,6 +9,7 @@ interface AdminReasonModalProps {
   targetDescription: string;
   rollNo?: string;
   onConfirm?: (reason: string) => Promise<void>;
+  onSuccess?: (msg: string) => void;
   confirmLabel?: string;
   isDanger?: boolean;
   onClose: () => void;
@@ -21,6 +22,7 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
   targetDescription,
   rollNo,
   onConfirm,
+  onSuccess,
   confirmLabel = "Confirm Action",
   isDanger = false,
   onClose
@@ -29,15 +31,18 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
 
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-  const [loading,setLoading] = useState<boolean>(false);
-  const handleSubmit = async(e: React.FormEvent) => {
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
       setError('Please provide a reason to fulfill system audit compliance.');
       return;
     }
     setLoading(true);
-    try{
+    setError('');
+
+    try {
       if (onConfirm) {
         await onConfirm(reason.trim());
       } else {
@@ -47,18 +52,23 @@ export const AdminReasonModal: React.FC<AdminReasonModalProps> = ({
         }
         await AdminService.deleteStudent(targetRoll);
       }
-    } catch(err: any){
+
+      const successMsg = `Student ${rollNo || ''} permanently removed from roster and database.`;
+      if (onSuccess) {
+        onSuccess(successMsg);
+      }
+
+      setReason('');
+      setError('');
+      onClose();
+    } catch (err: any) {
       console.error(err);
       setError(err?.message || 'Failed to delete student. Please try again.');
-      return;
-    } finally{
+    } finally {
       setLoading(false);
-      onClose();
     }
-    
-    setReason('');
-    setError('');
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs font-sans">

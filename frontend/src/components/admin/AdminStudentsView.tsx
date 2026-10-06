@@ -276,11 +276,13 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
         rollNo={studentToDelete?.rollNo}
         confirmLabel="Remove Candidate"
         isDanger={true}
+        onSuccess={(msg) => onShowToast(msg)}
         onClose={() => {
           setDeleteModalOpen(false);
           setStudentToDelete(null);
         }}
       />
+
 
     </div>
   );

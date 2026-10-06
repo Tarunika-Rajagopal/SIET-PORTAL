@@ -240,29 +240,11 @@ export const AdvisorSubmissionsService = {
 
     const subsMap = new Map<number, WeeklySubmission>();
 
-    // 1. Prioritize authoritative backend-loaded submissions attached to the team
+    // 1. Authoritative backend-loaded submissions attached to the team
     if ((team as any)?.submissions && Array.isArray((team as any).submissions)) {
       for (const s of (team as any).submissions) {
         if (s && typeof s === 'object' && s.week) {
           subsMap.set(Number(s.week), s);
-        }
-      }
-    }
-
-    // 2. Canonical student submissions if this team matches the active student team
-    const studentTeam = StudentService.getTeam();
-    const isStudentTeam = Boolean(
-      studentTeam && (
-        (team.teamId && studentTeam.id && team.teamId.toLowerCase().trim() === studentTeam.id.toLowerCase().trim()) ||
-        (Array.isArray(team.members) && Array.isArray(studentTeam.members) && team.members.some(tm => studentTeam.members.some(sm => sm.rollNo && sm.rollNo === tm.rollNo)))
-      )
-    );
-
-    if (isStudentTeam) {
-      const studentSubs = getCanonicalStudentSubmissions(team.title, team.teamId || studentTeam.id);
-      for (const s of studentSubs) {
-        if (s && s.week && !subsMap.has(s.week)) {
-          subsMap.set(s.week, s);
         }
       }
     }

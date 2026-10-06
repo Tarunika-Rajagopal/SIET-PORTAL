@@ -81,6 +81,8 @@ async def submit_deliverables(
     await cache_service.delete_prefix("cache:guide:")
     await cache_service.delete_prefix("cache:advisor:")
     await cache_service.delete_prefix("cache:hod:")
+    await cache_service.delete_prefix("cache:admin:")
+    await cache_service.delete_prefix("cache:teams")
     return res
 
 
@@ -95,6 +97,8 @@ async def delete_submission(
     await cache_service.delete_prefix("cache:guide:")
     await cache_service.delete_prefix("cache:advisor:")
     await cache_service.delete_prefix("cache:hod:")
+    await cache_service.delete_prefix("cache:admin:")
+    await cache_service.delete_prefix("cache:teams")
     return res
 
 

@@ -61,9 +61,12 @@ async def save_weekly_marks(
         req.gradedBy or user.name or "Head of Department",
     )
     await cache_service.invalidate_team(team_id)
-    await cache_service.delete_by_pattern("cache:student:*")
-    await cache_service.delete_by_pattern("cache:advisor:*")
-    await cache_service.delete_by_pattern("cache:guide:*")
+    await cache_service.delete_prefix("cache:student:")
+    await cache_service.delete_prefix("cache:advisor:")
+    await cache_service.delete_prefix("cache:guide:")
+    await cache_service.delete_prefix("cache:hod:")
+    await cache_service.delete_prefix("cache:admin:")
+    await cache_service.delete_prefix("cache:teams")
     return res
 
 
@@ -76,8 +79,11 @@ async def delete_weekly_marks(
 ):
     res = await service.delete_weekly_marks(team_id, week_number)
     await cache_service.invalidate_team(team_id)
-    await cache_service.delete_by_pattern("cache:student:*")
-    await cache_service.delete_by_pattern("cache:advisor:*")
-    await cache_service.delete_by_pattern("cache:guide:*")
+    await cache_service.delete_prefix("cache:student:")
+    await cache_service.delete_prefix("cache:advisor:")
+    await cache_service.delete_prefix("cache:guide:")
+    await cache_service.delete_prefix("cache:hod:")
+    await cache_service.delete_prefix("cache:admin:")
+    await cache_service.delete_prefix("cache:teams")
     return res
 

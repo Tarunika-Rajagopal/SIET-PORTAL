@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { StudentService, StudentDeliverableState } from '../../services/studentService';
 import { MarksService } from '../../services/marksService';
 import { ApiClient } from '../../services/apiClient';
-import { invalidateTeamsQuery } from '../../hooks/useQueries';
+import { invalidateTeamsQuery, invalidateGuideDataQuery, invalidateHodTeamsQuery } from '../../hooks/useQueries';
 import { Bell, Clock, MapPin, AlertTriangle, Lock, Unlock, Check, Edit3, Send, RefreshCw } from 'lucide-react';
 
 interface SubmissionViewProps {
@@ -242,7 +242,7 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
         if (serverTeam) {
           setTeam(serverTeam);
         }
-        if (Array.isArray(serverSubs) && serverSubs.length > 0) {
+        if (Array.isArray(serverSubs)) {
           setSubmissions(serverSubs);
         }
 
@@ -297,6 +297,25 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       isMounted = false;
     };
   }, [currentSubmissionNumber, teamId]);
+
+  const [, setMarksTick] = useState<number>(0);
+  useEffect(() => {
+    if (!teamId) return;
+    MarksService.fetchTeamMarks(teamId).catch(() => {});
+    const unsub = MarksService.subscribe(() => {
+      setMarksTick(n => n + 1);
+    });
+    const handleSync = () => {
+      setMarksTick(n => n + 1);
+    };
+    window.addEventListener('siet_marks_updated', handleSync);
+    window.addEventListener('siet_data_updated', handleSync);
+    return () => {
+      unsub();
+      window.removeEventListener('siet_marks_updated', handleSync);
+      window.removeEventListener('siet_data_updated', handleSync);
+    };
+  }, [teamId, currentSubmissionNumber]);
 
   const hasMilestoneBeenSubmitted = Boolean(
     (currentSub && (currentSub.status === 'Submitted' || currentSub.status === 'Approved' || isRevisionRequired)) ||
@@ -404,7 +423,10 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       }
 
       invalidateTeamsQuery();
+      invalidateGuideDataQuery();
+      invalidateHodTeamsQuery();
       window.dispatchEvent(new Event('siet_data_updated'));
+      window.dispatchEvent(new Event('siet_student_submissions_updated'));
 
       setIsEditing(false);
       setIsSubmitting(false);

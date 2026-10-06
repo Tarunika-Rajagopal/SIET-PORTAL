@@ -2,6 +2,9 @@ import { AdminService, AdminStudent } from './adminService';
 import { StudentService } from './studentService';
 import { ApiClient } from './apiClient';
 import { AdvisorHistoryService } from './advisorHistoryService';
+import { MarksService } from './marksService';
+import { queryClient, QUERY_KEYS } from '../lib/queryClient';
+
 
 export interface TeamMemberRecord {
   rollNo: string;
@@ -948,28 +951,48 @@ export const AdvisorService = {
   async deleteTeam(className: string, teamId: string, advisorName?: string): Promise<{ success: boolean; message: string }> {
     let teams = this.getTeamsForClass(className);
     const targetTeam = teams.find(t => t.teamId === teamId || t.teamNo === teamId || (t as any).id === teamId);
-    if (!targetTeam) {
-      return { success: false, message: "Team not found." };
-    }
+    const targetTeamId = targetTeam?.teamId || teamId;
+    const teamNo = targetTeam?.teamNo || teamId;
+    const memberRolls = (targetTeam?.members || []).map(m => m.rollNo);
 
-    const memberRolls = (targetTeam.members || []).map(m => m.rollNo);
-
-    // Call backend API if possible
+    // 1. Call backend API to completely purge team, submissions, marks, and reviews from DB
     try {
-      await ApiClient.deleteAdvisorTeam(targetTeam.teamId || teamId);
+      await ApiClient.deleteAdvisorTeam(targetTeamId);
     } catch (apiErr: any) {
-      console.warn("Backend delete team warning, syncing local state:", apiErr);
+      console.warn("Backend delete advisor team warning:", apiErr);
     }
 
-    // Filter out deleted team from class
-    teams = teams.filter(t => t.teamId !== targetTeam.teamId && t.teamNo !== targetTeam.teamNo);
+    // 2. Clear marks in MarksService immediately
+    MarksService.clearCacheForTeam(targetTeamId);
+    MarksService.clearCacheForTeam(teamNo);
+    MarksService.fetchAllMarks().catch(() => {});
+
+    // 3. Remove deleted team from class in memory & localStorage
+    teams = teams.filter(t => t.teamId !== targetTeamId && t.teamNo !== teamNo && (t as any).id !== targetTeamId);
     this.saveTeamsForClass(className, teams);
 
-    // Reset student assignments in AdminService to Unassigned
+    // Clean all class team localStorage keys
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('siet_advisor_teams_')) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const updated = list.filter(t => t.teamId !== targetTeamId && t.teamNo !== teamNo && (t as any).id !== targetTeamId);
+              localStorage.setItem(k, JSON.stringify(updated));
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 4. Reset student assignments in AdminService to Unassigned
     try {
       const allStudents = await AdminService.getStudents();
       allStudents.forEach(s => {
-        if (memberRolls.includes(s.rollNo)) {
+        if (memberRolls.includes(s.rollNo) || s.teamNo === teamNo) {
           s.teamNo = "Unassigned";
           s.projectTitle = "";
           s.guide = "Unassigned";
@@ -980,14 +1003,26 @@ export const AdvisorService = {
       console.warn("Could not sync admin students:", e);
     }
 
+    // 5. Invalidate all React Query caches across Advisor, HOD, Guide, Student, Admin
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['advisor', 'teams'] }),
+      queryClient.invalidateQueries({ queryKey: ['advisor', 'students'] }),
+      queryClient.invalidateQueries({ queryKey: ['hod', 'teams'] }),
+      queryClient.invalidateQueries({ queryKey: ['hod', 'students'] }),
+      queryClient.invalidateQueries({ queryKey: ['guide', 'teams'] }),
+      queryClient.invalidateQueries({ queryKey: ['guide', 'dashboard'] }),
+      queryClient.invalidateQueries({ queryKey: ['guide', 'submissions'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'students'] }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.faculties }),
+    ]);
 
-    // Record in Advisor History Log
+    // 6. Record in Advisor History Log
     try {
       AdvisorHistoryService.addLog(
         className,
         "Team Deletion",
-        targetTeam.teamNo,
-        `Dissolved ${targetTeam.teamNo} ("${targetTeam.title || 'Untitled Project'}"). ${memberRolls.length} student(s) marked as Unassigned.`,
+        teamNo,
+        `Dissolved ${teamNo} ("${targetTeam?.title || 'Untitled Project'}"). ${memberRolls.length} student(s) marked as Unassigned. Submissions & marks permanently purged.`,
         advisorName || "Class Advisor",
         "Class Advisor"
       );
@@ -996,13 +1031,17 @@ export const AdvisorService = {
     }
 
     notifyListeners();
-    window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
-    window.dispatchEvent(new CustomEvent('siet_data_updated'));
-    window.dispatchEvent(new CustomEvent('siet_advisor_teams_updated'));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('siet_admin_students_updated'));
+      window.dispatchEvent(new CustomEvent('siet_data_updated'));
+      window.dispatchEvent(new CustomEvent('siet_marks_updated'));
+      window.dispatchEvent(new CustomEvent('siet_advisor_teams_updated'));
+    }
 
     return {
       success: true,
-      message: `Team ${targetTeam.teamNo} was successfully deleted.`
+      message: `Team ${teamNo} and all associated data permanently deleted across all portals.`
     };
   }
 };
+

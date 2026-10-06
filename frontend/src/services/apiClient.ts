@@ -501,6 +501,20 @@ export const ApiClient = {
       body:JSON.stringify(student),
     })
    },
+   async getAdminTeams(batch?: string, className?: string, search?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (batch && batch !== 'ALL') params.append('batch', batch);
+    if (className && className !== 'ALL') params.append('className', className);
+    if (search && search.trim()) params.append('search', search.trim());
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return request<any[]>(`/admin/teams${qs}`);
+   },
+   async deleteAdminTeam(teamId: string): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/admin/teams/${encodeURIComponent(teamId)}`, {
+      method: 'DELETE',
+    });
+   },
+
    async assignAdvisor(email:string,batch:string,className:string){
     // console.log('Endpoints', classSection);
     return request<any>(`/admin/faculties/assign-advisor`,{

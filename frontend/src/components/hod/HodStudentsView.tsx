@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { HodService, HodTeamDetails } from '../../services/hodService';
-import { useHodFilterOptions, useHodTeams, useHodAdvisors, invalidateHodTeamsQuery } from '../../hooks/useQueries';
+import { useHodFilterOptions, useHodTeams, useHodAdvisors, invalidateHodTeamsQuery, invalidateTeamsQuery } from '../../hooks/useQueries';
 import { MarksService } from '../../services/marksService';
 import { HodHistoryService } from '../../services/hodHistoryService';
 import { StudentService } from '../../services/studentService';
@@ -224,7 +224,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
       console.warn('[HodStudentsView] Backend saveWeeklyMarks failed, continuing with local storage:', e);
     }
 
-    // 2. Save to MarksService under subNum (and 0 if submission 1)
+    // 2. Save to MarksService under subNum alone
     MarksService.saveWeeklyMarks(
       activeModalTeam.id,
       subNum,
@@ -232,23 +232,15 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
       draftRemarks,
       'HOD Evaluation'
     );
-    if (subNum === 1) {
-      MarksService.saveWeeklyMarks(
-        activeModalTeam.id,
-        0,
-        draftMemberMarks,
-        draftRemarks,
-        'HOD Evaluation'
-      );
-    }
 
-
-    // 4. Dispatch events
+    // 3. Dispatch events & invalidate queries
     window.dispatchEvent(new Event('siet_marks_updated'));
     window.dispatchEvent(new Event('siet_data_updated'));
     window.dispatchEvent(new Event('storage'));
 
     invalidateHodTeamsQuery();
+    invalidateTeamsQuery();
+    MarksService.fetchAllMarks().catch(() => {});
 
     setIsEditingMarks(false);
     setSaveSuccessMsg('Marks saved and synchronized successfully to Student, Advisor, and Guide portals.');

@@ -300,11 +300,11 @@ async def test_full_matrix():
                 await session.commit()
             
             # Ensure student user exists for Team 01
-            u01 = (await session.execute(select(User).where(User.email == "student01@srishakthi.ac.in"))).scalar_one_or_none()
+            u01 = (await session.execute(select(User).where(User.email == "student@srishakthi.ac.in"))).scalar_one_or_none()
             if not u01:
                 u01 = User(
                     id=uuid.uuid4(),
-                    email="student01@srishakthi.ac.in",
+                    email="student@srishakthi.ac.in",
                     password=hash_password("student@123"),
                     name="Student One",
                     roll_no="714023104001",
@@ -319,7 +319,7 @@ async def test_full_matrix():
 
         # Login as Team 01 Student
         s01_res = await ac.post("/api/v1/auth/login", json={
-            "emailOrRoll": "student01@srishakthi.ac.in",
+            "emailOrRoll": "student@srishakthi.ac.in",
             "password": "student@123"
         })
         assert s01_res.status_code == 200

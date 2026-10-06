@@ -8,7 +8,7 @@ import GlassSurface from './GlassSurface';
 export const LoginPage: React.FC = () => {
   const { login, currentUser } = useAuth();
   const navigate = useNavigate();
-  const [emailOrRoll, setEmailOrRoll] = useState('student@srishakthi.ac.in');
+  const [emailOrRoll, setEmailOrRoll] = useState('vishal.r@example.com');
   const [password, setPassword] = useState('student@123');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -222,7 +222,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={emailOrRoll}
                   onChange={(e) => setEmailOrRoll(e.target.value)}
-                  placeholder="e.g. student@srishakthi.ac.in"
+                  placeholder="e.g. vishal.r@example.com"
                   className="w-full pl-10 pr-4 py-2.5 bg-white/65 hover:bg-white/80 focus:bg-white/95 backdrop-blur-md border border-white/90 rounded-xl text-xs font-medium text-[#111111] placeholder:text-[#175A67]/60 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.95),0_2px_8px_rgba(23,90,103,0.05)] focus:outline-none focus:ring-2 focus:ring-[#175A67]/30 focus:border-[#175A67] transition"
                 />
               </div>
@@ -284,7 +284,7 @@ export const LoginPage: React.FC = () => {
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => handleFillDemo('student@srishakthi.ac.in', 'student@123')}
+                onClick={() => handleFillDemo('vishal.r@example.com', 'student@123')}
                 className="px-2.5 py-1.5 rounded-lg bg-white/70 hover:bg-white/90 backdrop-blur-md text-[#111111] border border-white/90 text-[11px] font-bold transition shadow-[0_2px_8px_rgba(23,90,103,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.95)] flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <span>👨‍🎓</span> Student
@@ -300,7 +300,7 @@ export const LoginPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => handleFillDemo('dr.karthik@siet.ac.in', 'faculty@123')}
+                onClick={() => handleFillDemo('eerewr@siet.ac.in', 'faculty@123')}
                 className="px-2.5 py-1.5 rounded-lg bg-white/70 hover:bg-white/90 backdrop-blur-md text-[#111111] border border-white/90 text-[11px] font-bold transition shadow-[0_2px_8px_rgba(23,90,103,0.06),inset_0_1px_1.5px_rgba(255,255,255,0.95)] flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <span>📋</span> Advisor

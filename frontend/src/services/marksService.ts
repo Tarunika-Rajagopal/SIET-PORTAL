@@ -92,14 +92,17 @@ export const MarksService = {
   async fetchAllMarks(): Promise<Record<string, Record<number, WeeklyMarksRecord>>> {
     try {
       const serverMarks = await ApiClient.getAllWeeklyMarks();
-      if (serverMarks && typeof serverMarks === 'object' && Object.keys(serverMarks).length > 0) {
-        cachedMarks = { ...cachedMarks, ...serverMarks };
+      if (serverMarks && typeof serverMarks === 'object') {
+        const nextCached: Record<string, Record<number, WeeklyMarksRecord>> = {};
         for (const [key, weekObj] of Object.entries(serverMarks)) {
+          nextCached[key] = weekObj as any;
           for (const alias of getAliasesForTeam(key)) {
-            cachedMarks[alias] = { ...(cachedMarks[alias] || {}), ...weekObj };
+            nextCached[alias] = { ...(nextCached[alias] || {}), ...(weekObj as any) };
           }
         }
+        cachedMarks = nextCached;
         notifyListeners();
+        dispatchGlobalEvents();
         return cachedMarks;
       }
     } catch (e) {
@@ -107,6 +110,19 @@ export const MarksService = {
     }
     return cachedMarks;
   },
+
+  clearCacheForTeam(teamId: string): void {
+    if (!teamId) return;
+    const aliases = [teamId, ...getAliasesForTeam(teamId)].map(a => a.toLowerCase());
+    for (const key of Object.keys(cachedMarks)) {
+      if (aliases.includes(key.toLowerCase())) {
+        delete cachedMarks[key];
+      }
+    }
+    notifyListeners();
+    dispatchGlobalEvents();
+  },
+
 
   /**
    * Fetch marks for a specific team from the backend.
@@ -284,6 +300,7 @@ export const MarksService = {
       .then(() => {
         // Refresh from backend to get server-computed values
         this.fetchTeamMarks(teamId).catch(() => {});
+        this.fetchAllMarks().catch(() => {});
       })
       .catch(err => {
         console.warn('Failed to persist marks to backend:', err);

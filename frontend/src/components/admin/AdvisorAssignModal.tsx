@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, UserCheck, Check, AlertTriangle } from 'lucide-react';
-import { AdminFaculty, AdminService } from '../../services/adminService';
+import { AdminService } from '../../services/adminService';
 import { useFaculties, invalidateFacultiesQuery } from '../../hooks/useQueries';
 
 interface AdvisorAssignModalProps {
@@ -21,18 +21,37 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
   if (!isOpen) return null;
   
   const { data: allFaculties = [] } = useFaculties();
-  // Faculties not already assigned to this exact class
-  const candidates = allFaculties.filter(f => !(f.advisorBatch === batch && f.advisorClass === className));
+
+  // Only show unassigned advisors (faculty not currently assigned as advisor to any class)
+  const candidates = allFaculties
+    .filter(f => !f.advisorClass)
+    .sort((a, b) => {
+      const aIsAdvisor = a.role === 'Advisor' || a.role === 'Advisor & Guide';
+      const bIsAdvisor = b.role === 'Advisor' || b.role === 'Advisor & Guide';
+      if (aIsAdvisor && !bIsAdvisor) return -1;
+      if (!aIsAdvisor && bIsAdvisor) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   const [id, setID] = useState(candidates[0]?.id || '');
   const [reason, setReason] = useState(`Designated Class Advisor for ${className} (${batch})`);
   const [error, setError] = useState('');
 
+  // Sync selected faculty ID whenever candidates list updates
+  useEffect(() => {
+    if (candidates.length > 0) {
+      setID(candidates[0].id);
+    } else {
+      setID('');
+    }
+    setError('');
+  }, [batch, className, allFaculties]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetId = id || candidates[0]?.id;
     if (!targetId) {
-      setError('Please select a faculty member.');
+      setError('Please select an unassigned faculty member.');
       return;
     }
     try {
@@ -59,12 +78,13 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-serif font-bold text-[#111111]">Assign Class Advisor</h3>
-              <p className="text-xs text-[#75695A]">Designate faculty advisor for {className}</p>
+              <p className="text-xs text-[#75695A]">Designate unassigned advisor for {className}</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] flex items-center justify-center transition"
+            className="w-8 h-8 rounded-xl hover:bg-[#EDE7DB] text-[#75695A] hover:text-[#111111] flex items-center justify-center transition cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -88,18 +108,26 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
           )}
 
           <div>
-            <label className="block text-[#75695A] font-medium mb-1">Select Faculty Member</label>
-            <select
-              value={id}
-              onChange={(e) => setID(e.target.value)}
-              className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
-            >
-              {candidates.map(f => (
-                <option key={f.id} value={f.id}>
-                  {f.name} ({f.designation} • {f.role})
-                </option>
-              ))}
-            </select>
+            <label className="block text-[#75695A] font-medium mb-1">
+              Select Unassigned Advisor ({candidates.length} available)
+            </label>
+            {candidates.length > 0 ? (
+              <select
+                value={id}
+                onChange={(e) => setID(e.target.value)}
+                className="w-full px-3 py-2 bg-[#F8F5EE] border border-[#D8CCBA] rounded-xl font-medium text-[#111111] focus:outline-none focus:border-[#111111]"
+              >
+                {candidates.map(f => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({f.designation} • {f.role === 'Advisor' || f.role === 'Advisor & Guide' ? 'Advisor' : f.role})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs">
+                No unassigned advisors available. All faculty currently have assigned classes.
+              </div>
+            )}
           </div>
 
           <div>
@@ -120,13 +148,18 @@ export const AdvisorAssignModal: React.FC<AdvisorAssignModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-[#75695A] font-medium hover:text-[#111111] transition"
+              className="px-4 py-2 rounded-xl text-[#75695A] font-medium hover:text-[#111111] transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-[#111111] hover:bg-[#292725] text-white font-medium rounded-xl shadow-sm transition flex items-center gap-2"
+              disabled={candidates.length === 0}
+              className={`px-5 py-2 font-medium rounded-xl shadow-sm transition flex items-center gap-2 ${
+                candidates.length === 0
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  : 'bg-[#111111] hover:bg-[#292725] text-white cursor-pointer'
+              }`}
             >
               <Check size={14} />
               <span>Confirm Appointment</span>

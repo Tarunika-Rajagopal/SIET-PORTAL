@@ -10,7 +10,7 @@ import {
   MessageSquare, RefreshCw, X, FileCode, ExternalLink, Image as ImageIcon,
   Award, User, Users, Download, Check, XCircle, Bell, MapPin, Edit3, ChevronRight, Star
 } from 'lucide-react';
-import { invalidateTeamsQuery } from '../../hooks/useQueries';
+import { invalidateTeamsQuery, invalidateGuideDataQuery, invalidateHodTeamsQuery } from '../../hooks/useQueries';
 
 interface MySubmissionViewProps {
   onSuccess?: (msg: string) => void;
@@ -49,7 +49,7 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
             setTeam(StudentService.getTeam());
           }
 
-          if (Array.isArray(fetchedSubs) && fetchedSubs.length > 0) {
+          if (Array.isArray(fetchedSubs)) {
             setSubmissions(fetchedSubs);
           } else {
             setSubmissions(StudentService.getSubmissions() || []);
@@ -77,7 +77,35 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
   }, []);
 
   const teamId = team?.id || '';
-  const memberRollNos = team?.members?.map(m => m.rollNo) || [];
+  const memberRollNos = team?.members?.map((m: any) => m.rollNo) || [];
+
+  // Live synchronisation of marks for this team
+  useEffect(() => {
+    if (!teamId) return;
+    let isMounted = true;
+    const refreshMarks = () => {
+      if (!isMounted) return;
+      setBackendMarks(MarksService.getAllTeamMarks(teamId, memberRollNos));
+    };
+    refreshMarks();
+
+    MarksService.fetchTeamMarks(teamId)
+      .then(() => {
+        refreshMarks();
+      })
+      .catch(() => {});
+
+    const unsubscribe = MarksService.subscribe(refreshMarks);
+    window.addEventListener('siet_marks_updated', refreshMarks);
+    window.addEventListener('siet_data_updated', refreshMarks);
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+      window.removeEventListener('siet_marks_updated', refreshMarks);
+      window.removeEventListener('siet_data_updated', refreshMarks);
+    };
+  }, [teamId, memberRollNos.length]);
 
   // Determine active submission:
   // Automatically shifts to next submission sequentially as guide approves
@@ -158,7 +186,10 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
       setResubmitModalOpen(false);
       if (detailModalOpen) setDetailModalOpen(false);
       invalidateTeamsQuery();
+      invalidateGuideDataQuery();
+      invalidateHodTeamsQuery();
       window.dispatchEvent(new Event('siet_data_updated'));
+      window.dispatchEvent(new Event('siet_student_submissions_updated'));
       if (onSuccess) {
         const subNum = activeWeekSub.week;
         onSuccess(`Submission ${subNum} milestone updated and submitted for Guide re-review.`);
@@ -486,83 +517,6 @@ export const MySubmissionView: React.FC<MySubmissionViewProps> = ({ onSuccess, o
 
               {/* Modal Scrollable Body */}
               <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700 flex-1">
-
-                {/* Official Evaluation & Marks Record */}
-                {isModalApproved && (
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-mint-50/80 via-white to-slate-50 border border-mint-200 shadow-2xs space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-mint-100 pb-2">
-                      <div className="flex items-center gap-2">
-                        <Award size={16} className="text-amber-500" />
-                        <span className="font-black text-xs text-slate-900 uppercase tracking-wide">
-                          Official Evaluation &amp; Marks Record
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        Evaluated by: <strong className="text-slate-800 font-bold">{modalMarks?.gradedBy || activeWeekSub.guideName || 'Faculty Guide'}</strong>
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* My Individual Score */}
-                      {(() => {
-                        const currentUser = AuthService.getCurrentUser();
-                        const myRoll = currentUser?.rollNo || (currentUser as any)?.roll_number || '';
-                        const cleanRoll = String(myRoll).trim().toLowerCase();
-                        const myScore = modalMarks?.memberMarks
-                          ? (modalMarks.memberMarks[myRoll] ??
-                             modalMarks.memberMarks[String(myRoll).trim()] ??
-                             Object.entries(modalMarks.memberMarks).find(([k]) => k.trim().toLowerCase() === cleanRoll)?.[1] ??
-                             modalMarks.teamAverage)
-                          : (activeWeekSub.score || modalMarks?.teamAverage || null);
-                        return (
-                          <div className="p-3 bg-white rounded-xl border border-mint-300 ring-1 ring-mint-300/40 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg bg-mint-100 text-mint-800 flex items-center justify-center font-black">
-                                <Award size={16} className="text-amber-500" />
-                              </div>
-                              <div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Individual Score</span>
-                                <span className="text-xs font-black text-slate-900">{myRoll || 'Candidate'}</span>
-                              </div>
-                            </div>
-                            <span className="px-2.5 py-1 rounded-lg bg-mint-600 text-white font-black text-xs shadow-2xs">
-                              {myScore !== null && myScore !== undefined ? `${myScore} / 100` : 'Pending'}
-                            </span>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Team Score */}
-                      <div className="p-3 bg-white rounded-xl border border-[#E2E8E4] flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-black">
-                            <Users size={16} />
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Team Score / Average</span>
-                            <span className="text-xs font-black text-slate-900">All Members</span>
-                          </div>
-                        </div>
-                        <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-white font-black text-xs shadow-2xs">
-                          {modalMarks?.teamAverage ?? activeWeekSub.score ?? 'Pending'} / 100
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Guide Remarks / Comments */}
-                    {(modalMarks?.remarks || activeWeekSub.comments) && (
-                      <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 text-xs mt-2">
-                        <div className="flex items-center gap-1.5 font-bold text-amber-900 mb-1">
-                          <MessageSquare size={13} className="text-amber-600" />
-                          <span>Guide Feedback &amp; Evaluation Remarks</span>
-                        </div>
-                        <p className="text-slate-700 italic leading-relaxed whitespace-pre-wrap">
-                          {modalMarks?.remarks || activeWeekSub.comments}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Complete Submission by Student */}
                 <div className="space-y-4">

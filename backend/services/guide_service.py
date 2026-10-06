@@ -201,49 +201,6 @@ class GuideService:
                 "guideReviewDate": s.guide_review_date or "",
             })
 
-        # Also include any evaluated weekly marks that don't have an explicit weekly_submissions row
-        existing_sub_keys = {(s.team_id, s.week) for s in subs}
-        for (team_uuid, week_num), wm in marks_map.items():
-            if (team_uuid, week_num) not in existing_sub_keys and week_num > 0:
-                t = team_map.get(team_uuid)
-                if not t:
-                    continue
-                digits = "".join(filter(str.isdigit, t.team_no or "")) if t else ""
-                team_number = int(digits) if digits else 1
-                member_marks = {}
-                for mm in (wm.member_marks or []):
-                    member_marks[mm.roll_no] = float(mm.mark) if mm.mark is not None else 0
-                score_val = float(wm.team_average) if wm.team_average else None
-
-                out.append({
-                    "id": f"wm-{wm.id}",
-                    "weekNumber": week_num,
-                    "teamDbId": str(t.id),
-                    "teamId": t.team_id or str(t.id),
-                    "teamNo": t.team_no or "",
-                    "teamNumber": team_number,
-                    "classSection": t.class_name or "",
-                    "teamLeader": t.lead_student or "",
-                    "projectTitle": t.project_title or "",
-                    "status": "Approved" if (score_val and score_val > 0) else "Submitted",
-                    "hasContent": True,
-                    "evaluationStatus": "Approved" if (score_val and score_val > 0) else "Pending",
-                    "submissionDate": wm.graded_at.strftime("%d %b %Y") if wm.graded_at else "",
-                    "score": score_val,
-                    "memberMarks": member_marks,
-                    "abstractSummary": t.abstract or "",
-                    "problemStatement": t.problem_statement or "",
-                    "proposedSolution": t.proposed_solution or "",
-                    "technologyUsed": "",
-                    "technologiesUsed": [],
-                    "techStack": "",
-                    "obstaclesFaced": "",
-                    "githubUrl": t.repo_url or "",
-                    "liveDemoUrl": t.demo_url or "",
-                    "comments": wm.remarks or "",
-                    "guideReviewDate": wm.graded_at.strftime("%d %b %Y") if wm.graded_at else "",
-                })
-
         return out
 
     async def review_submission(self, submission_id: str, req: ReviewSubmissionRequest, user: User) -> Dict[str, Any]:
@@ -343,19 +300,8 @@ class GuideService:
             raise HTTPException(403, "You are not authorized to review submissions for this team")
 
         s = await self.sub_repo.get_by_team_and_week(team.id, week)
-        today = datetime.now().strftime("%d %b %Y")
         if not s:
-            s = WeeklySubmission(
-                id=uuid.uuid4(),
-                team_id=team.id,
-                week=week,
-                title=f"Week {week} Deliverables",
-                status="Submitted",
-                submission_date=today,
-                project_title=team.project_title or "",
-                guide_name=team.guide_name or user.name or "",
-            )
-            await self.sub_repo.create(s)
+            raise HTTPException(400, f"Cannot review: Team has not submitted deliverables for Week {week} yet.")
 
         return await self.review_submission(str(s.id), req, user)
 

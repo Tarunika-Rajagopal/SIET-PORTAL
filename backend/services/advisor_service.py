@@ -13,6 +13,8 @@ from repositories.student_repository import StudentRepository
 from repositories.faculty_repository import FacultyRepository
 from repositories.audit_repository import AuditRepository
 from repositories.submission_repository import SubmissionRepository
+from services.team_cleanup import purge_team_completely
+
 
 def _ser_team(t: Team) -> Dict[str, Any]:
     members = []
@@ -149,46 +151,6 @@ class AdvisorService:
                     "guideReviewDate": s.guide_review_date or (wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else ""),
                     "comments": s.comments or (wm.remarks if wm else "") or "",
                 })
-
-            # Also include evaluated milestones in WeeklyMark that don't have an explicit WeeklySubmission row
-            for (team_uuid, week_num), wm in marks_by_team_week.items():
-                if team_uuid == t.id and week_num not in seen_weeks and week_num > 0:
-                    seen_weeks.add(week_num)
-                    member_marks = {}
-                    if wm and wm.member_marks:
-                        for mm in wm.member_marks:
-                            if mm.roll_no:
-                                member_marks[mm.roll_no.strip()] = float(mm.mark) if mm.mark is not None else 0.0
-                    score_val = float(wm.team_average) if wm.team_average is not None else None
-                    submissions_list.append({
-                        "id": f"wm-{wm.id}",
-                        "week": week_num,
-                        "weekNumber": week_num,
-                        "title": f"Submission {week_num} Deliverables",
-                        "dueDate": f"Submission {week_num}",
-                        "status": "Approved" if (score_val and score_val > 0) else "Submitted",
-                        "submissionDate": wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else "",
-                        "score": score_val,
-                        "memberMarks": member_marks,
-                        "maxScore": 100.0,
-                        "projectTitle": t.project_title or "",
-                        "problemStatement": t.problem_statement or "",
-                        "solution": t.proposed_solution or "",
-                        "proposedSolution": t.proposed_solution or "",
-                        "technologyUsed": "",
-                        "technologiesUsed": [],
-                        "obstaclesFaced": "",
-                        "problemsFaced": "",
-                        "abstract": t.abstract or "",
-                        "abstractSummary": t.abstract or "",
-                        "repoUrl": t.repo_url or "",
-                        "githubUrl": t.repo_url or "",
-                        "demoUrl": t.demo_url or "",
-                        "liveDemoUrl": t.demo_url or "",
-                        "guideName": wm.graded_by or t.guide_name or "",
-                        "guideReviewDate": wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else "",
-                        "comments": wm.remarks or "",
-                    })
 
             st["submissions"] = sorted(submissions_list, key=lambda x: x["week"])
             out.append(st)
@@ -756,29 +718,26 @@ class AdvisorService:
             return {"success": False, "message": "Team not found"}
         team_no = team.team_no
         class_name = team.class_name or ""
-        members = await self.team_repo.list_members_by_team_id(team.id)
-        for tm in members:
-            student = await self.student_repo.get_by_roll_no(tm.roll_no)
-            if student:
-                student.team_no = "Unassigned"
-                student.project_title = ""
-                student.guide = "Unassigned"
-                student.guide_email = ""
-            await self.team_repo.remove_member(tm)
-        await self.team_repo.delete(team)
+        
+        # Purge all submissions, marks, notices, reviews, checklist, and reset members
+        res = await purge_team_completely(self.session, team)
+        purged_count = res.get("purgedMembersCount", 0)
+
         try:
             await self.log_advisor_history(
                 class_section=class_name,
                 action_type="Team Deletion",
                 target=team_no,
-                details=f"Team {team_no} dissolved. {len(members)} student(s) marked as Unassigned.",
+                details=f"Team {team_no} dissolved. {purged_count} student(s) marked as Unassigned. Submissions & marks purged.",
                 advisor_name="Class Advisor",
                 role="Class Advisor",
             )
         except Exception:
             pass
+
         await self.session.commit()
-        return {"success": True, "message": f"Team {team_no} deleted"}
+        return {"success": True, "message": f"Team {team_no} permanently deleted from database"}
+
 
     async def   get_advisor_history(self, class_section: str = "") -> List[Dict[str, Any]]:
         if not class_section:

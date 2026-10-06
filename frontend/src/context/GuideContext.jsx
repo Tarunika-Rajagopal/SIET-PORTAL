@@ -213,8 +213,12 @@ export const GuideProvider = ({ children }) => {
       fetchDashboard();
     };
     window.addEventListener('siet_data_updated', handleRemoteUpdate);
+    window.addEventListener('siet_marks_updated', handleRemoteUpdate);
+    const unsubMarks = MarksService.subscribe(handleRemoteUpdate);
     return () => {
       window.removeEventListener('siet_data_updated', handleRemoteUpdate);
+      window.removeEventListener('siet_marks_updated', handleRemoteUpdate);
+      unsubMarks();
     };
   }, [fetchDashboard]);
 

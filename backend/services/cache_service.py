@@ -145,16 +145,24 @@ class CacheService:
     async def invalidate_students(self):
         await self.delete_prefix("cache:admin:students")
         await self.delete_prefix("cache:advisor:students")
+        await self.delete_prefix("cache:hod:students")
+        await self.delete_prefix("cache:student:")
 
     async def invalidate_teams(self):
         await self.delete_prefix("cache:teams")
-        await self.delete_prefix("cache:advisor:teams")
+        await self.delete_prefix("cache:advisor:")
+        await self.delete_prefix("cache:guide:")
+        await self.delete_prefix("cache:hod:")
+        await self.delete_prefix("cache:student:")
+        await self.delete_prefix("cache:admin:")
 
     async def invalidate_team(self, team_id: Optional[str] = None):
         await self.delete_prefix("cache:student:")
-        await self.delete_prefix("cache:advisor:teams")
-        await self.delete_prefix("cache:guide:teams")
-        await self.delete_prefix("cache:hod:teams")
+        await self.delete_prefix("cache:advisor:")
+        await self.delete_prefix("cache:guide:")
+        await self.delete_prefix("cache:hod:")
+        await self.delete_prefix("cache:admin:")
+
 
 
 cache_service = CacheService()

@@ -13,6 +13,8 @@ from repositories.user_repository import UserRepository
 from repositories.student_repository import StudentRepository
 from repositories.audit_repository import AuditRepository
 from repositories.team_repository import TeamRepository
+from services.team_cleanup import purge_team_completely, purge_student_completely
+
 
 class AdminService:
     def __init__(self, session: AsyncSession):
@@ -200,11 +202,16 @@ class AdminService:
         return {"success": True, "message": f"Guide role removed from {f.name}"}
 
     async def assign_advisor(self, faculty_id: str, batch: str, className: str) -> Dict[str, Any]:
+        f = None
+        fid = None
         try:
             fid = uuid.UUID(faculty_id)
+            f = await self.faculty_repo.get_by_id(fid)
         except Exception:
-            return {"success": False, "message": "Invalid faculty ID"}
-        f = await self.faculty_repo.get_by_id(fid)
+            f = await self.faculty_repo.get_by_email(faculty_id)
+            if f:
+                fid = f.id
+
         if not f:
             return {"success": False, "message": "Faculty not found"}
         existing = await self.faculty_repo.get_advisor_for_class(batch, className, exclude_id=fid)
@@ -215,10 +222,33 @@ class AdminService:
                 existing.role = "None"
             existing.advisor_batch = None
             existing.advisor_class = None
+            # Update replaced advisor in users table
+            await self.session.execute(
+                update(User)
+                .where(User.email.ilike(existing.email.strip()))
+                .values(
+                    advisor_class=None,
+                    advisor_batch=None,
+                    role="guide" if existing.role == "Guide" else "student",
+                    active_role="guide" if existing.role == "Guide" else "student"
+                )
+            )
         f.role = "Advisor & Guide" if f.role == "Guide" else "Advisor"
         f.advisor_batch = batch
         f.advisor_class = className
         f.status = "Active"
+
+        # Synchronize faculty user record in users table
+        await self.session.execute(
+            update(User)
+            .where(User.email.ilike(f.email.strip()))
+            .values(
+                advisor_class=className,
+                advisor_batch=batch,
+                role="advisor",
+                active_role="advisor"
+            )
+        )
 
         # Synchronize all teams in this class section
         await self.session.execute(
@@ -379,15 +409,61 @@ class AdminService:
         return {"success": True, "message": f"Student {clean_name} enrolled", "rollNo": clean_roll}
 
     async def delete_student(self, roll_no: str) -> Dict[str, Any]:
-        s = await self.student_repo.get_by_roll_no(roll_no)
-        if not s:
-            return {"success": False, "message": "Student not found"}
-        await self.student_repo.delete(s)
-        u = await self.user_repo.get_by_roll_no(roll_no)
-        if u:
-            await self.user_repo.delete(u)
+        return await purge_student_completely(
+            self.session,
+            roll_no,
+            self.student_repo,
+            self.user_repo,
+            self.team_repo,
+        )
+
+    async def get_teams(
+        self,
+        batch: Optional[str] = None,
+        class_name: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        teams = await self.team_repo.list_all(search=search, batch=batch, class_name=class_name)
+        result = []
+        for t in teams:
+            members = [
+                {
+                    "rollNo": m.roll_no,
+                    "name": m.name,
+                    "email": m.email,
+                    "isLead": m.is_lead,
+                    "role": m.member_role,
+                }
+                for m in (t.members or [])
+            ]
+            result.append({
+                "id": str(t.id),
+                "teamId": t.team_id,
+                "teamNo": t.team_no,
+                "projectTitle": t.project_title or "",
+                "batch": t.batch or "",
+                "className": t.class_name or "",
+                "guideName": t.guide_name or "",
+                "guideEmail": t.guide_email or "",
+                "advisorName": t.advisor_name or "",
+                "leadStudent": t.lead_student or "",
+                "leadRollNo": t.lead_roll_no or "",
+                "membersCount": len(members),
+                "status": t.status.value if hasattr(t.status, "value") else (t.status or "In Progress"),
+                "isTitleApproved": bool(t.is_title_approved),
+                "submissionsCount": len(t.submissions or []),
+                "members": members,
+            })
+        return result
+
+    async def delete_team(self, team_id: str) -> Dict[str, Any]:
+        team = await self.team_repo.get_by_team_id_string(team_id)
+        if not team:
+            return {"success": False, "message": f"Team '{team_id}' not found"}
+        res = await purge_team_completely(self.session, team)
         await self.session.commit()
-        return {"success": True, "message": f"Student {roll_no} removed"}
+        return res
+
 
     async def import_students(self, students: list) -> Dict[str, Any]:
         added = 0
