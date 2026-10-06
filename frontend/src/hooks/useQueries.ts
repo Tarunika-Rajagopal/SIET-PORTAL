@@ -2,7 +2,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { ApiClient } from '../services/apiClient';
 import { AdminFaculty, AdminStudent } from '../services/adminService';
 import { AdvisorService, ClassTeam } from '../services/advisorService';
-import { HodService, HodAdvisor, HodTeamDetails, HodFilterOptions } from '../services/hodService';
+import { HodService, HodAdvisor, HodStudent, HodTeamDetails, HodFilterOptions } from '../services/hodService';
 import { HodHistoryService, HodHistoryRecord } from '../services/hodHistoryService';
 import { AdvisorHistoryService } from '../services/advisorHistoryService';
 import { queryClient, QUERY_KEYS } from '../lib/queryClient';
@@ -92,6 +92,19 @@ export function useHodAdvisors(batch?: string, className?: string) {
   return useQuery<HodAdvisor[]>({
     queryKey: QUERY_KEYS.hodAdvisors(batch, className),
     queryFn: () => HodService.fetchAdvisors(batch, className),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook for an individual advisor's students in HOD portal.
+ * Scoped uniquely per advisorId to guarantee complete data isolation.
+ */
+export function useHodAdvisorStudents(advisorId?: string) {
+  return useQuery<HodStudent[]>({
+    queryKey: QUERY_KEYS.hodAdvisorStudents(advisorId || ''),
+    queryFn: () => advisorId ? HodService.fetchAdvisorStudents(advisorId) : Promise.resolve([]),
+    enabled: Boolean(advisorId),
     staleTime: 1000 * 60 * 5,
   });
 }

@@ -35,6 +35,32 @@ export interface ClassTeam {
 type AdvisorListener = () => void;
 const listeners: Set<AdvisorListener> = new Set();
 
+// Repository-wide cleanup: Purge all stale legacy advisor domain cache from localStorage
+if (typeof window !== 'undefined') {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('siet_advisor_teams_') ||
+        key.startsWith('siet_advisor_history_')
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+}
+
+// In-memory cache for advisor teams (authoritative source of truth is PostgreSQL via FastAPI)
+const memoryTeamsCache = new Map<string, ClassTeam[]>();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('siet_auth_logout', () => {
+    memoryTeamsCache.clear();
+  });
+}
+
 function notifyListeners() {
   listeners.forEach(fn => {
     try {
@@ -77,9 +103,8 @@ export const AdvisorService = {
 
     const syncWithRealStudentAndGuide = (teamList: ClassTeam[]): ClassTeam[] => {
       try {
-        // 1. Real-time synchronization for active student team with Student Portal data
+        // Real-time synchronization for active student team with Student Portal data
         const studentTeam = StudentService.getTeam();
-        let matchedActiveTeamId: string | null = null;
 
         if (studentTeam && (studentTeam.id || studentTeam.teamNo)) {
           const sId = (studentTeam.id || '').toLowerCase().trim();
@@ -105,7 +130,6 @@ export const AdvisorService = {
           });
 
           if (activeStudentTeam) {
-            matchedActiveTeamId = activeStudentTeam.teamId;
             const d1 = StudentService.getDeliverables('Submission 1', activeStudentTeam.teamId || studentTeam.id);
             const rawRealTitle = (d1?.projectTitle || studentTeam?.submittedTitle || studentTeam?.projectTitle || '').trim();
 
@@ -125,19 +149,8 @@ export const AdvisorService = {
       return teamList;
     };
 
-    try {
-      const stored = localStorage.getItem(`siet_advisor_teams_${className}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const synced = syncWithRealStudentAndGuide(parsed);
-          return synced;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to parse cached advisor teams', e);
-    }
-    return [];
+    const cached = memoryTeamsCache.get(className) || [];
+    return syncWithRealStudentAndGuide([...cached]);
   },
 
   async fetchTeamsForClass(className: string = ""): Promise<ClassTeam[]> {
@@ -145,22 +158,20 @@ export const AdvisorService = {
     try {
       const serverTeams = await ApiClient.getAdvisorTeams(className);
       if (Array.isArray(serverTeams)) {
-        localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(serverTeams));
+        memoryTeamsCache.set(className, serverTeams);
         return serverTeams;
       }
     } catch (err) {
-      console.warn("Direct /advisor/teams API error, using cached teams fallback:", err);
+      console.error("Direct /advisor/teams API error:", err);
+      throw err;
     }
     return this.getTeamsForClass(className);
   },
 
   saveTeamsForClass(className: string, teams: ClassTeam[]) {
-    try {
-      localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(teams));
-      notifyListeners();
-    } catch (e) {
-      console.error(e);
-    }
+    if (!className) return;
+    memoryTeamsCache.set(className, teams);
+    notifyListeners();
   },
 
   areTeamsCreated(className: string = ""): boolean {
@@ -171,7 +182,7 @@ export const AdvisorService = {
   async getClassStudents(className: string = "", batch: string = ""): Promise<AdminStudent[]> {
     try {
       const serverStudents = await ApiClient.getAdvisorStudents(className, batch);
-      if (Array.isArray(serverStudents) && serverStudents.length > 0) {
+      if (Array.isArray(serverStudents)) {
         return serverStudents;
       }
     } catch (err) {
@@ -314,7 +325,8 @@ export const AdvisorService = {
         })),
       });
     } catch (apiErr) {
-      console.warn("Backend bulk team creation failed, continuing with local sync fallback:", apiErr);
+      console.error("Backend bulk team creation failed:", apiErr);
+      throw apiErr;
     }
 
     this.saveTeamsForClass(className, formattedTeams);
@@ -399,11 +411,12 @@ export const AdvisorService = {
       try {
         const freshServerTeams = await ApiClient.getAdvisorTeams(className);
         if (Array.isArray(freshServerTeams)) {
-          localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(freshServerTeams));
+          memoryTeamsCache.set(className, freshServerTeams);
         }
       } catch {}
-    } catch (err) {
-      console.warn("Backend unassign student API error:", err);
+    } catch (err: any) {
+      console.error("Backend unassign student API error:", err);
+      return { success: false, message: err?.message || 'Failed to unassign student on server.' };
     }
 
     return { success: true, message: `Student ${student?.name || studentRollNo} unassigned from team.` };
@@ -527,11 +540,15 @@ export const AdvisorService = {
       try {
         const freshServerTeams = await ApiClient.getAdvisorTeams(className);
         if (Array.isArray(freshServerTeams) && freshServerTeams.length > 0) {
-          localStorage.setItem(`siet_advisor_teams_${className}`, JSON.stringify(freshServerTeams));
+          memoryTeamsCache.set(className, freshServerTeams);
         }
       } catch {}
-    } catch (apiErr) {
-      console.warn("Backend student transfer API call failed, continuing with local fallback:", apiErr);
+    } catch (apiErr: any) {
+      console.error("Backend student transfer API call failed:", apiErr);
+      return {
+        success: false,
+        message: apiErr?.message || "Failed to transfer student on server. Operation cancelled."
+      };
     }
 
     this.saveTeamsForClass(className, teams);
@@ -593,7 +610,11 @@ export const AdvisorService = {
         return { success: false, message: apiRes.message || "Failed to reassign guide on server." };
       }
     } catch (err: any) {
-      console.warn("Backend reassign-guide error, updating local state:", err);
+      console.error("Backend reassign-guide error:", err);
+      return {
+        success: false,
+        message: err?.message || "Failed to reassign guide on server."
+      };
     }
 
     if (team) {
@@ -756,8 +777,12 @@ export const AdvisorService = {
       if (res && res.team) {
         backendTeam = res.team;
       }
-    } catch (err) {
-      console.warn("Backend team creation failed, continuing with local fallback:", err);
+    } catch (err: any) {
+      console.error("Backend team creation failed:", err);
+      return {
+        success: false,
+        message: err?.message || "Failed to create team on server. Please check your connection."
+      };
     }
 
     const finalTeam: ClassTeam = backendTeam || newTeam;

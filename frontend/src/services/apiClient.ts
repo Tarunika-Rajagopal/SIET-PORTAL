@@ -542,6 +542,9 @@ export const ApiClient = {
      const qs = params.toString() ? `?${params.toString()}` : '';
      return request(`/hod/advisors${qs}`);
    },
+   async getHodAdvisorStudents(advisorId: string): Promise<any[]> {
+     return request(`/hod/advisors/${encodeURIComponent(advisorId)}/students`);
+   },
    async getHodStudents(batch?: string, className?: string): Promise<any[]> {
      const params = new URLSearchParams();
      if (batch && batch !== 'ALL') params.append('batch', batch);

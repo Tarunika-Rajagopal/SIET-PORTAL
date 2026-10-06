@@ -37,15 +37,11 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
   const weekText = `Submission ${currentSubmissionNumber}`;
 
   // Backend-controlled weekly release status (Week 1..4 -> boolean)
-  const [weekReleases, setWeekReleases] = useState<Record<number, boolean>>(() => {
-    try {
-      const stored = localStorage.getItem('siet_week_release_status');
-      if (stored) {
-        const p = JSON.parse(stored);
-        return { 1: Boolean(p['1']), 2: Boolean(p['2']), 3: Boolean(p['3']), 4: Boolean(p['4']) };
-      }
-    } catch (e) {}
-    return { 1: true, 2: true, 3: false, 4: false };
+  const [weekReleases, setWeekReleases] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+    3: false,
+    4: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
@@ -99,26 +95,11 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
       }
     };
 
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'siet_week_release_status' && e.newValue) {
-        try {
-          const r = JSON.parse(e.newValue);
-          setWeekReleases({
-            1: Boolean(r['1']),
-            2: Boolean(r['2']),
-            3: Boolean(r['3']),
-            4: Boolean(r['4']),
-          });
-        } catch (err) {}
-      }
-    };
-
     const handleFocus = () => {
       loadReleases();
     };
 
     window.addEventListener('siet_release_updated', handleReleaseUpdated);
-    window.addEventListener('storage', handleStorage);
     window.addEventListener('focus', handleFocus);
 
     const interval = setInterval(loadReleases, 3000);
@@ -126,7 +107,6 @@ export const SubmissionView: React.FC<SubmissionViewProps> = ({ onSuccess }) => 
     return () => {
       if (bc) bc.close();
       window.removeEventListener('siet_release_updated', handleReleaseUpdated);
-      window.removeEventListener('storage', handleStorage);
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };

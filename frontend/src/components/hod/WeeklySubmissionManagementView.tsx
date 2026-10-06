@@ -53,15 +53,11 @@ export const WeeklySubmissionManagementView: React.FC = () => {
   });
 
   // Real backend release status for each week (week number -> boolean)
-  const [weekReleases, setWeekReleases] = useState<Record<number, boolean>>(() => {
-    try {
-      const stored = localStorage.getItem('siet_week_release_status');
-      if (stored) {
-        const p = JSON.parse(stored);
-        return { 1: Boolean(p['1']), 2: Boolean(p['2']), 3: Boolean(p['3']), 4: Boolean(p['4']) };
-      }
-    } catch (e) {}
-    return { 1: true, 2: true, 3: false, 4: false };
+  const [weekReleases, setWeekReleases] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+    3: false,
+    4: false
   });
   const [updatingReleaseWeek, setUpdatingReleaseWeek] = useState<number | null>(null);
 
@@ -164,26 +160,11 @@ export const WeeklySubmissionManagementView: React.FC = () => {
       }
     };
 
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'siet_week_release_status' && e.newValue) {
-        try {
-          const r = JSON.parse(e.newValue);
-          setWeekReleases({
-            1: Boolean(r['1']),
-            2: Boolean(r['2']),
-            3: Boolean(r['3']),
-            4: Boolean(r['4']),
-          });
-        } catch (err) {}
-      }
-    };
-
     const handleFocus = () => {
       handleRefresh();
     };
 
     window.addEventListener('siet_release_updated', handleLocalReleaseUpdate);
-    window.addEventListener('storage', handleStorage);
     window.addEventListener('focus', handleFocus);
 
     // Heartbeat poll every 4 seconds for bulletproof real-time sync
@@ -194,7 +175,6 @@ export const WeeklySubmissionManagementView: React.FC = () => {
     return () => {
       if (bc) bc.close();
       window.removeEventListener('siet_release_updated', handleLocalReleaseUpdate);
-      window.removeEventListener('storage', handleStorage);
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };

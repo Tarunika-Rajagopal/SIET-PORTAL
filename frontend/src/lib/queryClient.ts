@@ -22,6 +22,7 @@ export const QUERY_KEYS = {
 
   // HOD query keys
   hodAdvisors: (batch?: string, className?: string) => ['hod', 'advisors', batch || 'ALL', className || 'ALL'] as const,
+  hodAdvisorStudents: (advisorId: string) => ['hod', 'advisorStudents', advisorId] as const,
   hodTeams: (batch?: string, className?: string, search?: string) => ['hod', 'teams', batch || 'ALL', className || 'ALL', search || ''] as const,
   hodTeamSubmission: (teamId: string, week: number) => ['hod', 'team-submission', teamId, week] as const,
   hodFilterOptions: ['hod', 'filter-options'] as const,

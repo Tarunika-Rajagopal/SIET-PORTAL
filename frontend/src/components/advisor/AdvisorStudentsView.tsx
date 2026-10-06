@@ -25,7 +25,6 @@ interface AdvisorStudentsViewProps {
   className: string;
   batch: string;
   advisorName: string;
-  onSelectStudentToViewTeam?: (teamNoOrId: string | null, onlyShowTeam?: boolean, student?: AdminStudent) => void;
   onShowToast: (msg: string) => void;
 }
 
@@ -432,16 +431,21 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
       members: TeamMemberRecord[];
     }>
   ) => {
-    await AdvisorService.createTeams(className, batch, capacity, newTeams);
-    setIsCreateTeamOpen(false);
-    AdvisorHistoryService.addLog(
-      className,
-      'Team Formation',
-      `Class ${className}`,
-      `Generated & partitioned ${newTeams.length} teams with capacity of ${capacity} members each.`,
-      advisorName
-    );
-    onShowToast(`Successfully generated and finalized ${newTeams.length} teams.`);
+    try {
+      await AdvisorService.createTeams(className, batch, capacity, newTeams);
+      setIsCreateTeamOpen(false);
+      await refreshData();
+      AdvisorHistoryService.addLog(
+        className,
+        'Team Formation',
+        `Class ${className}`,
+        `Generated & partitioned ${newTeams.length} teams with capacity of ${capacity} members each.`,
+        advisorName
+      );
+      onShowToast(`Successfully generated and finalized ${newTeams.length} teams.`);
+    } catch (err: any) {
+      onShowToast(`Failed to create teams: ${err?.message || 'Server error'}`);
+    }
   };
 
   // Toggle dropdown row when student is clicked (supports multiple rows simultaneously)
@@ -1797,6 +1801,7 @@ export const  AdvisorStudentsView: React.FC<AdvisorStudentsViewProps> = ({
         batch={batch}
         advisorName={advisorName}
         initialStudent={studentForManualTeam}
+        teams={teams}
         onTeamCreated={(newTeam) => {
           setIsManualTeamOpen(false);
           setStudentForManualTeam(null);

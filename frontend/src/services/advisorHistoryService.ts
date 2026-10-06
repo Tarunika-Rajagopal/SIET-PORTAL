@@ -62,6 +62,21 @@ function normalizeLog(log: any): AdvisorHistoryLog {
   };
 }
 
+// Clean up legacy localStorage domain caches and clear memory on logout
+if (typeof window !== 'undefined') {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('siet_advisor_history_')) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch (e) {}
+  window.addEventListener('siet_auth_logout', () => {
+    memoryCache.clear();
+  });
+}
+
 export const AdvisorHistoryService = {
   getStorageKey(className: string = ''): string {
     return `siet_advisor_history_${className}`;
@@ -69,7 +84,7 @@ export const AdvisorHistoryService = {
 
   /**
    * Fetch history from the backend (authoritative source).
-   * Updates the in-memory cache, syncs to localStorage, and notifies listeners.
+   * Updates the in-memory cache and notifies listeners.
    */
   async fetchHistory(className: string = ''): Promise<AdvisorHistoryLog[]> {
     if (!className) return [];
@@ -79,9 +94,6 @@ export const AdvisorHistoryService = {
         ? serverLogs.map(normalizeLog)
         : [];
       memoryCache.set(className, normalized);
-      try {
-        localStorage.setItem(this.getStorageKey(className), JSON.stringify(normalized));
-      } catch (e) {}
       notifyListeners();
       return normalized;
     } catch (e) {
@@ -91,25 +103,11 @@ export const AdvisorHistoryService = {
   },
 
   /**
-   * Get history from the in-memory cache, falling back to localStorage.
+   * Get history from the in-memory cache.
    */
   getHistory(className: string = ''): AdvisorHistoryLog[] {
     if (!className) return [];
-    if (memoryCache.has(className)) {
-      return memoryCache.get(className) || [];
-    }
-    const key = this.getStorageKey(className);
-    try {
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const parsed: AdvisorHistoryLog[] = JSON.parse(stored);
-        const normalized = parsed.map(normalizeLog);
-        memoryCache.set(className, normalized);
-        return normalized;
-      }
-    } catch (e) {}
-
-    return [];
+    return memoryCache.get(className) || [];
   },
 
   /**
@@ -193,7 +191,8 @@ export const AdvisorHistoryService = {
       return normalized.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } catch (e) {
       console.warn('Failed to fetch guide history from backend, falling back to cached logs:', e);
-      const logs = await this.fetchHistory(className || 'CSE-B');
+      if (!className) return [];
+      const logs = await this.fetchHistory(className);
       let guideLogs = logs.filter(log => log.role === 'Faculty Guide');
 
       if (guideName) {
@@ -240,14 +239,16 @@ export const AdvisorHistoryService = {
       actionType,
       target,
       details,
-      classSection: classSection || 'CSE-B'
+      classSection: classSection
     };
 
-    const targetClass = classSection || 'CSE-B';
-    const current = memoryCache.get(targetClass) || [];
-    current.unshift(newLog);
-    memoryCache.set(targetClass, current);
-    notifyListeners();
+    const targetClass = classSection;
+    if (targetClass) {
+      const current = memoryCache.get(targetClass) || [];
+      current.unshift(newLog);
+      memoryCache.set(targetClass, current);
+      notifyListeners();
+    }
 
     ApiClient.logGuideHistory({
       className: classSection,

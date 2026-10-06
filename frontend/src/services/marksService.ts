@@ -62,10 +62,6 @@ function getAliasesForTeam(teamId: string): string[] {
     aliases.add(`TEAM-CSE-${sec}-T${padded}`);
     aliases.add(`${sec}-Team ${num}`);
     aliases.add(`${sec}-Team ${padded}`);
-    aliases.add(`Team ${num}`);
-    aliases.add(`Team ${padded}`);
-    aliases.add(`team-${num}`);
-    aliases.add(`team-${padded}`);
     aliases.add(`${sec}${padded}`);
     return Array.from(aliases);
   }
@@ -381,7 +377,23 @@ export const MarksService = {
     return () => {
       listeners.delete(listener);
     };
+  },
+
+  /**
+   * Clear in-memory marks cache.
+   */
+  clearCache(): void {
+    cachedMarks = {};
+    notifyListeners();
   }
 };
+
+// Background-fetch all marks from backend on module load
+if (typeof window !== 'undefined') {
+  MarksService.fetchAllMarks().catch(() => {});
+  window.addEventListener('siet_auth_logout', () => {
+    MarksService.clearCache();
+  });
+}
 
 export default MarksService;

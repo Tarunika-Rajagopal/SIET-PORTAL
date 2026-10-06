@@ -15,6 +15,7 @@ interface AdvisorManualTeamModalProps {
   batch: string;
   advisorName: string;
   initialStudent?: AdminStudent | null;
+  teams?: ClassTeam[];
   onTeamCreated: (newTeam: ClassTeam) => void;
   onShowToast: (msg: string) => void;
 }
@@ -26,11 +27,12 @@ export const AdvisorManualTeamModal: React.FC<AdvisorManualTeamModalProps> = ({
   batch,
   advisorName,
   initialStudent,
+  teams: propTeams,
   onTeamCreated,
   onShowToast
 }) => {
   const capacity = Math.min(AdvisorService.getTeamCapacity(className), 4);
-  const existingTeams = AdvisorService.getTeamsForClass(className);
+  const existingTeams = propTeams && propTeams.length > 0 ? propTeams : AdvisorService.getTeamsForClass(className);
 
   // Wizard step: 1 (Team & Project) -> 2 (Members & Leader) -> 3 (Guide & Review)
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);

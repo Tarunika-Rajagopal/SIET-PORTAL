@@ -131,74 +131,56 @@ export const HodService = {
 
   // ── Connected Live Backend API methods ───────────────────────────────
   async fetchAdvisors(batchFilter?: string, classFilter?: string): Promise<HodAdvisor[]> {
-    try {
-      const data = await ApiClient.getHodAdvisors(batchFilter, classFilter);
-      if (Array.isArray(data)) {
-        cachedAdvisors = data as HodAdvisor[];
-        return cachedAdvisors;
-      }
-    } catch (e) {
-      console.warn('[HodService] Backend fetchAdvisors failed:', e);
+    const data = await ApiClient.getHodAdvisors(batchFilter, classFilter);
+    if (Array.isArray(data)) {
+      cachedAdvisors = data as HodAdvisor[];
+      return cachedAdvisors;
     }
-    return cachedAdvisors;
+    return [];
+  },
+
+  async fetchAdvisorStudents(advisorId: string): Promise<HodStudent[]> {
+    const data = await ApiClient.getHodAdvisorStudents(advisorId);
+    if (Array.isArray(data)) {
+      return data as HodStudent[];
+    }
+    return [];
   },
 
   async fetchStudents(batchFilter?: string, classFilter?: string): Promise<HodStudent[]> {
-    try {
-      const data = await ApiClient.getHodStudents(batchFilter, classFilter);
-      if (Array.isArray(data)) {
-        cachedStudents = data as HodStudent[];
-        return cachedStudents;
-      }
-    } catch (e) {
-      console.warn('[HodService] Backend fetchStudents failed:', e);
+    const data = await ApiClient.getHodStudents(batchFilter, classFilter);
+    if (Array.isArray(data)) {
+      cachedStudents = data as HodStudent[];
+      return cachedStudents;
     }
-    return cachedStudents;
+    return [];
   },
 
   async fetchTeams(batchFilter?: string, classFilter?: string, searchTerm?: string): Promise<HodTeamDetails[]> {
-    try {
-      const data = await ApiClient.getHodTeams(batchFilter, classFilter, searchTerm);
-      if (Array.isArray(data)) {
-        cachedTeams = data as HodTeamDetails[];
-        return cachedTeams;
-      }
-    } catch (e) {
-      console.warn('[HodService] Backend fetchTeams failed:', e);
+    const data = await ApiClient.getHodTeams(batchFilter, classFilter, searchTerm);
+    if (Array.isArray(data)) {
+      cachedTeams = data as HodTeamDetails[];
+      return cachedTeams;
     }
-    return cachedTeams;
+    return [];
   },
 
   async fetchTeamSubmission(teamId: string, week: number): Promise<WeeklySubmission | null> {
-    try {
-      const data = await ApiClient.getHodTeamSubmission(teamId, week);
-      return data as WeeklySubmission;
-    } catch (e) {
-      console.warn(`[HodService] fetchTeamSubmission failed for team ${teamId} week ${week}:`, e);
-      return null;
-    }
+    const data = await ApiClient.getHodTeamSubmission(teamId, week);
+    return (data as WeeklySubmission) || null;
   },
 
   async fetchFacultyList(): Promise<any[]> {
-    try {
-      const data = await ApiClient.getHodFacultyList();
-      if (Array.isArray(data)) {
-        cachedFaculty = data;
-        return cachedFaculty;
-      }
-    } catch (e) {
-      console.warn('[HodService] Backend fetchFacultyList failed:', e);
+    const data = await ApiClient.getHodFacultyList();
+    if (Array.isArray(data)) {
+      cachedFaculty = data;
+      return cachedFaculty;
     }
-    return cachedFaculty;
+    return [];
   },
 
   async fetchStatistics(): Promise<HodStatistics | null> {
-    try {
-      return await ApiClient.getHodStatistics();
-    } catch (e) {
-      console.warn('[HodService] Backend fetchStatistics failed:', e);
-      return null;
-    }
+    return await ApiClient.getHodStatistics();
   },
 
   async fetchFilterOptions(): Promise<HodFilterOptions> {
@@ -225,54 +207,39 @@ export const HodService = {
   },
 
   async fetchWeekReleases(): Promise<Record<string, boolean>> {
-    try {
-      const res = await ApiClient.getHodWeekReleases();
-      if (res && res.releases) {
-        try {
-          localStorage.setItem('siet_week_release_status', JSON.stringify(res.releases));
-        } catch (e) {}
-        return res.releases;
-      }
-    } catch (e) {
-      console.warn('[HodService] fetchWeekReleases network failure, using cache:', e);
+    const res = await ApiClient.getHodWeekReleases();
+    if (res && res.releases) {
+      return res.releases;
     }
-    try {
-      const cached = localStorage.getItem('siet_week_release_status');
-      if (cached) return JSON.parse(cached);
-    } catch (e) {}
     return { '1': true, '2': true, '3': false, '4': false };
   },
 
   async updateWeekRelease(week: number, released: boolean): Promise<any> {
-    // 1. Instant cross-tab sync via localStorage & BroadcastChannel
-    try {
-      const raw = localStorage.getItem('siet_week_release_status');
-      const cur = raw ? JSON.parse(raw) : { '1': true, '2': true, '3': false, '4': false };
-      cur[String(week)] = Boolean(released);
-      localStorage.setItem('siet_week_release_status', JSON.stringify(cur));
-
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        const bc = new BroadcastChannel('siet_milestone_releases');
-        bc.postMessage({ type: 'RELEASE_UPDATED', week, released, releases: cur });
-        bc.close();
-      }
-    } catch (e) {}
-
-    window.dispatchEvent(new CustomEvent('siet_release_updated', { detail: { week, released } }));
-    window.dispatchEvent(new Event('storage'));
-
-    // 2. Persist to real backend API
+    // 1. Persist to authoritative backend API first
     const res = await ApiClient.updateHodWeekRelease(week, released);
-    if (res && res.releases) {
+
+    // 2. Broadcast and notify listeners after successful backend persistence
+    window.dispatchEvent(new CustomEvent('siet_release_updated', { detail: { week, released } }));
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       try {
-        localStorage.setItem('siet_week_release_status', JSON.stringify(res.releases));
-        if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-          const bc = new BroadcastChannel('siet_milestone_releases');
-          bc.postMessage({ type: 'RELEASE_CONFIRMED', releases: res.releases });
-          bc.close();
-        }
+        const bc = new BroadcastChannel('siet_milestone_releases');
+        bc.postMessage({ type: 'RELEASE_CONFIRMED', week, released, releases: res?.releases });
+        bc.close();
       } catch (e) {}
     }
     return res;
+  },
+
+  clearCache(): void {
+    cachedAdvisors = [];
+    cachedTeams = [];
+    cachedStudents = [];
+    cachedFaculty = [];
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('siet_auth_logout', () => {
+    HodService.clearCache();
+  });
+}

@@ -34,16 +34,11 @@ export const HodHistoryService = {
    * Updates in-memory cache and notifies listeners.
    */
   async fetchHistory(): Promise<HodHistoryRecord[]> {
-    try {
-      const serverLogs = await ApiClient.getHodHistory();
-      const normalized = Array.isArray(serverLogs) ? serverLogs : [];
-      cachedHistory = normalized;
-      notify();
-      return normalized;
-    } catch (e) {
-      console.warn('Failed to fetch HOD history from backend:', e);
-      return cachedHistory;
-    }
+    const serverLogs = await ApiClient.getHodHistory();
+    const normalized = Array.isArray(serverLogs) ? serverLogs : [];
+    cachedHistory = normalized;
+    notify();
+    return normalized;
   },
 
   /**
@@ -96,10 +91,23 @@ export const HodHistoryService = {
   subscribe(listener: HistoryListener): () => void {
     listeners.add(listener);
     return () => listeners.delete(listener);
+  },
+
+  /**
+   * Clear in-memory history cache.
+   */
+  clearCache(): void {
+    cachedHistory = [];
+    notify();
   }
 };
 
 // Background-fetch from backend on module load
 if (typeof window !== 'undefined') {
   HodHistoryService.fetchHistory().catch(() => {});
+  window.addEventListener('siet_auth_logout', () => {
+    HodHistoryService.clearCache();
+  });
 }
+
+export default HodHistoryService;

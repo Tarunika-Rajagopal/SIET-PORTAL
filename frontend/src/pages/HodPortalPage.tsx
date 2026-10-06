@@ -30,10 +30,14 @@ export const HodPortalPage: React.FC = () => {
 
   // 1. Advisor row clicked -> moves to Students navigation
   const handleSelectAdvisor = (batch: string, className: string) => {
-    setSelectedBatch(batch);
-    setSelectedClass(className);
+    if (!className) {
+      showToast('Advisor is unassigned with no class or section.');
+      return;
+    }
+    setSelectedBatch(batch || 'ALL');
+    setSelectedClass(className || 'ALL');
     setActiveTab('students');
-    showToast(`Switched to Class ${className} (${batch}) students.`);
+    showToast(`Switched to Class ${className} (${batch || 'All Batches'}) teams.`);
   };
 
   // 2. Student row clicked -> stays in Students view where inspection modal is open
@@ -85,6 +89,16 @@ export const HodPortalPage: React.FC = () => {
           icon={<Calendar size={15} strokeWidth={activeTab === 'submissions' ? 2.25 : 1.75} />}
         >
           Weekly Submissions
+        </PillNavTab>
+
+        {/* 4. Action History Tab */}
+        <PillNavTab
+          id="tabHodHistory"
+          isActive={activeTab === 'history'}
+          onClick={() => handleTabClick('history')}
+          icon={<History size={15} strokeWidth={activeTab === 'history' ? 2.25 : 1.75} />}
+        >
+          Action History
         </PillNavTab>
       </Header>
 

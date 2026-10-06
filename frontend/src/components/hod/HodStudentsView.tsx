@@ -10,7 +10,7 @@ import { formatProjectTitle, getSubmissionTitle } from '../../utils/titleUtils';
 import { 
   Search, UserCheck, CheckCircle2, RefreshCw, ChevronDown, ChevronUp, 
   Users, FolderGit2, FileText, Download, ExternalLink, Github, Award,
-  Edit3, Save, X, Clock, Eye, Loader2
+  Edit3, Save, X, Clock, Eye, Loader2, AlertCircle
 } from 'lucide-react';
 import { WeeklySubmission } from '../../types';
 
@@ -55,6 +55,8 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   const [draftMemberMarks, setDraftMemberMarks] = useState<Record<string, number>>({});
   const [draftRemarks, setDraftRemarks] = useState('');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  const [saveErrorMsg, setSaveErrorMsg] = useState('');
+  const [isSavingMarks, setIsSavingMarks] = useState(false);
 
   // Subscribe to real-time marks updates
   useEffect(() => {
@@ -78,10 +80,10 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
 
   // Update filters when props change
   useEffect(() => {
-    if (selectedBatch) setBatchFilter(selectedBatch);
-    else if (initialBatch) setBatchFilter(initialBatch);
-    if (selectedClass) setClassFilter(selectedClass);
-    else if (initialClass) setClassFilter(initialClass);
+    if (selectedBatch !== undefined) setBatchFilter(selectedBatch || 'ALL');
+    else if (initialBatch !== undefined) setBatchFilter(initialBatch || 'ALL');
+    if (selectedClass !== undefined) setClassFilter(selectedClass || 'ALL');
+    else if (initialClass !== undefined) setClassFilter(initialClass || 'ALL');
   }, [selectedBatch, selectedClass, initialBatch, initialClass]);
 
   // Query hooks
@@ -130,7 +132,10 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     refetchAdvisors();
   }, [refetchTeams, refetchAdvisors]);
 
-  const currentAdvisor = advisors.find(a => a.assignedClass === classFilter);
+  const currentAdvisor = advisors.find(a =>
+    a.assignedClass === classFilter &&
+    (!batchFilter || batchFilter === 'ALL' || !a.batch || a.batch === batchFilter)
+  );
 
   // Helper to get initials
   const getUserInitials = (name: string) => {
@@ -146,6 +151,8 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     setActiveModalSub(sub);
     setIsEditingMarks(false);
     setSaveSuccessMsg('');
+    setSaveErrorMsg('');
+    setIsSavingMarks(false);
 
     // Pre-populate marks draft
     const subNum = (sub as any).submissionNumber || (sub as any).weekNumber || sub.week || 1;
@@ -193,11 +200,30 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     if (!activeModalTeam || !activeModalSub) return;
 
     const subNum = (activeModalSub as any).submissionNumber || (activeModalSub as any).weekNumber || activeModalSub.week || 1;
-
-    // 0. Log action to HodHistoryService for audit tracking
     const currentUser = AuthService.getCurrentUser();
     const hodAuthor = currentUser?.name ? `${currentUser.name} (HOD / CSE)` : 'HOD / CSE';
 
+    setIsSavingMarks(true);
+    setSaveErrorMsg('');
+    setSaveSuccessMsg('');
+
+    // 1. Call backend API to persist marks in database
+    try {
+      await ApiClient.saveWeeklyMarks(
+        activeModalTeam.id,
+        subNum,
+        draftMemberMarks,
+        draftRemarks,
+        hodAuthor
+      );
+    } catch (e: any) {
+      console.error('[HodStudentsView] Backend saveWeeklyMarks failed:', e);
+      setIsSavingMarks(false);
+      setSaveErrorMsg(e?.message || 'Failed to save marks to the backend database. Please check your network and permissions.');
+      return;
+    }
+
+    // 2. Log action to HodHistoryService for audit tracking ONLY after database persistence
     try {
       HodHistoryService.logAction({
         actionType: 'Marks Overridden',
@@ -242,6 +268,7 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     invalidateTeamsQuery();
     MarksService.fetchAllMarks().catch(() => {});
 
+    setIsSavingMarks(false);
     setIsEditingMarks(false);
     setSaveSuccessMsg('Marks saved and synchronized successfully to Student, Advisor, and Guide portals.');
     setTimeout(() => setSaveSuccessMsg(''), 4000);
@@ -690,6 +717,14 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                 </div>
               )}
 
+              {/* Toast Error Message inside Modal */}
+              {saveErrorMsg && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-900 rounded-xl text-xs font-bold flex items-center gap-2">
+                  <AlertCircle size={16} className="text-rose-700 shrink-0" />
+                  <span>{saveErrorMsg}</span>
+                </div>
+              )}
+
               {/* Section: Deliverables Breakdown (exact or red Not Submitted) */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-1 border-b border-[#D8CCBA]">
@@ -1044,9 +1079,18 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                       <button
                         type="button"
                         onClick={handleSaveMarks}
-                        className="px-5 py-2 rounded-xl bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        disabled={isSavingMarks}
+                        className="px-5 py-2 rounded-xl bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] disabled:opacity-60 disabled:cursor-not-allowed font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm"
                       >
-                        <Save size={14} /> Save Changes
+                        {isSavingMarks ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" /> Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save size={14} /> Save Changes
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>

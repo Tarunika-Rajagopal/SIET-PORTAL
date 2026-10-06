@@ -103,19 +103,17 @@ function buildDefaultTeamFromUser(): StudentTeamExtended {
 
 export const DEFAULT_COMPLETED_WEEKS: WeeklySubmission[] = [];
 
+let memoryWeekReleases: Record<string, boolean> = { '1': true, '2': true, '3': false, '4': false };
+
 export const StudentService = {
   getCurrentAcademicWeek(): number {
     try {
-      const cached = localStorage.getItem('siet_week_release_status');
-      if (cached) {
-        const releases = JSON.parse(cached);
-        const releasedWeeks = Object.entries(releases)
-          .filter(([_, released]) => Boolean(released))
-          .map(([w]) => Number(w))
-          .filter(w => !Number.isNaN(w));
-        if (releasedWeeks.length > 0) {
-          return Math.max(...releasedWeeks);
-        }
+      const releasedWeeks = Object.entries(memoryWeekReleases)
+        .filter(([_, released]) => Boolean(released))
+        .map(([w]) => Number(w))
+        .filter(w => !Number.isNaN(w));
+      if (releasedWeeks.length > 0) {
+        return Math.max(...releasedWeeks);
       }
     } catch {}
     return 1;
@@ -198,19 +196,13 @@ export const StudentService = {
     try {
       const res = await ApiClient.getStudentWeekReleases();
       if (res && res.releases) {
-        try {
-          localStorage.setItem('siet_week_release_status', JSON.stringify(res.releases));
-        } catch (e) { }
+        memoryWeekReleases = res.releases;
         return res.releases;
       }
     } catch (e) {
-      console.warn('[StudentService] fetchWeekReleases network failure, using cache:', e);
+      console.warn('[StudentService] fetchWeekReleases network failure, using in-memory state:', e);
     }
-    try {
-      const cached = localStorage.getItem('siet_week_release_status');
-      if (cached) return JSON.parse(cached);
-    } catch (e) { }
-    return { '1': true };
+    return memoryWeekReleases;
   },
 
   isCurrentUserTeamLead(teamToCheck?: Team | StudentTeamExtended): boolean {

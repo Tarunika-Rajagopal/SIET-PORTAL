@@ -77,6 +77,22 @@ async def get_advisors(
     return data
 
 
+@router.get("/advisors/{advisor_id}/students")
+async def get_advisor_students(
+    advisor_id: str,
+    user: User = Depends(require_roles("hod")),
+    service: HODService = Depends(get_hod_service),
+):
+    cache_key = f"cache:hod:advisors:{advisor_id}:students"
+    cached = await cache_service.get_json(cache_key)
+    if cached is not None:
+        return cached
+    data = await service.get_advisor_students(advisor_id)
+    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    return data
+
+
+
 @router.get("/students")
 async def get_students(
     batch: Optional[str] = None,
