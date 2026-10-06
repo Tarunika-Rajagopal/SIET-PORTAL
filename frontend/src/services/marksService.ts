@@ -90,6 +90,10 @@ export const MarksService = {
    * Updates in-memory cache and notifies listeners.
    */
   async fetchAllMarks(): Promise<Record<string, Record<number, WeeklyMarksRecord>>> {
+    const hasToken = !!(sessionStorage.getItem('siet_auth_token') || localStorage.getItem('siet_auth_token') || sessionStorage.getItem('siet_auth_user_v5') || localStorage.getItem('siet_auth_user_v5') || sessionStorage.getItem('siet_auth_user') || localStorage.getItem('siet_auth_user'));
+    if (!hasToken) {
+      return cachedMarks;
+    }
     try {
       const serverMarks = await ApiClient.getAllWeeklyMarks();
       if (serverMarks && typeof serverMarks === 'object' && Object.keys(serverMarks).length > 0) {
@@ -362,10 +366,5 @@ export const MarksService = {
     };
   }
 };
-
-// Background-fetch all marks from backend on module load
-if (typeof window !== 'undefined') {
-  MarksService.fetchAllMarks().catch(() => {});
-}
 
 export default MarksService;
