@@ -236,6 +236,15 @@ class TeamRepository:
         res = await self.session.execute(q.order_by(Team.team_no))
         return list(res.scalars().all())
 
+    async def list_all_with_members_only(self) -> List[Team]:
+        """Lightweight variant of list_all that only eagerly loads members (not submissions).
+        Use this for endpoints like marks/all that never need submission data."""
+        q = select(Team).options(
+            selectinload(Team.members),
+        ).order_by(Team.team_no)
+        res = await self.session.execute(q)
+        return list(res.scalars().all())
+
     async def create(self, team: Team) -> Team:
         self.session.add(team)
         return team

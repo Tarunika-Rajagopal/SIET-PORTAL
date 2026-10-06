@@ -28,7 +28,7 @@ async def get_all_marks(
     if cached is not None:
         return cached
     data = await service.get_all_marks()
-    await cache_service.set_json(cache_key, data, expire_seconds=60)
+    await cache_service.set_json(cache_key, data, expire_seconds=300)
     return data
 
 

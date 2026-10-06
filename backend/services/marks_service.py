@@ -95,7 +95,7 @@ class MarksService:
     async def get_all_marks(self) -> Dict[str, Dict[int, Any]]:
         rows = await self.marks_repo.list_all_marks()
         result: Dict[str, Dict[int, Any]] = {}
-        teams = await self.team_repo.list_all()
+        teams = await self.team_repo.list_all_with_members_only()
         team_id_to_no = {str(t.id): t.team_no for t in teams}
         team_id_to_str_id = {str(t.id): t.team_id for t in teams}
         team_id_to_class = {str(t.id): (t.class_name or "") for t in teams}
