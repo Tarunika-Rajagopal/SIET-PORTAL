@@ -137,11 +137,11 @@ async def seed_test_data():
         )
         session.add(tm)
 
-        # 4. Test Weekly Submissions
+        # 4. Test Weekly Submissions - strictly 1 completed submission (Week 1)
         weeks_data = [
             (1, "Problem Statement & Scope Formulation", "Approved", 88.0, "Approved. Thorough scope."),
-            (2, "Literature Survey & Related Works", "Approved", 92.0, "Clear architectural justification."),
-            (3, "Dataset Collection & Preprocessing", "Submitted", None, "Awaiting review."),
+            (2, "Literature Survey & Related Works", "Pending", None, None),
+            (3, "Dataset Collection & Preprocessing", "Pending", None, None),
             (4, "System Architecture & Block Diagram", "Pending", None, None),
         ]
         for w, title, status_val, score_val, comm in weeks_data:

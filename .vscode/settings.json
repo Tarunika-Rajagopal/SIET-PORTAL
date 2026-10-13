@@ -1,0 +1,7 @@
+{
+  "terminal.integrated.windowsEnableConpty": false,
+  "terminal.integrated.gpuAcceleration": "off",
+  "terminal.integrated.enablePersistentSessions": false,
+  "terminal.integrated.shellIntegration.enabled": false,
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
+}

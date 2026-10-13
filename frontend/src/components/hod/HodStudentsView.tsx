@@ -13,6 +13,8 @@ import {
   Edit3, Save, X, Clock, Eye, Loader2, AlertCircle
 } from 'lucide-react';
 import { WeeklySubmission } from '../../types';
+import { RubricEvaluationModal } from '../common/RubricEvaluationModal';
+import { HodRubricPdfModal } from './HodRubricPdfModal';
 
 interface HodStudentsViewProps {
   selectedBatch?: string;
@@ -59,26 +61,8 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
   const [isSavingMarks, setIsSavingMarks] = useState(false);
-
-  // Subscribe to real-time marks updates
-  useEffect(() => {
-    MarksService.fetchAllMarks().catch(() => {});
-    const unsub = MarksService.subscribe(() => {
-      setMarksTick(n => n + 1);
-    });
-    const handleSync = () => {
-      setMarksTick(n => n + 1);
-    };
-    window.addEventListener('siet_marks_updated', handleSync);
-    window.addEventListener('siet_data_updated', handleSync);
-    window.addEventListener('storage', handleSync);
-    return () => {
-      unsub();
-      window.removeEventListener('siet_marks_updated', handleSync);
-      window.removeEventListener('siet_data_updated', handleSync);
-      window.removeEventListener('storage', handleSync);
-    };
-  }, []);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
 
   // Update filters when props change
   useEffect(() => {
@@ -103,6 +87,29 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     refetch: refetchAdvisors
   } = useHodAdvisors(batchFilter, classFilter);
 
+  // Subscribe to real-time marks updates & invalidate HOD queries
+  useEffect(() => {
+    MarksService.fetchAllMarks().catch(() => {});
+    const unsub = MarksService.subscribe(() => {
+      setMarksTick(n => n + 1);
+      refetchTeams();
+    });
+    const handleSync = () => {
+      setMarksTick(n => n + 1);
+      invalidateHodTeamsQuery();
+      refetchTeams();
+    };
+    window.addEventListener('siet_marks_updated', handleSync);
+    window.addEventListener('siet_data_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      unsub();
+      window.removeEventListener('siet_marks_updated', handleSync);
+      window.removeEventListener('siet_data_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [refetchTeams]);
+
   const [detailedSubsByTeam, setDetailedSubsByTeam] = useState<Record<string, Record<number, WeeklySubmission>>>({});
 
   // Merge liveTeamsData with any detailed submissions loaded in this session
@@ -125,9 +132,19 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
   // Helper to determine if a review is completed
   const isReviewCompleted = useCallback((team: HodTeamDetails, revNum: number): boolean => {
     const sub = team.submissions?.find(s => s.week === revNum);
+    const memberRolls = team.members?.map(m => m.rollNo) || [];
+    const wMarks = MarksService.getWeeklyMarks(team.id, revNum, memberRolls);
+    const hasMarks = Boolean(
+      wMarks && (
+        (wMarks.teamAverage !== undefined && wMarks.teamAverage > 0) ||
+        (wMarks.memberMarks && Object.values(wMarks.memberMarks).some(v => typeof v === 'number' && v > 0))
+      )
+    );
+    const isApprovedOrEvaluated = sub?.status === 'Approved' || (sub?.status as string) === 'Evaluated';
+    const hasValidScore = typeof sub?.score === 'number' && sub.score > 0;
     return Boolean(
-      sub?.isCompleted ?? 
-      (sub?.status === 'Submitted' || sub?.status === 'Approved')
+      hasMarks ||
+      (isApprovedOrEvaluated && (sub?.isCompleted || hasValidScore))
     );
   }, []);
 
@@ -180,19 +197,68 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
     return name.slice(0, 2).toUpperCase();
   };
 
+  // Resolve all milestone submissions for a team, including advisor-evaluated milestones
+  const getTeamDisplaySubmissions = useCallback((team: HodTeamDetails): WeeklySubmission[] => {
+    const subsMap = new Map<number, WeeklySubmission>();
+    (team.submissions || []).forEach(s => {
+      if (s && s.week) subsMap.set(s.week, s);
+    });
+    const memberRolls = team.members?.map(m => m.rollNo) || [];
+    for (let w = 1; w <= 4; w++) {
+      const wMarks = MarksService.getWeeklyMarks(team.id, w, memberRolls);
+      if (wMarks && (wMarks.teamAverage > 0 || (wMarks.memberMarks && Object.values(wMarks.memberMarks).some(v => typeof v === 'number' && v > 0)))) {
+        const existing = subsMap.get(w);
+        if (existing) {
+          subsMap.set(w, {
+            ...existing,
+            status: 'Approved',
+            isCompleted: true,
+            score: wMarks.teamAverage > 0 ? wMarks.teamAverage : existing.score,
+            comments: existing.comments || wMarks.remarks || '',
+            guideName: wMarks.gradedBy || existing.guideName || 'Class Advisor',
+          });
+        } else {
+          subsMap.set(w, {
+            week: w,
+            weekNumber: w,
+            title: `Review ${w} Milestone Submission`,
+            dueDate: '',
+            status: 'Approved',
+            isCompleted: true,
+            score: wMarks.teamAverage,
+            comments: wMarks.remarks || '',
+            guideName: wMarks.gradedBy || 'Class Advisor',
+            submissionDate: wMarks.gradedAt ? new Date(wMarks.gradedAt).toLocaleDateString('en-GB') : '',
+            projectTitle: team.projectTitle || '',
+          } as WeeklySubmission);
+        }
+      }
+    }
+    return Array.from(subsMap.values()).sort((a, b) => a.week - b.week);
+  }, []);
+
   // Helper to open view submission modal
   const handleOpenSubmissionModal = async (team: HodTeamDetails, sub: WeeklySubmission) => {
+    const subNum = (sub as any).submissionNumber || (sub as any).weekNumber || sub.week || 1;
+    const wMarks = MarksService.getWeeklyMarks(team.id, subNum, team.members.map(m => m.rollNo)) ||
+                   (subNum === 1 ? MarksService.getWeeklyMarks(team.id, 0, team.members.map(m => m.rollNo)) : null);
+
+    const enhancedSub: WeeklySubmission = {
+      ...sub,
+      score: (wMarks && wMarks.teamAverage > 0) ? wMarks.teamAverage : sub.score,
+      comments: sub.comments || wMarks?.remarks || '',
+      guideName: wMarks?.gradedBy || sub.guideName || 'Class Advisor',
+      status: (wMarks && wMarks.teamAverage > 0) ? 'Approved' : sub.status,
+    };
+
     setActiveModalTeam(team);
-    setActiveModalSub(sub);
+    setActiveModalSub(enhancedSub);
     setIsEditingMarks(false);
     setSaveSuccessMsg('');
     setSaveErrorMsg('');
     setIsSavingMarks(false);
 
     // Pre-populate marks draft
-    const subNum = (sub as any).submissionNumber || (sub as any).weekNumber || sub.week || 1;
-    const wMarks = MarksService.getWeeklyMarks(team.id, subNum, team.members.map(m => m.rollNo)) ||
-                   (subNum === 1 ? MarksService.getWeeklyMarks(team.id, 0, team.members.map(m => m.rollNo)) : null);
     const initialMarks: Record<string, number> = {};
     team.members.forEach(m => {
       initialMarks[m.rollNo] = wMarks?.memberMarks?.[m.rollNo] ?? (wMarks?.teamAverage || 0);
@@ -402,6 +468,17 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
+
+          {/* Download Rubric PDF Button */}
+          <button
+            type="button"
+            onClick={() => setIsPdfModalOpen(true)}
+            title="Download PDF of all students as Rubrix"
+            className="px-3.5 py-1.5 bg-[#111111] hover:bg-[#292725] text-[#F8F5EE] border border-[#111111] rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs"
+          >
+            <Download size={13} />
+            <span>Rubric PDF</span>
+          </button>
         </div>
 
       </div>
@@ -596,25 +673,55 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                         {/* Four Reviews: Review 1, Review 2, Review 3, Review 4 */}
                         {[1, 2, 3, 4].map((revNum) => {
                           const isCompleted = isReviewCompleted(team, revNum);
+                          const teamDisplaySubs = getTeamDisplaySubmissions(team);
+                          const sub = teamDisplaySubs.find(s => s.week === revNum);
 
                           return (
                             <td 
                               key={revNum} 
-                              className="p-4 text-center whitespace-nowrap"
-                              onClick={(e) => e.stopPropagation()}
+                              className={`p-4 text-center whitespace-nowrap ${isCompleted ? 'cursor-pointer hover:bg-emerald-50/50 transition-colors' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isCompleted) {
+                                  const targetSub = sub || ({
+                                    week: revNum,
+                                    weekNumber: revNum,
+                                    title: `Review ${revNum} Milestone Submission`,
+                                    dueDate: '',
+                                    status: 'Approved',
+                                    isCompleted: true,
+                                    projectTitle: team.projectTitle || '',
+                                  } as WeeklySubmission);
+                                  handleOpenSubmissionModal(team, targetSub);
+                                }
+                              }}
                             >
                               <div className="flex items-center justify-center">
                                 {isCompleted ? (
-                                  <div
-                                    title={`Review ${revNum}: Completed`}
-                                    className="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center shadow-2xs border border-emerald-600"
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const targetSub = sub || ({
+                                        week: revNum,
+                                        weekNumber: revNum,
+                                        title: `Review ${revNum} Milestone Submission`,
+                                        dueDate: '',
+                                        status: 'Approved',
+                                        isCompleted: true,
+                                        projectTitle: team.projectTitle || '',
+                                      } as WeeklySubmission);
+                                      handleOpenSubmissionModal(team, targetSub);
+                                    }}
+                                    title={`Review ${revNum}: Completed — Click to view submission & edit rubric marks`}
+                                    className="w-6 h-6 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-xs border border-emerald-500 hover:scale-110 hover:ring-2 hover:ring-emerald-300 transition cursor-pointer"
                                   >
-                                    <Check size={12} strokeWidth={3} />
-                                  </div>
+                                    <Check size={13} strokeWidth={3} />
+                                  </button>
                                 ) : (
                                   <div
                                     title={`Review ${revNum}: Not Completed`}
-                                    className="w-5 h-5 rounded-md bg-rose-50 text-rose-600 border border-rose-300 flex items-center justify-center shadow-2xs"
+                                    className="w-5 h-5 rounded-md bg-rose-50 text-rose-600 border border-rose-300 flex items-center justify-center shadow-2xs opacity-70"
                                   >
                                     <X size={12} strokeWidth={2.5} />
                                   </div>
@@ -707,88 +814,94 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
                                   </div>
 
                                   {/* Submissions List */}
-                                  {team.submissions && team.submissions.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {team.submissions.slice(0, 4).map((sub) => {
-                                        const weekNum = sub.week;
-                                        const subNumber = (sub as any).submissionNumber || (sub as any).weekNumber || sub.week || 1;
-                                        const wMarks = MarksService.getWeeklyMarks(team.id, subNumber, team.members.map(m => m.rollNo)) ||
-                                                       (subNumber === 1 ? MarksService.getWeeklyMarks(team.id, 0, team.members.map(m => m.rollNo)) : null);
-                                        const isApproved = sub.status === 'Approved';
-                                        const isRejected = sub.status === 'Rejected' || sub.status === 'Changes Requested';
+                                  {(() => {
+                                    const teamDisplaySubs = getTeamDisplaySubmissions(team);
+                                    if (teamDisplaySubs.length === 0) {
+                                      return (
+                                        <div className="p-6 text-center text-[#75695A] bg-[#FAF8F4] rounded-xl border border-[#D8CCBA]">
+                                          <p className="font-semibold text-xs">No deliverables submitted by this team yet.</p>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {teamDisplaySubs.slice(0, 4).map((sub) => {
+                                          const weekNum = sub.week;
+                                          const subNumber = (sub as any).submissionNumber || (sub as any).weekNumber || sub.week || 1;
+                                          const wMarks = MarksService.getWeeklyMarks(team.id, subNumber, team.members.map(m => m.rollNo)) ||
+                                                         (subNumber === 1 ? MarksService.getWeeklyMarks(team.id, 0, team.members.map(m => m.rollNo)) : null);
+                                          const isApproved = sub.status === 'Approved';
+                                          const isRejected = sub.status === 'Rejected' || sub.status === 'Changes Requested';
 
-                                        return (
-                                          <div
-                                            key={weekNum}
-                                            className="p-4 rounded-xl border border-[#D8CCBA] bg-[#FAF8F4] hover:bg-[#F3EFE6] transition flex flex-col justify-between gap-3 shadow-2xs"
-                                          >
-                                            <div className="flex items-start justify-between gap-2">
-                                              <div>
-                                                <div className="flex items-center gap-2">
-                                                  <span className="px-2 py-0.5 rounded-md bg-[#EDE7DB] text-[#111111] font-bold text-[10px] uppercase border border-[#D8CCBA]">
-                                                    Submission {subNumber}
-                                                  </span>
-                                                  <span className="text-[11px] font-mono text-[#75695A]">
-                                                    {sub.submissionDate || 'Submitted'}
-                                                  </span>
+                                          return (
+                                            <div
+                                              key={weekNum}
+                                              className="p-4 rounded-xl border border-[#D8CCBA] bg-[#FAF8F4] hover:bg-[#F3EFE6] transition flex flex-col justify-between gap-3 shadow-2xs"
+                                            >
+                                              <div className="flex items-start justify-between gap-2">
+                                                <div>
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="px-2 py-0.5 rounded-md bg-[#EDE7DB] text-[#111111] font-bold text-[10px] uppercase border border-[#D8CCBA]">
+                                                      Submission {subNumber}
+                                                    </span>
+                                                    <span className="text-[11px] font-mono text-[#75695A]">
+                                                      {sub.submissionDate || 'Submitted'}
+                                                    </span>
+                                                  </div>
+                                                  <h5 className="font-bold text-[#111111] text-xs mt-1.5 line-clamp-1">
+                                                    {sub.title || `Milestone Submission ${subNumber}`}
+                                                  </h5>
                                                 </div>
-                                                <h5 className="font-bold text-[#111111] text-xs mt-1.5 line-clamp-1">
-                                                  {sub.title || `Milestone Submission ${subNumber}`}
-                                                </h5>
-                                              </div>
 
-                                              {/* Status Badge */}
-                                              {isApproved ? (
-                                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-[10px] shrink-0">
-                                                  Approved
-                                                </span>
-                                              ) : isRejected ? (
-                                                <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 font-extrabold text-[10px] shrink-0">
-                                                  Revision Required
-                                                </span>
-                                              ) : (
-                                                <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-extrabold text-[10px] shrink-0">
-                                                  Pending
-                                                </span>
-                                              )}
-                                            </div>
-
-                                            {/* Marks & View Submission Button */}
-                                            <div className="pt-2 border-t border-[#D8CCBA] flex items-center justify-between gap-2">
-                                              <div>
-                                                {wMarks && wMarks.teamAverage > 0 ? (
-                                                  <span className="text-[11px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 inline-flex items-center gap-1">
-                                                    <Award size={11} /> Avg: {wMarks.teamAverage}/100
+                                                {/* Status Badge */}
+                                                {isApproved ? (
+                                                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-[10px] shrink-0">
+                                                    Approved
+                                                  </span>
+                                                ) : isRejected ? (
+                                                  <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 font-extrabold text-[10px] shrink-0">
+                                                    Revision Required
                                                   </span>
                                                 ) : (
-                                                  <span className="text-[11px] text-slate-400 italic font-medium">
-                                                    Ungraded
+                                                  <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-extrabold text-[10px] shrink-0">
+                                                    Pending
                                                   </span>
                                                 )}
                                               </div>
 
-                                              {/* View Submission Action Button */}
-                                              <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleOpenSubmissionModal(team, sub);
-                                                }}
-                                                className="px-3 py-1 rounded-lg bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                                              >
-                                                <Eye size={12} />
-                                                <span>View Submission</span>
-                                              </button>
+                                              {/* Marks & View Submission Button */}
+                                              <div className="pt-2 border-t border-[#D8CCBA] flex items-center justify-between gap-2">
+                                                <div>
+                                                  {wMarks && wMarks.teamAverage > 0 ? (
+                                                    <span className="text-[11px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 inline-flex items-center gap-1 font-mono">
+                                                      <Award size={11} /> Avg: {wMarks.teamAverage}/20
+                                                    </span>
+                                                  ) : (
+                                                    <span className="text-[11px] text-slate-400 italic font-medium">
+                                                      Ungraded
+                                                    </span>
+                                                  )}
+                                                </div>
+
+                                                {/* View Submission Action Button */}
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleOpenSubmissionModal(team, sub);
+                                                  }}
+                                                  className="px-3 py-1 rounded-lg bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                                >
+                                                  <Eye size={12} />
+                                                  <span>View Submission</span>
+                                                </button>
+                                              </div>
                                             </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <div className="p-6 text-center text-[#75695A] bg-[#FAF8F4] rounded-xl border border-[#D8CCBA]">
-                                      <p className="font-semibold text-xs">No deliverables submitted by this team yet.</p>
-                                    </div>
-                                  )}
+                                          );
+                                        })}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               )}
 
@@ -1048,192 +1161,122 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
 
               </div>
 
-              {/* Section: Individual Member Marks Assigned by Guide & Average Score */}
+              {/* Section: Individual Member Rubric Marks (20 Marks Total) & Average Score */}
               <div className="pt-4 border-t border-[#D8CCBA] space-y-4">
                 <div className="flex items-center justify-between pb-1 border-b border-[#D8CCBA]">
                   <div className="flex items-center gap-2">
                     <Award size={16} className="text-[#111111]" />
                     <span className="font-serif font-bold text-[#111111] text-xs uppercase tracking-wider">
-                      Student Individual Marks &amp; Auto-Calculated Team Average
+                      Student Evaluation Rubric Breakdown (Max: 20 Marks)
                     </span>
                   </div>
 
-                  {!isEditingMarks && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingMarks(true)}
-                      className="px-3 py-1.5 rounded-xl bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <Edit3 size={13} /> Edit Marks
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsRubricModalOpen(true)}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Edit3 size={13} />
+                    <span>Evaluate / Edit Rubric Marks</span>
+                  </button>
                 </div>
 
-                {/* View Mode */}
-                {!isEditingMarks ? (
-                  <div className="space-y-3">
-                    <div className="bg-[#FAF8F4] rounded-2xl p-4 border border-[#D8CCBA] space-y-3">
-                      {(() => {
-                        const subNum = (activeModalSub as any).submissionNumber || (activeModalSub as any).weekNumber || activeModalSub.week || 1;
-                        const wMarks = MarksService.getWeeklyMarks(activeModalTeam.id, subNum, activeModalTeam.members.map(x => x.rollNo)) ||
-                                       (subNum === 1 ? MarksService.getWeeklyMarks(activeModalTeam.id, 0, activeModalTeam.members.map(x => x.rollNo)) : null);
+                {/* Rubric View Table */}
+                <div className="bg-[#FAF8F4] rounded-2xl p-4 border border-[#D8CCBA] space-y-3">
+                  {(() => {
+                    const subNum = (activeModalSub as any).submissionNumber || (activeModalSub as any).weekNumber || activeModalSub.week || 1;
+                    const wMarks = MarksService.getWeeklyMarks(activeModalTeam.id, subNum, activeModalTeam.members.map(x => x.rollNo)) ||
+                                   (subNum === 1 ? MarksService.getWeeklyMarks(activeModalTeam.id, 0, activeModalTeam.members.map(x => x.rollNo)) : null);
 
-                        return (
-                          <>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    return (
+                      <>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs border-collapse">
+                            <thead>
+                              <tr className="border-b border-[#D8CCBA] text-[#75695A] text-[10px] uppercase font-bold text-center">
+                                <th className="py-2 text-left">Student Candidate</th>
+                                <th className="py-2 px-1" title="System Design (Max 5)">System Design (5)</th>
+                                <th className="py-2 px-1" title="Presentation & Interaction (Max 5)">Presentation (5)</th>
+                                <th className="py-2 px-1" title="Technical Skills (Max 5)">Tech Skills (5)</th>
+                                <th className="py-2 px-1" title="Implementation Progress (Max 5)">Progress (5)</th>
+                                <th className="py-2 px-2 text-right">Total (20)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#EDE7DB]">
                               {activeModalTeam.members.map((m) => {
-                                const score = wMarks?.memberMarks?.[m.rollNo];
+                                const rno = m.rollNo.trim();
+                                const rubric = wMarks?.memberRubrics?.[rno];
+                                const rawMark = wMarks?.memberMarks?.[rno];
+                                let sd = rubric?.systemDesign ?? 0;
+                                let pi = rubric?.presentationInteraction ?? 0;
+                                let ts = rubric?.technicalSkills ?? 0;
+                                let ip = rubric?.implementationProgress ?? 0;
+                                let total = rubric?.total ?? (typeof rawMark === 'number' && rawMark > 0 ? Math.min(rawMark, 20) : (sd + pi + ts + ip));
+                                const isEvaluated = total > 0 || rubric;
 
                                 return (
-                                  <div
-                                    key={m.rollNo}
-                                    className="p-3 bg-white rounded-xl border border-[#D8CCBA] flex items-center justify-between shadow-2xs"
-                                  >
-                                    <div>
-                                      <span className="font-bold text-[#111111] text-xs block">
-                                        {m.name}
-                                      </span>
-                                      <span className="font-mono text-[10px] text-[#75695A]">
-                                        {m.rollNo} {m.isLead && '• Lead'}
-                                      </span>
-                                    </div>
-
-                                    <div>
-                                      {score !== undefined ? (
-                                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-200">
-                                          {score} / 100
+                                  <tr key={m.rollNo} className="hover:bg-white/60 transition">
+                                    <td className="py-2.5">
+                                      <div className="font-bold text-[#111111]">
+                                        {m.name} {m.isLead && <span className="text-[10px] text-[#75695A] font-semibold">• Lead</span>}
+                                      </div>
+                                      <div className="font-mono text-[10px] text-[#75695A]">{m.rollNo}</div>
+                                    </td>
+                                    <td className="py-2.5 text-center font-mono font-semibold text-[#111111]">
+                                      {isEvaluated ? sd.toFixed(1) : '-'}
+                                    </td>
+                                    <td className="py-2.5 text-center font-mono font-semibold text-[#111111]">
+                                      {isEvaluated ? pi.toFixed(1) : '-'}
+                                    </td>
+                                    <td className="py-2.5 text-center font-mono font-semibold text-[#111111]">
+                                      {isEvaluated ? ts.toFixed(1) : '-'}
+                                    </td>
+                                    <td className="py-2.5 text-center font-mono font-semibold text-[#111111]">
+                                      {isEvaluated ? ip.toFixed(1) : '-'}
+                                    </td>
+                                    <td className="py-2.5 text-right">
+                                      {isEvaluated ? (
+                                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-black text-xs border border-emerald-200 inline-block font-mono">
+                                          {total.toFixed(1)} / 20
                                         </span>
                                       ) : (
                                         <span className="text-slate-400 text-[11px] italic font-semibold">
-                                          Unassigned
+                                          Ungraded
                                         </span>
                                       )}
-                                    </div>
-                                  </div>
+                                    </td>
+                                  </tr>
                                 );
                               })}
-                            </div>
+                            </tbody>
+                          </table>
+                        </div>
 
-                            {/* Average Score Banner */}
-                            <div className="pt-2 border-t border-[#D8CCBA] flex items-center justify-between text-xs">
-                              <div>
-                                <span className="text-[#75695A] font-bold uppercase tracking-wider text-[11px] block">
-                                  Team Calculated Average Score:
-                                </span>
-                                {wMarks?.gradedBy && (
-                                  <span className="text-[10px] text-[#75695A] font-medium">
-                                    Evaluated by: <strong className="text-[#111111]">{wMarks.gradedBy}</strong>
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-sm font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-xl border border-emerald-300 shadow-2xs">
-                                {wMarks && wMarks.teamAverage > 0 ? `${wMarks.teamAverage} / 100` : 'Unassigned'}
+                        {/* Average Score Banner & Feedback */}
+                        <div className="pt-3 border-t border-[#D8CCBA] flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div>
+                            <span className="text-[#75695A] font-bold uppercase tracking-wider text-[10px] block">
+                              Team Calculated Average Score:
+                            </span>
+                            {wMarks?.gradedBy && (
+                              <span className="text-[10px] text-[#75695A] font-medium">
+                                Evaluated by: <strong className="text-[#111111]">{wMarks.gradedBy}</strong>
                               </span>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                ) : (
-                  /* Edit Marks Mode */
-                  <div className="bg-[#FAF8F4] rounded-2xl p-4 border border-[#D8CCBA] space-y-4">
-                    <p className="text-[11px] text-[#75695A] font-medium">
-                      HOD Override: Modify marks assigned by Advisor or Guide individually for each student candidate (0-100). The updated score is auto-calculated and synchronized immediately across all portals.
-                    </p>
-
-                    <div className="space-y-2.5">
-                      {activeModalTeam.members.map((m) => {
-                        const val = draftMemberMarks[m.rollNo] ?? 0;
-
-                        return (
-                          <div
-                            key={m.rollNo}
-                            className="p-3 bg-white rounded-xl border border-[#D8CCBA] flex items-center justify-between gap-3 shadow-2xs"
-                          >
-                            <div>
-                              <span className="font-bold text-[#111111] text-xs block">
-                                {m.name}
-                              </span>
-                              <span className="font-mono text-[10px] text-[#75695A]">
-                                {m.rollNo} {m.isLead && '• Lead'}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={val}
-                                onChange={(e) => {
-                                  const num = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                                  setDraftMemberMarks(prev => ({
-                                    ...prev,
-                                    [m.rollNo]: num
-                                  }));
-                                }}
-                                className="w-16 px-2 py-1 bg-[#F8F5EE] border border-[#D8CCBA] rounded-lg text-center font-bold text-xs text-[#111111] focus:outline-none focus:border-[#111111]"
-                              />
-                              <span className="text-slate-500 font-bold text-xs">/ 100</span>
-                            </div>
+                            )}
+                            {wMarks?.remarks && (
+                              <p className="text-[11px] text-[#111111] mt-0.5 italic">
+                                Feedback: &ldquo;{wMarks.remarks}&rdquo;
+                              </p>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Live Calculated Average */}
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
-                      <span className="font-extrabold text-emerald-950 text-xs uppercase tracking-wider">
-                        Auto-Calculated Average Score:
-                      </span>
-                      <span className="text-base font-black text-emerald-950">
-                        {draftAverage} / 100
-                      </span>
-                    </div>
-
-                    {/* Remarks Input */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-[#75695A] uppercase tracking-wider">
-                        Evaluation Remarks / Guide Feedback:
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={draftRemarks}
-                        onChange={(e) => setDraftRemarks(e.target.value)}
-                        className="w-full p-2.5 bg-white border border-[#D8CCBA] rounded-xl text-xs text-[#111111] focus:outline-none focus:border-[#111111]"
-                      />
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#D8CCBA]">
-                      <button
-                        type="button"
-                        onClick={() => setIsEditingMarks(false)}
-                        className="px-4 py-2 rounded-xl border border-[#D8CCBA] text-[#75695A] hover:bg-[#EDE7DB] font-bold text-xs transition cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveMarks}
-                        disabled={isSavingMarks}
-                        className="px-5 py-2 rounded-xl bg-[#111111] text-[#F8F5EE] hover:bg-[#292725] disabled:opacity-60 disabled:cursor-not-allowed font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm"
-                      >
-                        {isSavingMarks ? (
-                          <>
-                            <Loader2 size={14} className="animate-spin" /> Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save size={14} /> Save Changes
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
+                          <span className="text-sm font-black text-emerald-800 bg-emerald-100 px-3 py-1 rounded-xl border border-emerald-300 shadow-2xs font-mono">
+                            {wMarks && wMarks.teamAverage > 0 ? `${wMarks.teamAverage.toFixed(1)} / 20` : 'Ungraded'}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
 
             </div>
@@ -1259,6 +1302,52 @@ export const HodStudentsView: React.FC<HodStudentsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Rubric Evaluation Modal for HOD */}
+      {activeModalTeam && activeModalSub && (
+        <RubricEvaluationModal
+          isOpen={isRubricModalOpen}
+          onClose={() => setIsRubricModalOpen(false)}
+          teamId={activeModalTeam.id}
+          teamNo={activeModalTeam.teamNo}
+          projectTitle={activeModalTeam.projectTitle}
+          weekNumber={(activeModalSub as any).submissionNumber || (activeModalSub as any).weekNumber || activeModalSub.week || 1}
+          members={activeModalTeam.members}
+          evaluatorRole="hod"
+          evaluatorName={AuthService.getCurrentUser()?.name || 'HOD / CSE'}
+          onSuccess={(teamAvg) => {
+            const subNum = (activeModalSub as any).submissionNumber || (activeModalSub as any).weekNumber || activeModalSub.week || 1;
+            const currentUser = AuthService.getCurrentUser();
+            const hodAuthor = currentUser?.name ? `${currentUser.name} (HOD / CSE)` : 'HOD / CSE';
+            try {
+              HodHistoryService.logAction({
+                actionType: 'Marks Overridden',
+                target: `${activeModalTeam.teamNo} (Review ${subNum})`,
+                classSection: activeModalTeam.classSection,
+                batch: activeModalTeam.batch,
+                details: `HOD updated rubric evaluation marks for ${activeModalTeam.teamNo} (Review ${subNum}) with average score ${teamAvg}/20.`,
+                performedBy: hodAuthor
+              });
+            } catch (e) {
+              console.error('Failed to log HOD history:', e);
+            }
+            setSaveSuccessMsg('Rubric marks saved successfully and synchronized across all portals!');
+            setTimeout(() => setSaveSuccessMsg(''), 4000);
+            invalidateHodTeamsQuery();
+            invalidateTeamsQuery();
+            MarksService.fetchAllMarks().catch(() => {});
+          }}
+        />
+      )}
+
+      {/* HOD Rubric PDF Export Modal */}
+      <HodRubricPdfModal
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
+        teams={teams}
+        initialBatch={batchFilter}
+        initialClass={classFilter}
+      />
 
     </div>
   );

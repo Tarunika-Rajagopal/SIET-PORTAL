@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, distinct, delete, or_
 
-from models import WeeklySubmission, TeamMember, Team, GuideNotice
+from models import WeeklySubmission, TeamMember, Team, GuideNotice, WeeklyMark
 
 
 class SubmissionRepository:
@@ -92,27 +92,29 @@ class SubmissionRepository:
         """Get submission metrics for weeks 1 through 4."""
         weeks_summary = []
         for w in [1, 2, 3, 4]:
-            # Count distinct students in teams with submissions for week w
-            q_students = (
-                select(func.count(distinct(TeamMember.id)))
-                .select_from(WeeklySubmission)
-                .join(TeamMember, WeeklySubmission.team_id == TeamMember.team_id)
-                .where(WeeklySubmission.week == w)
+            q_sub_teams = select(WeeklySubmission.team_id).where(WeeklySubmission.week == w)
+            q_wm_teams = select(WeeklyMark.team_id).where(WeeklyMark.week_number == w)
+            combined_team_condition = or_(
+                TeamMember.team_id.in_(q_sub_teams),
+                TeamMember.team_id.in_(q_wm_teams)
             )
+
+            # Count distinct students in teams with submissions or evaluations for week w
+            q_students = select(func.count(distinct(TeamMember.id))).where(combined_team_condition)
             student_count = (await self.session.execute(q_students)).scalar() or 0
 
-            # Count of submission records for this week
-            q_subs = (
-                select(func.count())
-                .select_from(WeeklySubmission)
-                .where(WeeklySubmission.week == w)
+            # Distinct team count for submissions or evaluations
+            q_teams_sub = (
+                select(TeamMember.team_id)
+                .where(combined_team_condition)
+                .distinct()
             )
-            sub_count = (await self.session.execute(q_subs)).scalar() or 0
+            sub_count = (await self.session.execute(select(func.count()).select_from(q_teams_sub.subquery()))).scalar() or 0
 
             if sub_count > 0 and student_count == 0:
                 student_count = sub_count * 4
 
-            status = "Submitted" if student_count > 0 else "Empty"
+            status = "Submitted" if (student_count > 0 or sub_count > 0) else "Empty"
             weeks_summary.append({
                 "week": w,
                 "studentCount": student_count,

@@ -163,6 +163,44 @@ class AdvisorService:
                     "comments": s.comments or (wm.remarks if wm else "") or "",
                 })
 
+            for w in (1, 2, 3, 4):
+                if w not in seen_weeks:
+                    wm = marks_by_team_week.get((t.id, w))
+                    if wm:
+                        member_marks = {}
+                        member_rubrics = {}
+                        if wm.member_marks:
+                            for mm in wm.member_marks:
+                                if mm.roll_no:
+                                    rno = mm.roll_no.strip()
+                                    tot = float(mm.mark) if mm.mark is not None else 0.0
+                                    member_marks[rno] = tot
+                                    member_rubrics[rno] = {
+                                        "systemDesign": float(mm.system_design or 0.0),
+                                        "presentationInteraction": float(mm.presentation_interaction or 0.0),
+                                        "technicalSkills": float(mm.technical_skills or 0.0),
+                                        "implementationProgress": float(mm.implementation_progress or 0.0),
+                                        "total": tot,
+                                    }
+                        score_val = float(wm.team_average) if wm.team_average is not None else 0.0
+                        submissions_list.append({
+                            "id": str(wm.id),
+                            "week": w,
+                            "weekNumber": w,
+                            "title": f"Week {w} Deliverables",
+                            "dueDate": "",
+                            "status": "Approved",
+                            "submissionDate": wm.graded_at.strftime("%d %b %Y") if wm.graded_at else "",
+                            "score": score_val,
+                            "memberMarks": member_marks,
+                            "memberRubrics": member_rubrics,
+                            "maxScore": 20.0,
+                            "projectTitle": t.project_title or "",
+                            "guideName": wm.graded_by or "Class Advisor",
+                            "guideReviewDate": wm.graded_at.strftime("%d %b %Y") if wm.graded_at else "",
+                            "comments": wm.remarks or "",
+                        })
+
             st["submissions"] = sorted(submissions_list, key=lambda x: x["week"])
             out.append(st)
         return out

@@ -5,15 +5,27 @@ from typing import Optional, List, Dict, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, distinct, or_
+from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
-from models import Team, TeamMember, HodHistory, Student, Faculty, User, Setting
+from models import (
+    Team,
+    TeamMember,
+    HodHistory,
+    Student,
+    Faculty,
+    User,
+    Setting,
+    WeeklyMark,
+    WeeklyMemberMark,
+)
 from repositories.user_repository import UserRepository
 from repositories.team_repository import TeamRepository
 from repositories.submission_repository import SubmissionRepository
 from repositories.audit_repository import AuditRepository
 from repositories.faculty_repository import FacultyRepository
 from repositories.student_repository import StudentRepository
+from repositories.marks_repository import MarksRepository
 
 
 def _ser_hod_team(t: Team, members: Optional[List[TeamMember]] = None) -> Dict[str, Any]:
@@ -60,6 +72,7 @@ class HODService:
         self.audit_repo = AuditRepository(session)
         self.faculty_repo = FacultyRepository(session)
         self.student_repo = StudentRepository(session)
+        self.marks_repo = MarksRepository(session)
 
     async def get_advisor_students(self, advisor_id: str) -> List[Dict[str, Any]]:
         """Return the exact isolated list of enrolled students for a specific advisor ID."""
@@ -303,6 +316,17 @@ class HODService:
     ) -> List[Dict[str, Any]]:
         teams = await self.team_repo.list_all(batch=batch_filter, class_name=class_filter)
         result = []
+        team_ids = [t.id for t in teams]
+        marks_by_team_week = {}
+        if team_ids:
+            marks_res = await self.session.execute(
+                select(WeeklyMark)
+                .options(selectinload(WeeklyMark.member_marks))
+                .where(WeeklyMark.team_id.in_(team_ids))
+            )
+            for wm in marks_res.scalars().all():
+                marks_by_team_week[(wm.team_id, wm.week_number)] = wm
+
         for t in teams:
             mbrs = t.members or []
             team_dict = _ser_hod_team(t, mbrs)
@@ -315,32 +339,115 @@ class HODService:
                 in_advisor = sq in (t.advisor_name or "").lower()
                 if not (in_title or in_team or in_members or in_guide or in_advisor):
                     continue
-            subs = sorted(t.submissions or [], key=lambda s: s.week if s.week is not None else 0)
-            team_dict["submissions"] = [
-                {
+
+            t_subs = list(t.submissions or [])
+            seen_weeks = {s.week for s in t_subs if s.week is not None}
+
+            submissions_list = []
+            for s in sorted(t_subs, key=lambda x: x.week if x.week is not None else 0):
+                wm = marks_by_team_week.get((t.id, s.week))
+                member_marks = {}
+                member_rubrics = {}
+                if wm and wm.member_marks:
+                    for mm in wm.member_marks:
+                        if mm.roll_no:
+                            rno = mm.roll_no.strip()
+                            tot = float(mm.mark) if mm.mark is not None else 0.0
+                            member_marks[rno] = tot
+                            member_rubrics[rno] = {
+                                "systemDesign": float(mm.system_design or 0.0),
+                                "presentationInteraction": float(mm.presentation_interaction or 0.0),
+                                "technicalSkills": float(mm.technical_skills or 0.0),
+                                "implementationProgress": float(mm.implementation_progress or 0.0),
+                                "total": tot,
+                            }
+
+                score_val = float(wm.team_average) if (wm and wm.team_average is not None) else (float(s.score) if s.score is not None else None)
+                is_evaluated = score_val is not None and score_val > 0
+                status_val = s.status.value if hasattr(s.status, "value") else (s.status or "Pending")
+                if is_evaluated and status_val not in ("Changes Requested", "Rejected", "Revision Required"):
+                    status_val = "Approved"
+                is_comp = bool(s.is_completed) if hasattr(s, "is_completed") and s.is_completed is not None else False
+                if is_evaluated or (status_val in ("Approved", "Evaluated") and is_comp):
+                    is_comp = True
+                elif status_val in ("Submitted", "Pending", "Changes Requested", "Rejected", "Revision Required"):
+                    is_comp = False
+
+                submissions_list.append({
                     "id": str(s.id),
                     "week": s.week,
                     "weekNumber": s.week,
                     "title": s.title or f"Week {s.week}",
                     "dueDate": s.due_date or "",
-                    "status": s.status.value if hasattr(s.status, "value") else (s.status or "Pending"),
-                    "isCompleted": bool(s.is_completed) if hasattr(s, "is_completed") and s.is_completed is not None else (s.status in ("Submitted", "Approved")),
-                    "submissionDate": s.submission_date or "",
+                    "status": status_val,
+                    "isCompleted": is_comp,
+                    "submissionDate": s.submission_date or (wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else ""),
                     "fileName": s.file_name or "",
                     "fileSize": s.file_size or "",
-                    "comments": s.comments or "",
-                    "score": float(s.score) if s.score is not None else None,
-                    "maxScore": float(s.max_score) if s.max_score is not None else 100.0,
+                    "comments": (wm.remarks if wm and wm.remarks else "") or s.comments or "",
+                    "score": score_val,
+                    "maxScore": float(s.max_score) if s.max_score is not None else 20.0,
                     "projectTitle": s.project_title or t.project_title or "",
-                    "guideName": s.guide_name or t.guide_name or "",
-                    "guideReviewDate": s.guide_review_date or "",
-                }
-                for s in subs
-            ]
+                    "guideName": (wm.graded_by if wm and wm.graded_by else "") or s.guide_name or t.guide_name or "",
+                    "guideReviewDate": (wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else "") or s.guide_review_date or "",
+                    "memberMarks": member_marks,
+                    "memberRubrics": member_rubrics,
+                })
+
+            # For any milestone week (1..4) that has a WeeklyMark but was not in t.submissions:
+            for w in (1, 2, 3, 4):
+                if w not in seen_weeks:
+                    wm = marks_by_team_week.get((t.id, w))
+                    if wm:
+                        member_marks = {}
+                        member_rubrics = {}
+                        if wm.member_marks:
+                            for mm in wm.member_marks:
+                                if mm.roll_no:
+                                    rno = mm.roll_no.strip()
+                                    tot = float(mm.mark) if mm.mark is not None else 0.0
+                                    member_marks[rno] = tot
+                                    member_rubrics[rno] = {
+                                        "systemDesign": float(mm.system_design or 0.0),
+                                        "presentationInteraction": float(mm.presentation_interaction or 0.0),
+                                        "technicalSkills": float(mm.technical_skills or 0.0),
+                                        "implementationProgress": float(mm.implementation_progress or 0.0),
+                                        "total": tot,
+                                    }
+                        score_val = float(wm.team_average) if wm.team_average is not None else 0.0
+                        submissions_list.append({
+                            "id": str(wm.id),
+                            "week": w,
+                            "weekNumber": w,
+                            "title": f"Week {w} Deliverables",
+                            "dueDate": "",
+                            "status": "Approved",
+                            "isCompleted": True,
+                            "submissionDate": wm.graded_at.strftime("%d %b %Y") if wm.graded_at else "",
+                            "fileName": "",
+                            "fileSize": "",
+                            "comments": wm.remarks or "",
+                            "score": score_val,
+                            "maxScore": 20.0,
+                            "projectTitle": t.project_title or "",
+                            "guideName": wm.graded_by or "Class Advisor",
+                            "guideReviewDate": wm.graded_at.strftime("%d %b %Y") if wm.graded_at else "",
+                            "memberMarks": member_marks,
+                            "memberRubrics": member_rubrics,
+                        })
+
+            submissions_list.sort(key=lambda x: x["week"])
+            team_dict["submissions"] = submissions_list
+
             review_map = {
-                s.week: bool(s.is_completed) if hasattr(s, "is_completed") and s.is_completed is not None else (s.status in ("Submitted", "Approved"))
-                for s in subs if s.week is not None
+                s["week"]: s["isCompleted"]
+                for s in submissions_list if s.get("week") is not None
             }
+            for w in (1, 2, 3, 4):
+                wm = marks_by_team_week.get((t.id, w))
+                if wm and wm.team_average is not None and wm.team_average > 0:
+                    review_map[w] = True
+
             team_dict["reviews"] = [
                 {"reviewNumber": r, "isCompleted": review_map.get(r, False)}
                 for r in (1, 2, 3, 4)
@@ -362,42 +469,72 @@ class HODService:
             return None
 
         sub = await self.sub_repo.get_by_team_and_week(team.id, week)
-        if not sub:
+        wm = await self.marks_repo.get_weekly_mark(team.id, week)
+
+        if not sub and not wm:
             return None
 
+        member_marks = {}
+        member_rubrics = {}
+        if wm and wm.member_marks:
+            for mm in wm.member_marks:
+                if mm.roll_no:
+                    rno = mm.roll_no.strip()
+                    tot = float(mm.mark) if mm.mark is not None else 0.0
+                    member_marks[rno] = tot
+                    member_rubrics[rno] = {
+                        "systemDesign": float(mm.system_design or 0.0),
+                        "presentationInteraction": float(mm.presentation_interaction or 0.0),
+                        "technicalSkills": float(mm.technical_skills or 0.0),
+                        "implementationProgress": float(mm.implementation_progress or 0.0),
+                        "total": tot,
+                    }
+
+        score_val = float(wm.team_average) if (wm and wm.team_average is not None) else (float(sub.score) if (sub and sub.score is not None) else None)
+        is_evaluated = score_val is not None and score_val > 0
+        raw_status = sub.status.value if (sub and hasattr(sub.status, "value")) else ((sub.status if sub else None) or "Pending")
+        status_val = "Approved" if (is_evaluated and raw_status not in ("Changes Requested", "Rejected", "Revision Required")) else raw_status
+        is_comp = bool(sub.is_completed) if (sub and hasattr(sub, "is_completed") and sub.is_completed is not None) else False
+        if is_evaluated or status_val in ("Submitted", "Approved", "Evaluated"):
+            is_comp = True
+
+        tech_used = (sub.technology_used if sub else "") or ""
+
         return {
-            "id": str(sub.id),
+            "id": str(sub.id) if sub else str(wm.id),
             "teamId": team.team_id or str(team.id),
-            "week": sub.week,
-            "weekNumber": sub.week,
-            "title": sub.title or f"Week {sub.week}",
-            "dueDate": sub.due_date or "",
-            "status": sub.status.value if hasattr(sub.status, "value") else (sub.status or "Pending"),
-            "isCompleted": bool(sub.is_completed) if hasattr(sub, "is_completed") and sub.is_completed is not None else (sub.status in ("Submitted", "Approved")),
-            "submissionDate": sub.submission_date or "",
-            "fileName": sub.file_name or "",
-            "fileSize": sub.file_size or "",
-            "comments": sub.comments or "",
-            "score": float(sub.score) if sub.score is not None else None,
-            "maxScore": float(sub.max_score) if sub.max_score is not None else 100.0,
-            "projectTitle": sub.project_title or team.project_title or "",
-            "problemStatement": sub.problem_statement or "",
-            "solution": sub.solution or "",
-            "proposedSolution": sub.solution or "",
-            "technologyUsed": sub.technology_used or "",
-            "technologiesUsed": [x.strip() for x in (sub.technology_used or "").split(",") if x.strip()],
-            "obstaclesFaced": sub.obstacles_faced or "",
-            "problemsFaced": sub.obstacles_faced or "",
-            "abstract": sub.abstract or "",
-            "abstractSummary": sub.abstract or "",
-            "presentationFile": sub.presentation_file or "",
-            "pdfFile": sub.pdf_file or "",
-            "repoUrl": sub.repo_url or "",
-            "githubUrl": sub.repo_url or "",
-            "demoUrl": sub.demo_url or "",
-            "liveDemoUrl": sub.demo_url or "",
-            "guideName": sub.guide_name or team.guide_name or "",
-            "guideReviewDate": sub.guide_review_date or "",
+            "week": week,
+            "weekNumber": week,
+            "title": (sub.title if sub else "") or f"Week {week}",
+            "dueDate": (sub.due_date if sub else "") or "",
+            "status": status_val,
+            "isCompleted": is_comp,
+            "submissionDate": (sub.submission_date if sub else "") or (wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else ""),
+            "fileName": (sub.file_name if sub else "") or "",
+            "fileSize": (sub.file_size if sub else "") or "",
+            "comments": (wm.remarks if wm and wm.remarks else "") or (sub.comments if sub else "") or "",
+            "score": score_val,
+            "memberMarks": member_marks,
+            "memberRubrics": member_rubrics,
+            "maxScore": float(sub.max_score) if (sub and sub.max_score is not None) else 20.0,
+            "projectTitle": (sub.project_title if sub else "") or team.project_title or "",
+            "problemStatement": (sub.problem_statement if sub else "") or "",
+            "solution": (sub.solution if sub else "") or "",
+            "proposedSolution": (sub.solution if sub else "") or "",
+            "technologyUsed": tech_used,
+            "technologiesUsed": [x.strip() for x in tech_used.split(",") if x.strip()],
+            "obstaclesFaced": (sub.obstacles_faced if sub else "") or "",
+            "problemsFaced": (sub.obstacles_faced if sub else "") or "",
+            "abstract": (sub.abstract if sub else "") or "",
+            "abstractSummary": (sub.abstract if sub else "") or "",
+            "presentationFile": (sub.presentation_file if sub else "") or "",
+            "pdfFile": (sub.pdf_file if sub else "") or "",
+            "repoUrl": (sub.repo_url if sub else "") or "",
+            "githubUrl": (sub.repo_url if sub else "") or "",
+            "demoUrl": (sub.demo_url if sub else "") or "",
+            "liveDemoUrl": (sub.demo_url if sub else "") or "",
+            "guideName": (wm.graded_by if wm and wm.graded_by else "") or (sub.guide_name if sub else "") or team.guide_name or "",
+            "guideReviewDate": (wm.graded_at.strftime("%d %b %Y") if wm and wm.graded_at else "") or (sub.guide_review_date if sub else "") or "",
         }
 
     async def get_faculty_list(self) -> List[Dict[str, Any]]:

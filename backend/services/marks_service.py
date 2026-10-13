@@ -1,13 +1,23 @@
-"""Marks service - weekly marks CRUD and authorization for teams."""
 import uuid
+import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+
+logger = logging.getLogger("marks_service")
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from models import WeeklyMark, WeeklyMemberMark, Team, TeamMember, User
+from models import (
+    WeeklyMark,
+    WeeklyMemberMark,
+    Team,
+    TeamMember,
+    User,
+    WeeklySubmission,
+    SubmissionStatusEnum,
+)
 from repositories.team_repository import TeamRepository
 from repositories.marks_repository import MarksRepository
 from repositories.submission_repository import SubmissionRepository
@@ -305,23 +315,9 @@ class MarksService:
                     )
                 )
             try:
-                sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
-                if sub:
-                    sub.score = avg
-                    sub.max_score = 20.0
-                    if remarks:
-                        sub.comments = remarks
-                    if avg > 0:
-                        sub.status = "Approved"
-                        sub.is_completed = True
-                if avg > 0 and week_number == 1 and team:
-                    team.is_title_approved = True
-                    team.guide_approval_status = "Approved"
-                    team.status = "Approved"
-                if avg > 0 and team:
-                    team.progress = max(team.progress or 0, min(100, week_number * 25))
-            except Exception:
-                pass
+                await self._sync_submission_on_marks(team, week_number, avg, remarks, graded_by)
+            except Exception as sync_err:
+                logger.warning(f"Could not sync weekly submission on marks update: {sync_err}")
             await self.session.commit()
             return {"success": True, "message": "Marks updated", "teamAverage": avg, "memberMarks": parsed_member_totals}
         else:
@@ -349,25 +345,51 @@ class MarksService:
                     )
                 )
             try:
-                sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
-                if sub:
-                    sub.score = avg
-                    sub.max_score = 20.0
-                    if remarks:
-                        sub.comments = remarks
-                    if avg > 0:
-                        sub.status = "Approved"
-                        sub.is_completed = True
-                if avg > 0 and week_number == 1 and team:
-                    team.is_title_approved = True
-                    team.guide_approval_status = "Approved"
-                    team.status = "Approved"
-                if avg > 0 and team:
-                    team.progress = max(team.progress or 0, min(100, week_number * 25))
-            except Exception:
-                pass
+                await self._sync_submission_on_marks(team, week_number, avg, remarks, graded_by)
+            except Exception as sync_err:
+                logger.warning(f"Could not sync weekly submission on marks create: {sync_err}")
             await self.session.commit()
             return {"success": True, "message": "Marks saved", "teamAverage": avg, "memberMarks": parsed_member_totals}
+
+    async def _sync_submission_on_marks(
+        self, team: Team, week_number: int, avg: float, remarks: str, graded_by: str
+    ) -> None:
+        sub = await self.sub_repo.get_by_team_and_week(team.id, week_number)
+        today_str = datetime.now().strftime("%d %b %Y")
+        if sub:
+            sub.score = avg
+            sub.max_score = 20.0
+            if remarks:
+                sub.comments = remarks
+            if avg > 0:
+                sub.status = SubmissionStatusEnum.approved
+                sub.is_completed = True
+            sub.guide_name = graded_by
+            sub.guide_review_date = today_str
+        else:
+            sub = WeeklySubmission(
+                id=uuid.uuid4(),
+                team_id=team.id,
+                week=week_number,
+                title=f"Week {week_number} Deliverables",
+                score=avg,
+                max_score=20.0,
+                comments=remarks or "",
+                status=SubmissionStatusEnum.approved if avg > 0 else SubmissionStatusEnum.submitted,
+                is_completed=(avg > 0),
+                submission_date=today_str,
+                guide_name=graded_by,
+                guide_review_date=today_str,
+                project_title=team.project_title or "",
+            )
+            await self.sub_repo.create(sub)
+
+        if avg > 0 and week_number == 1 and team:
+            team.is_title_approved = True
+            team.guide_approval_status = "Approved"
+            team.status = "Approved"
+        if avg > 0 and team:
+            team.progress = max(team.progress or 0, min(100, week_number * 25))
 
     async def delete_weekly_marks(
         self, team_id: str, week_number: Optional[int] = None
